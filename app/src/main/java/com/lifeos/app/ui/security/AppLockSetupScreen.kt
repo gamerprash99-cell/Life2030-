@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -128,30 +129,51 @@ fun AppLockSetupScreen(onBack: () -> Unit) {
                 SetupStep.EXPLAIN_BIOMETRIC -> {
                     Text("Biometric App Lock", style = MaterialTheme.typography.titleLarge)
                     Text(
-                        "LifeOS will ask Android to verify your fingerprint, face, or device PIN/pattern " +
-                            "before opening. LifeOS never receives your actual fingerprint or face data. " +
-                            "Android's secure hardware handles the check and only tells LifeOS whether it succeeded.",
+                        "LifeOS uses Android's official biometric prompt. Your fingerprint or face data stays with Android; LifeOS only receives the authentication result.",
                         style = MaterialTheme.typography.bodyMedium
                     )
+                    HorizontalDivider()
+                    val biometricReady = locator.appLockManager.isBiometricAvailable()
+                    if (!biometricReady) {
+                        Text(
+                            "No usable biometric is enrolled on this device yet. Enroll a fingerprint or face in Android settings, then return here.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Button(
+                            onClick = {
+                                val act = activity
+                                if (act == null || !locator.appLockManager.openBiometricEnrollment(act)) {
+                                    biometricError = "Android could not open biometric enrollment. Open your device Security settings and enroll a biometric."
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Set up fingerprint / biometric") }
+                    } else {
+                        Text(
+                            "A biometric is ready. Verify it once to enable LifeOS App Lock.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Button(
+                            onClick = {
+                                val act = activity
+                                if (act == null) {
+                                    biometricError = "Couldn't start biometric verification here."
+                                } else {
+                                    locator.appLockManager.authenticate(
+                                        activity = act,
+                                        onSuccess = {
+                                            scope.launch { locator.settingsStore.enableBiometricLock() }
+                                            step = SetupStep.DONE
+                                        },
+                                        onError = { message -> biometricError = message }
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Verify and enable") }
+                    }
                     biometricError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    Button(
-                        onClick = {
-                            val act = activity
-                            if (act == null) {
-                                biometricError = "Couldn't start biometric verification here."
-                            } else {
-                                locator.appLockManager.authenticate(
-                                    activity = act,
-                                    onSuccess = {
-                                        scope.launch { locator.settingsStore.enableBiometricLock() }
-                                        step = SetupStep.DONE
-                                    },
-                                    onError = { message -> biometricError = message }
-                                )
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Verify and enable") }
                     TextButton(onClick = { step = SetupStep.CHOOSE }) { Text("Back") }
                 }
 

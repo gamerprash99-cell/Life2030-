@@ -13,7 +13,7 @@ Source of truth: app/build.gradle.kts and build.gradle.kts.
 | androidx.activity:activity-compose | 1.9.3 | Compose integration for Activities | Direct | MainActivity.kt | High | Low |
 | androidx.fragment:fragment-ktx | 1.8.5 | FragmentActivity base class | Direct | MainActivity.kt, required for BiometricPrompt | High, removing breaks App Lock | Low |
 | org.jetbrains.kotlinx:kotlinx-coroutines-android | 1.9.0 | Async programming | Direct | Everywhere | Critical | Low |
-| org.jetbrains.kotlinx:kotlinx-serialization-json | 1.7.3 | JSON serialization | Direct | AiClient.kt, BackupRepository.kt, NoteBlock.kt | High | Low |
+| org.jetbrains.kotlinx:kotlinx-serialization-json | 1.7.3 | JSON serialization | Direct | BackupRepository.kt, NoteBlock.kt | High | Low |
 | androidx.compose:compose-bom | 2024.11.00 | Version alignment for all Compose libs | Direct | Everywhere in ui/ | Critical | Medium |
 | androidx.compose.ui:ui | via BOM | Core Compose UI | Direct | Everywhere | Critical | Low |
 | androidx.compose.ui:ui-graphics | via BOM | Compose graphics primitives | Direct | ui/theme/Color.kt etc | Medium | Low |
@@ -28,7 +28,6 @@ Source of truth: app/build.gradle.kts and build.gradle.kts.
 | androidx.datastore:datastore-preferences | 1.1.1 | Settings storage | Direct | core/util/SettingsStore.kt | High | Low |
 | androidx.biometric:biometric | 1.1.0 | Biometric authentication | Direct | core/security/AppLockManager.kt | High | Low |
 | androidx.work:work-runtime-ktx | 2.10.0 | Background job scheduling | Direct | core/reminders/ | High | Medium |
-| com.squareup.okhttp3:okhttp | 4.12.0 | HTTP client | Direct | core/ai/AiClient.kt, the only network call in the app | High | Low |
 | io.coil-kt:coil-compose | 2.7.0 | Image loading | Direct | Declared but not currently invoked anywhere in ui/ (no AsyncImage usage found) | Low currently | Low |
 | androidx.camera camera-core / camera-camera2 / camera-lifecycle / camera-view / camera-video | 1.4.0 | Camera capture | Direct | ui/capture/CameraCaptureScreen.kt, VideoCaptureScreen.kt | High | Medium |
 | junit:junit | 4.13.2 | Unit testing | Direct (testImplementation) | Declared but no test files exist | Low currently | Low |
@@ -63,3 +62,8 @@ Source of truth: app/build.gradle.kts and build.gradle.kts.
 Hilt/Dagger, Retrofit/Ktor, Firebase (any module), a logging library
 (Timber etc.), Glide, Lottie, Accompanist, any analytics SDK, any
 crash-reporting SDK, any ads SDK, any payments SDK.
+
+## Current-state addendum — 2026-09-16
+
+This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
+

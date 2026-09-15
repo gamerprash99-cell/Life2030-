@@ -113,3 +113,12 @@ from reading code after the fact.
 - No Room schema changes, cloud services, external AI APIs, analytics, telemetry or INTERNET permission were introduced.
 
 Verification: archive integrity checked after the source update. Full Android Gradle build/test execution remains dependent on a Gradle/Android SDK environment being available.
+
+## 2026-09-16 — Documentation and Figma design-system correction
+
+- Added `docs/DESIGN.md` as the current visual/UI/UX and motion specification.
+- Updated the root README to describe the current local Intelligence Engine and current UI architecture accurately.
+- Corrected stale documentation that still described the removed Anthropic/cloud AI implementation.
+- Corrected stale documentation that still described backup restore as UI-unreachable after the current restore entry points were added.
+- Kept historical changelog entries intact rather than rewriting project history.
+- Documented the limitation that Android build/test verification is still unavailable in the supplied environment because the project snapshot has no Gradle wrapper and no usable local Android Gradle environment.

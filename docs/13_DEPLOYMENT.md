@@ -115,3 +115,8 @@ previous release's signed APK/AAB available, and be able to re-publish it
 to the Play Store if a new version has a critical bug (Play Store supports
 staged rollouts and halting a rollout, which is the standard mitigation —
 but no rollout has occurred yet to reference).
+
+## Current-state addendum — 2026-09-16
+
+This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
+

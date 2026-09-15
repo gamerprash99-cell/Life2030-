@@ -126,8 +126,7 @@ in `NoteEditorViewModel`, `NotesViewModel.kt`), rendered as a
 
 Only `ui/ai/AiAssistantScreen.kt`, `ui/notes/*`, `ui/diary/DiaryScreen.kt`,
 and `ui/insights/InsightsScreen.kt` talk to any external service — and they
-do so exclusively through `core/ai/AiRepository`, never calling `AiClient`
-or OkHttp directly. All other screens talk only to the local Room database
+do so through `core/ai/AiRepository`, which delegates to the local Intelligence Engine. All other screens use the existing repository/domain boundaries
 via repositories.
 
 ## Reusable components
@@ -140,3 +139,8 @@ There is currently no dedicated shared component for buttons, text fields,
 or list rows — each screen builds its own `AlertDialog`/`OutlinedTextField`
 combinations inline. This is a documented opportunity for future
 consolidation (see `docs/18_ROADMAP.md`).
+
+## Current-state addendum — 2026-09-16
+
+This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
+

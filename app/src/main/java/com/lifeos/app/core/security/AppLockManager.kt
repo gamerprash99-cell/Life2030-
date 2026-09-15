@@ -1,6 +1,8 @@
 package com.lifeos.app.core.security
 
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -26,11 +28,25 @@ import androidx.fragment.app.FragmentActivity
  */
 class AppLockManager(private val context: Context) {
 
+    /** Returns true only when a biometric is actually enrolled and usable. */
     fun isBiometricAvailable(): Boolean {
         val manager = BiometricManager.from(context)
-        return manager.canAuthenticate(
-            BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL
-        ) == BiometricManager.BIOMETRIC_SUCCESS
+        return manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK) ==
+            BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    /** Opens the Android-managed biometric enrollment screen when supported. */
+    fun openBiometricEnrollment(activity: FragmentActivity): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
+        return runCatching {
+            activity.startActivity(Intent(Settings.ACTION_BIOMETRIC_ENROLL).apply {
+                putExtra(
+                    Settings.EXTRA_BIOMETRIC_AUTHENTICATORS_ALLOWED,
+                    BiometricManager.Authenticators.BIOMETRIC_WEAK
+                )
+            })
+            true
+        }.getOrDefault(false)
     }
 
     fun authenticate(
@@ -58,9 +74,7 @@ class AppLockManager(private val context: Context) {
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle("Unlock LifeOS")
             .setSubtitle("Your personal data is protected")
-            .setAllowedAuthenticators(
-                BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL
-            )
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
             .build()
 
         prompt.authenticate(promptInfo)

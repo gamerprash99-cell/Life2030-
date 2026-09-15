@@ -103,7 +103,7 @@ Full inventory of every implemented feature, with exact file paths.
 **Purpose**: Free-form chat with the AI about the user's day/data.
 
 - **Files**: `ui/ai/AiAssistantScreen.kt`
-- **How it works**: Sends the running conversation to `AiRepository.chat()`, which calls `AiClient.complete()`. ⚠️ Note: the chat does not currently inject any real app data as context — `AiAssistantScreen`'s call passes `contextBlock = null`, so despite `AiRepository.chat()` supporting a context block, the chat currently only sees the conversation itself, not the user's actual notes/tasks/etc.
+- **How it works**: Sends the running conversation to `AiRepository.chat()`, which routes the request to `LifeOSIntelligenceEngine.answerQuestion()`. ⚠️ Note: the chat does not currently inject any real app data as context — `AiAssistantScreen`'s call passes `contextBlock = null`, so despite `AiRepository.chat()` supporting a context block, the chat currently only sees the conversation itself, not the user's actual notes/tasks/etc.
 - **Status**: Implemented, with the context-injection limitation noted above
 
 ## 11. AI Insights / Weekly Review
@@ -152,7 +152,12 @@ Full inventory of every implemented feature, with exact file paths.
 
 **Purpose**: App Lock toggle, AI feature toggle, Reminders toggle, Backup/Export/Share.
 
-**Update (UI/UX pass)**: the visible "Anthropic API key" text field and "Save API key" button were removed from the AI Features card at the product owner's explicit request — the raw developer-key-paste UI didn't fit the intended production experience. The underlying storage mechanism (`SettingsStore.aiApiKey`/`setAiApiKey()`) was **not** deleted, only its UI entry point. **Consequence**: as of this change, there is currently no way for a user to set an AI API key through the app UI, so AI features will show their existing "Add your AI API key in Settings..." fallback message until a proper configuration mechanism is designed (see `docs/16_KNOWN_ISSUES.md`).
+**Current state (2026-09-16):** cloud AI/key configuration is no longer part of the product. The current `AiRepository` delegates to the local `LifeOSIntelligenceEngine`; supported analysis requires no external provider or API key. Historical cloud-AI notes in this document are retained only for traceability.
 
 - **Files**: `ui/settings/SettingsScreen.kt`
 - **Status**: Implemented
+
+## Current-state addendum — 2026-09-16
+
+This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
+

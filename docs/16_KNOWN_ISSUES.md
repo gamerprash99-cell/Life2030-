@@ -38,20 +38,12 @@
 
 ---
 
-### Issue #3 — Backup restore has no UI entry point
+### Issue #3 — Backup restore behavior needs broader verification
 
 - **Severity**: 🟡 Medium
-- **Description**: `data/repository/BackupRepository.kt`'s
-  `importFromFile()` function is fully implemented but is never called from
-  any screen. `ui/settings/SettingsScreen.kt` only wires up Export and Share.
-- **Reproduction**: Open Settings → Backup & Export — there is no "Import"
-  or "Restore" button.
-- **Expected behavior**: A user should be able to pick a previously exported
-  JSON file and restore their data from it.
-- **Actual behavior**: No such UI exists; the feature is code-complete but unreachable.
-- **Current workaround**: None via the UI. A developer could call
-  `backupRepository.importFromFile(file)` directly for testing.
-- **Status**: Open
+- **Description**: JSON restore is now reachable from both Onboarding and Settings through Android Storage Access Framework and the existing `BackupRepository`.
+- **Current state**: UI wiring is present; full restore behavior still requires execution against representative valid/invalid backups in a real Android environment.
+- **Status**: Verification pending
 
 ---
 
@@ -162,4 +154,9 @@
 - **Description**: Android does not allow apps to register a separate biometric enrollment from the OS — `BiometricPrompt` always verifies against whatever fingerprint/face/PIN is enrolled at the device level. This means "anyone who can unlock the phone can also pass LifeOS's biometric check" is true by Android platform design, for every app that uses BiometricPrompt (not a LifeOS-specific gap).
 - **Mitigation shipped**: A separate **App PIN** option (`AppLockType.PIN`) is now available — independent of the device's own lock screen, with its own salted-hash storage and a secure recovery-question flow. Users who want protection independent of "who can unlock my phone" should choose this instead of Biometric.
 - **Not done in this pass**: Binding the BiometricPrompt call to an Android Keystore `CryptoObject` (a further hardening step that ties a successful biometric result to decrypting a real secret, rather than a bare boolean) was considered but not implemented — it's a meaningfully larger, higher-risk change to make without a real device/build environment to verify it against. Flagged as a legitimate future improvement, not silently skipped.
-- **Status**: Open (by Android platform design) with a working mitigation (App PIN) shipped.
+- **Status**: Open (platform limitation) with App PIN mitigation shipped; first-time biometric enrollment guidance is now wired through Android settings on supported API levels.
+
+## Current-state addendum — 2026-09-16
+
+This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
+

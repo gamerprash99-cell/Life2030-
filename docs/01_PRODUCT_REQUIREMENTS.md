@@ -32,7 +32,7 @@ Legend: **IMPLEMENTED** / **PARTIALLY IMPLEMENTED** / **PLANNED (referenced in c
 |---|---|---|
 | Create/edit/delete rich-text notes (headings, bullets, checklists) | **IMPLEMENTED** | `ui/notes/NoteEditorScreen.kt`, `domain/model/NoteBlock.kt` |
 | Pin / favorite / archive / trash notes with restore | **IMPLEMENTED** | `data/repository/NoteRepository.kt` |
-| AI note actions (summarize, rewrite, extract tasks, etc.) | **IMPLEMENTED** (requires user-provided API key) | `core/ai/AiModels.kt` (`NoteAiAction`), `ui/notes/NotesViewModel.kt` |
+| AI note actions (summarize, rewrite, extract tasks, etc.) | **IMPLEMENTED** (local/offline deterministic engine; no API key) | `core/ai/AiModels.kt` (`NoteAiAction`), `ui/notes/NotesViewModel.kt` |
 | Create/complete/reschedule tasks with priority & due date | **IMPLEMENTED** | `ui/tasks/TasksScreen.kt`, `data/repository/TaskRepository.kt` |
 | Task reminders (notifications) | **IMPLEMENTED** | `core/reminders/ReminderScheduler.kt`, `core/reminders/ReminderWorker.kt` |
 | Recurring tasks (daily/weekly/monthly/custom) | **PARTIALLY IMPLEMENTED** — `RepeatRule` field and enum exist on `TaskEntity`, but no scheduled job auto-creates the next occurrence | `data/db/entities/TaskEntity.kt` |
@@ -55,7 +55,7 @@ Legend: **IMPLEMENTED** / **PARTIALLY IMPLEMENTED** / **PLANNED (referenced in c
 | AI weekly review summary | **IMPLEMENTED** | `ui/insights/InsightsScreen.kt` |
 | App Lock (biometric/PIN) | **IMPLEMENTED** | `core/security/AppLockManager.kt`, gated in `MainActivity.kt` |
 | Full backup export to local JSON | **IMPLEMENTED** | `data/repository/BackupRepository.kt` |
-| Backup restore from JSON | **IMPLEMENTED** | `data/repository/BackupRepository.kt` (`importFromFile`) — ⚠️ no UI screen calls this import function; only export is wired to a button |
+| Backup restore from JSON | **IMPLEMENTED** | `data/repository/BackupRepository.kt` (`importFromFile`) — onboarding and Settings provide the JSON document-picker entry point |
 | Share exported backup via system share sheet | **IMPLEMENTED** | `ui/settings/SettingsScreen.kt` |
 | Onboarding (first-launch intro) | **IMPLEMENTED** | `ui/onboarding/OnboardingScreen.kt` |
 | User accounts / login / signup | **NOT IMPLEMENTED** | No such code exists anywhere in the repo |
@@ -70,8 +70,7 @@ Legend: **IMPLEMENTED** / **PARTIALLY IMPLEMENTED** / **PLANNED (referenced in c
 ## Non-functional requirements (inferred from code comments)
 
 - **Local-data-first / privacy**: `android:allowBackup="false"` in
-  `AndroidManifest.xml`; AI calls only fire on explicit user action and only
-  send the minimum text needed (see `core/ai/AiRepository.kt` comments).
+  `AndroidManifest.xml`; Intelligence runs on-device and does not transmit diary/note/task data to an external service.
 - **Minimal-permission**: Camera/Mic/Notification permissions are requested
   at the point of use, not at launch (see `core/util/PermissionManager.kt`
   and its usage in `ui/capture/*` and `ui/settings/SettingsScreen.kt`).
@@ -93,8 +92,7 @@ comments across the source files cited above.
    bottom nav or Home's quick-link chips (`ui/navigation/LifeOSNavHost.kt`).
 3. **Capture in the moment** → Home FAB → `CaptureSheet` → Photo / Video /
    Audio / Thought.
-4. **AI usage** (opt-in) → Settings → enter API key → AI actions become
-   functional across Notes, Diary, Insights, and the AI Assistant chat.
+4. **AI usage** → local Intelligence actions run on-device across supported Notes, Diary, Insights and Assistant flows; no API key is required.
 5. **Backup** → Settings → Export backup → optional Share via system share sheet.
 
 ## Feature priorities
@@ -102,3 +100,8 @@ comments across the source files cited above.
 ⚠️ **NOT VERIFIED FROM CODEBASE** — no prioritization/backlog document
 exists in the repo. All implemented features currently ship at equal
 priority (i.e., all are reachable from the main navigation).
+
+## Current-state addendum — 2026-09-16
+
+This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
+
