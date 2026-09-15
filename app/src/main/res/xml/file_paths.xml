@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Captured photos/videos/audio live under files/captures/ -->
+    <files-path name="captures" path="captures/" />
+    <!-- Backup JSON exports live under files/ directly (see BackupRepository) -->
+    <files-path name="backups" path="." />
+</paths>

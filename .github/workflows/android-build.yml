@@ -1,0 +1,54 @@
+name: Android CI Build
+
+# See docs/12_GITHUB_WORKFLOW.md for the full workflow this belongs to,
+# and docs/16_KNOWN_ISSUES.md (Issue #1) for why this workflow calls
+# `gradle` directly instead of `./gradlew` — the repo does not yet ship
+# the gradlew wrapper scripts/jar, only gradle/wrapper/gradle-wrapper.properties.
+# Once those wrapper files are committed (Issue #1), this workflow can be
+# simplified to use `./gradlew` like a normal Android project.
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: Assemble debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        # Matches sourceCompatibility/targetCompatibility/jvmTarget = 17
+        # in app/build.gradle.kts.
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        # Installs the SDK platforms/build-tools needed for
+        # compileSdk = 35 / targetSdk = 35 (app/build.gradle.kts).
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle (version pinned to match gradle-wrapper.properties)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Assemble debug build
+        # Uses `gradle` (not `./gradlew`) because the wrapper scripts are
+        # not committed yet — see the note at the top of this file.
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifeos-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    LifeOS disables Android Auto Backup (android:allowBackup="false" in the manifest)
+    because personal data must only leave the device through the explicit,
+    user-initiated Backup/Export feature (Section 6 / Rule 19 of the spec),
+    never silently through the OS backup pipeline.
+-->
+<full-backup-content>
+</full-backup-content>
