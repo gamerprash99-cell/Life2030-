@@ -13,16 +13,19 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -33,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -40,134 +44,92 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.lifeos.app.core.util.LifeOSPermissions
 import com.lifeos.app.core.util.MediaStorage
+import com.lifeos.app.core.util.PermissionStatus
 import com.lifeos.app.core.util.rememberPermissionState
 
-/**
- * Real CameraX video capture (Section 3: Video Memories). This is the
- * VideoCapture-based sibling of CameraCaptureScreen.kt's ImageCapture
- * pipeline — same permission gate, same lifecycle-bound preview, with
- * Recorder/VideoCapture swapped in and start/stop controls added.
- */
 @Composable
 fun VideoCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> Unit) {
     val context = LocalContext.current
     val cameraPermission = rememberPermissionState(LifeOSPermissions.CAMERA)
     val audioPermission = rememberPermissionState(LifeOSPermissions.RECORD_AUDIO)
-
     LaunchedEffect(Unit) {
-        if (cameraPermission.status == com.lifeos.app.core.util.PermissionStatus.NOT_YET_REQUESTED_OR_DENIABLE) cameraPermission.request()
-        if (audioPermission.status == com.lifeos.app.core.util.PermissionStatus.NOT_YET_REQUESTED_OR_DENIABLE) audioPermission.request()
+        if (cameraPermission.status == PermissionStatus.NOT_YET_REQUESTED_OR_DENIABLE) cameraPermission.request()
+        if (audioPermission.status == PermissionStatus.NOT_YET_REQUESTED_OR_DENIABLE) audioPermission.request()
     }
-
     if (!cameraPermission.isGranted || !audioPermission.isGranted) {
-        val anyPermanentlyDenied = cameraPermission.status == com.lifeos.app.core.util.PermissionStatus.PERMANENTLY_DENIED ||
-            audioPermission.status == com.lifeos.app.core.util.PermissionStatus.PERMANENTLY_DENIED
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            if (anyPermanentlyDenied) {
-                Text("Camera and/or microphone access was denied. Enable both in Settings to record video.", style = MaterialTheme.typography.bodyMedium)
-                Button(onClick = cameraPermission.openSettings, modifier = Modifier.padding(top = 12.dp)) { Text("Open Settings") }
-            } else {
-                Text("Camera and microphone permission are needed to record video.", style = MaterialTheme.typography.bodyMedium)
-                Button(onClick = {
-                    if (!cameraPermission.isGranted) cameraPermission.request()
-                    if (!audioPermission.isGranted) audioPermission.request()
-                }, modifier = Modifier.padding(top = 12.dp)) { Text("Grant permissions") }
-            }
-            Button(onClick = onCancel, modifier = Modifier.padding(top = 8.dp)) { Text("Cancel") }
-        }
+        val denied = cameraPermission.status == PermissionStatus.PERMANENTLY_DENIED || audioPermission.status == PermissionStatus.PERMANENTLY_DENIED
+        CapturePermissionState("Camera and microphone access are needed for video.", denied, {
+            if (!cameraPermission.isGranted) cameraPermission.request()
+            if (!audioPermission.isGranted) audioPermission.request()
+        }, cameraPermission.openSettings, onCancel)
         return
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     val recorder = remember { Recorder.Builder().build() }
     val videoCapture = remember { VideoCapture.withOutput(recorder) }
-
+    var recording by remember { mutableStateOf<Recording?>(null) }
     var isRecording by remember { mutableStateOf(false) }
-    var activeRecording by remember { mutableStateOf<Recording?>(null) }
-    var elapsedSeconds by remember { mutableStateOf(0) }
+    var seconds by remember { mutableStateOf(0) }
 
     LaunchedEffect(isRecording) {
-        elapsedSeconds = 0
+        seconds = 0
         while (isRecording) {
             kotlinx.coroutines.delay(1000)
-            elapsedSeconds++
+            seconds++
         }
     }
+    DisposableEffect(Unit) { onDispose { recording?.stop() } }
 
-    DisposableEffect(Unit) {
-        onDispose { activeRecording?.stop() }
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                val previewView = PreviewView(ctx)
-                val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                cameraProviderFuture.addListener({
-                    val cameraProvider = cameraProviderFuture.get()
-                    val preview = Preview.Builder().build().also {
-                        it.setSurfaceProvider(previewView.surfaceProvider)
-                    }
-                    try {
-                        cameraProvider.unbindAll()
-                        cameraProvider.bindToLifecycle(
-                            lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, videoCapture
-                        )
-                    } catch (e: Exception) {
-                        Toast.makeText(ctx, "Failed to start camera: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
+    Box(Modifier.fillMaxSize()) {
+        AndroidView(Modifier.fillMaxSize(), factory = { ctx ->
+            PreviewView(ctx).also { previewView ->
+                previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
+                val future = ProcessCameraProvider.getInstance(ctx)
+                future.addListener({
+                    val provider = future.get()
+                    val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
+                    runCatching { provider.unbindAll(); provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, videoCapture) }
+                        .onFailure { Toast.makeText(ctx, "Camera failed: ${it.message}", Toast.LENGTH_SHORT).show() }
                 }, ContextCompat.getMainExecutor(ctx))
-                previewView
             }
-        )
+        })
 
-        Column(
-            modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (isRecording) {
-                Text("Recording… ${elapsedSeconds}s", color = androidx.compose.ui.graphics.Color.White)
-            }
-            IconButton(
+        Surface(Modifier.align(Alignment.TopStart).statusBarsPadding().padding(14.dp), color = Color.Black.copy(alpha = .42f), shape = CircleShape) {
+            IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Close camera", tint = Color.White) }
+        }
+        Column(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("VIDEO", color = Color.White, style = MaterialTheme.typography.labelLarge)
+            if (isRecording) Text("Recording · ${seconds}s", color = Color.White, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 3.dp))
+        }
+        Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Surface(
                 onClick = {
-                    if (!isRecording) {
-                        val outputFile = MediaStorage.newVideoFile(context)
-                        val outputOptions = FileOutputOptions.Builder(outputFile).build()
-                        val pending = videoCapture.output.prepareRecording(context, outputOptions)
-                            .withAudioEnabled()
-                        activeRecording = pending.start(ContextCompat.getMainExecutor(context)) { event ->
-                            when (event) {
-                                is VideoRecordEvent.Start -> isRecording = true
-                                is VideoRecordEvent.Finalize -> {
-                                    isRecording = false
-                                    if (!event.hasError()) {
-                                        onCaptured(outputFile.absolutePath)
-                                    } else {
-                                        Toast.makeText(context, "Recording error: ${event.cause?.message}", Toast.LENGTH_SHORT).show()
+                    if (isRecording) {
+                        recording?.stop()
+                        recording = null
+                    } else {
+                        val file = MediaStorage.newVideoFile(context)
+                        val output = FileOutputOptions.Builder(file).build()
+                        recording = videoCapture.output.prepareRecording(context, output).withAudioEnabled()
+                            .start(ContextCompat.getMainExecutor(context)) { event ->
+                                when (event) {
+                                    is VideoRecordEvent.Start -> isRecording = true
+                                    is VideoRecordEvent.Finalize -> {
+                                        isRecording = false
+                                        if (!event.hasError()) onCaptured(file.absolutePath)
+                                        else Toast.makeText(context, "Recording failed: ${event.cause?.message}", Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                                else -> Unit
                             }
-                        }
-                    } else {
-                        activeRecording?.stop()
-                        activeRecording = null
                     }
-                }
+                },
+                shape = CircleShape,
+                color = if (isRecording) MaterialTheme.colorScheme.error else Color.White
             ) {
-                Icon(
-                    if (isRecording) Icons.Filled.Stop else Icons.Filled.FiberManualRecord,
-                    contentDescription = if (isRecording) "Stop recording" else "Start recording",
-                    tint = androidx.compose.ui.graphics.Color.White,
-                    modifier = Modifier.padding(4.dp)
-                )
+                Icon(if (isRecording) Icons.Filled.Stop else Icons.Filled.Videocam, contentDescription = if (isRecording) "Stop recording" else "Start recording", tint = if (isRecording) Color.White else MaterialTheme.colorScheme.primary, modifier = Modifier.padding(18.dp))
             }
-            Button(onClick = onCancel, modifier = Modifier.padding(top = 8.dp)) { Text("Cancel") }
+            Text(if (isRecording) "Tap to stop" else "Tap to record", color = Color.White, style = MaterialTheme.typography.labelMedium)
         }
     }
 }

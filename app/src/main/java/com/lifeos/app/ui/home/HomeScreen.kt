@@ -1,10 +1,9 @@
 package com.lifeos.app.ui.home
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,32 +15,37 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
-import com.lifeos.app.ui.components.LifeOSBadge
 import com.lifeos.app.ui.components.LifeOSCard
+import com.lifeos.app.ui.components.LifeOSGradientButton
 import com.lifeos.app.ui.components.LifeOSIntelligenceCard
 import com.lifeos.app.ui.components.LifeOSSectionHeader
+import com.lifeos.app.ui.components.LifeOSTopBar
+import com.lifeos.app.ui.theme.LifeOSAccentLavender
 import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 
@@ -55,7 +59,8 @@ fun HomeScreen(
     onOpenExpenses: () -> Unit = {},
     onOpenDiary: () -> Unit = {},
     onOpenInsights: () -> Unit = {},
-    onOpenSearch: () -> Unit = {}
+    onOpenSearch: () -> Unit = {},
+    onOpenTimeline: () -> Unit = {}
 ) {
     val locator = LocalServiceLocator.current
     val viewModel: HomeViewModel = viewModel(factory = LambdaViewModelFactory {
@@ -63,107 +68,222 @@ fun HomeScreen(
     })
     val summary by viewModel.summary.collectAsState()
 
-    Scaffold(
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onOpenCapture,
-                icon = { Icon(Icons.Filled.Add, contentDescription = "Capture") },
-                text = { Text("Capture") },
-                containerColor = LifeOSPrimary,
-                contentColor = Color.White
+    val totalTasks = summary?.tasksTotalToday ?: 0
+    val completedTasks = summary?.tasksCompletedToday ?: 0
+    val taskProgress = if (totalTasks == 0) 0f else completedTasks.toFloat() / totalTasks
+    val verifiedHabits = summary?.habitsToday?.count { it.isDone } ?: 0
+    val totalHabits = summary?.habitsToday?.size ?: 0
+    val momentum = if (totalTasks + totalHabits == 0) 0 else {
+        (((completedTasks + verifiedHabits).toFloat() / (totalTasks + totalHabits)) * 100).toInt()
+    }
+    val animatedProgress by animateFloatAsState(
+        targetValue = taskProgress.coerceIn(0f, 1f),
+        animationSpec = spring(stiffness = 500f),
+        label = "homeTaskProgress"
+    )
+
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(
+            start = LifeOSSpacing.screenPadding,
+            end = LifeOSSpacing.screenPadding,
+            top = 6.dp,
+            bottom = 118.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
+    ) {
+        item {
+            LifeOSTopBar(
+                title = "Today",
+                subtitle = summary?.dateLabel,
+                onSearch = onOpenSearch
             )
         }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().padding(padding),
-            contentPadding = PaddingValues(
-                horizontal = LifeOSSpacing.compactPadding,
-                vertical = 16.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.cardSpacing)
-        ) {
-            item {
-                Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                    Text(summary?.greeting ?: "Welcome", style = MaterialTheme.typography.headlineLarge)
-                    Spacer(Modifier.height(3.dp))
-                    Text(summary?.dateLabel.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
 
-            item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
-                    item { LifeOSBadge("Notes"); }
-                    item { LifeOSBadge("Diary", Modifier); }
-                    item { LifeOSBadge("Expenses", Modifier); }
-                    item { LifeOSBadge("Timeline", Modifier); }
-                }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(summary?.greeting ?: "Welcome back", style = MaterialTheme.typography.headlineLarge)
+                Text(
+                    if (momentum > 0) "A calm plan for a focused day." else "Start with one small action.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+        }
 
-            item {
-                LifeOSCard(modifier = Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.surface) {
-                    Column(Modifier.animateContentSize()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Today", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                AnimatedContent(targetState = "${summary?.tasksCompletedToday ?: 0} of ${summary?.tasksTotalToday ?: 0} tasks", label = "taskCount") { value ->
-                                    Text(value, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 4.dp))
-                                }
-                            }
-                            LifeOSBadge("Today")
+        item {
+            LifeOSCard(
+                modifier = Modifier.fillMaxWidth(),
+                tint = MaterialTheme.colorScheme.surface
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Daily Momentum", style = MaterialTheme.typography.titleLarge)
+                            Text("Today at a glance", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        val total = summary?.tasksTotalToday ?: 0
-                        val completed = summary?.tasksCompletedToday ?: 0
-                        val target = if (total == 0) 0f else completed.toFloat() / total
-                        val progress by animateFloatAsState(target.coerceIn(0f, 1f), spring(stiffness = 500f), label = "homeProgress")
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier.fillMaxWidth().padding(top = 18.dp).height(9.dp),
-                            color = LifeOSPrimary,
-                            trackColor = Color(0xFFEEE7F7)
+                        Surface(
+                            color = LifeOSAccentLavender,
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Text(
+                                "$momentum% Ready",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                color = LifeOSPrimary,
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                        MomentumStat("Tasks", "$completedTasks/$totalTasks")
+                        MomentumStat("Habits", "$verifiedHabits/$totalHabits")
+                        MomentumStat("Spend", "₹${"%.0f".format(summary?.todaySpend ?: 0.0)}")
+                    }
+                    LinearProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50)),
+                        color = LifeOSPrimary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .7f)
+                    )
+                }
+            }
+        }
+
+        item {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(horizontal = 2.dp)
+            ) {
+                item { QuickAction("New Note", Icons.Filled.EditNote, onOpenNotes) }
+                item { QuickAction("Log Expense", Icons.Filled.Payments, onOpenExpenses) }
+                item { QuickAction("Reflect", Icons.Filled.SelfImprovement, onOpenDiary) }
+                item { QuickAction("Insights", Icons.Filled.AutoAwesome, onOpenInsights) }
+                item { QuickAction("Timeline", Icons.Filled.Timeline, onOpenTimeline) }
+            }
+        }
+
+        item { LifeOSSectionHeader("Today's Priorities", "See all", onOpenTasks) }
+
+        if (summary?.tasksToday.isNullOrEmpty()) {
+            item {
+                EmptyStateCard("No tasks planned for today", "Add a task when you are ready to focus.", onOpenTasks)
+            }
+        } else {
+            items(summary?.tasksToday?.take(4).orEmpty(), key = { it.id }) { task ->
+                LifeOSCard(modifier = Modifier.fillMaxWidth(), onClick = onOpenTasks) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            if (task.isCompleted) Icons.Filled.CheckCircle else Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = if (task.isCompleted) LifeOSPrimary else MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                            Text(task.title, style = MaterialTheme.typography.bodyLarge)
+                            task.category?.let {
+                                Text("#$it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item { LifeOSSectionHeader("Habits Streak", "Open all", onOpenHabits) }
+        item {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(summary?.habitsToday.orEmpty(), key = { it.habit.id }) { row ->
+                    LifeOSCard(
+                        modifier = Modifier.size(width = 148.dp, height = 126.dp),
+                        tint = if (row.isDone) LifeOSAccentLavender else MaterialTheme.colorScheme.surface,
+                        onClick = onOpenHabits
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                            Text(row.habit.icon, style = MaterialTheme.typography.headlineMedium)
+                            Text(row.habit.name, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                            Spacer(Modifier.height(7.dp))
+                            Text(
+                                "${row.progressCount}/${row.goalCount}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (row.isDone) LifeOSPrimary else MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                if (row.isDone) "Completed" else "Today",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            LifeOSCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.surfaceContainerLow) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(color = LifeOSAccentLavender, shape = RoundedCornerShape(16.dp)) {
+                        Icon(Icons.Filled.LocalFireDepartment, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.padding(10.dp))
+                    }
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Passive Insights", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "₹${"%.0f".format(summary?.todaySpend ?: 0.0)} spent today · ${summary?.overdueTaskCount ?: 0} overdue tasks",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
+        }
 
-            item { LifeOSSectionHeader("Tasks", "View all", onOpenTasks) }
-            summary?.tasksToday?.take(4)?.let { tasks ->
-                items(tasks, key = { it.id }) { task ->
-                    LifeOSCard(modifier = Modifier.fillMaxWidth(), onClick = onOpenTasks) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = task.isCompleted,
-                                onCheckedChange = { viewModel.toggleTask(task.id, it) }
-                            )
-                            Text(task.title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 4.dp))
-                        }
-                    }
-                }
-            }
+        item {
+            LifeOSIntelligenceCard(onClick = onOpenAiAssistant)
+        }
 
-            item { LifeOSSectionHeader("Habits", "Open habits", onOpenHabits) }
-            item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(summary?.habitsToday ?: emptyList(), key = { it.habit.id }) { row ->
-                        LifeOSCard(modifier = Modifier.size(width = 148.dp, height = 128.dp), onClick = onOpenHabits) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                                Text(row.habit.icon, style = MaterialTheme.typography.headlineMedium)
-                                Text(row.habit.name, style = MaterialTheme.typography.labelMedium, maxLines = 1)
-                                Icon(
-                                    if (row.isDone) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
-                                    contentDescription = if (row.isDone) "Completed" else "Not completed",
-                                    tint = if (row.isDone) LifeOSPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 6.dp).size(20.dp)
-                                )
-                                Text("${row.progressCount}/${row.goalCount}", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 3.dp))
-                            }
-                        }
-                    }
-                }
-            }
+        item {
+            LifeOSGradientButton(
+                text = "Capture a moment",
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenCapture
+            )
+        }
+    }
+}
 
-            item {
-                LifeOSIntelligenceCard(onClick = onOpenAiAssistant)
-            }
+@Composable
+private fun MomentumStat(label: String, value: String) {
+    Column {
+        Text(value, style = MaterialTheme.typography.titleMedium)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun QuickAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 2.dp,
+        modifier = Modifier.height(50.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Icon(icon, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.size(19.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium)
+        }
+    }
+}
+
+@Composable
+private fun EmptyStateCard(title: String, subtitle: String, onClick: () -> Unit) {
+    LifeOSCard(Modifier.fillMaxWidth(), onClick = onClick) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

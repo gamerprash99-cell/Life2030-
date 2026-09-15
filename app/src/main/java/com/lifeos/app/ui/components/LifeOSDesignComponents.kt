@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -58,6 +59,7 @@ fun LifeOSCard(
     Box(
         modifier = modifier
             .scale(scale)
+            .shadow(elevation = 3.dp, shape = shape, ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.06f), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f))
             .clip(shape)
             .background(tint)
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.07f), shape)
@@ -101,8 +103,8 @@ fun LifeOSSectionHeader(title: String, action: String? = null, onAction: (() -> 
 
 @Composable
 fun LifeOSBadge(text: String, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.clip(RoundedCornerShape(50)).background(Color(0xFFEADDFF)).padding(horizontal = 12.dp, vertical = 8.dp)) {
-        Text(text, color = Color(0xFF5B21B6), style = MaterialTheme.typography.labelMedium)
+    Box(modifier = modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Text(text, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
     }
 }
 

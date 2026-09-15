@@ -1,7 +1,7 @@
 package com.lifeos.app.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -13,6 +13,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.lifeos.app.ui.ai.AiAssistantScreen
 import com.lifeos.app.ui.capture.CaptureDetailScreen
@@ -37,6 +38,17 @@ import com.lifeos.app.ui.timeline.TimelineScreen
 fun LifeOSNavHost() {
     val navController = rememberNavController()
     var showCapture by remember { mutableStateOf(false) }
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+    val onRoot = currentRoute == Screen.Home.route
+
+    // Keep system Back predictable even on secondary screens that do not expose
+    // their own toolbar action. Bottom navigation still owns cross-section jumps.
+    BackHandler(enabled = !onRoot) {
+        if (!navController.popBackStack()) navController.navigate(Screen.Home.route) {
+            launchSingleTop = true
+        }
+    }
 
     Scaffold(
         bottomBar = { LifeOSBottomBar(navController) }
@@ -56,7 +68,8 @@ fun LifeOSNavHost() {
                     onOpenExpenses = { navController.navigate(Screen.Expenses.route) },
                     onOpenDiary = { navController.navigate(Screen.Diary.route) },
                     onOpenInsights = { navController.navigate(Screen.Insights.route) },
-                    onOpenSearch = { navController.navigate(Screen.Search.route) }
+                    onOpenSearch = { navController.navigate(Screen.Search.route) },
+                    onOpenTimeline = { navController.navigate(Screen.Timeline.route) }
                 )
             }
             composable(Screen.Notes.route) {

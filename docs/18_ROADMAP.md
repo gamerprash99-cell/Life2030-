@@ -134,3 +134,6 @@ own ADR (`docs/24_ARCHITECTURAL_DECISIONS.md`) and feature spec before work star
 
 This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
 
+## Current implementation snapshot — 2026-09-16
+
+The next UI validation step is real-device comparison against the supplied Stitch screens across small/large phones, font scaling, gesture navigation and landscape where applicable.

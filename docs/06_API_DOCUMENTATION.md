@@ -31,3 +31,6 @@ Historical references to the previously removed cloud AI implementation may rema
 
 This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
 
+## Current implementation snapshot — 2026-09-16
+
+No external API or network service was introduced. LifeOS Intelligence remains a local compatibility layer over the on-device intelligence engine.

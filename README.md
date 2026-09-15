@@ -4,9 +4,11 @@ LifeOS is a native Kotlin + Jetpack Compose + Material 3 personal life-managemen
 
 ## Current 2026 UI/UX snapshot
 
-The current source includes the LifeOS premium visual direction: soft lavender/violet surfaces, rounded cards, grouped settings, onboarding motion, app-lock setup UX, animated bottom navigation, tactile buttons/cards, and shared UI primitives.
+The Android implementation now applies the supplied Stitch/Figma visual direction to the primary LifeOS experience: calm lavender/violet surfaces, rounded cards, quick-action chips, animated progress, a floating five-section navigation bar, and a full-screen Life Capture studio for photo/video/audio. The HTML reference was converted into native Compose patterns rather than embedded as a web runtime.
 
-The design source of truth is [`docs/DESIGN.md`](./docs/DESIGN.md). It documents the visual system, responsive rules, accessibility requirements, and Compose motion mapping.
+Navigation now has a consistent system-Back fallback for secondary routes, while bottom navigation always returns to the selected primary section. Existing repositories, use cases, ViewModels, DAOs, entities and Room schema remain the data authority.
+
+The design source of truth remains [`docs/DESIGN.md`](./docs/DESIGN.md).
 
 ## Architecture
 

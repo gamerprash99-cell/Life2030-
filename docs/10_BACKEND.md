@@ -28,3 +28,6 @@ Do not add a server as a prerequisite for Notes, Tasks, Habits, Diary, Expenses,
 
 This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
 
+## Current implementation snapshot — 2026-09-16
+
+LifeOS remains backend-free for core operation. No server, remote database, cloud AI or telemetry dependency was added.

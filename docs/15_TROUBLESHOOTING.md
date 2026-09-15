@@ -36,3 +36,6 @@ For spacing, colors, typography, animation and responsive behavior, use [`DESIGN
 
 This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
 
+## Current implementation snapshot — 2026-09-16
+
+For navigation issues, use the persistent bottom navigation to switch primary sections and system Back to unwind secondary routes; a NavHost BackHandler now provides a consistent fallback.

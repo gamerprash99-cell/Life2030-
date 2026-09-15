@@ -20,7 +20,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.ui.components.GlassCard
+import com.lifeos.app.ui.components.LifeOSTopBar
 
 @Composable
 fun NotesListScreen(onOpenNote: (String?) -> Unit, onBack: () -> Unit = {}) {
@@ -42,14 +42,7 @@ fun NotesListScreen(onOpenNote: (String?) -> Unit, onBack: () -> Unit = {}) {
     val notes by viewModel.notes.collectAsState()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Notes") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back") }
-                }
-            )
-        },
+        topBar = { LifeOSTopBar("Notes", "Your local ideas and notes", onBack = onBack) },
         floatingActionButton = {
             FloatingActionButton(onClick = { onOpenNote(null) }) { Icon(Icons.Filled.Add, contentDescription = "New note") }
         }

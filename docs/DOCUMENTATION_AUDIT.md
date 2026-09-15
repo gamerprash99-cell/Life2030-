@@ -49,3 +49,7 @@ Existing documentation history is preserved. Historical changelog entries may de
 ## Verification boundary
 
 No Android build/test is claimed from this environment. A real Android/JDK/Gradle environment must execute the project's supported checks before a release-readiness claim is made.
+
+## Current implementation snapshot — 2026-09-16
+
+Documentation was refreshed for the 2026-09-16 UI/navigation/capture pass; no historical notes were removed.

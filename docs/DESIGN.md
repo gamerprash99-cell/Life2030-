@@ -250,3 +250,7 @@ Visual references must not introduce:
 - duplicate navigation stacks
 - direct UI-to-Room access
 - destructive database changes
+
+## Current implementation snapshot — 2026-09-16
+
+The 2026-09-16 Android implementation now applies the documented design system to the primary dashboard, habits, tasks, insights, settings and capture studio.

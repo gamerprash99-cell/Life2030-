@@ -21,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,6 +41,7 @@ import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.domain.model.ExpenseCategories
 import com.lifeos.app.ui.components.GlassCard
 import com.lifeos.app.ui.components.GlassChip
+import com.lifeos.app.ui.components.LifeOSTopBar
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -85,10 +85,7 @@ fun ExpensesScreen(onBack: () -> Unit = {}) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Expenses") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back") } }
-            )
+            LifeOSTopBar("Expenses", "See where your day is going", onBack = onBack)
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) { Icon(Icons.Filled.Add, contentDescription = "Add expense") }

@@ -132,7 +132,7 @@ via repositories.
 ## Reusable components
 
 - `GlassCard` / `GlassChip` (`ui/components/GlassCard.kt`)
-- `LifeOSBottomBar` (`ui/components/LifeOSBottomBar.kt`)
+- `LifeOSBottomBar` (`ui/components/LifeOSBottomBar.kt`) — Today, Habits, Tasks, Insights, Settings with animated selected pills
 - `ReminderTimePickerDialog` (`ui/components/ReminderTimePickerDialog.kt`)
 
 There is currently no dedicated shared component for buttons, text fields,
@@ -140,7 +140,16 @@ or list rows — each screen builds its own `AlertDialog`/`OutlinedTextField`
 combinations inline. This is a documented opportunity for future
 consolidation (see `docs/18_ROADMAP.md`).
 
+## Shared presentation components
+
+- `LifeOSTopBar` (`ui/components/LifeOSTopBar.kt`) — consistent primary/secondary screen header
+- `LifeOSBottomBar` — persistent five-section navigation
+- `LifeOSCard` / `LifeOSGradientButton` / `LifeOSBadge` — shared tactile surfaces and actions
+
 ## Current-state addendum — 2026-09-16
 
 This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
 
+## Current implementation snapshot — 2026-09-16
+
+The 2026-09-16 frontend pass maps the Stitch HTML reference into native Compose components: shared header, floating selected navigation, rounded cards, quick actions, animated progress, and full-screen capture studio.
