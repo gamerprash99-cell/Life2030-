@@ -42,7 +42,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import com.lifeos.app.core.di.LocalServiceLocator
-import com.lifeos.app.ui.components.GlassCard
+import com.lifeos.app.ui.components.LifeOSCard
+import com.lifeos.app.ui.components.LifeOSGradientButton
 import kotlinx.coroutines.launch
 
 private enum class SetupStep { CHOOSE, EXPLAIN_BIOMETRIC, CREATE_PIN, CONFIRM_PIN, RECOVERY_QUESTION, RECOVERY_ANSWER, DONE }
@@ -285,14 +286,14 @@ private fun OptionCard(
     description: String,
     onClick: () -> Unit
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-        Column {
+    LifeOSCard(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), onClick = onClick) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                Icon(icon, contentDescription = null, modifier = Modifier.padding(end = 10.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(title, style = MaterialTheme.typography.titleMedium)
             }
-            Text(description, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp))
-            Button(onClick = onClick, modifier = Modifier.fillMaxWidth()) { Text("Choose") }
+            Text(description, style = MaterialTheme.typography.bodySmall)
+            LifeOSGradientButton(text = "Choose", modifier = Modifier.fillMaxWidth(), onClick = onClick)
         }
     }
 }

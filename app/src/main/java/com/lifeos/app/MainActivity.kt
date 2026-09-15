@@ -8,6 +8,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import java.io.File
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,12 +53,38 @@ class MainActivity : FragmentActivity() {
 private fun OnboardingGate(content: @Composable () -> Unit) {
     val locator = LocalServiceLocator.current
     val scope = rememberCoroutineScopeCompat()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val onboardingComplete by locator.settingsStore.onboardingComplete.collectAsState(initial = false)
+    var restoreStatus by remember { mutableStateOf<String?>(null) }
+
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                restoreStatus = "Validating backup…"
+                runCatching {
+                    val temp = File(context.cacheDir, "lifeos-onboarding-restore.json")
+                    context.contentResolver.openInputStream(uri)?.use { input -> temp.outputStream().use(input::copyTo) }
+                        ?: error("Unable to read selected file")
+                    locator.backupRepository.importFromFile(temp)
+                    temp.delete()
+                }.onSuccess {
+                    restoreStatus = "Backup restored. Welcome back to LifeOS."
+                    locator.settingsStore.setOnboardingComplete(true)
+                }.onFailure {
+                    restoreStatus = "Restore failed: ${it.message ?: "Invalid LifeOS backup"}"
+                }
+            }
+        }
+    }
 
     if (onboardingComplete) {
         content()
     } else {
-        OnboardingScreen(onFinish = { scope.launch { locator.settingsStore.setOnboardingComplete(true) } })
+        OnboardingScreen(
+            onFinish = { scope.launch { locator.settingsStore.setOnboardingComplete(true) } },
+            onRestoreBackup = { restoreLauncher.launch(arrayOf("application/json")) },
+            restoreStatus = restoreStatus
+        )
     }
 }
 

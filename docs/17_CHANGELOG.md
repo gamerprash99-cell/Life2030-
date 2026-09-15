@@ -98,3 +98,18 @@ Every subsequent version should follow this format:
 
 ...and should be generated from real `git log`/PR history, not reconstructed
 from reading code after the fact.
+
+## 2026-09-16 — Figma-led UI/UX polish pass
+
+- Created a new Figma design reference file for the LifeOS 2026 visual system: premium lavender/violet surfaces, rounded cards, grouped settings, onboarding, app-lock UX, and motion timings.
+- Added shared Compose UI primitives for LifeOS cards, gradient CTAs, badges, section headers, Intelligence cards, and animated press feedback.
+- Refined LifeOS theme colors, typography, spacing and shape tokens around the existing purple/lavender direction while preserving dark mode.
+- Refined Home with stronger hierarchy, animated task progress, responsive sections and local Intelligence presentation using existing ViewModel data.
+- Redesigned onboarding presentation with animated page transitions and Android JSON backup restore entry point.
+- Added JSON restore through Android Storage Access Framework to onboarding and Settings, routed through the existing BackupRepository.
+- Refined Settings into grouped sections and retained existing App Lock, reminder, Intelligence and backup behavior.
+- Refined the existing Navigation Compose bottom bar with animated selected-state pills while keeping the existing NavController/navigation architecture.
+- Refined App Lock setup option cards and CTA styling without changing the existing biometric/PIN security model.
+- No Room schema changes, cloud services, external AI APIs, analytics, telemetry or INTERNET permission were introduced.
+
+Verification: archive integrity checked after the source update. Full Android Gradle build/test execution remains dependent on a Gradle/Android SDK environment being available.
