@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
 }
 
@@ -44,6 +45,7 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
     }
 
     buildFeatures {
@@ -69,6 +71,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+    // Security / App Lock
+    implementation("androidx.biometric:biometric:1.1.0")
+
     // Compose
     implementation(platform("androidx.compose:compose-bom:2024.11.00"))
     implementation("androidx.compose.ui:ui")
@@ -86,7 +91,6 @@ dependencies {
 
     // DataStore for settings / preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")
-
 
     // WorkManager (reminders, recurring task/habit rollover, backup scheduling)
     implementation("androidx.work:work-runtime-ktx:2.10.0")

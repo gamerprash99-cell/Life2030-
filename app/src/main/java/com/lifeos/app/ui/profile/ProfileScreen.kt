@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Lock
@@ -28,86 +29,26 @@ import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 
 @Composable
-fun ProfileScreen(
-    onBack: () -> Unit,
-    onOpenSettings: () -> Unit
-) {
+fun ProfileScreen(onBack: () -> Unit, onOpenSettings: () -> Unit) {
     Scaffold { padding ->
-        Column(
-            Modifier.fillMaxWidth().padding(padding),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        Column(Modifier.fillMaxWidth().padding(padding), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             LifeOSTopBar("Profile", "Your LifeOS space", onBack = onBack)
-            Column(
-                Modifier.padding(horizontal = LifeOSSpacing.screenPadding),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 LifeOSCard(Modifier.fillMaxWidth(), tint = LifeOSAccentLavender) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            modifier = Modifier.size(64.dp),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surface
-                        ) {
-                            Icon(
-                                Icons.Filled.Person,
-                                contentDescription = "Profile",
-                                tint = LifeOSPrimary,
-                                modifier = Modifier.padding(16.dp)
-                            )
-                        }
-                        Column(Modifier.padding(start = 14.dp)) {
-                            Text("Your LifeOS Profile", style = MaterialTheme.typography.titleLarge)
-                            Text(
-                                "Personal space · stored on this device",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Surface(modifier = Modifier.size(64.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface) { Icon(Icons.Filled.Person, contentDescription = "Profile", tint = LifeOSPrimary, modifier = Modifier.padding(16.dp)) }
+                        Column(Modifier.padding(start = 14.dp)) { Text("Your LifeOS Profile", style = MaterialTheme.typography.titleLarge); Text("Personal space · stored on this device", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                 }
-
                 ProfileRow(Icons.Filled.Lock, "App Lock", "Protect LifeOS with your PIN")
                 ProfileRow(Icons.Filled.Backup, "Local Backup", "Your backup stays under your control")
-                LifeOSCard(
-                    Modifier.fillMaxWidth(),
-                    onClick = onOpenSettings
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Settings, contentDescription = null, tint = LifeOSPrimary)
-                        Column(Modifier.padding(start = 14.dp)) {
-                            Text("Settings", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "Preferences, reminders and privacy",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
+                LifeOSCard(Modifier.fillMaxWidth(), onClick = onOpenSettings) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Filled.Settings, contentDescription = null, tint = LifeOSPrimary); Column(Modifier.padding(start = 14.dp)) { Text("Settings", style = MaterialTheme.typography.titleMedium); Text("Preferences, reminders and privacy", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
             }
         }
     }
 }
 
 @Composable
-private fun ProfileRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String
-) {
-    LifeOSCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Icon(icon, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.padding(10.dp))
-            }
-            Column(Modifier.padding(start = 12.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
+private fun ProfileRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String) {
+    LifeOSCard(Modifier.fillMaxWidth()) { Row(verticalAlignment = Alignment.CenterVertically) { Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(14.dp)) { Icon(icon, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.padding(10.dp)) }; Column(Modifier.padding(start = 12.dp)) { Text(title, style = MaterialTheme.typography.titleMedium); Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
 }

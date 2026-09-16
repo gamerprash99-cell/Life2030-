@@ -74,15 +74,12 @@ fun VideoCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
 
     LaunchedEffect(isRecording) {
         seconds = 0
-        while (isRecording) {
-            kotlinx.coroutines.delay(1000)
-            seconds++
-        }
+        while (isRecording) { kotlinx.coroutines.delay(1000); seconds++ }
     }
     DisposableEffect(Unit) { onDispose { recording?.stop() } }
 
     Box(Modifier.fillMaxSize()) {
-        AndroidView(Modifier.fillMaxSize(), factory = { ctx ->
+        AndroidView(factory = { ctx ->
             PreviewView(ctx).also { previewView ->
                 previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
                 val future = ProcessCameraProvider.getInstance(ctx)
@@ -93,7 +90,7 @@ fun VideoCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
                         .onFailure { Toast.makeText(ctx, "Camera failed: ${it.message}", Toast.LENGTH_SHORT).show() }
                 }, ContextCompat.getMainExecutor(ctx))
             }
-        })
+        }, modifier = Modifier.fillMaxSize())
 
         Surface(Modifier.align(Alignment.TopStart).statusBarsPadding().padding(14.dp), color = Color.Black.copy(alpha = .42f), shape = CircleShape) {
             IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Close camera", tint = Color.White) }
@@ -106,8 +103,7 @@ fun VideoCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
             Surface(
                 onClick = {
                     if (isRecording) {
-                        recording?.stop()
-                        recording = null
+                        recording?.stop(); recording = null
                     } else {
                         val file = MediaStorage.newVideoFile(context)
                         val output = FileOutputOptions.Builder(file).build()

@@ -1,6 +1,5 @@
 package com.lifeos.app.domain.usecase
 
-import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.repository.CaptureRepository
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.data.repository.ExpenseRepository
@@ -13,13 +12,6 @@ import com.lifeos.app.domain.model.TimelineItemType
 import kotlinx.coroutines.flow.first
 import java.time.ZoneOffset
 
-/**
- * Builds the unified Timeline (Section 3/60) for a given day by pulling from
- * every feature's repository and merging by time — the concrete implementation
- * of the spec's "connect everything through Date/Time/Tags/Timeline" mandate.
- * Deliberately a suspend function (not a Flow) — the Timeline screen re-invokes
- * it when the selected date changes, keeping this simple and predictable.
- */
 class BuildTimelineUseCase(
     private val noteRepo: NoteRepository,
     private val taskRepo: TaskRepository,
@@ -30,79 +22,74 @@ class BuildTimelineUseCase(
 ) {
     suspend operator fun invoke(epochDay: Long): List<TimelineItem> {
         val items = mutableListOf<TimelineItem>()
-
         val startMillis = epochDay * 86_400_000L
         val endMillis = startMillis + 86_400_000L
 
-        // Notes created/updated that day
-        val notes = noteRepo.getCreatedBetween(startMillis, endMillis)
-        items += notes.map {
-            val minutes = epochMillisToMinutesOfDay(it.createdAt)
-            TimelineItem(
-                id = "note-${it.id}", type = TimelineItemType.NOTE, title = it.title.ifBlank { "Untitled note" },
-                subtitle = it.folder, dateEpochDay = epochDay, timeMinutes = minutes, icon = "📝", sourceId = it.id
-            )
-        }
+        noteRepo.observeAll().first()
+            .filter { it.createdAt in startMillis until endMillis }
+            .forEach { note ->
+                items += TimelineItem(
+                    id = "note-${note.id}", type = TimelineItemType.NOTE,
+                    title = note.title.ifBlank { "Untitled note" }, subtitle = note.folder,
+                    dateEpochDay = epochDay, timeMinutes = epochMillisToMinutesOfDay(note.createdAt),
+                    icon = "📝", sourceId = note.id
+                )
+            }
 
-        // Tasks completed that day
-        val completedTasks = taskRepo.getCreatedBetween(startMillis, endMillis).filter { it.isCompleted }
-        items += completedTasks.map {
-            val minutes = it.completedAtEpochMillis?.let(::epochMillisToMinutesOfDay) ?: 0
-            TimelineItem(
-                id = "task-${it.id}", type = TimelineItemType.TASK_COMPLETED, title = it.title,
-                subtitle = "Task completed", dateEpochDay = epochDay, timeMinutes = minutes, icon = "✅", sourceId = it.id,
-                moodOrCategory = it.category
-            )
-        }
+        taskRepo.observeAll().first()
+            .filter { it.isCompleted && (it.completedAtEpochMillis ?: it.updatedAt) in startMillis until endMillis }
+            .forEach { task ->
+                items += TimelineItem(
+                    id = "task-${task.id}", type = TimelineItemType.TASK_COMPLETED,
+                    title = task.title, subtitle = "Task completed", dateEpochDay = epochDay,
+                    timeMinutes = task.completedAtEpochMillis?.let(::epochMillisToMinutesOfDay) ?: epochMillisToMinutesOfDay(task.updatedAt),
+                    icon = "✅", sourceId = task.id, moodOrCategory = task.category
+                )
+            }
 
-        // Habits completed that day (repositories expose Flow; take the first/current emission)
-        val habitsToday = habitRepo.observeAllForDay(epochDay).first()
         val habitsById = habitRepo.observeAll().first().associateBy { it.id }
-        items += habitsToday.filter { completion -> 
-            val habit = habitsById[completion.habitId]
-            habit != null && completion.progressCount >= habit.goalCount
-        }.map { completion ->
-            val habit = habitsById[completion.habitId]!!
-            val minutes = epochMillisToMinutesOfDay(completion.completedAtEpochMillis)
-            TimelineItem(
-                id = "habit-${habit.id}-$epochDay", type = TimelineItemType.HABIT_COMPLETED, title = habit.name,
-                subtitle = "Habit completed", dateEpochDay = epochDay, timeMinutes = minutes, icon = habit.icon,
-                sourceId = habit.id
+        habitRepo.observeAllForDay(epochDay).first()
+            .filter { completion ->
+                val habit = habitsById[completion.habitId]
+                habit != null && completion.progressCount >= habit.goalCount
+            }
+            .forEach { completion ->
+                val habit = habitsById[completion.habitId] ?: return@forEach
+                items += TimelineItem(
+                    id = "habit-${habit.id}-$epochDay", type = TimelineItemType.HABIT_COMPLETED,
+                    title = habit.name, subtitle = "Habit completed", dateEpochDay = epochDay,
+                    timeMinutes = epochMillisToMinutesOfDay(completion.completedAtEpochMillis),
+                    icon = habit.icon, sourceId = habit.id
+                )
+            }
+
+        expenseRepo.observeForDay(epochDay).first().forEach { expense ->
+            items += TimelineItem(
+                id = "expense-${expense.id}", type = TimelineItemType.EXPENSE,
+                title = expense.merchant ?: expense.category, subtitle = "₹${expense.amount}",
+                dateEpochDay = epochDay, timeMinutes = expense.timeMinutes,
+                icon = ExpenseCategories.emojiFor(expense.category), sourceId = expense.id,
+                moodOrCategory = expense.category
             )
         }
 
-        // Expenses
-        val expenses = expenseRepo.observeForDay(epochDay).first()
-        items += expenses.map {
-            TimelineItem(
-                id = "expense-${it.id}", type = TimelineItemType.EXPENSE,
-                title = it.merchant ?: it.category, subtitle = "₹${it.amount}",
-                dateEpochDay = epochDay, timeMinutes = it.timeMinutes,
-                icon = ExpenseCategories.emojiFor(it.category), sourceId = it.id, moodOrCategory = it.category
+        diaryRepo.observeForDay(epochDay).first().forEach { diary ->
+            items += TimelineItem(
+                id = "diary-${diary.id}", type = TimelineItemType.DIARY,
+                title = diary.title ?: "Diary entry", subtitle = diary.mood,
+                dateEpochDay = epochDay, timeMinutes = diary.timeMinutes, icon = "📔",
+                sourceId = diary.id, moodOrCategory = diary.mood
             )
         }
 
-        // Diary
-        val diaryEntries = diaryRepo.observeForDay(epochDay).first()
-        items += diaryEntries.map {
-            TimelineItem(
-                id = "diary-${it.id}", type = TimelineItemType.DIARY,
-                title = it.title ?: "Diary entry", subtitle = it.mood,
-                dateEpochDay = epochDay, timeMinutes = it.timeMinutes, icon = "📔", sourceId = it.id,
-                moodOrCategory = it.mood
-            )
-        }
-
-        // Captures
-        val captures = captureRepo.observeForDay(epochDay).first()
-        items += captures.map {
-            val icon = when (it.type.name) {
+        captureRepo.observeForDay(epochDay).first().forEach { capture ->
+            val icon = when (capture.type.name) {
                 "PHOTO" -> "📷"; "VIDEO" -> "🎥"; "AUDIO" -> "🎙"; else -> "💭"
             }
-            TimelineItem(
-                id = "capture-${it.id}", type = TimelineItemType.CAPTURE,
-                title = it.caption ?: it.type.name.lowercase().replaceFirstChar { c -> c.uppercase() },
-                dateEpochDay = epochDay, timeMinutes = it.timeMinutes, icon = icon, sourceId = it.id
+            items += TimelineItem(
+                id = "capture-${capture.id}", type = TimelineItemType.CAPTURE,
+                title = capture.caption ?: capture.type.name.lowercase().replaceFirstChar { it.uppercase() },
+                dateEpochDay = epochDay, timeMinutes = capture.timeMinutes, icon = icon, sourceId = capture.id
             )
         }
 
@@ -110,8 +97,7 @@ class BuildTimelineUseCase(
     }
 
     private fun epochMillisToMinutesOfDay(millis: Long): Int {
-        val instant = java.time.Instant.ofEpochMilli(millis)
-        val local = instant.atZone(ZoneOffset.systemDefault()).toLocalTime()
+        val local = java.time.Instant.ofEpochMilli(millis).atZone(ZoneOffset.systemDefault()).toLocalTime()
         return local.hour * 60 + local.minute
     }
 }

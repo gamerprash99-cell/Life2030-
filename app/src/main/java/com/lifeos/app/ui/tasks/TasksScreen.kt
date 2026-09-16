@@ -101,7 +101,7 @@ fun TasksScreen() {
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxWidth().padding(padding),
-            contentPadding = PaddingValues(horizontal = LifeOSSpacing.screenPadding, top = 6.dp, bottom = LifeOSSpacing.fabContentClearance),
+            contentPadding = PaddingValues(start = LifeOSSpacing.screenPadding, end = LifeOSSpacing.screenPadding, top = 6.dp, bottom = LifeOSSpacing.fabContentClearance),
             verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
         ) {
             item { LifeOSTopBar("Tasks & Projects", "$pending pending · $completed completed") }
