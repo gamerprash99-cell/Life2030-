@@ -103,3 +103,6 @@ Start with:
 3. [`docs/DESIGN.md`](./docs/DESIGN.md)
 4. [`docs/19_DEVELOPER_HANDOVER.md`](./docs/19_DEVELOPER_HANDOVER.md)
 5. [`docs/16_KNOWN_ISSUES.md`](./docs/16_KNOWN_ISSUES.md)
+
+## LIFE Phase 18 Consolidation
+LIFE is integrated into the supplied LifeOS source as a local, allow-listed controller with repository-only data access and optional Android on-device voice input. No cloud AI or network fallback is part of the LIFE execution path. Production neural inference remains gated on a real validated LIFE checkpoint. See `FINAL_RELEASE_CHECKLIST.md` and `docs/33_LIFE_INTEGRATION_PHASE18.md`.

@@ -3,6 +3,7 @@ package com.lifeos.app.core.di
 import android.content.Context
 import com.lifeos.app.core.ai.AiRepository
 import com.lifeos.app.core.intelligence.LifeOSIntelligenceEngine
+import com.lifeos.app.core.life.LifeController
 import com.lifeos.app.core.util.SettingsStore
 import com.lifeos.app.data.db.AppDatabase
 import com.lifeos.app.data.repository.BackupRepository
@@ -46,6 +47,8 @@ class ServiceLocator private constructor(context: Context) {
         noteRepository, taskRepository, habitRepository, diaryRepository, expenseRepository, captureRepository
     )
     val aiRepository = AiRepository(intelligenceEngine)
+
+    val lifeController = LifeController(noteRepository, taskRepository, habitRepository, diaryRepository, expenseRepository)
 
     val getHomeSummaryUseCase = GetHomeSummaryUseCase(taskRepository, habitRepository, expenseRepository)
     val buildTimelineUseCase = BuildTimelineUseCase(

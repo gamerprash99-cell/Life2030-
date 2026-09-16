@@ -116,7 +116,32 @@ fun LifeOSNavHost() {
             }
             composable(Screen.Insights.route) { InsightsScreen() }
             composable(Screen.Search.route) { SearchScreen() }
-            composable(Screen.AiAssistant.route) { AiAssistantScreen() }
+            composable(Screen.AiAssistant.route) {
+                AiAssistantScreen(
+                    onOpenDestination = { destination ->
+                        when (destination) {
+                            is com.lifeos.app.core.life.LifeDestination.Note -> navController.navigate(Screen.NoteEditor.createRoute(destination.id))
+                            com.lifeos.app.core.life.LifeDestination.Notes -> navController.navigate(Screen.Notes.route)
+                            com.lifeos.app.core.life.LifeDestination.Diary -> navController.navigate(Screen.Diary.route)
+                            com.lifeos.app.core.life.LifeDestination.Tasks -> navController.navigate(Screen.Tasks.route)
+                            com.lifeos.app.core.life.LifeDestination.Habits -> navController.navigate(Screen.Habits.route)
+                            com.lifeos.app.core.life.LifeDestination.Expenses -> navController.navigate(Screen.Expenses.route)
+                            com.lifeos.app.core.life.LifeDestination.Home -> navController.navigate(Screen.Home.route)
+                        }
+                    },
+                    onOpenFeedback = { feedback ->
+                        when (val destination = feedback.destination) {
+                            is com.lifeos.app.core.life.LifeDestination.Note -> navController.navigate(Screen.NoteEditor.createRoute(destination.id))
+                            com.lifeos.app.core.life.LifeDestination.Notes -> navController.navigate(Screen.Notes.route)
+                            com.lifeos.app.core.life.LifeDestination.Diary -> navController.navigate(Screen.Diary.route)
+                            com.lifeos.app.core.life.LifeDestination.Tasks -> navController.navigate(Screen.Tasks.route)
+                            com.lifeos.app.core.life.LifeDestination.Habits -> navController.navigate(Screen.Habits.route)
+                            com.lifeos.app.core.life.LifeDestination.Expenses -> navController.navigate(Screen.Expenses.route)
+                            com.lifeos.app.core.life.LifeDestination.Home -> navController.navigate(Screen.Home.route)
+                        }
+                    }
+                )
+            }
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     onBack = { navController.popBackStack() },

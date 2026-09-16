@@ -145,3 +145,9 @@ Verification: archive integrity checked after the source update. Full Android Gr
 
 ### Verification
 - Source archive was inspected and modified locally. Full Android Gradle compilation/tests could not be executed because the supplied snapshot has no Gradle wrapper and this environment has no installed Gradle/Android SDK.
+
+## 2026-09-17 — LIFE Phase 18 Consolidation
+- Consolidated LIFE controller, bounded session/context model, local voice bridge, and allow-listed navigation into the supplied latest LifeOS source tree.
+- Preserved existing Room/repository/navigation architecture.
+- Added final release checklist and Phase 18 documentation.
+- Android build verification remains pending because the supplied project has no Gradle wrapper and the verification environment has no system Gradle.
