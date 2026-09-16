@@ -44,7 +44,7 @@ Room remains the persistence layer. No database schema change was required for t
 
 ## Security
 
-App Lock uses AndroidX BiometricPrompt for device-level biometrics and the existing local PIN hashing/recovery path for PIN mode. LifeOS never stores biometric templates.
+App Lock uses the existing local PIN hashing/recovery path. The lock choices are `NONE` and `PIN`; no biometric subsystem is part of the current architecture.
 
 ## Current-state addendum — 2026-09-16
 

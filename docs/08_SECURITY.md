@@ -12,7 +12,7 @@ LifeOS supports:
 - `BIOMETRIC`
 - `PIN`
 
-Biometric mode uses AndroidX `BiometricPrompt`. LifeOS does not access or store biometric templates and cannot distinguish which enrolled person authenticated.
+The previous biometric mode has been removed. Current App Lock is PIN-only and uses the existing salted PIN/recovery hashing flow.
 
 PIN mode uses the existing `PinHasher` and recovery flow. Plaintext PINs and plaintext recovery answers must never be persisted.
 
@@ -56,3 +56,8 @@ This document remains part of the LifeOS documentation set. Current UI/UX, motio
 ## Current implementation snapshot — 2026-09-16
 
 The capture redesign does not add storage or network permissions. Camera and microphone access are still requested only when the relevant capture mode is opened.
+
+
+## Current state — 2026-09-16
+
+The biometric App Lock path has been removed. The remaining App Lock choices are `NONE` and `PIN`, with secure salted-hash verification and recovery-question verification.

@@ -17,7 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
@@ -132,21 +131,12 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit) {
                 }
 
                 LifeOSSectionHeader("Security")
-                SettingsRow(Icons.Filled.Lock, "App Lock", when (appLockType) {
-                    AppLockType.NONE -> "Off"
-                    AppLockType.BIOMETRIC -> "Android BiometricPrompt"
-                    AppLockType.PIN -> "Secure LifeOS PIN"
-                }, onOpenAppLockSetup)
-
-                LifeOSCard(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SettingsIcon(Icons.Filled.Fingerprint)
-                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text("Device authentication", style = MaterialTheme.typography.titleMedium)
-                            Text("Biometric templates are managed by Android; LifeOS never stores them.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
+                SettingsRow(
+                    Icons.Filled.Lock,
+                    "App Lock",
+                    if (appLockType == AppLockType.PIN) "Secure LifeOS PIN" else "Off",
+                    onOpenAppLockSetup
+                )
 
                 LifeOSSectionHeader("Appearance")
                 LifeOSCard(Modifier.fillMaxWidth()) {

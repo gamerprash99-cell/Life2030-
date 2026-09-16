@@ -148,13 +148,14 @@
 - **Fix**: `PermissionManager.kt` now exposes a `PermissionStatus` (GRANTED / NOT_YET_REQUESTED_OR_DENIABLE / PERMANENTLY_DENIED) via `ActivityCompat.shouldShowRequestPermissionRationale()`. All three capture screens now show "Open Settings" instead of a dead-end "Grant permission" button once a permission is permanently denied.
 - **Status**: Resolved.
 
-### Issue #13 — Biometric App Lock is device-level, not app-specific (platform limitation, not a bug)
+### Issue #13 — [RESOLVED] Biometric App Lock removed
 
-- **Severity**: 🟡 Medium (documented limitation, mitigated with an alternative)
-- **Description**: Android does not allow apps to register a separate biometric enrollment from the OS — `BiometricPrompt` always verifies against whatever fingerprint/face/PIN is enrolled at the device level. This means "anyone who can unlock the phone can also pass LifeOS's biometric check" is true by Android platform design, for every app that uses BiometricPrompt (not a LifeOS-specific gap).
-- **Mitigation shipped**: A separate **App PIN** option (`AppLockType.PIN`) is now available — independent of the device's own lock screen, with its own salted-hash storage and a secure recovery-question flow. Users who want protection independent of "who can unlock my phone" should choose this instead of Biometric.
-- **Not done in this pass**: Binding the BiometricPrompt call to an Android Keystore `CryptoObject` (a further hardening step that ties a successful biometric result to decrypting a real secret, rather than a bare boolean) was considered but not implemented — it's a meaningfully larger, higher-risk change to make without a real device/build environment to verify it against. Flagged as a legitimate future improvement, not silently skipped.
-- **Status**: Open (platform limitation) with App PIN mitigation shipped; first-time biometric enrollment guidance is now wired through Android settings on supported API levels.
+- **Severity**: Was 🟡 Medium.
+- **Description**: The former biometric implementation depended on AndroidX `BiometricPrompt` and device-level enrollment.
+- **Resolution**: On 2026-09-16 the biometric option, setup flow, runtime prompt, `AppLockManager` and AndroidX Biometric dependency were removed. App Lock is now PIN-only.
+- **Compatibility**: A legacy stored `BIOMETRIC` setting is interpreted as `NONE` because a biometric configuration contains no LifeOS PIN secret that can safely be converted.
+- **Status**: Resolved.
+
 
 ## Current-state addendum — 2026-09-16
 

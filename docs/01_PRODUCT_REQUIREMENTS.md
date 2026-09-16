@@ -53,7 +53,7 @@ Legend: **IMPLEMENTED** / **PARTIALLY IMPLEMENTED** / **PLANNED (referenced in c
 | Quick text "thought" capture | **IMPLEMENTED** | `ui/capture/CaptureSheet.kt` |
 | AI Assistant chat | **IMPLEMENTED** | `ui/ai/AiAssistantScreen.kt` |
 | AI weekly review summary | **IMPLEMENTED** | `ui/insights/InsightsScreen.kt` |
-| App Lock (biometric/PIN) | **IMPLEMENTED** | `core/security/AppLockManager.kt`, gated in `MainActivity.kt` |
+| App Lock (PIN) | **IMPLEMENTED** | `SettingsStore`, `AppLockScreen.kt`, gated in `MainActivity.kt` |
 | Full backup export to local JSON | **IMPLEMENTED** | `data/repository/BackupRepository.kt` |
 | Backup restore from JSON | **IMPLEMENTED** | `data/repository/BackupRepository.kt` (`importFromFile`) — onboarding and Settings provide the JSON document-picker entry point |
 | Share exported backup via system share sheet | **IMPLEMENTED** | `ui/settings/SettingsScreen.kt` |

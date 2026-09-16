@@ -87,8 +87,6 @@ dependencies {
     // DataStore for settings / preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
-    // Biometric app-lock
-    implementation("androidx.biometric:biometric:1.1.0")
 
     // WorkManager (reminders, recurring task/habit rollover, backup scheduling)
     implementation("androidx.work:work-runtime-ktx:2.10.0")

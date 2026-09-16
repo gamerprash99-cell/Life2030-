@@ -93,8 +93,8 @@ private fun rememberCoroutineScopeCompat() = androidx.compose.runtime.rememberCo
 
 /**
  * Gates the whole app behind App Lock (Section 3/4 security pass) when
- * AppLockType != NONE. Delegates to AppLockScreen for both the biometric
- * and PIN paths, plus PIN recovery. Session stays unlocked until the
+ * AppLockType != NONE. Delegates to AppLockScreen for the PIN path and
+ * PIN recovery. Session stays unlocked until the
  * process is killed (matches the prior behavior — this is not a per-
  * background-return re-lock, which would be a separate product decision).
  */

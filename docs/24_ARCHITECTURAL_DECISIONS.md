@@ -26,7 +26,7 @@ Colors, spacing and shapes are centralized in `ui/theme/`. Reusable components l
 
 ## ADR-007 — Android biometric behavior
 
-Biometric authentication remains delegated to `BiometricPrompt`. LifeOS does not maintain a biometric database and cannot distinguish enrolled people.
+The biometric authentication path was removed. App Lock is intentionally limited to the existing local PIN/recovery implementation.
 
 ## ADR-008 — Backup restore via SAF
 

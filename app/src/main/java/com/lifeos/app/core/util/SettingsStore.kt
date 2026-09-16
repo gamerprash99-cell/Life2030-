@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "lifeos_settings")
 
-enum class AppLockType { NONE, BIOMETRIC, PIN }
+enum class AppLockType { NONE, PIN }
 
 /**
  * Central app settings — Section 59 (Settings screen). No settings are
@@ -43,7 +43,13 @@ class SettingsStore(private val context: Context) {
     val aiFeaturesEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AI_FEATURES_ENABLED] ?: false }
 
     val appLockType: Flow<AppLockType> = context.dataStore.data.map {
-        it[Keys.APP_LOCK_TYPE]?.let { name -> runCatching { AppLockType.valueOf(name) }.getOrNull() } ?: AppLockType.NONE
+        when (it[Keys.APP_LOCK_TYPE]) {
+            AppLockType.PIN.name -> AppLockType.PIN
+            // A previously configured biometric lock is intentionally treated as
+            // disabled after the biometric option was removed. It cannot silently
+            // become a PIN because no PIN secret exists for that old configuration.
+            else -> AppLockType.NONE
+        }
     }
     val recoveryQuestion: Flow<String?> = context.dataStore.data.map { it[Keys.RECOVERY_QUESTION] }
 
@@ -51,11 +57,6 @@ class SettingsStore(private val context: Context) {
     suspend fun setOnboardingComplete(complete: Boolean) = context.dataStore.edit { it[Keys.ONBOARDING_COMPLETE] = complete }
     suspend fun setAiFeaturesEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.AI_FEATURES_ENABLED] = enabled }
 
-    /** Enables biometric-only App Lock. Caller must have already verified a successful BiometricPrompt auth before calling this. */
-    suspend fun enableBiometricLock() = context.dataStore.edit {
-        it[Keys.APP_LOCK_TYPE] = AppLockType.BIOMETRIC.name
-        it.remove(Keys.PIN_SALT); it.remove(Keys.PIN_HASH)
-    }
 
     /** Enables PIN App Lock with a mandatory recovery question, so a forgotten PIN doesn't lock the user out permanently. */
     suspend fun enablePinLock(pin: String, recoveryQuestion: String, recoveryAnswer: String) {

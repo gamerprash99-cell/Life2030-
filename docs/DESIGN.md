@@ -123,7 +123,7 @@ LifeOS exposes:
 - Biometric
 - PIN / Passcode
 
-Biometric authentication is always Android's `BiometricPrompt`. LifeOS never stores biometric templates and cannot determine which enrolled person authenticated.
+App Lock is PIN-only. LifeOS stores only salted hashes for the PIN and recovery answer; no biometric templates or biometric prompt are used.
 
 First-time biometric setup should:
 
@@ -254,3 +254,10 @@ Visual references must not introduce:
 ## Current implementation snapshot — 2026-09-16
 
 The 2026-09-16 Android implementation now applies the documented design system to the primary dashboard, habits, tasks, insights, settings and capture studio.
+
+
+## Current implementation — 2026-09-16
+
+The supplied Stitch Today dashboard is implemented as native Compose on the existing Home screen. The Home header keeps search and moves Settings and Profile to the top-right, matching the requested commerce-app-style account affordance without adding remote profile data. Existing dashboard data, quick actions, priorities, habits, intelligence and capture entry points remain wired to their existing ViewModel/repository flows.
+
+The bottom navigation no longer contains Settings; Settings remains a normal NavController destination reachable from Home/Profile. App Lock is PIN-only. Android system Back is handled by the existing NavController stack so nested routes can return through the app navigation stack.

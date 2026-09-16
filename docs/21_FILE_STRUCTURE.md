@@ -30,7 +30,7 @@ WHAT BREAKS IF MODIFIED: Removing a uses-permission breaks the corresponding fea
 PURPOSE: App entry point. Sets up the theme, provides ServiceLocator via CompositionLocalProvider, and wraps the app in OnboardingGate then AppLockGate then LifeOSNavHost
 IMPORTANT FUNCTIONS: AppLockGate() — the biometric gating composable
 DEPENDENCIES: LifeOSApplication, ServiceLocator, LifeOSNavHost
-WHAT BREAKS IF MODIFIED: Changing the base class away from FragmentActivity breaks App Lock (BiometricPrompt requires it)
+WHAT BREAKS IF MODIFIED: MainActivity owns the app entry point and existing Compose activity lifecycle.
 
 ### LifeOSApplication.kt
 PURPOSE: Application subclass; builds the single ServiceLocator instance and ensures the notification channel exists on startup
@@ -58,9 +58,6 @@ WHAT BREAKS IF MODIFIED: Changes can affect note actions, diary drafting, report
 PURPOSE: NoteAiAction enum (the 12 note actions), ExtractedTask, ChatMessage
 WHAT BREAKS IF MODIFIED: Adding/removing a NoteAiAction enum value automatically changes the AI actions dropdown in NoteEditorScreen.kt
 
-### core/security/AppLockManager.kt
-PURPOSE: Wraps androidx.biometric.BiometricPrompt
-WHAT BREAKS IF MODIFIED: Changing the Authenticators flags changes what unlock methods are accepted
 
 ### core/reminders/ReminderScheduler.kt and ReminderWorker.kt
 PURPOSE: Schedules/fires WorkManager jobs for Task/Habit reminders
@@ -159,3 +156,11 @@ This document remains part of the LifeOS documentation set. Current UI/UX, motio
 ## Current implementation snapshot — 2026-09-16
 
 New shared presentation code includes ui/components/LifeOSTopBar.kt; the updated primary screen and capture implementations remain in their existing feature packages.
+
+
+## Current UI additions — 2026-09-16
+
+- `ui/home/HomeScreen.kt` — Stitch-inspired Today dashboard and top-right actions.
+- `ui/profile/ProfileScreen.kt` — local Profile destination opened from Home.
+- `ui/security/AppLockScreen.kt` and `AppLockSetupScreen.kt` — PIN-only lock/recovery flow.
+- Removed `core/security/AppLockManager.kt` after biometric support was retired.

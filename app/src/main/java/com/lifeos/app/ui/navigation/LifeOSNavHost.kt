@@ -29,6 +29,7 @@ import com.lifeos.app.ui.notes.NoteEditorScreen
 import com.lifeos.app.ui.notes.NotesListScreen
 import com.lifeos.app.ui.search.SearchScreen
 import com.lifeos.app.ui.settings.SettingsScreen
+import com.lifeos.app.ui.profile.ProfileScreen
 import com.lifeos.app.ui.security.AppLockSetupScreen
 import com.lifeos.app.ui.tasks.TasksScreen
 import com.lifeos.app.ui.timeline.TimelineScreen
@@ -45,9 +46,10 @@ fun LifeOSNavHost() {
     // Keep system Back predictable even on secondary screens that do not expose
     // their own toolbar action. Bottom navigation still owns cross-section jumps.
     BackHandler(enabled = !onRoot) {
-        if (!navController.popBackStack()) navController.navigate(Screen.Home.route) {
-            launchSingleTop = true
-        }
+        // One NavController owns the entire app stack. This makes Android's
+        // system Back behave exactly like the visible toolbar Back action,
+        // including Home → Notes → Note Editor and every other nested route.
+        navController.popBackStack()
     }
 
     Scaffold(
@@ -69,7 +71,9 @@ fun LifeOSNavHost() {
                     onOpenDiary = { navController.navigate(Screen.Diary.route) },
                     onOpenInsights = { navController.navigate(Screen.Insights.route) },
                     onOpenSearch = { navController.navigate(Screen.Search.route) },
-                    onOpenTimeline = { navController.navigate(Screen.Timeline.route) }
+                    onOpenTimeline = { navController.navigate(Screen.Timeline.route) },
+                    onOpenSettings = { navController.navigate(Screen.Settings.route) },
+                    onOpenProfile = { navController.navigate(Screen.Profile.route) }
                 )
             }
             composable(Screen.Notes.route) {
@@ -113,6 +117,12 @@ fun LifeOSNavHost() {
             composable(Screen.Insights.route) { InsightsScreen() }
             composable(Screen.Search.route) { SearchScreen() }
             composable(Screen.AiAssistant.route) { AiAssistantScreen() }
+            composable(Screen.Profile.route) {
+                ProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenSettings = { navController.navigate(Screen.Settings.route) }
+                )
+            }
             composable(Screen.Settings.route) {
                 SettingsScreen(onOpenAppLockSetup = { navController.navigate(Screen.AppLockSetup.route) })
             }

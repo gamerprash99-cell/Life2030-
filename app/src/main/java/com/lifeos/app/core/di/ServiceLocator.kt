@@ -3,7 +3,6 @@ package com.lifeos.app.core.di
 import android.content.Context
 import com.lifeos.app.core.ai.AiRepository
 import com.lifeos.app.core.intelligence.LifeOSIntelligenceEngine
-import com.lifeos.app.core.security.AppLockManager
 import com.lifeos.app.core.util.SettingsStore
 import com.lifeos.app.data.db.AppDatabase
 import com.lifeos.app.data.repository.BackupRepository
@@ -29,7 +28,6 @@ class ServiceLocator private constructor(context: Context) {
     private val database = AppDatabase.getInstance(appContext)
 
     val settingsStore = SettingsStore(appContext)
-    val appLockManager = AppLockManager(appContext)
 
     val noteRepository = NoteRepository(database.noteDao())
     val taskRepository = TaskRepository(database.taskDao(), appContext)

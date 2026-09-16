@@ -9,7 +9,7 @@
 | Preferences | DataStore Preferences | Settings |
 | Navigation | Navigation Compose | App navigation |
 | Scheduling | WorkManager | Task/habit reminders |
-| Biometrics | AndroidX BiometricPrompt | Device biometric authentication |
+| App Lock | DataStore + salted PIN hashing | Local PIN authentication and recovery |
 | Camera | CameraX | Photo/video capture |
 | Audio | MediaRecorder | Audio capture |
 | Image loading | Coil | Capture/media presentation |
@@ -38,4 +38,4 @@ This document remains part of the LifeOS documentation set. Current UI/UX, motio
 
 ## Current implementation snapshot — 2026-09-16
 
-The implemented reference UI remains Kotlin + Jetpack Compose + Material 3 with the existing Room, DataStore, Navigation Compose, WorkManager, CameraX, MediaRecorder and BiometricPrompt stack.
+The implemented reference UI remains Kotlin + Jetpack Compose + Material 3 with the existing Room, DataStore, Navigation Compose, WorkManager, CameraX, MediaRecorder stack without biometric authentication.

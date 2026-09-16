@@ -2,82 +2,33 @@
 
 ## Technical explanation
 
-**There is no user authentication system in this application.** Confirmed
-by exhaustive repository search: no login screen, no signup/registration
-flow, no password field, no OAuth SDK, no session/token management, no
-Firebase Auth, no `User` entity in the database, and no "logged in / logged
-out" state anywhere in the code.
+LifeOS is a single-user, single-device, local-only application. There is no account, signup, OAuth, Firebase Auth, cloud session, token or remote identity system.
 
-The app is designed as a **single-user, single-device, local-only** tool —
-whoever has the phone unlocked is "the user." There is no concept of
-multiple accounts on one device or the same account across multiple devices.
+### App Lock
 
-### What *does* exist: App Lock (not authentication)
+The one access-control feature is **App Lock**, implemented as an app-level PIN gate:
 
-The one access-control feature is **App Lock** — a screen-level gate that
-uses the phone's own biometric/PIN system, not a LifeOS account:
+- **UI**: `ui/security/AppLockSetupScreen.kt` and `ui/security/AppLockScreen.kt`
+- **Persistence**: `core/util/SettingsStore.kt` using DataStore Preferences
+- **Choices**: `NONE` or `PIN`
+- **PIN security**: the PIN and recovery answer are stored only as salted hashes through `core/security/PinHasher.kt`
+- **Recovery**: forgetting the PIN requires verification of the stored recovery answer before a replacement PIN can be created
+- **Gate**: `MainActivity.kt`'s `AppLockGate` blocks `LifeOSNavHost` until the PIN is verified
 
-- **File**: `app/src/main/java/com/lifeos/app/core/security/AppLockManager.kt`
-- **Mechanism**: `androidx.biometric.BiometricPrompt`, requesting
-  `BIOMETRIC_WEAK or DEVICE_CREDENTIAL` — this means it will accept a
-  fingerprint/face unlock **or** the device's own PIN/pattern/password.
-  LifeOS itself never sees or stores that credential; Android's biometric
-  framework handles the actual verification.
-- **Gating logic**: `MainActivity.kt`'s `AppLockGate` composable — checks
-  `SettingsStore.appLockEnabled`; if true, blocks the `LifeOSNavHost` behind
-  a biometric prompt on launch.
-- **Toggle**: `ui/settings/SettingsScreen.kt`, a simple on/off `Switch`.
-- **Persistence of the toggle**: `core/util/SettingsStore.kt`, DataStore
-  Preferences key `app_lock_enabled`.
+The previous biometric option has been removed. LifeOS does not use AndroidX BiometricPrompt, biometric enrollment, fingerprints, face templates or device credentials for App Lock.
 
-This is a **local unlock gate**, comparable to how a notes app or banking
-app might require Face ID before opening — it is **not** a username/password
-or account system, and it does not protect data if someone has direct
-filesystem/ADB access to the device (see `docs/08_SECURITY.md`).
+### Session management
 
-### Session management, tokens, password reset, OAuth
+There is no account session or token. Once the PIN gate is successfully unlocked, the existing process-lifetime session behavior is retained.
 
-**None of these exist.** There is nothing to document because there is no
-session, no token, and no password to reset.
+### Authorization
 
-### Authorization / protected routes
+There is one local user and no roles or remote authorization. App Lock protects the whole application rather than individual feature routes.
 
-There is only one user, so there is no role-based access control and no
-"protected route" concept beyond the App Lock gate applying to the entire
-app at once (all-or-nothing — there's no way to lock only some screens).
+## Simple explanation
 
----
+LifeOS does not ask you to sign in. If you turn on App Lock, it asks for a **LifeOS PIN** before opening the app. If you forget it, the recovery question must be answered before the PIN can be replaced.
 
-## Simple explanation (for the founder)
+## Current state — 2026-09-16
 
-Think of LifeOS today the same way you'd think of your phone's built-in
-Notes app: **there's no sign-in screen, no username, no password, and no
-account.** Whoever picks up the unlocked phone can open the app and see
-everything in it.
-
-The one thing you *can* turn on is **App Lock** — this makes the app itself
-ask for your fingerprint or your phone's PIN before it opens, similar to
-how some banking apps work. But this isn't a "LifeOS account" — it's
-borrowing your phone's own lock screen security. If you ever want real user
-accounts (so multiple people could each have their own private LifeOS, or
-so your data could sync to a new phone by logging in), that would be new
-work — a login system doesn't exist yet at all.
-
-## Security considerations
-
-See `docs/08_SECURITY.md` for the full classified list. Headline items
-relevant to authentication:
-- 🟡 **MEDIUM** — App Lock is all-or-nothing and defaults to *off*; a new
-  install has zero protection until the user manually enables it in Settings.
-- 🟢 **LOW** — Because there's no account system, there's no
-  password-database, credential-stuffing, or account-takeover risk to
-  manage at all — the attack surface that would normally exist here simply
-  doesn't.
-
-## Current-state addendum — 2026-09-16
-
-This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
-
-## Current implementation snapshot — 2026-09-16
-
-App Lock behavior remains based on AndroidX BiometricPrompt and the existing secure PIN/recovery implementation; only presentation was aligned with the new visual system.
+The authentication documentation now matches the current PIN-only implementation. No biometric dependency or runtime biometric code remains in the application source.

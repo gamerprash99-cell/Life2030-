@@ -19,7 +19,7 @@ The design source of truth remains [`docs/DESIGN.md`](./docs/DESIGN.md).
 - Navigation Compose
 - WorkManager for reminders
 - CameraX + MediaRecorder for capture
-- AndroidX BiometricPrompt for device-level biometric authentication
+- DataStore-backed LifeOS PIN authentication
 - Local LifeOS Intelligence Engine for offline analysis
 
 The existing repositories, use cases, ViewModels, DAOs, entities, navigation and database are preserved. UI code does not bypass the repository/domain layers to access Room.
@@ -37,7 +37,7 @@ The existing repositories, use cases, ViewModels, DAOs, entities, navigation and
 | Search | Existing cross-feature search screen |
 | Capture | Photo, video and audio using on-demand permissions |
 | Reminders | WorkManager-based task/habit reminders |
-| App Lock | None / Biometric / PIN paths using existing security architecture |
+| App Lock | None / PIN paths using existing security architecture |
 | Backup | Local JSON export and restore through Android document picker |
 | Intelligence | Deterministic local analysis; no cloud model required |
 | Onboarding | Four-page onboarding with animated transitions and JSON restore entry |
@@ -63,7 +63,7 @@ See [`docs/DESIGN.md`](./docs/DESIGN.md) for:
 - typography
 - spacing and shapes
 - card/button/chip rules
-- bottom navigation and FAB
+- bottom navigation and Home top actions
 - onboarding
 - App Lock UX
 - motion timings
@@ -71,6 +71,13 @@ See [`docs/DESIGN.md`](./docs/DESIGN.md) for:
 - dark mode
 - responsive Compose guidance
 - Figma design reference notes
+
+## Current UI changes — 2026-09-16
+
+- Home now follows the supplied Stitch dashboard direction in native Jetpack Compose, including the LifeOS/Today header, search, Settings and profile actions at the top, Daily Momentum, quick actions and existing live dashboard sections.
+- Settings was removed from the bottom navigation and is opened from the Home header. A local Profile screen is also available from the Home header.
+- Android system Back is handled through the existing single NavController stack for secondary routes.
+- App Lock now supports only `NONE` and `PIN`; biometric UI, storage path and dependency were removed. Existing legacy `BIOMETRIC` DataStore values resolve to `NONE` rather than becoming an invalid lock state.
 
 ## Build status
 

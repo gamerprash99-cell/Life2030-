@@ -11,7 +11,7 @@ Source of truth: app/build.gradle.kts and build.gradle.kts.
 | androidx.lifecycle:lifecycle-viewmodel-ktx | 2.8.7 | ViewModel + coroutines | Direct | Every ViewModel class | High | Low |
 | androidx.lifecycle:lifecycle-viewmodel-compose | 2.8.7 | viewModel() composable function | Direct | Every screen | High | Low |
 | androidx.activity:activity-compose | 1.9.3 | Compose integration for Activities | Direct | MainActivity.kt | High | Low |
-| androidx.fragment:fragment-ktx | 1.8.5 | FragmentActivity base class | Direct | MainActivity.kt, required for BiometricPrompt | High, removing breaks App Lock | Low |
+| androidx.fragment:fragment-ktx | 1.8.5 | FragmentActivity base class | Direct | MainActivity.kt activity base | High, removing breaks App Lock | Low |
 | org.jetbrains.kotlinx:kotlinx-coroutines-android | 1.9.0 | Async programming | Direct | Everywhere | Critical | Low |
 | org.jetbrains.kotlinx:kotlinx-serialization-json | 1.7.3 | JSON serialization | Direct | BackupRepository.kt, NoteBlock.kt | High | Low |
 | androidx.compose:compose-bom | 2024.11.00 | Version alignment for all Compose libs | Direct | Everywhere in ui/ | Critical | Medium |
@@ -26,7 +26,6 @@ Source of truth: app/build.gradle.kts and build.gradle.kts.
 | androidx.room:room-ktx | 2.6.1 | Kotlin coroutines/Flow support for Room | Direct | Every DAO's Flow return types | Critical | Low |
 | androidx.room:room-compiler | 2.6.1 | Annotation processor (KSP) generating Room code | Direct (ksp) | Build-time only | Critical | Medium |
 | androidx.datastore:datastore-preferences | 1.1.1 | Settings storage | Direct | core/util/SettingsStore.kt | High | Low |
-| androidx.biometric:biometric | 1.1.0 | Biometric authentication | Direct | core/security/AppLockManager.kt | High | Low |
 | androidx.work:work-runtime-ktx | 2.10.0 | Background job scheduling | Direct | core/reminders/ | High | Medium |
 | io.coil-kt:coil-compose | 2.7.0 | Image loading | Direct | Declared but not currently invoked anywhere in ui/ (no AsyncImage usage found) | Low currently | Low |
 | androidx.camera camera-core / camera-camera2 / camera-lifecycle / camera-view / camera-video | 1.4.0 | Camera capture | Direct | ui/capture/CameraCaptureScreen.kt, VideoCaptureScreen.kt | High | Medium |

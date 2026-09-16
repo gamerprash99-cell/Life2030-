@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -16,7 +15,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,11 +22,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.fragment.app.FragmentActivity
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.AppLockType
 import kotlinx.coroutines.flow.first
@@ -36,19 +32,10 @@ import kotlinx.coroutines.launch
 
 private enum class RecoveryStep { NONE, ANSWER_QUESTION, NEW_PIN, NEW_PIN_CONFIRM }
 
-/**
- * Shown by MainActivity whenever the current AppLockType != NONE and the
- * session hasn't been unlocked yet. Handles both lock types plus a secure
- * "Forgot PIN?" recovery flow — resetting a PIN always requires answering
- * the stored recovery question first (Section 4: "must not instantly
- * disable security").
- */
 @Composable
 fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
     val locator = LocalServiceLocator.current
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val activity = context as? FragmentActivity
 
     var pinInput by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
@@ -58,16 +45,6 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
     var newPin by remember { mutableStateOf("") }
     var newPinConfirm by remember { mutableStateOf("") }
 
-    LaunchedEffect(lockType) {
-        if (lockType == AppLockType.BIOMETRIC && activity != null) {
-            locator.appLockManager.authenticate(
-                activity = activity,
-                onSuccess = onUnlocked,
-                onError = { message -> error = message }
-            )
-        }
-    }
-
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -75,6 +52,11 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
     ) {
         Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp))
         Text("LifeOS is locked", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Enter your LifeOS PIN to continue.",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 8.dp)
+        )
 
         when {
             recoveryStep == RecoveryStep.ANSWER_QUESTION -> {
@@ -116,9 +98,8 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) }
                 Button(
                     onClick = {
-                        if (newPin.length < 4) {
-                            error = "PIN must be at least 4 digits."
-                        } else {
+                        if (newPin.length < 4) error = "PIN must be at least 4 digits."
+                        else {
                             error = null
                             newPinConfirm = ""
                             recoveryStep = RecoveryStep.NEW_PIN_CONFIRM
@@ -145,8 +126,11 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
                             error = "PINs don't match. Try again."
                         } else {
                             scope.launch {
-                                val existingQuestion = recoveryQuestionText ?: ""
-                                locator.settingsStore.enablePinLock(newPin, existingQuestion, recoveryAnswerInput)
+                                locator.settingsStore.enablePinLock(
+                                    newPin,
+                                    recoveryQuestionText.orEmpty(),
+                                    recoveryAnswerInput
+                                )
                                 onUnlocked()
                             }
                         }
@@ -155,7 +139,7 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
                 ) { Text("Reset PIN and unlock") }
             }
 
-            lockType == AppLockType.PIN -> {
+            else -> {
                 OutlinedTextField(
                     value = pinInput,
                     onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) pinInput = it },
@@ -168,9 +152,8 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
                 Button(
                     onClick = {
                         scope.launch {
-                            if (locator.settingsStore.verifyPin(pinInput)) {
-                                onUnlocked()
-                            } else {
+                            if (locator.settingsStore.verifyPin(pinInput)) onUnlocked()
+                            else {
                                 error = "Incorrect PIN."
                                 pinInput = ""
                             }
@@ -182,9 +165,8 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
                     onClick = {
                         scope.launch {
                             val question = locator.settingsStore.recoveryQuestion.first()
-                            if (question.isNullOrBlank()) {
-                                error = "No recovery question was set up for this PIN."
-                            } else {
+                            if (question.isNullOrBlank()) error = "No recovery question was set up for this PIN."
+                            else {
                                 recoveryQuestionText = question
                                 recoveryAnswerInput = ""
                                 error = null
@@ -193,26 +175,6 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
                         }
                     }
                 ) { Text("Forgot PIN?") }
-            }
-
-            lockType == AppLockType.BIOMETRIC -> {
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp)) }
-                Button(
-                    onClick = {
-                        val act = activity
-                        if (act != null) {
-                            locator.appLockManager.authenticate(
-                                activity = act,
-                                onSuccess = onUnlocked,
-                                onError = { message -> error = message }
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
-                ) {
-                    Icon(Icons.Filled.Fingerprint, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text("Unlock")
-                }
             }
         }
     }

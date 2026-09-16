@@ -27,7 +27,7 @@ Onboarding and Settings expose JSON restore through Android's document picker an
 
 ## Security
 
-Biometric authentication is device-level through AndroidX `BiometricPrompt`. PIN mode remains app-specific through the existing hashing/recovery implementation.
+App Lock is PIN-only. PIN mode remains app-specific through the existing salted hashing/recovery implementation.
 
 ## Verification boundary
 

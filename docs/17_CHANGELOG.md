@@ -126,3 +126,22 @@ Verification: archive integrity checked after the source update. Full Android Gr
 ## Current implementation snapshot — 2026-09-16
 
 2026-09-16: Integrated the Stitch LifeOS visual direction into native Compose screens, redesigned Life Capture as a full-screen studio, refreshed primary navigation, and added predictable Back handling.
+
+
+## 2026-09-16 — Stitch Home dashboard and PIN-only App Lock
+
+### Changed
+- Reworked the native Compose Home screen to match the supplied Stitch Today dashboard direction while preserving existing Home ViewModel/repository data and actions.
+- Added top-right Search, Settings and Profile actions. Settings was removed from the bottom navigation; Profile is a local navigation destination.
+- Preserved the existing bottom navigation architecture and feature destinations.
+
+### Fixed
+- Hardened system Back handling at the NavController level so secondary routes pop through the same stack used by visible Back actions.
+
+### Security
+- Removed the biometric App Lock option and biometric runtime implementation. App Lock is now `NONE` or `PIN` only.
+- Removed the AndroidX Biometric dependency and unused `AppLockManager`.
+- Legacy stored `BIOMETRIC` values resolve to `NONE` because there is no safe PIN secret to infer from an old biometric-only configuration.
+
+### Verification
+- Source archive was inspected and modified locally. Full Android Gradle compilation/tests could not be executed because the supplied snapshot has no Gradle wrapper and this environment has no installed Gradle/Android SDK.

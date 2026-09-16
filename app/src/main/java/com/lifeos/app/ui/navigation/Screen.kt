@@ -25,10 +25,11 @@ sealed class Screen(val route: String) {
     object Search : Screen("search")
     object AiAssistant : Screen("ai_assistant")
     object Settings : Screen("settings")
+    object Profile : Screen("profile")
     object AppLockSetup : Screen("settings/app_lock")
 
     companion object {
         /** Bottom nav destinations, in display order — Section 5/57. */
-        val bottomNavItems = listOf(Home, Habits, Tasks, Insights, Settings)
+        val bottomNavItems = listOf(Home, Habits, Tasks, Insights)
     }
 }

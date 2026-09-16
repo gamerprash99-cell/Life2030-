@@ -116,10 +116,10 @@ Full inventory of every implemented feature, with exact file paths.
 
 ## 12. App Lock
 
-**Purpose**: Biometric/PIN gate on the whole app.
+**Purpose**: PIN gate on the whole app.
 
-- **Files**: `core/security/AppLockManager.kt`, gated in `MainActivity.kt`'s `AppLockGate` composable
-- **How it works**: Uses `androidx.biometric.BiometricPrompt` with `BIOMETRIC_WEAK or DEVICE_CREDENTIAL` — accepts either a device biometric or the device's PIN/pattern/password, never a LifeOS-specific password.
+- **Files**: `core/util/SettingsStore.kt`, `ui/security/AppLockScreen.kt`, gated in `MainActivity.kt`'s `AppLockGate` composable
+- **How it works**: Uses the existing LifeOS PIN with salted hashing and a recovery-question flow. No biometric or device-credential authentication is used.
 - **Toggle**: `ui/settings/SettingsScreen.kt`, persisted via `core/util/SettingsStore.kt`
 - **Status**: Implemented
 
