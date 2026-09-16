@@ -1,6 +1,10 @@
 package com.lifeos.app.core.intelligence
 
 import com.lifeos.app.core.ai.NoteAiAction
+import com.lifeos.app.core.intelligence.generative.GenerationRequest
+import com.lifeos.app.core.intelligence.generative.GenerationResult
+import com.lifeos.app.core.intelligence.generative.LocalGenerativeGateway
+import com.lifeos.app.core.intelligence.generative.LocalModelState
 import com.lifeos.app.data.repository.CaptureRepository
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.data.repository.ExpenseRepository
@@ -9,37 +13,12 @@ import com.lifeos.app.data.repository.NoteRepository
 import com.lifeos.app.data.repository.TaskRepository
 
 /**
- * LifeOS Intelligence Engine — Level 1 (see docs/11_AI_SYSTEM.md for the
- * architecture writeup). This is the single facade wiring together every
- * analyzer below it:
+ * LifeOS Intelligence Engine — the single facade for deterministic personal
+ * intelligence plus the optional on-device generative model path.
  *
- *   LifeOSIntelligenceEngine
- *       |
- *       |-- DiaryAnalyzer           (DiaryAnalyzer.kt)
- *       |-- MoodAnalyzer            (MoodAnalyzer.kt)
- *       |-- KeywordExtractor        (MoodAnalyzer.kt)
- *       |-- TaskAnalyzer            (TaskAnalyzer.kt)
- *       |-- HabitAnalyzer           (HabitAnalyzer.kt)
- *       |-- ProductivityAnalyzer    (ProductivityAnalyzer.kt)
- *       |-- TrendAnalyzer           (TrendAnalyzer.kt)
- *       |-- PatternDetector         (PatternDetector.kt)
- *       |-- CorrelationAnalyzer     (PatternDetector.kt)
- *       |-- RecommendationEngine    (RecommendationAndStatistics.kt)
- *       |-- StatisticsEngine        (RecommendationAndStatistics.kt)
- *       |-- ReportGenerator         (Weekly + Monthly reports, ReportGenerator.kt)
- *       |-- NoteTextAnalyzer        (extractive text ops, NoteTextAnalyzer.kt)
- *       `-- LocalQuestionEngine     (LocalQuestionEngine.kt)
- *
- * 100% on-device: everything here reads through the existing repositories
- * (Room-backed), does arithmetic/lexicon lookups, and returns results.
- * No network client exists anywhere in this package. No diary/note/task/
- * habit content ever leaves the device via this engine.
- *
- * Modularity note: every method below returns a plain result type. If a
- * genuinely useful, small on-device generative model is added in the
- * future, it can be slotted in as an additional optional path (e.g. for
- * the actions NoteTextAnalyzer honestly can't do) without redesigning this
- * facade or any of its callers.
+ * Phase 19 adds only the model seam. No model is bundled yet, so generation
+ * fails closed through LocalGenerativeGateway rather than using a network API
+ * or pretending deterministic rules are generative AI.
  */
 class LifeOSIntelligenceEngine(
     private val noteRepository: NoteRepository,
@@ -47,7 +26,8 @@ class LifeOSIntelligenceEngine(
     private val habitRepository: HabitRepository,
     private val diaryRepository: DiaryRepository,
     private val expenseRepository: ExpenseRepository,
-    private val captureRepository: CaptureRepository
+    private val captureRepository: CaptureRepository,
+    private val generativeGateway: LocalGenerativeGateway = LocalGenerativeGateway()
 ) {
     private val taskAnalyzer = TaskAnalyzer(taskRepository)
     private val habitAnalyzer = HabitAnalyzer(habitRepository)
@@ -59,9 +39,25 @@ class LifeOSIntelligenceEngine(
         taskAnalyzer, habitAnalyzer, expenseRepository, diaryRepository, statisticsEngine, reportGenerator
     )
 
-    // ---- Note actions (extractive text operations; see NoteTextAnalyzer for what's genuinely offline-feasible) ----
+    /** Current local generative-model availability without exposing runtime details. */
+    val localGenerativeModelState: LocalModelState
+        get() = generativeGateway.state
 
-    /** Every NoteAiAction that is genuinely achievable offline without a generative model. */
+    /**
+     * Generation entry point reserved for genuinely generative features.
+     * The caller receives an explicit unavailable result until Phase 20 adds
+     * a verified bundled on-device model implementation.
+     */
+    suspend fun generateLocally(
+        systemInstruction: String,
+        prompt: String,
+        maxTokens: Int = 256,
+        temperature: Float = 0.2f
+    ): GenerationResult = generativeGateway.generate(
+        GenerationRequest(systemInstruction, prompt, maxTokens, temperature)
+    )
+
+    // ---- Note actions (deterministic/extractive path) ----
     private val supportedNoteActions = setOf(
         NoteAiAction.SUMMARIZE, NoteAiAction.GENERATE_TITLE, NoteAiAction.ORGANIZE,
         NoteAiAction.EXTRACT_POINTS, NoteAiAction.CREATE_CHECKLIST, NoteAiAction.MAKE_SHORTER
@@ -78,19 +74,12 @@ class LifeOSIntelligenceEngine(
             NoteAiAction.EXTRACT_POINTS -> NoteTextAnalyzer.extractKeyPoints(text)
             NoteAiAction.CREATE_CHECKLIST -> NoteTextAnalyzer.createChecklist(text)
             NoteAiAction.MAKE_SHORTER -> NoteTextAnalyzer.summarize(text, maxSentences = 2)
-            else -> "\"${action.label}\" needs a generative writing model, which LifeOS doesn't include " +
-                "to stay fully offline and lightweight. Try Summarize, Organize text, Extract points, " +
-                "Create checklist, or Make shorter instead. Those work fully offline."
+            else -> "\"${action.label}\" needs a local generative model, which is not bundled in this build yet."
         }
     }
 
     fun extractTasksFromText(text: String): List<String> = NoteTextAnalyzer.findActionItems(text)
 
-    /**
-     * A modest, honest reformatting of raw thoughts into diary-entry shape
-     * (light templating + a mood reflection line), not a full generative
-     * rewrite. See NoteTextAnalyzer.kt's doc comment for why.
-     */
     fun draftDiaryEntry(rawThoughts: String): String {
         if (rawThoughts.isBlank()) return ""
         val mood = MoodAnalyzer.analyze(rawThoughts)
@@ -103,16 +92,8 @@ class LifeOSIntelligenceEngine(
         return "$cleaned$moodLine"
     }
 
-    // ---- Reports ----
-
     suspend fun weeklyReport(): PeriodReport = reportGenerator.weekly()
     suspend fun monthlyReport(): PeriodReport = reportGenerator.monthly()
-
-    // ---- Statistics ----
-
     suspend fun personalStatistics() = statisticsEngine.computeAllTime()
-
-    // ---- Chat / Q&A ----
-
     suspend fun answerQuestion(question: String): AnswerResult = questionEngine.answer(question)
 }
