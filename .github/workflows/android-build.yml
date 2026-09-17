@@ -30,9 +30,8 @@ jobs:
           java-version: '17'
 
       - name: Set up Android SDK
-        # setup-android@v3 defaults to installing the obsolete `tools`
-        # package. Use v4 and skip default packages, then install the exact
-        # SDK packages needed below.
+        # setup-android@v4 is used explicitly; do not request the obsolete
+        # legacy `tools` SDK package.
         uses: android-actions/setup-android@v4
         with:
           packages: ''
