@@ -48,6 +48,7 @@ private fun extractDurationMs(filePath: String): Long? {
 
 /** Remembers a decoded video thumbnail for [filePath], loaded off the main thread. Null until ready or on failure. */
 @Composable
+@Suppress("ProduceStateDoesNotAssignValue")
 fun rememberVideoThumbnail(filePath: String?): ImageBitmap? {
     val state by produceState<ImageBitmap?>(initialValue = null, key1 = filePath) {
         value = if (filePath == null) null else withContext(Dispatchers.IO) {
@@ -59,6 +60,7 @@ fun rememberVideoThumbnail(filePath: String?): ImageBitmap? {
 
 /** Remembers a media file's duration in milliseconds, loaded off the main thread. Null until ready or unavailable. */
 @Composable
+@Suppress("ProduceStateDoesNotAssignValue")
 fun rememberMediaDurationMs(filePath: String?): Long? {
     val state by produceState<Long?>(initialValue = null, key1 = filePath) {
         value = if (filePath == null) null else withContext(Dispatchers.IO) {

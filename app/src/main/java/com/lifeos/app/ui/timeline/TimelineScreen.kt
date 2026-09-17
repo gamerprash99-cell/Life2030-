@@ -84,6 +84,7 @@ private fun TimelineRow(item: TimelineItem, captureRepository: CaptureRepository
 }
 
 @Composable
+@Suppress("ProduceStateDoesNotAssignValue")
 private fun CaptureThumbnail(captureId: String, fallbackIcon: String, captureRepository: CaptureRepository) {
     val capture by produceState<com.lifeos.app.data.db.entities.CaptureEntity?>(initialValue = null, key1 = captureId) { value = captureRepository.getById(captureId) }
     val filePath = capture?.filePath

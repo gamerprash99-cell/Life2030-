@@ -1,4 +1,8 @@
+@file:SuppressLint("MissingPermission")
+
 package com.lifeos.app.ui.capture
+
+import android.annotation.SuppressLint
 
 import android.widget.Toast
 import androidx.camera.core.CameraSelector

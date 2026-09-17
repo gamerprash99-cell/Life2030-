@@ -30,6 +30,6 @@ sealed class Screen(val route: String) {
 
     companion object {
         /** Bottom nav destinations, in display order — Section 5/57. */
-        val bottomNavItems = listOf(Home, Habits, Tasks, Insights)
+        val bottomNavItems = listOf(Home, Tasks, Habits, Insights)
     }
 }

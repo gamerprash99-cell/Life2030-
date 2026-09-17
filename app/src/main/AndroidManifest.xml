@@ -11,6 +11,9 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- LifeOS works fully without a camera; declare capture as optional hardware
+         so the app is installable on camera-less/ChromeOS devices. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- No INTERNET permission: LifeOS AI (core/intelligence/) runs entirely on-device.
          There is no HTTP client, no API key, and no network code anywhere in this app. -->
 

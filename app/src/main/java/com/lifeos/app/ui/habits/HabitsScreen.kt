@@ -141,6 +141,7 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
 }
 
 @Composable
+@Suppress("ProduceStateDoesNotAssignValue")
 private fun HabitCard(habit: HabitEntity, repository: HabitRepository, onOpen: (String) -> Unit, onLogToday: (Int) -> Unit) {
     val today = remember { DateTimeUtils.today().toEpochDay() }
     val completion by repository.observeCompletion(habit.id, today).collectAsState(initial = null)
