@@ -38,7 +38,7 @@ class ServiceLocator private constructor(context: Context) {
     val captureRepository = CaptureRepository(database.captureDao())
 
     val backupRepository = BackupRepository(
-        noteRepository, taskRepository, habitRepository, expenseRepository, diaryRepository, captureRepository
+        database, noteRepository, taskRepository, habitRepository, expenseRepository, diaryRepository, captureRepository
     )
 
     // "Ask LifeOS AI" runs entirely on-device — see core/intelligence/LifeOSIntelligenceEngine.kt.

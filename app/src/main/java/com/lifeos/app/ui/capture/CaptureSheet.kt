@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,7 +31,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -44,12 +42,6 @@ import kotlinx.coroutines.launch
 private enum class CaptureMode { MENU, PHOTO, VIDEO, AUDIO, CONFIRM }
 private data class JustCaptured(val type: CaptureType, val filePath: String?)
 
-/**
- * Life Capture is intentionally a full-screen studio rather than a generic
- * Material bottom sheet. This keeps the camera viewport large, moves controls
- * above gesture/navigation areas, and gives all four capture actions one
- * consistent visual language.
- */
 @Composable
 fun CaptureSheet(onDismiss: () -> Unit) {
     val locator = LocalServiceLocator.current
@@ -62,7 +54,13 @@ fun CaptureSheet(onDismiss: () -> Unit) {
         scope.launch {
             val now = DateTimeUtils.today()
             val minutes = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
-            locator.captureRepository.addCapture(type, filePath, caption, now.toEpochDay(), minutes)
+            locator.captureRepository.addCapture(
+                type = type,
+                filePath = filePath,
+                caption = caption,
+                dateEpochDay = now.toEpochDay(),
+                timeMinutes = minutes
+            )
             if (showConfirmation) {
                 justCaptured = JustCaptured(type, filePath)
                 mode = CaptureMode.CONFIRM
@@ -70,10 +68,7 @@ fun CaptureSheet(onDismiss: () -> Unit) {
         }
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
             modifier = Modifier.fillMaxSize().padding(8.dp).clip(RoundedCornerShape(30.dp)),
             color = MaterialTheme.colorScheme.background,
@@ -81,13 +76,10 @@ fun CaptureSheet(onDismiss: () -> Unit) {
         ) {
             when (mode) {
                 CaptureMode.MENU -> CaptureMenu(
-                    thought = thought,
-                    onThoughtChange = { thought = it },
+                    thought = thought, onThoughtChange = { thought = it },
                     onSaveThought = { saveCapture(CaptureType.THOUGHT, null, thought, false) },
-                    onPhoto = { mode = CaptureMode.PHOTO },
-                    onVideo = { mode = CaptureMode.VIDEO },
-                    onAudio = { mode = CaptureMode.AUDIO },
-                    onDismiss = onDismiss
+                    onPhoto = { mode = CaptureMode.PHOTO }, onVideo = { mode = CaptureMode.VIDEO },
+                    onAudio = { mode = CaptureMode.AUDIO }, onDismiss = onDismiss
                 )
                 CaptureMode.PHOTO -> CameraCaptureScreen(
                     onCaptured = { saveCapture(CaptureType.PHOTO, it, null, true) },
@@ -109,18 +101,10 @@ fun CaptureSheet(onDismiss: () -> Unit) {
 
 @Composable
 private fun CaptureMenu(
-    thought: String,
-    onThoughtChange: (String) -> Unit,
-    onSaveThought: () -> Unit,
-    onPhoto: () -> Unit,
-    onVideo: () -> Unit,
-    onAudio: () -> Unit,
-    onDismiss: () -> Unit
+    thought: String, onThoughtChange: (String) -> Unit, onSaveThought: () -> Unit,
+    onPhoto: () -> Unit, onVideo: () -> Unit, onAudio: () -> Unit, onDismiss: () -> Unit
 ) {
-    Column(
-        Modifier.fillMaxSize().padding(22.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    Column(Modifier.fillMaxSize().padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Capture a moment", style = MaterialTheme.typography.headlineMedium)
@@ -128,7 +112,6 @@ private fun CaptureMenu(
             }
             IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
         }
-
         Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -139,7 +122,6 @@ private fun CaptureMenu(
                 Button(onClick = onSaveThought, enabled = thought.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Save thought") }
             }
         }
-
         Text("Life Capture", style = MaterialTheme.typography.titleMedium)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             CaptureTile("Photo", "Take a photo", Icons.Filled.CameraAlt, onPhoto, Modifier.weight(1f))

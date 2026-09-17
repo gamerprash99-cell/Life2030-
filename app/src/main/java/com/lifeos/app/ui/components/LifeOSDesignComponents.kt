@@ -1,6 +1,5 @@
 package com.lifeos.app.ui.components
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -20,9 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -105,42 +101,6 @@ fun LifeOSSectionHeader(title: String, action: String? = null, onAction: (() -> 
 fun LifeOSBadge(text: String, modifier: Modifier = Modifier) {
     Box(modifier = modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 12.dp, vertical = 8.dp)) {
         Text(text, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
-    }
-}
-
-@Composable
-fun LifeOSBottomBar(
-    selected: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val items = listOf("Home" to Icons.Filled.Home, "Timeline" to Icons.Filled.Timeline, "Settings" to Icons.Filled.Settings)
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.97f))
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.06f), RoundedCornerShape(28.dp))
-            .padding(6.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        items.forEachIndexed { index, (label, icon) ->
-            val active by animateColorAsState(if (index == selected) Color(0xFFEADDFF) else Color.Transparent, label = "navColor")
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(active)
-                    .clickable { onSelect(index) }
-                    .defaultMinSize(minHeight = 44.dp)
-                    .padding(horizontal = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(icon, contentDescription = label, tint = if (index == selected) Color(0xFF5B21B6) else MaterialTheme.colorScheme.onSurfaceVariant)
-                if (index == selected) Text(label, color = Color(0xFF5B21B6), style = MaterialTheme.typography.labelMedium)
-            }
-        }
     }
 }
 

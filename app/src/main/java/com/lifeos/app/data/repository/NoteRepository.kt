@@ -24,69 +24,32 @@ class NoteRepository(private val dao: NoteDao) {
 
     suspend fun getById(id: String): NoteEntity? = dao.getById(id)
 
-    suspend fun createNote(
-        title: String,
-        blocks: List<NoteBlock>,
-        folder: String? = null,
-        tags: List<String> = emptyList()
-    ): String {
+    suspend fun createNote(title: String, blocks: List<NoteBlock>, folder: String? = null, tags: List<String> = emptyList()): String {
         val id = IdGenerator.newId()
         val now = System.currentTimeMillis()
-        val entity = NoteEntity(
-            id = id,
-            title = title,
-            contentJson = json.encodeToString(blocks),
-            plainTextForSearch = flattenBlocks(blocks),
-            folder = folder,
-            tagsCsv = tags.joinToString(","),
-            createdAt = now,
-            updatedAt = now
-        )
-        dao.upsert(entity)
+        dao.upsert(NoteEntity(id, title, json.encodeToString(blocks), flattenBlocks(blocks), folder, tags.joinToString(","), createdAt = now, updatedAt = now))
         return id
     }
 
     suspend fun updateNoteContent(id: String, title: String, blocks: List<NoteBlock>) {
         val existing = dao.getById(id) ?: return
-        dao.update(
-            existing.copy(
-                title = title,
-                contentJson = json.encodeToString(blocks),
-                plainTextForSearch = flattenBlocks(blocks),
-                updatedAt = System.currentTimeMillis()
-            )
-        )
+        dao.update(existing.copy(title = title, contentJson = json.encodeToString(blocks), plainTextForSearch = flattenBlocks(blocks), updatedAt = System.currentTimeMillis()))
     }
 
-    suspend fun setFolder(id: String, folder: String?) {
-        val existing = dao.getById(id) ?: return
-        dao.update(existing.copy(folder = folder, updatedAt = System.currentTimeMillis()))
-    }
-
-    suspend fun setTags(id: String, tags: List<String>) {
-        val existing = dao.getById(id) ?: return
-        dao.update(existing.copy(tagsCsv = tags.joinToString(","), updatedAt = System.currentTimeMillis()))
-    }
-
+    suspend fun setFolder(id: String, folder: String?) { dao.getById(id)?.let { dao.update(it.copy(folder = folder, updatedAt = System.currentTimeMillis())) } }
+    suspend fun setTags(id: String, tags: List<String>) { dao.getById(id)?.let { dao.update(it.copy(tagsCsv = tags.joinToString(","), updatedAt = System.currentTimeMillis())) } }
     suspend fun togglePin(id: String, pinned: Boolean) = dao.setPinned(id, pinned, System.currentTimeMillis())
     suspend fun toggleFavorite(id: String, favorite: Boolean) = dao.setFavorite(id, favorite, System.currentTimeMillis())
     suspend fun archive(id: String, archived: Boolean) = dao.setArchived(id, archived, System.currentTimeMillis())
-
-    /** Soft delete → moves to Trash, supports "Restore notes" (Section 7). */
     suspend fun moveToTrash(id: String) = dao.setDeleted(id, true, System.currentTimeMillis())
     suspend fun restoreFromTrash(id: String) = dao.setDeleted(id, false, System.currentTimeMillis())
-
-    /** Permanent delete — caller (UI) is responsible for requiring confirmation (Rule #10). */
     suspend fun permanentlyDelete(id: String) = dao.hardDelete(id)
 
-    suspend fun search(query: String): List<NoteEntity> {
-        if (query.isBlank()) return emptyList()
-        return dao.search(query)
-    }
+    suspend fun search(query: String): List<NoteEntity> = if (query.isBlank()) emptyList() else dao.search(query)
 
     fun decodeBlocks(note: NoteEntity): List<NoteBlock> = try {
-        json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(NoteBlock.serializer()), note.contentJson)
-    } catch (e: Exception) {
+        json.decodeFromString<List<NoteBlock>>(note.contentJson)
+    } catch (_: Exception) {
         emptyList()
     }
 

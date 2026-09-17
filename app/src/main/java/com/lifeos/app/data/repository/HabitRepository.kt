@@ -3,6 +3,7 @@ package com.lifeos.app.data.repository
 import android.content.Context
 import com.lifeos.app.core.reminders.ReminderScheduler
 import com.lifeos.app.core.util.DateTimeUtils
+import com.lifeos.app.core.util.HabitStatsCalculator
 import com.lifeos.app.core.util.IdGenerator
 import com.lifeos.app.data.db.dao.HabitCompletionDao
 import com.lifeos.app.data.db.dao.HabitDao
@@ -60,6 +61,7 @@ class HabitRepository(
     }
 
     suspend fun delete(id: String) {
+        completionDao.deleteForHabit(id)
         habitDao.delete(id)
         ReminderScheduler.cancelHabitReminder(appContext, id)
     }
@@ -87,25 +89,12 @@ class HabitRepository(
 
         val doneDays = allCompletions.filter { it.progressCount >= habit.goalCount }.map { it.dateEpochDay }.toSet()
 
-        var currentStreak = 0
-        var cursor = today.toEpochDay()
-        while (doneDays.contains(cursor)) {
-            currentStreak++
-            cursor--
-        }
-
-        var longestStreak = 0
-        var running = 0
-        var prevDay: Long? = null
-        for (day in doneDays.sorted()) {
-            running = if (prevDay != null && day == prevDay + 1) running + 1 else 1
-            longestStreak = maxOf(longestStreak, running)
-            prevDay = day
-        }
+        val currentStreak = HabitStatsCalculator.currentStreak(doneDays, today.toEpochDay())
+        val longestStreak = HabitStatsCalculator.longestStreak(doneDays)
 
         val daysElapsedThisMonth = (minOf(today.toEpochDay(), monthEnd) - monthStart + 1).toInt()
         val monthDoneCount = monthCompletions.count { it.progressCount >= habit.goalCount }
-        val completionPercent = if (daysElapsedThisMonth > 0) (monthDoneCount * 100) / daysElapsedThisMonth else 0
+        val completionPercent = HabitStatsCalculator.completionPercent(monthDoneCount, daysElapsedThisMonth)
 
         return HabitAnalytics(
             habitId = habit.id,

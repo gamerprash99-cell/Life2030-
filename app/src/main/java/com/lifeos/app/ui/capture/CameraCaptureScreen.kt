@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,7 +53,7 @@ fun CameraCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> 
     val lifecycleOwner = LocalLifecycleOwner.current
     val imageCapture = remember { ImageCapture.Builder().build() }
     Box(Modifier.fillMaxSize()) {
-        AndroidView(Modifier.fillMaxSize(), factory = { ctx ->
+        AndroidView(factory = { ctx ->
             PreviewView(ctx).also { previewView ->
                 previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
                 val future = ProcessCameraProvider.getInstance(ctx)
@@ -63,7 +64,7 @@ fun CameraCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> 
                         .onFailure { Toast.makeText(ctx, "Camera failed: ${it.message}", Toast.LENGTH_SHORT).show() }
                 }, ContextCompat.getMainExecutor(ctx))
             }
-        })
+        }, modifier = Modifier.fillMaxSize())
         CaptureOverlay("PHOTO", onCancel) {
             val file = MediaStorage.newPhotoFile(context)
             imageCapture.takePicture(
@@ -97,10 +98,10 @@ private fun CaptureOverlay(label: String, onCancel: () -> Unit, onCapture: () ->
 }
 
 @Composable
-private fun CapturePermissionState(message: String, permanentlyDenied: Boolean, request: () -> Unit, openSettings: () -> Unit, onCancel: () -> Unit) {
+fun CapturePermissionState(message: String, permanentlyDenied: Boolean, request: () -> Unit, openSettings: () -> Unit, onCancel: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Text(message, style = MaterialTheme.typography.bodyLarge)
-        androidx.compose.material3.Button(onClick = if (permanentlyDenied) openSettings else request, modifier = Modifier.padding(top = 16.dp)) { Text(if (permanentlyDenied) "Open Settings" else "Allow Camera") }
+        Button(onClick = if (permanentlyDenied) openSettings else request, modifier = Modifier.padding(top = 16.dp)) { Text(if (permanentlyDenied) "Open Settings" else "Allow Access") }
         androidx.compose.material3.TextButton(onClick = onCancel) { Text("Cancel") }
     }
 }

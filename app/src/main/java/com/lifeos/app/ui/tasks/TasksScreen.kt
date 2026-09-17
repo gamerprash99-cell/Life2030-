@@ -4,9 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,9 +17,12 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -42,7 +45,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
+import com.lifeos.app.data.db.entities.RepeatRule
 import com.lifeos.app.data.db.entities.TaskEntity
+import com.lifeos.app.data.db.entities.TaskPriority
 import com.lifeos.app.data.repository.TaskRepository
 import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSGradientButton
@@ -65,13 +70,31 @@ class TasksViewModel(private val taskRepository: TaskRepository) : ViewModel() {
     val overdue: StateFlow<List<TaskEntity>> = taskRepository.observeOverdue(today).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun toggleTask(id: String, completed: Boolean) = viewModelScope.launch { taskRepository.setCompleted(id, completed) }
-    fun addQuickTask(title: String, reminderTime: LocalTime?) {
+
+    fun addTask(
+        title: String,
+        description: String?,
+        category: String?,
+        priority: TaskPriority,
+        repeatRule: RepeatRule,
+        reminderTime: LocalTime?
+    ) {
         if (title.isBlank()) return
         viewModelScope.launch {
             val reminder = reminderTime?.let { DateTimeUtils.today().atTime(it).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() }
-            taskRepository.createTask(title = title.trim(), dueDateEpochDay = today, reminderEpochMillis = reminder)
+            taskRepository.createTask(
+                title = title.trim(),
+                description = description?.trim()?.takeIf { it.isNotBlank() },
+                dueDateEpochDay = today,
+                dueTimeMinutes = reminderTime?.let { it.hour * 60 + it.minute },
+                priority = priority,
+                category = category?.trim()?.takeIf { it.isNotBlank() },
+                reminderEpochMillis = reminder,
+                repeatRule = repeatRule
+            )
         }
     }
+
     fun keepForTomorrow(id: String) = viewModelScope.launch { taskRepository.keepForTomorrow(id, today) }
 }
 
@@ -84,6 +107,12 @@ fun TasksScreen() {
     var showAddDialog by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var newTaskText by remember { mutableStateOf("") }
+    var newTaskDescription by remember { mutableStateOf("") }
+    var newTaskCategory by remember { mutableStateOf("") }
+    var newTaskPriority by remember { mutableStateOf(TaskPriority.MEDIUM) }
+    var newRepeatRule by remember { mutableStateOf(RepeatRule.NONE) }
+    var showPriorityMenu by remember { mutableStateOf(false) }
+    var showRepeatMenu by remember { mutableStateOf(false) }
     var reminderTime by remember { mutableStateOf<LocalTime?>(null) }
     var filter by remember { mutableStateOf("All") }
 
@@ -101,7 +130,7 @@ fun TasksScreen() {
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxWidth().padding(padding),
-            contentPadding = PaddingValues(horizontal = LifeOSSpacing.screenPadding, top = 6.dp, bottom = LifeOSSpacing.fabContentClearance),
+            contentPadding = PaddingValues(start = LifeOSSpacing.screenPadding, end = LifeOSSpacing.screenPadding, top = 6.dp, bottom = LifeOSSpacing.fabContentClearance),
             verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
         ) {
             item { LifeOSTopBar("Tasks & Projects", "$pending pending · $completed completed") }
@@ -149,15 +178,61 @@ fun TasksScreen() {
             onDismissRequest = { showAddDialog = false },
             title = { Text("New task") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     OutlinedTextField(value = newTaskText, onValueChange = { newTaskText = it }, placeholder = { Text("What do you need to do?") }, singleLine = true)
+                    OutlinedTextField(value = newTaskDescription, onValueChange = { newTaskDescription = it }, placeholder = { Text("Notes (optional)") }, singleLine = true)
+                    OutlinedTextField(value = newTaskCategory, onValueChange = { newTaskCategory = it }, placeholder = { Text("Category (optional)") }, singleLine = true)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            OutlinedButton(onClick = { showPriorityMenu = true }, modifier = Modifier.width(118.dp)) {
+                                Text(priorityLabel(newTaskPriority))
+                            }
+                            DropdownMenu(expanded = showPriorityMenu, onDismissRequest = { showPriorityMenu = false }) {
+                                TaskPriority.entries.forEach { priority ->
+                                    DropdownMenuItem(text = { Text(priorityLabel(priority)) }, onClick = { newTaskPriority = priority; showPriorityMenu = false })
+                                }
+                            }
+                        }
+                        Column {
+                            OutlinedButton(onClick = { showRepeatMenu = true }, modifier = Modifier.width(158.dp)) {
+                                Text(repeatLabel(newRepeatRule))
+                            }
+                            DropdownMenu(expanded = showRepeatMenu, onDismissRequest = { showRepeatMenu = false }) {
+                                RepeatRule.entries.forEach { rule ->
+                                    DropdownMenuItem(text = { Text(repeatLabel(rule)) }, onClick = { newRepeatRule = rule; showRepeatMenu = false })
+                                }
+                            }
+                        }
+                    }
                     TextButton(onClick = { showTimePicker = true }) {
                         Icon(Icons.Filled.Notifications, contentDescription = null)
                         Text(reminderTime?.let { "Remind at $it" } ?: "Set a reminder")
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { viewModel.addQuickTask(newTaskText, reminderTime); newTaskText = ""; reminderTime = null; showAddDialog = false }) { Text("Add") } },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.addTask(
+                            title = newTaskText,
+                            description = newTaskDescription,
+                            category = newTaskCategory,
+                            priority = newTaskPriority,
+                            repeatRule = newRepeatRule,
+                            reminderTime = reminderTime
+                        )
+                        newTaskText = ""; newTaskDescription = ""; newTaskCategory = ""
+                        newTaskPriority = TaskPriority.MEDIUM; newRepeatRule = RepeatRule.NONE
+                        reminderTime = null
+                        showAddDialog = false
+                    }
+                ) { Text("Add") }
+            },
             dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancel") } }
         )
     }
@@ -173,6 +248,7 @@ private fun TaskCard(task: TaskEntity, viewModel: TasksViewModel) {
                 Text(task.title, style = MaterialTheme.typography.bodyLarge, textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     task.category?.let { Text("#$it", style = MaterialTheme.typography.labelSmall, color = LifeOSPrimary) }
+                    task.repeatRule?.takeIf { it != RepeatRule.NONE }?.let { Text(repeatLabel(it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     dueDateLabel(task)?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
@@ -185,6 +261,20 @@ private fun TaskCard(task: TaskEntity, viewModel: TasksViewModel) {
             }
         }
     }
+}
+
+private fun priorityLabel(priority: TaskPriority): String = when (priority) {
+    TaskPriority.HIGH -> "High"
+    TaskPriority.MEDIUM -> "Medium"
+    TaskPriority.LOW -> "Low"
+}
+
+private fun repeatLabel(rule: RepeatRule): String = when (rule) {
+    RepeatRule.NONE -> "Doesn't repeat"
+    RepeatRule.DAILY -> "Repeat daily"
+    RepeatRule.WEEKLY -> "Repeat weekly"
+    RepeatRule.MONTHLY -> "Repeat monthly"
+    RepeatRule.CUSTOM_DAYS -> "Custom days"
 }
 
 private fun dueDateLabel(task: TaskEntity): String? {

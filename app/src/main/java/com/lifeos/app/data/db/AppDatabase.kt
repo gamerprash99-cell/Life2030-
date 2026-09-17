@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.lifeos.app.core.security.DatabasePassphraseProvider
 import com.lifeos.app.data.db.dao.CaptureDao
 import com.lifeos.app.data.db.dao.DiaryDao
 import com.lifeos.app.data.db.dao.ExpenseDao
@@ -19,11 +20,13 @@ import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.NoteEntity
 import com.lifeos.app.data.db.entities.TaskEntity
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
  * The single Room database backing all of LifeOS (Section 57: Data/Room layer).
- * All data lives here, on-device, unencrypted-at-rest by default with an
- * optional SQLCipher upgrade path noted in README (Phase 6 hardening item).
+ * All data lives here, on-device, encrypted at rest with SQLCipher. The
+ * passphrase is random per install and wrapped by an Android Keystore key
+ * (see core/security/DatabasePassphraseProvider.kt).
  */
 @Database(
     entities = [
@@ -53,14 +56,21 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "lifeos.db"
-                )
-                    // No destructive fallback in production; migrations must be added
-                    // explicitly as the schema evolves post-v1.
-                    .build().also { INSTANCE = it }
+                INSTANCE ?: run {
+                    // Load the SQLCipher native library before opening the DB.
+                    System.loadLibrary("sqlcipher")
+                    val passphrase = DatabasePassphraseProvider.getOrCreate(context.applicationContext)
+                    Room.databaseBuilder(
+                        context.applicationContext,
+                        AppDatabase::class.java,
+                        "lifeos.db"
+                    )
+                        // SQLCipher encrypts the database at rest.
+                        .openHelperFactory(SupportOpenHelperFactory(passphrase))
+                        // No destructive fallback in production; migrations must be added
+                        // explicitly as the schema evolves post-v1.
+                        .build()
+                }.also { INSTANCE = it }
             }
         }
     }

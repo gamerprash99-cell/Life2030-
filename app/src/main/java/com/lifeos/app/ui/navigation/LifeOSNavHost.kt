@@ -1,6 +1,5 @@
 package com.lifeos.app.ui.navigation
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -13,8 +12,8 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
+import androidx.navigation.navigation
 import com.lifeos.app.ui.ai.AiAssistantScreen
 import com.lifeos.app.ui.capture.CaptureDetailScreen
 import com.lifeos.app.ui.capture.CaptureSheet
@@ -27,55 +26,63 @@ import com.lifeos.app.ui.home.HomeScreen
 import com.lifeos.app.ui.insights.InsightsScreen
 import com.lifeos.app.ui.notes.NoteEditorScreen
 import com.lifeos.app.ui.notes.NotesListScreen
-import com.lifeos.app.ui.search.SearchScreen
-import com.lifeos.app.ui.settings.SettingsScreen
 import com.lifeos.app.ui.profile.ProfileScreen
+import com.lifeos.app.ui.search.SearchScreen
 import com.lifeos.app.ui.security.AppLockSetupScreen
+import com.lifeos.app.ui.settings.SettingsScreen
 import com.lifeos.app.ui.tasks.TasksScreen
 import com.lifeos.app.ui.timeline.TimelineScreen
+
+/**
+ * Route of the nested graph that owns the four primary (bottom-navigation)
+ * destinations. Keeping them inside one graph lets the bottom bar pop the
+ * whole tab stack in a single hop (`popUpTo(rootGraph) { saveState = true }`)
+ * without ever leaving duplicate tab destinations on the back stack.
+ *
+ * Child/secondary screens (Notes Editor, Habit Detail, Expense, Diary, …)
+ * live OUTSIDE this graph so they stack naturally on top of the active tab
+ * and Android's system Back dismisses them one level at a time.
+ */
+private const val ROOT_TABS_GRAPH = "root_tabs"
 
 @androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun LifeOSNavHost() {
     val navController = rememberNavController()
     var showCapture by remember { mutableStateOf(false) }
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
-    val onRoot = currentRoute == Screen.Home.route
-
-    // Keep system Back predictable even on secondary screens that do not expose
-    // their own toolbar action. Bottom navigation still owns cross-section jumps.
-    BackHandler(enabled = !onRoot) {
-        // One NavController owns the entire app stack. This makes Android's
-        // system Back behave exactly like the visible toolbar Back action,
-        // including Home → Notes → Note Editor and every other nested route.
-        navController.popBackStack()
-    }
 
     Scaffold(
         bottomBar = { LifeOSBottomBar(navController) }
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = ROOT_TABS_GRAPH,
             modifier = Modifier.padding(padding)
         ) {
-            composable(Screen.Home.route) {
-                HomeScreen(
-                    onOpenTasks = { navController.navigate(Screen.Tasks.route) },
-                    onOpenHabits = { navController.navigate(Screen.Habits.route) },
-                    onOpenCapture = { showCapture = true },
-                    onOpenAiAssistant = { navController.navigate(Screen.AiAssistant.route) },
-                    onOpenNotes = { navController.navigate(Screen.Notes.route) },
-                    onOpenExpenses = { navController.navigate(Screen.Expenses.route) },
-                    onOpenDiary = { navController.navigate(Screen.Diary.route) },
-                    onOpenInsights = { navController.navigate(Screen.Insights.route) },
-                    onOpenSearch = { navController.navigate(Screen.Search.route) },
-                    onOpenTimeline = { navController.navigate(Screen.Timeline.route) },
-                    onOpenSettings = { navController.navigate(Screen.Settings.route) },
-                    onOpenProfile = { navController.navigate(Screen.Profile.route) }
-                )
+            navigation(startDestination = Screen.Home.route, route = ROOT_TABS_GRAPH) {
+                composable(Screen.Home.route) {
+                    HomeScreen(
+                        onOpenTasks = { navController.navigate(Screen.Tasks.route) },
+                        onOpenHabits = { navController.navigate(Screen.Habits.route) },
+                        onOpenCapture = { showCapture = true },
+                        onOpenAiAssistant = { navController.navigate(Screen.AiAssistant.route) },
+                        onOpenNotes = { navController.navigate(Screen.Notes.route) },
+                        onOpenExpenses = { navController.navigate(Screen.Expenses.route) },
+                        onOpenDiary = { navController.navigate(Screen.Diary.route) },
+                        onOpenInsights = { navController.navigate(Screen.Insights.route) },
+                        onOpenSearch = { navController.navigate(Screen.Search.route) },
+                        onOpenTimeline = { navController.navigate(Screen.Timeline.route) },
+                        onOpenSettings = { navController.navigate(Screen.Settings.route) },
+                        onOpenProfile = { navController.navigate(Screen.Profile.route) }
+                    )
+                }
+                composable(Screen.Tasks.route) { TasksScreen() }
+                composable(Screen.Habits.route) {
+                    HabitsScreen(onOpenHabit = { habitId -> navController.navigate(Screen.HabitDetail.createRoute(habitId)) })
+                }
+                composable(Screen.Insights.route) { InsightsScreen() }
             }
+
             composable(Screen.Notes.route) {
                 NotesListScreen(
                     onOpenNote = { noteId -> navController.navigate(Screen.NoteEditor.createRoute(noteId)) },
@@ -88,10 +95,6 @@ fun LifeOSNavHost() {
             ) { entry ->
                 val noteId = entry.arguments?.getString("noteId")?.ifBlank { null }
                 NoteEditorScreen(noteId = noteId, onBack = { navController.popBackStack() })
-            }
-            composable(Screen.Tasks.route) { TasksScreen() }
-            composable(Screen.Habits.route) {
-                HabitsScreen(onOpenHabit = { habitId -> navController.navigate(Screen.HabitDetail.createRoute(habitId)) })
             }
             composable(
                 Screen.HabitDetail.route,
@@ -114,7 +117,6 @@ fun LifeOSNavHost() {
                 val captureId = entry.arguments?.getString("captureId").orEmpty()
                 CaptureDetailScreen(captureId = captureId, onBack = { navController.popBackStack() })
             }
-            composable(Screen.Insights.route) { InsightsScreen() }
             composable(Screen.Search.route) { SearchScreen() }
             composable(Screen.AiAssistant.route) {
                 AiAssistantScreen(

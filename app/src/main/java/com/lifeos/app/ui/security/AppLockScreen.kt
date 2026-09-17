@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.AppLockType
+import com.lifeos.app.core.util.PinAttemptResult
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -152,10 +153,24 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
                 Button(
                     onClick = {
                         scope.launch {
-                            if (locator.settingsStore.verifyPin(pinInput)) onUnlocked()
-                            else {
-                                error = "Incorrect PIN."
-                                pinInput = ""
+                            when (val result = locator.settingsStore.attemptPinUnlock(pinInput)) {
+                                PinAttemptResult.Success -> {
+                                    error = null
+                                    onUnlocked()
+                                }
+                                is PinAttemptResult.Incorrect -> {
+                                    error = if (result.attemptsRemaining <= 0) {
+                                        "Incorrect PIN."
+                                    } else {
+                                        "Incorrect PIN. ${result.attemptsRemaining} attempt(s) left."
+                                    }
+                                    pinInput = ""
+                                }
+                                is PinAttemptResult.LockedOut -> {
+                                    val seconds = (result.remainingMillis / 1000L).coerceAtLeast(1)
+                                    error = "Too many attempts. Try again in $seconds second(s)."
+                                    pinInput = ""
+                                }
                             }
                         }
                     },

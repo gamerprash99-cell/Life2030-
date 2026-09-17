@@ -16,6 +16,34 @@ output.
 
 ---
 
+## [0.2.0] — Hardening pass
+
+### Security
+- PIN/recovery hashing upgraded from a single SHA-256 to PBKDF2-HMAC-SHA256
+  (120,000 iterations, random 16-byte salt); legacy v1 hashes still verify
+- Brute-force lockout added to `SettingsStore` (5 attempts, escalating to 16 min)
+- Room database encrypted at rest with SQLCipher; passphrase wrapped by an
+  Android Keystore AES-GCM key (`DatabasePassphraseProvider`)
+- Removed dead biometric code (`AppLockManager`, `androidx.biometric`,
+  `USE_BIOMETRIC` permission); App Lock is PIN-only
+
+### Added
+- Recurring tasks now roll over on completion (`RepeatRuleCalculator`)
+- Full Add Task dialog: description, category, priority and repeat rule
+- JVM unit test suite (PIN hashing, habit stats, repeat rules, date math,
+  offline intelligence, backup serialization)
+- Optional release signing via `keystore.properties` (`keystore.properties.example`)
+
+### Fixed
+- Backup restore now runs in a single database transaction
+- Deleting a habit removes its `habit_completions` rows
+- Version bumped to `0.2.0` (`versionCode` 2)
+
+### Changed
+- CI now runs `gradle test assembleDebug assembleRelease`
+
+---
+
 ## [0.1.0-phase1-6] — Current state (`app/build.gradle.kts` `versionName`)
 
 ### Added — Core data & architecture
@@ -151,3 +179,27 @@ Verification: archive integrity checked after the source update. Full Android Gr
 - Preserved existing Room/repository/navigation architecture.
 - Added final release checklist and Phase 18 documentation.
 - Android build verification remains pending because the supplied project has no Gradle wrapper and the verification environment has no system Gradle.
+
+
+---
+
+## Current source snapshot — 2026-09-17
+
+This documentation set is aligned to the supplied LifeOS Android source snapshot. The source of truth is the Kotlin/Jetpack Compose implementation under `app/src/main/java/com/lifeos/app/`, together with `app/build.gradle.kts` and `app/src/main/AndroidManifest.xml`.
+
+### Verified architecture facts
+- Native Kotlin Android application using Jetpack Compose + Material 3.
+- Navigation uses Navigation Compose with a `root_tabs` nested graph for Home, Tasks, Habits and Insights; secondary screens remain stackable routes.
+- Local persistence uses Room/SQLite with SQLCipher for database-at-rest encryption, plus DataStore for preferences/settings.
+- Repositories and use cases remain the application data boundary; UI does not directly own Room access.
+- Offline intelligence is implemented under `core/intelligence/` using deterministic local analyzers, rules, lexicons, statistics and templates.
+- Capture uses CameraX for photo/video and Android `MediaRecorder` for audio, with runtime permissions requested only when capture is selected.
+- Backup/restore is local and uses Android Storage Access Framework/document picker flows.
+- App Lock is PIN-only (`NONE` / `PIN`) in the current source; no cloud identity or biometric App Lock implementation is present.
+- The manifest does not declare `android.permission.INTERNET`.
+
+### Verification boundary
+The repository snapshot supplied for this documentation pass does not contain the Gradle wrapper scripts/JAR. Therefore this environment does not claim a fresh Gradle build, instrumentation run, or physical-device verification unless an executed command is recorded elsewhere in the project history.
+
+### Maintenance rule
+Historical sections are intentionally retained for traceability. When historical documentation conflicts with the current source, the current source and the latest dated current-state section take precedence; historical changelog entries should not be rewritten merely to make history appear current.

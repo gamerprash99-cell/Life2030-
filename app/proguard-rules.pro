@@ -18,3 +18,7 @@
 -keepclasseswithmembers class kotlinx.serialization.json.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# SQLCipher (net.zetetic)
+-keep class net.zetetic.database.** { *; }
+-dontwarn net.zetetic.database.**

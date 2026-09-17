@@ -3,6 +3,8 @@ package com.lifeos.app.core.util
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.lifeos.app.core.security.PinHasher
@@ -14,14 +16,23 @@ private val Context.dataStore by preferencesDataStore(name = "lifeos_settings")
 
 enum class AppLockType { NONE, PIN }
 
+/** Result of an App Lock unlock attempt, used to drive lockout UX. */
+sealed interface PinAttemptResult {
+    data object Success : PinAttemptResult
+    data class Incorrect(val attemptsRemaining: Int) : PinAttemptResult
+    data class LockedOut(val remainingMillis: Long) : PinAttemptResult
+}
+
 /**
  * Central app settings — Section 59 (Settings screen). No settings are
  * ever synced off-device except through the explicit Backup/Export flow.
  *
  * SECURITY NOTE: the App PIN and recovery answer are NEVER stored in
- * plaintext — only a random salt + SHA-256 hash of each (see
+ * plaintext — only a random salt and the derived hash of each (see
  * core/security/PinHasher.kt). This class never exposes the raw PIN or
- * recovery answer back out; only hash verification is possible.
+ * recovery answer back out; only verification is possible. Wrong PIN
+ * attempts are throttled with an escalating lockout after N failures so a
+ * short numeric PIN cannot be brute-forced through repeated tapping.
  */
 class SettingsStore(private val context: Context) {
 
@@ -36,6 +47,14 @@ class SettingsStore(private val context: Context) {
         val RECOVERY_QUESTION = stringPreferencesKey("recovery_question")
         val RECOVERY_ANSWER_SALT = stringPreferencesKey("recovery_answer_salt")
         val RECOVERY_ANSWER_HASH = stringPreferencesKey("recovery_answer_hash")
+
+        val PIN_FAILED_ATTEMPTS = intPreferencesKey("pin_failed_attempts")
+        val PIN_LOCKOUT_UNTIL = longPreferencesKey("pin_lockout_until")
+    }
+
+    private companion object {
+        const val MAX_ATTEMPTS = 5
+        const val BASE_LOCKOUT_MS = 30_000L
     }
 
     val darkThemeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DARK_THEME_ENABLED] ?: false }
@@ -54,6 +73,7 @@ class SettingsStore(private val context: Context) {
     val recoveryQuestion: Flow<String?> = context.dataStore.data.map { it[Keys.RECOVERY_QUESTION] }
 
     suspend fun setDarkThemeEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.DARK_THEME_ENABLED] = enabled }
+
     suspend fun setOnboardingComplete(complete: Boolean) = context.dataStore.edit { it[Keys.ONBOARDING_COMPLETE] = complete }
     suspend fun setAiFeaturesEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.AI_FEATURES_ENABLED] = enabled }
 
@@ -69,6 +89,8 @@ class SettingsStore(private val context: Context) {
             it[Keys.RECOVERY_QUESTION] = recoveryQuestion
             it[Keys.RECOVERY_ANSWER_SALT] = answerHash.saltBase64
             it[Keys.RECOVERY_ANSWER_HASH] = answerHash.hashBase64
+            it[Keys.PIN_FAILED_ATTEMPTS] = 0
+            it.remove(Keys.PIN_LOCKOUT_UNTIL)
         }
     }
 
@@ -77,6 +99,7 @@ class SettingsStore(private val context: Context) {
         it[Keys.APP_LOCK_TYPE] = AppLockType.NONE.name
         it.remove(Keys.PIN_SALT); it.remove(Keys.PIN_HASH)
         it.remove(Keys.RECOVERY_QUESTION); it.remove(Keys.RECOVERY_ANSWER_SALT); it.remove(Keys.RECOVERY_ANSWER_HASH)
+        it.remove(Keys.PIN_FAILED_ATTEMPTS); it.remove(Keys.PIN_LOCKOUT_UNTIL)
     }
 
     suspend fun verifyPin(enteredPin: String): Boolean {
@@ -84,6 +107,47 @@ class SettingsStore(private val context: Context) {
         val salt = prefs[Keys.PIN_SALT] ?: return false
         val hash = prefs[Keys.PIN_HASH] ?: return false
         return PinHasher.verify(enteredPin, salt, hash)
+    }
+
+    /**
+     * Verify the PIN with brute-force throttling. Each failure is recorded;
+     * after [MAX_ATTEMPTS] failures the check refuses to run until the current
+     * lockout window (which grows on every repeated failure) has elapsed.
+     */
+    suspend fun attemptPinUnlock(enteredPin: String): PinAttemptResult {
+        val prefs = context.dataStore.data.first()
+        val now = System.currentTimeMillis()
+        val lockoutUntil = prefs[Keys.PIN_LOCKOUT_UNTIL] ?: 0L
+
+        if (now < lockoutUntil) {
+            return PinAttemptResult.LockedOut(lockoutUntil - now)
+        }
+
+        val salt = prefs[Keys.PIN_SALT] ?: return PinAttemptResult.Incorrect(0)
+        val hash = prefs[Keys.PIN_HASH] ?: return PinAttemptResult.Incorrect(0)
+
+        if (PinHasher.verify(enteredPin, salt, hash)) {
+            context.dataStore.edit {
+                it[Keys.PIN_FAILED_ATTEMPTS] = 0
+                it.remove(Keys.PIN_LOCKOUT_UNTIL)
+            }
+            return PinAttemptResult.Success
+        }
+
+        val failures = (prefs[Keys.PIN_FAILED_ATTEMPTS] ?: 0) + 1
+        if (failures >= MAX_ATTEMPTS) {
+            val tier = (failures - MAX_ATTEMPTS).toLong()
+            val duration = minOf(BASE_LOCKOUT_MS shl (tier.coerceAtMost(8)).toInt(), 16 * 60 * 1000L)
+            val until = now + duration
+            context.dataStore.edit {
+                it[Keys.PIN_FAILED_ATTEMPTS] = failures
+                it[Keys.PIN_LOCKOUT_UNTIL] = until
+            }
+            return PinAttemptResult.LockedOut(duration)
+        }
+
+        context.dataStore.edit { it[Keys.PIN_FAILED_ATTEMPTS] = failures }
+        return PinAttemptResult.Incorrect(MAX_ATTEMPTS - failures)
     }
 
     suspend fun verifyRecoveryAnswer(enteredAnswer: String): Boolean {

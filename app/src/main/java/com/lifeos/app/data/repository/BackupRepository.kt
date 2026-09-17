@@ -1,5 +1,6 @@
 package com.lifeos.app.data.repository
 
+import com.lifeos.app.data.db.AppDatabase
 import com.lifeos.app.data.db.entities.CaptureEntity
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.db.entities.ExpenseEntity
@@ -7,6 +8,7 @@ import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.NoteEntity
 import com.lifeos.app.data.db.entities.TaskEntity
+import androidx.room.withTransaction
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -32,6 +34,7 @@ data class LifeOSBackup(
 )
 
 class BackupRepository(
+    private val database: AppDatabase,
     private val noteRepo: NoteRepository,
     private val taskRepo: TaskRepository,
     private val habitRepo: HabitRepository,
@@ -67,7 +70,7 @@ class BackupRepository(
         restore(backup)
     }
 
-    suspend fun restore(backup: LifeOSBackup) {
+    suspend fun restore(backup: LifeOSBackup) = database.withTransaction {
         noteRepo.restoreFromBackup(backup.notes)
         taskRepo.restoreFromBackup(backup.tasks)
         habitRepo.restoreFromBackup(backup.habits, backup.habitCompletions)

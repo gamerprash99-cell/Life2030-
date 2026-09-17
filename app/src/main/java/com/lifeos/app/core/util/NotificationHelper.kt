@@ -18,15 +18,14 @@ object NotificationHelper {
     private const val CHANNEL_NAME = "LifeOS Reminders"
 
     fun ensureChannel(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = context.getSystemService(NotificationManager::class.java)
-            val channel = NotificationChannel(
-                CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Reminders for your tasks and habits"
-            }
-            manager.createNotificationChannel(channel)
+        // minSdk is 26, so notification channels are always available.
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val channel = NotificationChannel(
+            CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "Reminders for your tasks and habits"
         }
+        manager.createNotificationChannel(channel)
     }
 
     fun showReminder(context: Context, notificationId: Int, title: String, body: String) {
@@ -42,10 +41,10 @@ object NotificationHelper {
             .setAutoCancel(true)
             .build()
 
-        NotificationManagerCompat.from(context).apply {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || hasPostPermission) {
-                notify(notificationId, notification)
-            }
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
+        } catch (_: SecurityException) {
+            // Permission was revoked between the check above and the post.
         }
     }
 }
