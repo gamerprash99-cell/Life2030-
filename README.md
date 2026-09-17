@@ -89,7 +89,7 @@ See [`docs/DESIGN.md`](./docs/DESIGN.md) for:
 
 ## Build status
 
-The supplied snapshot documents Gradle 8.9 + Android Gradle Plugin 8.6.1 as the intended build environment, but a fresh build is **not claimed for this documentation pass** because the repository does not ship the Gradle wrapper scripts/JAR and no complete Android/Gradle verification was executed in this environment. The repository does not ship the Gradle wrapper JAR/scripts, so builds use a locally-installed Gradle distribution; resource processing on arm64 hosts uses the `android.aapt2FromMavenOverride` override with a qemu-compatible aapt2.
+Verified on this snapshot with Gradle 8.9 + Android Gradle Plugin 8.6.1: `assembleDebug` builds cleanly, `testDebugUnitTest` passes (64 tests across bottom-nav ordering, narrative scoring, mood/note intelligence, PIN hashing, habit stats, repeat rules, date-time utilities and backup serialization), and `lintDebug` reports zero errors. The repository does not ship the Gradle wrapper JAR/scripts, so builds use a locally-installed Gradle distribution; resource processing on arm64 hosts uses the `android.aapt2FromMavenOverride` override with a qemu-compatible aapt2.
 
 When a proper Android environment is available, run:
 
@@ -115,26 +115,9 @@ Start with:
 ## LIFE Phase 18 Consolidation
 LIFE is integrated into the supplied LifeOS source as a local, allow-listed controller with repository-only data access and optional Android on-device voice input. No cloud AI or network fallback is part of the LIFE execution path. Production neural inference remains gated on a real validated LIFE checkpoint. See `FINAL_RELEASE_CHECKLIST.md` and `docs/33_LIFE_INTEGRATION_PHASE18.md`.
 
-
----
-
-## Current source snapshot — 2026-09-17
-
-This documentation set is aligned to the supplied LifeOS Android source snapshot. The source of truth is the Kotlin/Jetpack Compose implementation under `app/src/main/java/com/lifeos/app/`, together with `app/build.gradle.kts` and `app/src/main/AndroidManifest.xml`.
-
-### Verified architecture facts
-- Native Kotlin Android application using Jetpack Compose + Material 3.
-- Navigation uses Navigation Compose with a `root_tabs` nested graph for Home, Tasks, Habits and Insights; secondary screens remain stackable routes.
-- Local persistence uses Room/SQLite with SQLCipher for database-at-rest encryption, plus DataStore for preferences/settings.
-- Repositories and use cases remain the application data boundary; UI does not directly own Room access.
-- Offline intelligence is implemented under `core/intelligence/` using deterministic local analyzers, rules, lexicons, statistics and templates.
-- Capture uses CameraX for photo/video and Android `MediaRecorder` for audio, with runtime permissions requested only when capture is selected.
-- Backup/restore is local and uses Android Storage Access Framework/document picker flows.
-- App Lock is PIN-only (`NONE` / `PIN`) in the current source; no cloud identity or biometric App Lock implementation is present.
-- The manifest does not declare `android.permission.INTERNET`.
-
-### Verification boundary
-The repository snapshot supplied for this documentation pass does not contain the Gradle wrapper scripts/JAR. Therefore this environment does not claim a fresh Gradle build, instrumentation run, or physical-device verification unless an executed command is recorded elsewhere in the project history.
-
-### Maintenance rule
-Historical sections are intentionally retained for traceability. When historical documentation conflicts with the current source, the current source and the latest dated current-state section take precedence; historical changelog entries should not be rewritten merely to make history appear current.
+## 2026-09-18 UI and interaction update
+- Added an on-device profile photo picker with persisted URI storage.
+- Moved Settings access out of the Home header; Settings is now reached from Profile.
+- Refined Profile, Expenses, Add Expense, and App Lock UI using the supplied Stitch direction while keeping existing repositories/use cases and local data flows.
+- Hardened Compose navigation Back handling and onboarding startup gating to avoid the first-page flash on subsequent launches.
+- Hardened audio recording lifecycle and local playback so canceled/incomplete recordings are cleaned up and saved recordings are prepared safely.

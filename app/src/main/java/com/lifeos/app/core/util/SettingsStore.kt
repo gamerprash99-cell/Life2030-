@@ -40,6 +40,7 @@ class SettingsStore(private val context: Context) {
         val DARK_THEME_ENABLED = booleanPreferencesKey("dark_theme_enabled")
         val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
         val AI_FEATURES_ENABLED = booleanPreferencesKey("ai_features_enabled")
+        val PROFILE_PHOTO_URI = stringPreferencesKey("profile_photo_uri")
 
         val APP_LOCK_TYPE = stringPreferencesKey("app_lock_type")
         val PIN_SALT = stringPreferencesKey("pin_salt")
@@ -60,6 +61,7 @@ class SettingsStore(private val context: Context) {
     val darkThemeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DARK_THEME_ENABLED] ?: false }
     val onboardingComplete: Flow<Boolean> = context.dataStore.data.map { it[Keys.ONBOARDING_COMPLETE] ?: false }
     val aiFeaturesEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AI_FEATURES_ENABLED] ?: false }
+    val profilePhotoUri: Flow<String?> = context.dataStore.data.map { it[Keys.PROFILE_PHOTO_URI] }
 
     val appLockType: Flow<AppLockType> = context.dataStore.data.map {
         when (it[Keys.APP_LOCK_TYPE]) {
@@ -76,6 +78,9 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setOnboardingComplete(complete: Boolean) = context.dataStore.edit { it[Keys.ONBOARDING_COMPLETE] = complete }
     suspend fun setAiFeaturesEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.AI_FEATURES_ENABLED] = enabled }
+    suspend fun setProfilePhotoUri(uri: String?) = context.dataStore.edit {
+        if (uri.isNullOrBlank()) it.remove(Keys.PROFILE_PHOTO_URI) else it[Keys.PROFILE_PHOTO_URI] = uri
+    }
 
 
     /** Enables PIN App Lock with a mandatory recovery question, so a forgotten PIN doesn't lock the user out permanently. */

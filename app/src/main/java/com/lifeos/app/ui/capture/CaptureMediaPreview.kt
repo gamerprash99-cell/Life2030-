@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
@@ -77,51 +78,100 @@ fun VideoPreview(filePath: String, modifier: Modifier = Modifier) {
 fun AudioPreview(filePath: String, modifier: Modifier = Modifier) {
     val fileExists = remember(filePath) { File(filePath).exists() }
     if (!fileExists) { MissingFileNotice(modifier); return }
+
     var isPlaying by remember(filePath) { mutableStateOf(false) }
+    var isPreparing by remember(filePath) { mutableStateOf(false) }
     var positionMs by remember(filePath) { mutableStateOf(0L) }
     val durationMs = rememberMediaDurationMs(filePath)
     var mediaPlayer by remember(filePath) { mutableStateOf<MediaPlayer?>(null) }
 
+    fun releasePlayer() {
+        runCatching { mediaPlayer?.stop() }
+        runCatching { mediaPlayer?.release() }
+        mediaPlayer = null
+        isPlaying = false
+        isPreparing = false
+    }
+
     DisposableEffect(filePath) {
-        onDispose {
-            mediaPlayer?.release()
-            mediaPlayer = null
-        }
+        onDispose { releasePlayer() }
     }
 
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
-            positionMs = mediaPlayer?.let { if (it.isPlaying) it.currentPosition.toLong() else positionMs } ?: positionMs
-            delay(250)
+            val player = mediaPlayer
+            if (player == null || !player.isPlaying) {
+                isPlaying = false
+                break
+            }
+            positionMs = player.currentPosition.toLong()
+            delay(200)
         }
     }
 
     GlassCard(modifier = modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = {
-                if (isPlaying) {
-                    mediaPlayer?.pause()
-                    isPlaying = false
-                } else {
-                    val player = mediaPlayer ?: MediaPlayer().apply {
-                        setDataSource(filePath)
-                        prepare()
-                        setOnCompletionListener {
-                            isPlaying = false
-                            positionMs = 0L
-                            seekTo(0)
+            IconButton(
+                enabled = !isPreparing,
+                onClick = {
+                    val existing = mediaPlayer
+                    if (existing?.isPlaying == true) {
+                        existing.pause()
+                        isPlaying = false
+                    } else {
+                        val player = existing ?: MediaPlayer().also { mediaPlayer = it }
+                        try {
+                            if (existing == null) {
+                                isPreparing = true
+                                player.setDataSource(filePath)
+                                player.setOnPreparedListener {
+                                    isPreparing = false
+                                    positionMs = 0L
+                                    it.start()
+                                    isPlaying = true
+                                }
+                                player.setOnCompletionListener {
+                                    isPlaying = false
+                                    positionMs = 0L
+                                    runCatching { it.seekTo(0) }
+                                }
+                                player.setOnErrorListener { mp, _, _ ->
+                                    isPreparing = false
+                                    isPlaying = false
+                                    runCatching { mp.reset() }
+                                    true
+                                }
+                                player.prepareAsync()
+                            } else {
+                                player.start()
+                                isPlaying = true
+                            }
+                        } catch (_: Throwable) {
+                            releasePlayer()
                         }
-                    }.also { mediaPlayer = it }
-                    player.start()
-                    isPlaying = true
+                    }
                 }
-            }) {
-                Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, contentDescription = if (isPlaying) "Pause" else "Play recording")
+            ) {
+                Icon(
+                    if (isPreparing) Icons.Filled.HourglassEmpty
+                    else if (isPlaying) Icons.Filled.Pause
+                    else Icons.Filled.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause recording" else "Play recording"
+                )
             }
-            androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier.weight(1f).padding(start = 8.dp)
+            ) {
                 val total = durationMs ?: 0L
-                LinearProgressIndicator(progress = { if (total > 0) (positionMs.toFloat() / total).coerceIn(0f, 1f) else 0f }, modifier = Modifier.fillMaxWidth())
-                Text("${formatDurationMs(positionMs)} / ${formatDurationMs(durationMs)}", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
+                LinearProgressIndicator(
+                    progress = { if (total > 0) (positionMs.toFloat() / total).coerceIn(0f, 1f) else 0f },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    "${formatDurationMs(positionMs)} / ${formatDurationMs(durationMs)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
         }
     }

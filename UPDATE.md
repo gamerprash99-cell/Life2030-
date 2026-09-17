@@ -45,35 +45,23 @@ Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and re
 ./gradlew :app:lintDebug
 ```
 
----
+## 2026-09-18 — Stitch UI integration + interaction fixes
+### Changed
+- Integrated the supplied Stitch visual direction into the existing Kotlin/Jetpack Compose implementation for Profile, Expenses, Add Expense, and App Lock.
+- Added local profile-photo selection and persistence through `SettingsStore`.
+- Removed the Home-screen Settings action; Settings is now intentionally exposed from Profile.
+- Added a navigation-level Compose `BackHandler` so secondary destinations consistently return to the previous destination.
+- Changed onboarding startup gating to wait for the persisted completion value before rendering, preventing the onboarding pages from flashing after the first launch.
+- Hardened audio capture cleanup, recorder error handling, and local MediaPlayer preparation/playback.
 
-## Current source snapshot — 2026-09-17
+### Preserved
+- Existing Room database, repositories, use cases, navigation architecture, offline-first behavior, and app-lock hashing/recovery.
+- No Room schema change was required for profile photo storage because the URI is a local DataStore preference.
+- No cloud upload, telemetry, remote AI, or new network dependency was introduced.
 
-This documentation set is aligned to the supplied LifeOS Android source snapshot. The source of truth is the Kotlin/Jetpack Compose implementation under `app/src/main/java/com/lifeos/app/`, together with `app/build.gradle.kts` and `app/src/main/AndroidManifest.xml`.
+### Verification
+- Source-level audit completed against the supplied latest repository and Stitch HTML/screens.
+- Full Gradle verification could not be executed because the supplied repository archive does not contain `gradlew`/`gradle-wrapper.jar`, and no system Gradle executable is available in the execution environment.
 
-### Verified architecture facts
-- Native Kotlin Android application using Jetpack Compose + Material 3.
-- Navigation uses Navigation Compose with a `root_tabs` nested graph for Home, Tasks, Habits and Insights; secondary screens remain stackable routes.
-- Local persistence uses Room/SQLite with SQLCipher for database-at-rest encryption, plus DataStore for preferences/settings.
-- Repositories and use cases remain the application data boundary; UI does not directly own Room access.
-- Offline intelligence is implemented under `core/intelligence/` using deterministic local analyzers, rules, lexicons, statistics and templates.
-- Capture uses CameraX for photo/video and Android `MediaRecorder` for audio, with runtime permissions requested only when capture is selected.
-- Backup/restore is local and uses Android Storage Access Framework/document picker flows.
-- App Lock is PIN-only (`NONE` / `PIN`) in the current source; no cloud identity or biometric App Lock implementation is present.
-- The manifest does not declare `android.permission.INTERNET`.
-
-### Verification boundary
-The repository snapshot supplied for this documentation pass does not contain the Gradle wrapper scripts/JAR. Therefore this environment does not claim a fresh Gradle build, instrumentation run, or physical-device verification unless an executed command is recorded elsewhere in the project history.
-
-### Maintenance rule
-Historical sections are intentionally retained for traceability. When historical documentation conflicts with the current source, the current source and the latest dated current-state section take precedence; historical changelog entries should not be rewritten merely to make history appear current.
-
-
-## Documentation synchronization — 2026-09-17
-
-- Synchronized every Markdown document with the current supplied Kotlin/Compose source snapshot.
-- Added a dated current-source section to all `.md` files without deleting historical documentation.
-- Corrected the root README build-verification wording so it does not claim a fresh build from an environment where the Gradle wrapper is absent.
-- Updated the roadmap/known-issues wording for current release-signing and verification state.
-- Updated `docs/DOCUMENTATION_AUDIT.md` to the 2026-09-17 documentation state.
-- No application source, Room schema, migrations, navigation implementation, or user data was changed by this documentation pass.
+### Remaining
+- Run the project's normal Android CI/build locally or in GitHub Actions once the wrapper is present to perform the final compiler, unit-test, instrumentation, and lint verification.

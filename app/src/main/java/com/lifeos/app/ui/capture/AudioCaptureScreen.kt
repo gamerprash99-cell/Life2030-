@@ -1,6 +1,8 @@
 package com.lifeos.app.ui.capture
 
 import android.media.MediaRecorder
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,30 +56,70 @@ fun AudioCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
 
     fun start() {
         val output = MediaStorage.newAudioFile(context)
-        val current = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(context) else @Suppress("DEPRECATION") MediaRecorder()
-        current.apply {
-            setAudioSource(MediaRecorder.AudioSource.MIC)
-            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            setOutputFile(output.absolutePath)
-            prepare(); start()
+        val current = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            MediaRecorder(context)
+        } else {
+            @Suppress("DEPRECATION")
+            MediaRecorder()
         }
-        file = output
-        recorder = current
-        isRecording = true
+        try {
+            current.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setAudioSamplingRate(44_100)
+                setAudioEncodingBitRate(128_000)
+                setOutputFile(output.absolutePath)
+                prepare()
+                start()
+            }
+            file = output
+            recorder = current
+            seconds = 0
+            isRecording = true
+        } catch (t: Throwable) {
+            runCatching { current.reset() }
+            runCatching { current.release() }
+            output.delete()
+            Toast.makeText(context, "Couldn't start audio recording.", Toast.LENGTH_SHORT).show()
+        }
     }
-    fun stop() {
-        runCatching { recorder?.stop() }
-        runCatching { recorder?.release() }
+
+    fun stop(save: Boolean = true) {
+        val current = recorder
         recorder = null
         isRecording = false
-        file?.let { onCaptured(it.absolutePath) }
+        if (current != null) {
+            runCatching { current.stop() }
+            runCatching { current.reset() }
+            runCatching { current.release() }
+        }
+        val recordedFile = file
+        file = null
+        if (save && recordedFile != null && recordedFile.exists() && recordedFile.length() > 0L) {
+            onCaptured(recordedFile.absolutePath)
+        } else {
+            recordedFile?.delete()
+        }
     }
+
+    BackHandler {
+        if (isRecording) stop(save = false) else onCancel()
+    }
+
     LaunchedEffect(isRecording) {
         seconds = 0
         while (isRecording) { kotlinx.coroutines.delay(1000); seconds++ }
     }
-    DisposableEffect(Unit) { onDispose { runCatching { recorder?.release() } } }
+    DisposableEffect(Unit) {
+        onDispose {
+            val current = recorder
+            recorder = null
+            runCatching { current?.stop() }
+            runCatching { current?.release() }
+            file?.delete()
+        }
+    }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.fillMaxSize().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {

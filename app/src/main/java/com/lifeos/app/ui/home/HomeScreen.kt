@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelfImprovement
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Icon
@@ -69,7 +68,6 @@ fun HomeScreen(
     onOpenInsights: () -> Unit = {},
     onOpenSearch: () -> Unit = {},
     onOpenTimeline: () -> Unit = {},
-    onOpenSettings: () -> Unit = {},
     onOpenProfile: () -> Unit = {}
 ) {
     val locator = LocalServiceLocator.current
@@ -92,7 +90,7 @@ fun HomeScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
     ) {
-        item { HomeHeader(summary?.dateLabel, onOpenSearch, onOpenSettings, onOpenProfile) }
+        item { HomeHeader(summary?.dateLabel, onOpenSearch, onOpenProfile) }
         item { GreetingBlock(summary?.greeting ?: "Welcome back") }
         item { DailyMomentumCard(momentum, completedTasks, totalTasks, verifiedHabits, totalHabits, summary?.todaySpend ?: 0.0, animatedMomentum) }
         item {
@@ -155,7 +153,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeHeader(dateLabel: String?, onSearch: () -> Unit, onSettings: () -> Unit, onProfile: () -> Unit) {
+private fun HomeHeader(dateLabel: String?, onSearch: () -> Unit, onProfile: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -166,7 +164,6 @@ private fun HomeHeader(dateLabel: String?, onSearch: () -> Unit, onSettings: () 
             Text(dateLabel ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, contentDescription = "Search") }
-        IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = "Settings") }
         Surface(onClick = onProfile, modifier = Modifier.size(44.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .32f)) { Icon(Icons.Filled.Person, contentDescription = "Profile", tint = LifeOSPrimary, modifier = Modifier.padding(10.dp)) }
     }
 }

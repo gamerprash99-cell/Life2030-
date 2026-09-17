@@ -1,5 +1,6 @@
 package com.lifeos.app.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -49,6 +50,7 @@ private const val ROOT_TABS_GRAPH = "root_tabs"
 @Composable
 fun LifeOSNavHost() {
     val navController = rememberNavController()
+    BackHandler(enabled = navController.previousBackStackEntry != null) { navController.popBackStack() }
     var showCapture by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -72,7 +74,6 @@ fun LifeOSNavHost() {
                         onOpenInsights = { navController.navigate(Screen.Insights.route) },
                         onOpenSearch = { navController.navigate(Screen.Search.route) },
                         onOpenTimeline = { navController.navigate(Screen.Timeline.route) },
-                        onOpenSettings = { navController.navigate(Screen.Settings.route) },
                         onOpenProfile = { navController.navigate(Screen.Profile.route) }
                     )
                 }
@@ -147,7 +148,8 @@ fun LifeOSNavHost() {
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     onBack = { navController.popBackStack() },
-                    onOpenSettings = { navController.navigate(Screen.Settings.route) }
+                    onOpenSettings = { navController.navigate(Screen.Settings.route) },
+                    onOpenAppLock = { navController.navigate(Screen.AppLockSetup.route) }
                 )
             }
             composable(Screen.Settings.route) {

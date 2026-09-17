@@ -28,7 +28,7 @@ Items are sequenced by how blocking they are to shipping anything real.
 - **Risks**: Keystore must be backed up securely — losing it means losing the ability to update a published app under the same identity
 - **Status**: Scaffolding done (see `keystore.properties.example`); a real production keystore still needs to be supplied
 
-### Complete release-environment verification
+### Encrypt the database and the stored AI API key
 - **Goal**: Close the 🟠 HIGH findings in `docs/08_SECURITY.md`
 - **User benefit**: Personal diary/notes data is protected even if the device is compromised
 - **Technical work**: SQLCipher adopted for Room; passphrase generated per install and wrapped with an Android Keystore AES-GCM key (`DatabasePassphraseProvider`). There is no stored AI API key — the Intelligence engine is fully on-device
@@ -90,7 +90,7 @@ Items are sequenced by how blocking they are to shipping anything real.
 - **Risks**: Sending too much context increases cost and privacy surface per the "send only what's needed" principle already established elsewhere in the app
 - **Status**: Not started
 
-### CI/CD hardening and verification
+### Set up CI/CD (GitHub Actions)
 - **Goal**: Automated build + (eventually) test-on-PR
 - **User benefit**: Indirect — faster, safer iteration
 - **Technical work**: `.github/workflows/android-build.yml` runs `gradle test assembleDebug assembleRelease` on every push/PR to `main` (works around the missing `gradlew` wrapper — see `docs/16_KNOWN_ISSUES.md` Issue #1). Test and release steps are now included; release falls back to debug signing without a keystore
@@ -99,7 +99,7 @@ Items are sequenced by how blocking they are to shipping anything real.
 - **Risks**: None
 - **Status**: Implemented (build + test + release automation done)
 
-### Expand automated/device coverage
+### Clean up orphaned habit completions on delete
 - **Goal**: Close Issue #6
 - **Technical work**: `HabitCompletionDao.deleteForHabit()` called from `HabitRepository.delete()` (manual cleanup query, no schema migration needed)
 - **Complexity**: Small
@@ -136,27 +136,3 @@ The next UI validation step is real-device comparison against the supplied Stitc
 
 ## LIFE Phase 18 — Consolidation
 The LIFE integration is consolidated into the latest supplied LifeOS source. Release verification still requires Android build tooling, APK size measurement, and a real trained LIFE checkpoint before production release.
-
-
----
-
-## Current source snapshot — 2026-09-17
-
-This documentation set is aligned to the supplied LifeOS Android source snapshot. The source of truth is the Kotlin/Jetpack Compose implementation under `app/src/main/java/com/lifeos/app/`, together with `app/build.gradle.kts` and `app/src/main/AndroidManifest.xml`.
-
-### Verified architecture facts
-- Native Kotlin Android application using Jetpack Compose + Material 3.
-- Navigation uses Navigation Compose with a `root_tabs` nested graph for Home, Tasks, Habits and Insights; secondary screens remain stackable routes.
-- Local persistence uses Room/SQLite with SQLCipher for database-at-rest encryption, plus DataStore for preferences/settings.
-- Repositories and use cases remain the application data boundary; UI does not directly own Room access.
-- Offline intelligence is implemented under `core/intelligence/` using deterministic local analyzers, rules, lexicons, statistics and templates.
-- Capture uses CameraX for photo/video and Android `MediaRecorder` for audio, with runtime permissions requested only when capture is selected.
-- Backup/restore is local and uses Android Storage Access Framework/document picker flows.
-- App Lock is PIN-only (`NONE` / `PIN`) in the current source; no cloud identity or biometric App Lock implementation is present.
-- The manifest does not declare `android.permission.INTERNET`.
-
-### Verification boundary
-The repository snapshot supplied for this documentation pass does not contain the Gradle wrapper scripts/JAR. Therefore this environment does not claim a fresh Gradle build, instrumentation run, or physical-device verification unless an executed command is recorded elsewhere in the project history.
-
-### Maintenance rule
-Historical sections are intentionally retained for traceability. When historical documentation conflicts with the current source, the current source and the latest dated current-state section take precedence; historical changelog entries should not be rewritten merely to make history appear current.

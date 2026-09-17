@@ -6,6 +6,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -15,6 +18,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -54,7 +58,9 @@ private fun OnboardingGate(content: @Composable () -> Unit) {
     val locator = LocalServiceLocator.current
     val scope = rememberCoroutineScopeCompat()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val onboardingComplete by locator.settingsStore.onboardingComplete.collectAsState(initial = false)
+    val onboardingComplete by produceState<Boolean?>(initialValue = null) {
+        locator.settingsStore.onboardingComplete.collect { value = it }
+    }
     var restoreStatus by remember { mutableStateOf<String?>(null) }
 
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -77,14 +83,16 @@ private fun OnboardingGate(content: @Composable () -> Unit) {
         }
     }
 
-    if (onboardingComplete) {
-        content()
-    } else {
-        OnboardingScreen(
+    when (onboardingComplete) {
+        true -> content()
+        false -> OnboardingScreen(
             onFinish = { scope.launch { locator.settingsStore.setOnboardingComplete(true) } },
             onRestoreBackup = { restoreLauncher.launch(arrayOf("application/json")) },
             restoreStatus = restoreStatus
         )
+        null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
     }
 }
 
