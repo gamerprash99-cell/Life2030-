@@ -14,7 +14,7 @@ The design source of truth remains [`docs/DESIGN.md`](./docs/DESIGN.md).
 
 - Kotlin
 - Jetpack Compose + Material 3
-- Room / SQLite for local data
+- Room / SQLite (SQLCipher-encrypted at rest) for local data
 - DataStore for preferences
 - Navigation Compose
 - WorkManager for reminders

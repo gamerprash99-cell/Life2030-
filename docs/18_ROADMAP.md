@@ -22,20 +22,20 @@ Items are sequenced by how blocking they are to shipping anything real.
 ### Add release signing configuration
 - **Goal**: Produce an installable, distributable release build
 - **User benefit**: The app can actually be installed by someone outside development
-- **Technical work**: Generate a keystore, add a `signingConfigs` block to `app/build.gradle.kts`
+- **Technical work**: `signingConfigs.release` added to `app/build.gradle.kts`, driven by an optional `keystore.properties`; `assembleRelease` is wired into CI and falls back to debug signing when no keystore is present
 - **Dependencies**: None
 - **Complexity**: Small
 - **Risks**: Keystore must be backed up securely — losing it means losing the ability to update a published app under the same identity
-- **Status**: Not started
+- **Status**: Scaffolding done (see `keystore.properties.example`); a real production keystore still needs to be supplied
 
 ### Encrypt the database and the stored AI API key
-- **Goal**: Close the two 🟠 HIGH findings in `docs/08_SECURITY.md`
-- **User benefit**: Personal diary/notes data and the user's AI key are protected even if the device is compromised
-- **Technical work**: Adopt SQLCipher for Room; use Jetpack Security's `EncryptedFile`/encrypted preferences for the API key
+- **Goal**: Close the 🟠 HIGH findings in `docs/08_SECURITY.md`
+- **User benefit**: Personal diary/notes data is protected even if the device is compromised
+- **Technical work**: SQLCipher adopted for Room; passphrase generated per install and wrapped with an Android Keystore AES-GCM key (`DatabasePassphraseProvider`). There is no stored AI API key — the Intelligence engine is fully on-device
 - **Dependencies**: None
 - **Complexity**: Medium
 - **Risks**: SQLCipher migration on an existing (unencrypted) install needs careful handling to avoid data loss
-- **Status**: Not started
+- **Status**: Done for new installs. Existing unencrypted databases need an explicit migration path before wide rollout.
 
 ---
 
@@ -44,38 +44,38 @@ Items are sequenced by how blocking they are to shipping anything real.
 ### Wire up backup restore in the UI
 - **Goal**: Close Issue #3 in `docs/16_KNOWN_ISSUES.md`
 - **User benefit**: Users can actually recover their data or move it to a new device
-- **Technical work**: Add a file picker + "Restore backup" button in `SettingsScreen.kt` calling the already-implemented `BackupRepository.importFromFile()`
-- **Dependencies**: None — the backend logic already exists
+- **Technical work**: File picker + restore entry already present in Onboarding and Settings; `BackupRepository.restore()` now runs inside a single `withTransaction { }`
+- **Dependencies**: None
 - **Complexity**: Small
-- **Risks**: Need a clear UX for merge-vs-overwrite behavior (current `restore()` upserts by primary key, so it merges)
-- **Status**: Not started
+- **Risks**: Restore upserts by primary key (merge semantics); needs device testing with representative backups
+- **Status**: Implemented + transactional; device verification pending
 
 ### Build recurring task auto-rollover
 - **Goal**: Make `TaskEntity.repeatRule` actually do something
 - **User benefit**: Recurring commitments don't need to be manually re-created
-- **Technical work**: A WorkManager job (or logic on task completion) that reads `repeatRule`/`repeatDaysCsv` and creates the next `TaskEntity`
-- **Dependencies**: Existing `ReminderScheduler`/WorkManager infrastructure can likely be extended
+- **Technical work**: `RepeatRuleCalculator` (pure date math) + `TaskRepository.setCompleted()` spawns the next occurrence; overdue tasks roll forward from today
+- **Dependencies**: Existing task repository/reminders
 - **Complexity**: Medium
 - **Risks**: Needs careful date-math to avoid duplicate or skipped occurrences
-- **Status**: Not started
+- **Status**: Done, covered by `RepeatRuleCalculatorTest`
 
 ### Expand the Add Task dialog to expose priority/category/description/repeat
 - **Goal**: Close Issue #5
 - **User benefit**: Users can actually use the fields the data model already supports
-- **Technical work**: UI-only — extend `TasksScreen.kt`'s dialog
+- **Technical work**: `TasksScreen.kt` dialog extended with description, category, priority and repeat dropdowns
 - **Dependencies**: Pairs well with the recurring-task work above
 - **Complexity**: Small
 - **Risks**: None
-- **Status**: Not started
+- **Status**: Done
 
 ### Add automated tests, starting with `HabitRepository`
 - **Goal**: Close Issue #9; protect the most complex logic in the app (streak/heatmap math) from regression
 - **User benefit**: Indirect — fewer bugs over time
-- **Technical work**: See the checklist in `docs/14_TESTING.md`
-- **Dependencies**: None — test frameworks are already declared as dependencies
+- **Technical work**: JVM unit tests added; streak math extracted to pure `HabitStatsCalculator`; CI runs `gradle test`
+- **Dependencies**: None
 - **Complexity**: Medium (ongoing)
 - **Risks**: None
-- **Status**: Not started
+- **Status**: Done for unit tests; instrumentation coverage still to add
 
 ---
 
@@ -93,21 +93,17 @@ Items are sequenced by how blocking they are to shipping anything real.
 ### Set up CI/CD (GitHub Actions)
 - **Goal**: Automated build + (eventually) test-on-PR
 - **User benefit**: Indirect — faster, safer iteration
-- **Technical work**: ✅ **Done for the build step** —
-  `.github/workflows/android-build.yml` runs `gradle assembleDebug` on every
-  push/PR to `main` (works around the missing `gradlew` wrapper — see
-  `docs/16_KNOWN_ISSUES.md` Issue #1). **Remaining**: add a test step once
-  automated tests exist, add a release-build step once signing is configured
-- **Dependencies**: Test step depends on the "Add automated tests" item above; release step depends on the "Add release signing configuration" item in NOW
+- **Technical work**: `.github/workflows/android-build.yml` runs `gradle test assembleDebug assembleRelease` on every push/PR to `main` (works around the missing `gradlew` wrapper — see `docs/16_KNOWN_ISSUES.md` Issue #1). Test and release steps are now included; release falls back to debug signing without a keystore
+- **Dependencies**: None
 - **Complexity**: Small
 - **Risks**: None
-- **Status**: Partially implemented (build automation done; test/release automation not started)
+- **Status**: Implemented (build + test + release automation done)
 
 ### Clean up orphaned habit completions on delete
 - **Goal**: Close Issue #6
-- **Technical work**: Either add `@ForeignKey(onDelete = CASCADE)` (requires a Room migration since it changes schema) or a manual cleanup query in `HabitRepository.delete()`
-- **Complexity**: Small–Medium (migration required if using the FK approach)
-- **Status**: Not started
+- **Technical work**: `HabitCompletionDao.deleteForHabit()` called from `HabitRepository.delete()` (manual cleanup query, no schema migration needed)
+- **Complexity**: Small
+- **Status**: Done
 
 ---
 

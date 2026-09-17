@@ -47,14 +47,23 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Assemble debug build
-        # The repository does not yet ship gradlew/gradlew.bat, so use the
-        # pinned Gradle distribution installed above.
-        run: gradle assembleDebug --stacktrace
+      - name: Build test, debug and release
+        # Unit tests run first; then both APK variants are assembled.
+        # Release falls back to debug signing when keystore.properties is
+        # absent (see app/build.gradle.kts), so CI stays green while real
+        # releases still require a proper keystore.
+        run: gradle test assembleDebug assembleRelease --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: lifeos-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifeos-release-apk
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error

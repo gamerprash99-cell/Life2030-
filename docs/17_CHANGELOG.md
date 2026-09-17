@@ -16,6 +16,34 @@ output.
 
 ---
 
+## [0.2.0] — Hardening pass
+
+### Security
+- PIN/recovery hashing upgraded from a single SHA-256 to PBKDF2-HMAC-SHA256
+  (120,000 iterations, random 16-byte salt); legacy v1 hashes still verify
+- Brute-force lockout added to `SettingsStore` (5 attempts, escalating to 16 min)
+- Room database encrypted at rest with SQLCipher; passphrase wrapped by an
+  Android Keystore AES-GCM key (`DatabasePassphraseProvider`)
+- Removed dead biometric code (`AppLockManager`, `androidx.biometric`,
+  `USE_BIOMETRIC` permission); App Lock is PIN-only
+
+### Added
+- Recurring tasks now roll over on completion (`RepeatRuleCalculator`)
+- Full Add Task dialog: description, category, priority and repeat rule
+- JVM unit test suite (PIN hashing, habit stats, repeat rules, date math,
+  offline intelligence, backup serialization)
+- Optional release signing via `keystore.properties` (`keystore.properties.example`)
+
+### Fixed
+- Backup restore now runs in a single database transaction
+- Deleting a habit removes its `habit_completions` rows
+- Version bumped to `0.2.0` (`versionCode` 2)
+
+### Changed
+- CI now runs `gradle test assembleDebug assembleRelease`
+
+---
+
 ## [0.1.0-phase1-6] — Current state (`app/build.gradle.kts` `versionName`)
 
 ### Added — Core data & architecture

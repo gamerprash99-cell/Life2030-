@@ -2,16 +2,21 @@
 
 ## Current verification status — 2026-09-16
 
-The supplied source snapshot has not been compile-verified in the current environment. The Gradle wrapper scripts/JAR are absent and no usable Android Gradle build environment is available here.
+A JVM unit-test suite has been added under `app/src/test/` and CI runs it as
+part of `.github/workflows/android-build.yml` (`gradle test`):
 
-Therefore the following are **required commands, not claimed results**:
+- `PinHasherTest` — PBKDF2 round-trip, legacy SHA-256 compatibility, malformed input
+- `HabitStatsCalculatorTest` — current/longest streak, completion percent
+- `RepeatRuleCalculatorTest` — next-occurrence math for all repeat rules
+- `DateTimeUtilsTest` — date/minute conversions
+- `MoodAnalyzerTest` / `NoteTextAnalyzerTest` — offline intelligence heuristics
+- `BackupSerializationTest` — full backup JSON round-trip for every entity
 
-```text
-./gradlew test
-./gradlew assembleDebug
-```
-
-Relevant instrumentation/UI tests should also be run when an Android device/emulator environment is available.
+The repository still does not ship `gradlew`, so the exact local commands are
+`gradle test` and `gradle assembleDebug` (fully qualified once the wrapper is
+generated). Instrumentation/UI tests should be run when an emulator is available.
+Build/test statements are only considered verified when the exact command has
+actually executed in a real Android/Gradle environment.
 
 ## Manual acceptance checklist
 
@@ -33,10 +38,8 @@ Relevant instrumentation/UI tests should also be run when an Android device/emul
 - Settings
 - App Lock None
 - App Lock PIN
+- App Lock PIN lockout after five failed attempts
 - PIN recovery
-- Biometric availability/setup
-- Successful biometric authentication
-- Failed biometric authentication
 - Back navigation
 - Bottom navigation
 - Small screen

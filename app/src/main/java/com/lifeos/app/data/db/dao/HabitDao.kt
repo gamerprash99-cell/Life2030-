@@ -40,6 +40,9 @@ interface HabitCompletionDao {
     @Query("DELETE FROM habit_completions WHERE habitId = :habitId AND dateEpochDay = :epochDay")
     suspend fun clear(habitId: String, epochDay: Long)
 
+    @Query("DELETE FROM habit_completions WHERE habitId = :habitId")
+    suspend fun deleteForHabit(habitId: String)
+
     @Query("SELECT * FROM habit_completions WHERE habitId = :habitId AND dateEpochDay = :epochDay LIMIT 1")
     suspend fun get(habitId: String, epochDay: Long): HabitCompletionEntity?
 

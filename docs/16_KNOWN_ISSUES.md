@@ -32,64 +32,46 @@
 - **Expected behavior**: A signed, installable release APK.
 - **Actual behavior**: An unsigned APK is produced (or the build may need
   additional configuration depending on Gradle/AGP defaults).
-- **Current workaround**: None — this must be set up before any Play
-  Store submission or distribution outside development devices.
-- **Status**: Open
+- **Current workaround**: None needed. `app/build.gradle.kts` now defines a
+  `signingConfigs.release` block driven by an optional `keystore.properties`
+  file. When the file is absent (as in CI and local debug), release builds fall
+  back to debug signing; when present, they produce a properly signed APK.
+  Copy `keystore.properties.example` to create one.
+- **Status**: Resolved (scaffolding in place). A real production keystore still
+  must be supplied via `keystore.properties` before Play Store submission.
 
 ---
 
 ### Issue #3 — Backup restore behavior needs broader verification
 
 - **Severity**: 🟡 Medium
-- **Description**: JSON restore is now reachable from both Onboarding and Settings through Android Storage Access Framework and the existing `BackupRepository`.
-- **Current state**: UI wiring is present; full restore behavior still requires execution against representative valid/invalid backups in a real Android environment.
+- **Description**: JSON restore is now reachable from both Onboarding and Settings through Android Storage Access Framework and the existing `BackupRepository`, and `restore()` now runs inside a single `withTransaction { }` so a failed import cannot leave the database half-written.
+- **Current state**: UI wiring and transactional restore are present; full restore behavior still requires execution against representative valid/invalid backups in a real Android environment.
 - **Status**: Verification pending
 
 ---
 
-### Issue #4 — Task recurrence (`RepeatRule`) is stored but never acted on
+### Issue #4 — [RESOLVED] Task recurrence (`RepeatRule`) is stored but never acted on
 
 - **Severity**: 🟡 Medium
-- **Description**: `TaskEntity.repeatRule` (`NONE/DAILY/WEEKLY/MONTHLY/CUSTOM_DAYS`)
-  and `repeatDaysCsv` fields exist and can be set, but no scheduler or job
-  ever reads them to auto-create the next occurrence of a recurring task.
-- **Reproduction**: Create a task with a repeat rule (not currently exposed
-  in any Add Task dialog UI either — see Issue #5) and complete it; no new
-  instance is generated for the next day/week/month.
-- **Expected behavior**: A completed recurring task should spawn its next occurrence.
-- **Actual behavior**: Nothing happens; the field is inert.
-- **Current workaround**: Manually re-create the task.
-- **Status**: Open
+- **Description**: `TaskEntity.repeatRule` (`NONE/DAILY/WEEKLY/MONTHLY/CUSTOM_DAYS`) and `repeatDaysCsv` are now read on completion: `TaskRepository.setCompleted()` calls `RepeatRuleCalculator.nextOccurrence()` and spawns the next occurrence. Overdue tasks reschedule from today rather than back-filling stale dates, and the new instance deliberately does not inherit the reminder.
+- **Status**: Resolved. Covered by `RepeatRuleCalculatorTest`.
 
 ---
 
-### Issue #5 — No UI to set task priority, category, description, or repeat rule
+### Issue #5 — [RESOLVED] No UI to set task priority, category, description, or repeat rule
 
 - **Severity**: 🟢 Low
-- **Description**: `TaskEntity` supports `priority`, `category`,
-  `description`, and `repeatRule`, but `ui/tasks/TasksScreen.kt`'s "Add task"
-  dialog only exposes a title field and a reminder-time picker.
-- **Reproduction**: Open Tasks → "+" — only a title field and reminder option appear.
-- **Expected behavior**: Full task creation matching what the data model supports.
-- **Actual behavior**: New tasks are always created with default priority
-  (`MEDIUM`), no category, no description.
-- **Current workaround**: None via UI.
-- **Status**: Open
+- **Description**: The "Add task" dialog in `ui/tasks/TasksScreen.kt` now exposes title, description, category, a priority dropdown (`Low/Medium/High`) and a repeat dropdown (`Doesn't repeat/Daily/Weekly/Monthly`), alongside the existing reminder picker. `TasksViewModel.addTask()` persists all of these.
+- **Status**: Resolved.
 
 ---
 
-### Issue #6 — Habit completions are not cleaned up when a habit is deleted
+### Issue #6 — [RESOLVED] Habit completions are not cleaned up when a habit is deleted
 
 - **Severity**: 🟢 Low
-- **Description**: `HabitRepository.delete()` deletes the `HabitEntity` row
-  only; no `@ForeignKey(onDelete = CASCADE)` exists on `HabitCompletionEntity`,
-  and no manual cleanup query is called.
-- **Reproduction**: Create a habit, log a few completions, delete the habit.
-- **Expected behavior**: Associated `habit_completions` rows are also removed.
-- **Actual behavior**: Orphaned rows remain in the `habit_completions` table indefinitely.
-- **Current workaround**: None — orphaned data has no functional impact
-  today (nothing queries by an unknown `habitId`), but it is a data-hygiene issue.
-- **Status**: Open
+- **Description**: `HabitRepository.delete()` now calls `HabitCompletionDao.deleteForHabit(id)` before deleting the habit, so no orphaned `habit_completions` rows remain.
+- **Status**: Resolved.
 
 ---
 
@@ -109,19 +91,19 @@
 
 ---
 
-### Issue #8 — No database encryption / AI key not encrypted
+### Issue #8 — [RESOLVED] No database encryption
 
 - **Severity**: 🟠 High (security)
-- **Description**: See `docs/08_SECURITY.md` findings #1 and #2 in full.
-- **Status**: Open — tracked here for visibility alongside functional issues.
+- **Description**: The Room database is now encrypted at rest with SQLCipher; the passphrase is random per install and wrapped by an Android Keystore AES-GCM key. See `docs/08_SECURITY.md`.
+- **Status**: Resolved. There is no cloud AI key to encrypt — the Intelligence engine is fully on-device.
 
 ---
 
-### Issue #9 — No automated tests exist
+### Issue #9 — [RESOLVED] No automated tests exist
 
 - **Severity**: 🟡 Medium (process/quality risk, not a functional bug)
-- **Description**: See `docs/14_TESTING.md`.
-- **Status**: Open
+- **Description**: A JVM unit-test suite now covers PIN hashing, habit stats, repeat rules, date math, offline intelligence and backup serialization; CI runs `gradle test`. See `docs/14_TESTING.md`.
+- **Status**: Resolved. Device/instrumentation coverage is still a future addition.
 
 ---
 

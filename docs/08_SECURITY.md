@@ -9,12 +9,19 @@
 LifeOS supports:
 
 - `NONE`
-- `BIOMETRIC`
 - `PIN`
 
-The previous biometric mode has been removed. Current App Lock is PIN-only and uses the existing salted PIN/recovery hashing flow.
+The previous `BIOMETRIC` mode was removed. Current App Lock is PIN-only.
 
-PIN mode uses the existing `PinHasher` and recovery flow. Plaintext PINs and plaintext recovery answers must never be persisted.
+PINs and recovery answers are hashed with `PinHasher` (PBKDF2-HMAC-SHA256,
+120,000 iterations, per-secret random 16-byte salt — format `v2$<iters>$<hash>`).
+Legacy v1 SHA-256 hashes created before the hardening pass still verify so users
+are not locked out mid-upgrade. Plaintext PINs and plaintext recovery answers
+must never be persisted.
+
+Brute-force protection is enforced in `SettingsStore`: five failed unlock
+attempts escalate an account lockout (starting at 30 seconds, capped at 16
+minutes). A successful PIN verifies with a constant-time comparison.
 
 ### Permissions
 
@@ -26,16 +33,22 @@ Camera, microphone and notification permissions are requested only when the rela
 
 ### Local data
 
-Room and DataStore remain local persistence layers. The current source does not provide database-at-rest encryption. This is a known security gap and should be addressed before treating LifeOS as hardened for sensitive production data.
+Room and DataStore remain local persistence layers. The Room database is now
+encrypted at rest with SQLCipher (`net.zetetic:sqlcipher-android`). The
+database passphrase is a random 32-byte secret generated on first run and
+wrapped with an Android Keystore AES-GCM key
+(`DatabasePassphraseProvider`); the raw passphrase is never stored in plaintext.
+See `data/db/AppDatabase.kt`.
 
 ## Known risks
 
 | Priority | Finding | Current state |
 |---|---|---|
-| High | Room database is not encrypted at rest | Open |
-| Medium | PIN/recovery implementation requires continued security review | Open / verify with device testing |
-| Medium | Biometric result is device-level by Android design | Documented; PIN is the app-specific alternative |
-| Medium | No automated security regression suite | Open |
+| High | Room database is not encrypted at rest | Resolved — SQLCipher + Keystore-wrapped passphrase |
+| Medium | PIN/recovery implementation requires continued security review | Mitigated — PBKDF2 (120k) + lockout; verify with device testing |
+| Medium | Biometric result is device-level by Android design | No longer applicable — biometric mode removed |
+| Medium | No automated security regression suite | Resolved — unit tests cover hashing + backup serialization |
+| Low | Keystore-wrapped passphrase has no biometric/user-auth gate | Open / acceptable for current threat model |
 
 ## Biometric UX requirement
 

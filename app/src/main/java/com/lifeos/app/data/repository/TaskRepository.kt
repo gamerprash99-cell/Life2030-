@@ -3,6 +3,7 @@ package com.lifeos.app.data.repository
 import android.content.Context
 import com.lifeos.app.core.reminders.ReminderScheduler
 import com.lifeos.app.core.util.IdGenerator
+import com.lifeos.app.core.util.RepeatRuleCalculator
 import com.lifeos.app.data.db.dao.TaskDao
 import com.lifeos.app.data.db.entities.RepeatRule
 import com.lifeos.app.data.db.entities.TaskEntity
@@ -79,7 +80,42 @@ class TaskRepository(private val dao: TaskDao, private val appContext: Context) 
 
     suspend fun setCompleted(id: String, completed: Boolean) {
         dao.setCompleted(id, completed, if (completed) System.currentTimeMillis() else null, System.currentTimeMillis())
-        if (completed) ReminderScheduler.cancelTaskReminder(appContext, id)
+        if (completed) {
+            ReminderScheduler.cancelTaskReminder(appContext, id)
+            spawnNextOccurrence(id)
+        }
+    }
+
+    /**
+     * Completing a repeating task creates its next occurrence (daily/weekly/
+     * monthly/custom-days). The new task keeps the same details but does not
+     * inherit the reminder, so a fresh reminder must be set deliberately.
+     */
+    private suspend fun spawnNextOccurrence(id: String) {
+        val task = dao.getById(id) ?: return
+        val rule = task.repeatRule ?: return
+        if (rule == RepeatRule.NONE) return
+
+        val today = java.time.LocalDate.now().toEpochDay()
+        val nextDay = RepeatRuleCalculator.nextOccurrence(
+            rule = rule,
+            customDaysCsv = task.repeatDaysCsv,
+            currentDueEpochDay = task.dueDateEpochDay ?: today,
+            todayEpochDay = today
+        ) ?: return
+
+        createTask(
+            title = task.title,
+            description = task.description,
+            dueDateEpochDay = nextDay,
+            dueTimeMinutes = task.dueTimeMinutes,
+            priority = task.priority,
+            category = task.category,
+            repeatRule = rule,
+            repeatDaysCsv = task.repeatDaysCsv,
+            sourceType = task.sourceType,
+            sourceId = task.sourceId
+        )
     }
 
     suspend fun reschedule(id: String, newEpochDay: Long) = dao.reschedule(id, newEpochDay, System.currentTimeMillis())
