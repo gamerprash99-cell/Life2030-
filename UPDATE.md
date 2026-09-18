@@ -186,7 +186,7 @@ override), not just source review:
 gradle :app:compileDebugKotlin   -> BUILD SUCCESSFUL
 gradle :app:assembleDebug        -> BUILD SUCCESSFUL
 gradle :app:testDebugUnitTest    -> BUILD SUCCESSFUL (81 tests, 0 failures)
-gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors, 5 pre-existing warnings)
+gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors, 4 pre-existing warnings)
 ```
 
 The repository still does not ship `gradlew`/wrapper JAR, so a locally-installed

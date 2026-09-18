@@ -80,14 +80,14 @@ override). Exact commands and results:
 gradle :app:compileDebugKotlin   -> BUILD SUCCESSFUL
 gradle :app:assembleDebug        -> BUILD SUCCESSFUL
 gradle :app:testDebugUnitTest    -> BUILD SUCCESSFUL (81 tests, 0 failures)
-gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors, 5 pre-existing warnings)
+gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors, 4 pre-existing warnings)
 ```
 
-The 5 lint warnings are pre-existing and unrelated to the fix (unused
-`tagline`/round-icon resources, adaptive-icon monochrome tag, a `Modifier`
-ordering in `TasksScreen.kt`, `-v26` folder, autoboxing info). No new unit test
-was required for this change — it is pure Compose presentation and reuses
-existing state; no domain/repository logic changed.
+The 4 lint warnings are pre-existing and unrelated to the fix (obsolete `-v26`
+resource folder, unused round launcher icon, unused `tagline` string,
+missing monochrome launcher-icon tag; plus 3 informational autoboxing hints).
+No new unit test was required for this change — it is pure Compose presentation
+and reuses existing state; no domain/repository logic changed.
 
 Still **not** executed (honest gap): instrumentation tests (no emulator/device
 and no `app/src/androidTest/` source set) and a manual on-device UI walkthrough

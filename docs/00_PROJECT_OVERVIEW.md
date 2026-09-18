@@ -34,7 +34,7 @@ This source snapshot was not compile-verified in the supplied environment becaus
 **2026-09-19 update:** a subsequent audit environment installed Gradle 8.9
 locally and actually executed `:app:compileDebugKotlin`, `:app:assembleDebug`,
 `:app:testDebugUnitTest` (81 tests, 0 failures) and `:app:lintDebug` (0 errors,
-5 pre-existing warnings) successfully for the Expenses micro UX fix. The repo
+4 pre-existing warnings) successfully for the Expenses micro UX fix. The repo
 still ships no `gradlew`, and no instrumentation/device test has been run.
 
 ## Current-state addendum — 2026-09-16

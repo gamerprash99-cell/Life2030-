@@ -28,7 +28,7 @@
 - [x] `gradle :app:assembleDebug` executed successfully (using a locally-installed
       Gradle 8.9; the repo still ships no `gradlew`).
 - [x] `gradle :app:testDebugUnitTest` executed successfully (81 tests, 0 failures).
-- [x] `gradle :app:lintDebug` executed successfully (0 errors, 5 pre-existing warnings).
+- [x] `gradle :app:lintDebug` executed successfully (0 errors, 4 pre-existing warnings).
 - [x] Offline/privacy preserved: no INTERNET permission, no network/cloud/AI/telemetry,
       no Room schema or migration change.
 - [ ] Instrumentation / on-device UI verification — not executed (no emulator/device,

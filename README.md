@@ -395,7 +395,7 @@ See [`docs/21_FILE_STRUCTURE.md`](./docs/21_FILE_STRUCTURE.md) for per-file note
   frontend, database, testing, known issues, file structure, release checklist).
 - Verified in this environment: `gradle :app:compileDebugKotlin`,
   `:app:assembleDebug`, `:app:testDebugUnitTest` (81 tests, 0 failures) and
-  `:app:lintDebug` (0 errors, 5 pre-existing warnings).
+  `:app:lintDebug` (0 errors, 4 pre-existing warnings).
 
 **2026-09-18 — Profile / Expenses / App Lock UI pass**
 - Local profile-photo picker with persisted URI; Settings moved to Profile.
@@ -423,10 +423,10 @@ Real, verified limitations (full list in
 - **AI Assistant chat** does not inject real app data as context
   (`contextBlock = null`).
 - **No `androidTest/` instrumentation suite** exists yet.
-- Lint reports 5 pre-existing warnings (unused resources, adaptive-icon
-  monochrome tag, a `Modifier` parameter ordering in `TasksScreen.kt`,
-  autoboxing info, obsolete `-v26` folder) — none are errors and none are from
-  the Expenses fix.
+- Lint reports 4 pre-existing warnings (an obsolete `-v26` resource folder, an
+  unused round launcher icon + unused `tagline` string, and a missing
+  monochrome launcher-icon tag, plus 3 informational autoboxing hints) — none
+  are errors and none are from the Expenses fix.
 - Database/UI behavior on upgrades still depends on adding explicit Room
   migrations once the schema changes past v1.
 
@@ -462,7 +462,7 @@ Verified in the audit environment with Gradle 8.9 + Android Gradle Plugin 8.6.1
 - `gradle :app:compileDebugKotlin` — **PASS**
 - `gradle :app:assembleDebug` — **PASS**
 - `gradle :app:testDebugUnitTest` — **PASS** (81 tests, 0 failures)
-- `gradle :app:lintDebug` — **PASS** (0 errors, 5 pre-existing warnings)
+- `gradle :app:lintDebug` — **PASS** (0 errors, 4 pre-existing warnings)
 
 The repository still does not ship the Gradle wrapper JAR/scripts, so builds use
 a locally-installed Gradle 8.9 distribution. Instrumentation tests were not run
