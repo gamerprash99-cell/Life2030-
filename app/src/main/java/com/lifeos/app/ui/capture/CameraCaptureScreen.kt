@@ -25,8 +25,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,6 +56,11 @@ fun CameraCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> 
 
     val lifecycleOwner = LocalLifecycleOwner.current
     val imageCapture = remember { ImageCapture.Builder().build() }
+    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+
+    androidx.activity.compose.BackHandler(onBack = onCancel)
+    DisposableEffect(Unit) { onDispose { cameraProvider?.unbindAll() } }
+
     Box(Modifier.fillMaxSize()) {
         AndroidView(factory = { ctx ->
             PreviewView(ctx).also { previewView ->
@@ -59,6 +68,7 @@ fun CameraCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> 
                 val future = ProcessCameraProvider.getInstance(ctx)
                 future.addListener({
                     val provider = future.get()
+                    cameraProvider = provider
                     val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
                     runCatching { provider.unbindAll(); provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageCapture) }
                         .onFailure { Toast.makeText(ctx, "Camera failed: ${it.message}", Toast.LENGTH_SHORT).show() }
@@ -72,7 +82,10 @@ fun CameraCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> 
                 ContextCompat.getMainExecutor(context),
                 object : ImageCapture.OnImageSavedCallback {
                     override fun onImageSaved(output: ImageCapture.OutputFileResults) = onCaptured(file.absolutePath)
-                    override fun onError(exception: ImageCaptureException) { Toast.makeText(context, "Capture failed: ${exception.message}", Toast.LENGTH_SHORT).show() }
+                    override fun onError(exception: ImageCaptureException) {
+                        file.delete()
+                        Toast.makeText(context, "Capture failed: ${exception.message}", Toast.LENGTH_SHORT).show()
+                    }
                 }
             )
         }

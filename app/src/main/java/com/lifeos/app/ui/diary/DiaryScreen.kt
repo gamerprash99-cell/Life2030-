@@ -1,5 +1,6 @@
 package com.lifeos.app.ui.diary
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,14 +12,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -35,8 +32,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.lifeos.app.core.ai.AiResult
-import com.lifeos.app.core.ai.AiRepository
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
@@ -44,7 +39,6 @@ import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.ui.components.GlassCard
 import com.lifeos.app.ui.components.LifeOSTopBar
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -52,18 +46,17 @@ import kotlinx.coroutines.launch
 
 private val MOODS = listOf("😊 Happy", "😌 Calm", "😔 Sad", "😤 Stressed", "🤩 Excited")
 
+/**
+ * Diary (Section 23): a quiet, local journal. Entries are written by the user
+ * and saved only on explicit Save — there is intentionally NO dedicated AI
+ * drafting here. AI assistance lives in the central "Ask LifeOS" surface and
+ * in the Notes editor.
+ */
 class DiaryViewModel(
-    private val diaryRepository: DiaryRepository,
-    private val aiRepository: AiRepository
+    private val diaryRepository: DiaryRepository
 ) : ViewModel() {
     val entries: StateFlow<List<DiaryEntity>> = diaryRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    private val _aiBusy = MutableStateFlow(false)
-    val aiBusy: StateFlow<Boolean> = _aiBusy
-
-    private val _aiError = MutableStateFlow<String?>(null)
-    val aiError: StateFlow<String?> = _aiError
 
     fun addEntry(content: String, mood: String?) {
         if (content.isBlank()) return
@@ -77,49 +70,23 @@ class DiaryViewModel(
         }
     }
 
-    /**
-     * Turns rough notes into a drafted diary entry via AI. The resulting
-     * entry is saved with aiGenerated=true / isReviewed=false (Rule #8) —
-     * it shows up flagged "needs review" until the user taps Approve.
-     */
-    fun draftWithAi(rawThoughts: String, mood: String?) {
-        if (rawThoughts.isBlank()) return
-        viewModelScope.launch {
-            _aiBusy.value = true
-            _aiError.value = null
-            when (val result = aiRepository.draftDiaryEntry(rawThoughts)) {
-                is AiResult.Success -> {
-                    val now = DateTimeUtils.today()
-                    val minutes = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
-                    diaryRepository.createEntry(
-                        title = null, content = result.text, mood = mood, tags = emptyList(),
-                        dateEpochDay = now.toEpochDay(), timeMinutes = minutes, aiGenerated = true
-                    )
-                }
-                is AiResult.Error -> _aiError.value = "Couldn't draft this entry: ${result.message}"
-            }
-            _aiBusy.value = false
-        }
-    }
-
-    fun approveDraft(id: String) = viewModelScope.launch { diaryRepository.approveAiDraft(id) }
-
-    fun dismissAiError() { _aiError.value = null }
+    fun deleteEntry(id: String) = viewModelScope.launch { diaryRepository.delete(id) }
 }
 
 @Composable
 fun DiaryScreen(onBack: () -> Unit = {}) {
     val locator = LocalServiceLocator.current
     val viewModel: DiaryViewModel = viewModel(
-        factory = LambdaViewModelFactory { DiaryViewModel(locator.diaryRepository, locator.aiRepository) }
+        factory = LambdaViewModelFactory { DiaryViewModel(locator.diaryRepository) }
     )
     val entries by viewModel.entries.collectAsState()
-    val aiBusy by viewModel.aiBusy.collectAsState()
-    val aiError by viewModel.aiError.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var content by remember { mutableStateOf("") }
     var mood by remember { mutableStateOf<String?>(null) }
+    var entryToDelete by remember { mutableStateOf<DiaryEntity?>(null) }
+
+    BackHandler(onBack = onBack)
 
     Scaffold(
         topBar = {
@@ -150,22 +117,15 @@ fun DiaryScreen(onBack: () -> Unit = {}) {
                 items(entries, key = { it.id }) { entry ->
                     GlassCard(modifier = Modifier.fillMaxWidth()) {
                         Column {
-                            Text(
-                                DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(entry.dateEpochDay)) +
-                                    (entry.mood?.let { "  •  $it" } ?: ""),
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                            Text(entry.content, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
-                            if (entry.aiGenerated && !entry.isReviewed) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                                ) {
-                                    Text("AI draft — needs review", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
-                                    TextButton(onClick = { viewModel.approveDraft(entry.id) }) { Text("Approve") }
-                                }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(
+                                    DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(entry.dateEpochDay)) +
+                                        (entry.mood?.let { "  •  $it" } ?: ""),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                                TextButton(onClick = { entryToDelete = entry }) { Text("Delete") }
                             }
+                            Text(entry.content, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                         }
                     }
                 }
@@ -186,30 +146,29 @@ fun DiaryScreen(onBack: () -> Unit = {}) {
                     )
                     Text("Mood", style = MaterialTheme.typography.labelMedium)
                     MOODS.forEach { m ->
-                        TextButton(onClick = { mood = m }) { Text(if (mood == m) "✓ $m" else m) }
-                    }
-
-                    if (aiBusy) {
-                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp))
-                            Text("Drafting…", style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                    aiError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-
-                    TextButton(
-                        onClick = { viewModel.draftWithAi(content, mood) },
-                        enabled = content.isNotBlank() && !aiBusy
-                    ) {
-                        Icon(Icons.Filled.AutoAwesome, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
-                        Text("Turn into a diary entry with AI")
+                        TextButton(onClick = { mood = if (mood == m) null else m }) { Text(if (mood == m) "✓ $m" else m) }
                     }
                 }
             },
             confirmButton = {
-                Button(onClick = { viewModel.addEntry(content, mood); content = ""; mood = null; showAddDialog = false }) { Text("Save") }
+                Button(
+                    onClick = { viewModel.addEntry(content, mood); content = ""; mood = null; showAddDialog = false },
+                    enabled = content.isNotBlank()
+                ) { Text("Save") }
             },
-            dismissButton = { TextButton(onClick = { showAddDialog = false; viewModel.dismissAiError() }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancel") } }
+        )
+    }
+
+    entryToDelete?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { entryToDelete = null },
+            title = { Text("Delete this entry?") },
+            text = { Text("This permanently removes the diary entry from this device.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteEntry(entry.id); entryToDelete = null }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { entryToDelete = null }) { Text("Cancel") } }
         )
     }
 }

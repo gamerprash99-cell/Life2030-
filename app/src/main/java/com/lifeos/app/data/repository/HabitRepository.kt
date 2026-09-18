@@ -3,6 +3,7 @@ package com.lifeos.app.data.repository
 import android.content.Context
 import com.lifeos.app.core.reminders.ReminderScheduler
 import com.lifeos.app.core.util.DateTimeUtils
+import com.lifeos.app.core.util.HabitSchedule
 import com.lifeos.app.core.util.HabitStatsCalculator
 import com.lifeos.app.core.util.IdGenerator
 import com.lifeos.app.data.db.dao.HabitCompletionDao
@@ -88,22 +89,30 @@ class HabitRepository(
         val monthCompletions = allCompletions.filter { it.dateEpochDay in monthStart..monthEnd }
 
         val doneDays = allCompletions.filter { it.progressCount >= habit.goalCount }.map { it.dateEpochDay }.toSet()
+        val schedule = scheduleOf(habit)
+        val todayEpochDay = today.toEpochDay()
 
-        val currentStreak = HabitStatsCalculator.currentStreak(doneDays, today.toEpochDay())
-        val longestStreak = HabitStatsCalculator.longestStreak(doneDays)
+        // Streaks and monthly completion are schedule-aware: only days the habit
+        // is actually expected on count towards (or break) progress.
+        val currentStreak = HabitStatsCalculator.currentStreak(doneDays, todayEpochDay, schedule)
+        val longestStreak = HabitStatsCalculator.longestStreak(doneDays, schedule, todayEpochDay)
 
-        val daysElapsedThisMonth = (minOf(today.toEpochDay(), monthEnd) - monthStart + 1).toInt()
-        val monthDoneCount = monthCompletions.count { it.progressCount >= habit.goalCount }
-        val completionPercent = HabitStatsCalculator.completionPercent(monthDoneCount, daysElapsedThisMonth)
+        val scheduledDaysElapsed = HabitStatsCalculator.scheduledDayCount(
+            schedule, monthStart, minOf(todayEpochDay, monthEnd)
+        )
+        val monthDoneScheduled = monthCompletions.count {
+            it.progressCount >= habit.goalCount && HabitStatsCalculator.isScheduled(schedule, it.dateEpochDay)
+        }
+        val completionPercent = HabitStatsCalculator.completionPercent(monthDoneScheduled, scheduledDaysElapsed)
 
         return HabitAnalytics(
             habitId = habit.id,
             currentStreak = currentStreak,
             longestStreak = longestStreak,
-            completionsThisMonth = monthDoneCount,
-            totalDaysThisMonth = daysElapsedThisMonth,
+            completionsThisMonth = monthDoneScheduled,
+            totalDaysThisMonth = scheduledDaysElapsed,
             completionPercentThisMonth = completionPercent,
-            missedDaysThisMonth = daysElapsedThisMonth - monthDoneCount,
+            missedDaysThisMonth = (scheduledDaysElapsed - monthDoneScheduled).coerceAtLeast(0),
             totalCompletionsAllTime = doneDays.size
         )
     }
@@ -112,11 +121,15 @@ class HabitRepository(
     suspend fun computeHeatmap(habit: HabitEntity, startEpochDay: Long, endEpochDay: Long): List<HeatmapCell> {
         val completions = completionDao.getForHabitInRange(habit.id, startEpochDay, endEpochDay)
             .associateBy { it.dateEpochDay }
+        val schedule = scheduleOf(habit)
+        val todayEpochDay = DateTimeUtils.today().toEpochDay()
 
         return (startEpochDay..endEpochDay).map { day ->
             val completion = completions[day]
             val intensity = when {
-                day > DateTimeUtils.today().toEpochDay() -> HeatmapIntensity.NO_DATA
+                day > todayEpochDay -> HeatmapIntensity.NO_DATA
+                // Days the habit is not scheduled for are neutral, not "missed".
+                !HabitStatsCalculator.isScheduled(schedule, day) -> HeatmapIntensity.NO_DATA
                 completion == null || completion.progressCount == 0 -> HeatmapIntensity.MISSED
                 completion.progressCount < habit.goalCount -> HeatmapIntensity.PARTIAL
                 completion.progressCount == habit.goalCount -> HeatmapIntensity.COMPLETED
@@ -129,6 +142,20 @@ class HabitRepository(
                 goalCount = habit.goalCount
             )
         }
+    }
+
+    private fun scheduleOf(habit: HabitEntity) = HabitSchedule(
+        frequency = habit.frequency,
+        customDays = HabitStatsCalculator.parseCustomDays(habit.customDaysCsv),
+        startEpochDay = habit.startDateEpochDay
+    )
+
+    /** Re-registers WorkManager jobs for all future habit reminders. */
+    suspend fun rescheduleAllReminders() {
+        val now = System.currentTimeMillis()
+        habitDao.getAllForBackup()
+            .filter { !it.isArchived && it.reminderEpochMillis != null && it.reminderEpochMillis > now }
+            .forEach { ReminderScheduler.scheduleHabitReminder(appContext, it.id, it.reminderEpochMillis!!) }
     }
 
     suspend fun getAllForBackup(): List<HabitEntity> = habitDao.getAllForBackup()

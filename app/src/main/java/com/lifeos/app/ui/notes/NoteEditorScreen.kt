@@ -55,9 +55,12 @@ fun NoteEditorScreen(noteId: String?, onBack: () -> Unit) {
     val blocks by viewModel.blocks.collectAsState()
     val aiBusy by viewModel.aiBusy.collectAsState()
     val aiResult by viewModel.aiResult.collectAsState()
+    val aiResultAction by viewModel.aiResultAction.collectAsState()
     val extractedTasks by viewModel.extractedTasks.collectAsState()
 
     var showAiMenu by remember { mutableStateOf(false) }
+
+    androidx.activity.compose.BackHandler { viewModel.save(); onBack() }
 
     Scaffold(
         topBar = {
@@ -122,17 +125,28 @@ fun NoteEditorScreen(noteId: String?, onBack: () -> Unit) {
         }
 
         aiResult?.let { result ->
+            val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
             AlertDialog(
                 onDismissRequest = viewModel::dismissAiResult,
-                title = { Text("AI result") },
+                title = { Text(aiResultAction?.label?.let { "AI · $it" } ?: "AI result") },
                 text = { Text(result) },
-                confirmButton = { TextButton(onClick = viewModel::dismissAiResult) { Text("Close") } }
+                confirmButton = {
+                    TextButton(onClick = { viewModel.applyAiResult() }) {
+                        Text(if (aiResultAction == NoteAiAction.GENERATE_TITLE) "Use as title" else "Apply")
+                    }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(result)) }) { Text("Copy") }
+                        TextButton(onClick = viewModel::dismissAiResult) { Text("Close") }
+                    }
+                }
             )
         }
 
         if (extractedTasks.isNotEmpty()) {
             AlertDialog(
-                onDismissRequest = { },
+                onDismissRequest = { viewModel.approveExtractedTasks(emptyList()) },
                 title = { Text("Extracted tasks") },
                 text = {
                     Column {

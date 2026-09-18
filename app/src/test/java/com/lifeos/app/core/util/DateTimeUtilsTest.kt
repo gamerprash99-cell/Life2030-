@@ -3,7 +3,9 @@ package com.lifeos.app.core.util
 import com.lifeos.app.core.util.DateTimeUtils.startOfMonthEpochDay
 import com.lifeos.app.core.util.DateTimeUtils.toMinutesSinceMidnight
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -43,5 +45,23 @@ class DateTimeUtilsTest {
     fun `local time to minutes`() {
         assertEquals(845, LocalTime.of(14, 5).toMinutesSinceMidnight())
         assertEquals(0, LocalTime.MIDNIGHT.toMinutesSinceMidnight())
+    }
+
+    @Test
+    fun `local day boundaries are local midnight and contiguous`() {
+        val epochDay = LocalDate.of(2024, 10, 27).toEpochDay() // a DST transition day in many zones
+        val start = DateTimeUtils.startOfLocalDayMillis(epochDay)
+        val end = DateTimeUtils.endOfLocalDayMillis(epochDay)
+
+        assertEquals(LocalTime.MIDNIGHT, Instant.ofEpochMilli(start).atZone(DateTimeUtils.zoneId()).toLocalTime())
+        assertTrue(end > start)
+        // end of this day is exactly the start of the next
+        assertEquals(DateTimeUtils.startOfLocalDayMillis(epochDay + 1), end)
+    }
+
+    @Test
+    fun `now minutes of day is within a valid range`() {
+        val minutes = DateTimeUtils.nowMinutesOfDay()
+        assertTrue(minutes in 0..1439)
     }
 }

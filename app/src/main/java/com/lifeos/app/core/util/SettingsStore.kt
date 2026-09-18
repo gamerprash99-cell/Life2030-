@@ -40,6 +40,10 @@ class SettingsStore(private val context: Context) {
         val DARK_THEME_ENABLED = booleanPreferencesKey("dark_theme_enabled")
         val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
         val AI_FEATURES_ENABLED = booleanPreferencesKey("ai_features_enabled")
+        val AUTO_LOCK_ENABLED = booleanPreferencesKey("auto_lock_enabled")
+        val REMINDERS_ENABLED = booleanPreferencesKey("reminders_enabled")
+        val PROFILE_NAME = stringPreferencesKey("profile_name")
+        val PROFILE_PHOTO_URI = stringPreferencesKey("profile_photo_uri")
 
         val APP_LOCK_TYPE = stringPreferencesKey("app_lock_type")
         val PIN_SALT = stringPreferencesKey("pin_salt")
@@ -52,14 +56,21 @@ class SettingsStore(private val context: Context) {
         val PIN_LOCKOUT_UNTIL = longPreferencesKey("pin_lockout_until")
     }
 
-    private companion object {
-        const val MAX_ATTEMPTS = 5
-        const val BASE_LOCKOUT_MS = 30_000L
+    companion object {
+        /** LifeOS App Lock uses exactly this many digits. */
+        const val PIN_LENGTH = 4
+
+        private const val MAX_ATTEMPTS = 5
+        private const val BASE_LOCKOUT_MS = 30_000L
     }
 
     val darkThemeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DARK_THEME_ENABLED] ?: false }
     val onboardingComplete: Flow<Boolean> = context.dataStore.data.map { it[Keys.ONBOARDING_COMPLETE] ?: false }
     val aiFeaturesEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AI_FEATURES_ENABLED] ?: false }
+    val autoLockEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_LOCK_ENABLED] ?: true }
+    val remindersEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.REMINDERS_ENABLED] ?: true }
+    val profileName: Flow<String?> = context.dataStore.data.map { it[Keys.PROFILE_NAME] }
+    val profilePhotoUri: Flow<String?> = context.dataStore.data.map { it[Keys.PROFILE_PHOTO_URI] }
 
     val appLockType: Flow<AppLockType> = context.dataStore.data.map {
         when (it[Keys.APP_LOCK_TYPE]) {
@@ -76,10 +87,27 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setOnboardingComplete(complete: Boolean) = context.dataStore.edit { it[Keys.ONBOARDING_COMPLETE] = complete }
     suspend fun setAiFeaturesEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.AI_FEATURES_ENABLED] = enabled }
+    suspend fun setAutoLockEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.AUTO_LOCK_ENABLED] = enabled }
+    suspend fun setRemindersEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.REMINDERS_ENABLED] = enabled }
 
+    suspend fun setProfileName(name: String) = context.dataStore.edit {
+        if (name.isBlank()) it.remove(Keys.PROFILE_NAME) else it[Keys.PROFILE_NAME] = name.trim()
+    }
 
-    /** Enables PIN App Lock with a mandatory recovery question, so a forgotten PIN doesn't lock the user out permanently. */
+    /** Persists the profile photo content URI (already granted persistable read access by the picker). */
+    suspend fun setProfilePhotoUri(uri: String?) = context.dataStore.edit {
+        if (uri.isNullOrBlank()) it.remove(Keys.PROFILE_PHOTO_URI) else it[Keys.PROFILE_PHOTO_URI] = uri
+    }
+
+    /**
+     * Enables PIN App Lock with a mandatory recovery question, so a forgotten
+     * PIN doesn't lock the user out permanently. The PIN must be exactly
+     * [PIN_LENGTH] digits.
+     */
     suspend fun enablePinLock(pin: String, recoveryQuestion: String, recoveryAnswer: String) {
+        require(pin.length == PIN_LENGTH && pin.all(Char::isDigit)) {
+            "App Lock PIN must be exactly $PIN_LENGTH digits."
+        }
         val pinHash = PinHasher.hash(pin)
         val answerHash = PinHasher.hash(recoveryAnswer.trim().lowercase())
         context.dataStore.edit {

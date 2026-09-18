@@ -64,13 +64,14 @@ fun OnboardingScreen(
     val page = pages[pageIndex]
     val isLast = pageIndex == pages.lastIndex
     val indicatorScale by animateFloatAsState(if (isLast) 1.08f else 1f, tween(240), label = "indicator")
+    val scheme = MaterialTheme.colorScheme
 
     Box(
         Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(Color(0xFFFDF8FF), Color(0xFFF7F0FC)))
+            Brush.verticalGradient(listOf(scheme.background, scheme.surfaceVariant))
         )
     ) {
-        Box(Modifier.align(Alignment.TopEnd).padding(top = 34.dp, end = 18.dp).size(150.dp).background(Color(0xFFEADDFF).copy(alpha = .55f), CircleShape))
+        Box(Modifier.align(Alignment.TopEnd).padding(top = 34.dp, end = 18.dp).size(150.dp).background(scheme.primaryContainer.copy(alpha = .55f), CircleShape))
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -93,12 +94,12 @@ fun OnboardingScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Box(
                         modifier = Modifier.size(250.dp).background(
-                            Brush.radialGradient(listOf(Color(0xFFEADDFF), Color(0xFFFCE7F3), Color.Transparent)),
+                            Brush.radialGradient(listOf(scheme.primaryContainer, scheme.secondaryContainer, Color.Transparent)),
                             CircleShape
                         ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Box(Modifier.size(136.dp).background(Color.White.copy(alpha = .82f), CircleShape), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(136.dp).background(scheme.surface.copy(alpha = .82f), CircleShape), contentAlignment = Alignment.Center) {
                             pages[index].icon()
                         }
                     }
@@ -116,7 +117,7 @@ fun OnboardingScreen(
                         onClick = { if (isLast) onFinish() else pageIndex++ }
                     )
                     Box(
-                        Modifier.fillMaxWidth().padding(top = 10.dp).height(50.dp).background(Color.White, RoundedCornerShape(18.dp)).clickable { onRestoreBackup() },
+                        Modifier.fillMaxWidth().padding(top = 10.dp).height(50.dp).background(scheme.surface, RoundedCornerShape(18.dp)).clickable { onRestoreBackup() },
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -127,7 +128,7 @@ fun OnboardingScreen(
                     Text(restoreStatus ?: "Restore from Android storage", color = if (restoreStatus?.startsWith("Restore failed") == true) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp))
                     Row(Modifier.align(Alignment.CenterHorizontally).padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         pages.indices.forEach { i ->
-                            Box(Modifier.scale(if (i == pageIndex) indicatorScale else 1f).size(if (i == pageIndex) 24.dp else 7.dp, 7.dp).background(if (i == pageIndex) LifeOSPrimary else Color(0xFFD9CDE3), RoundedCornerShape(50)))
+                            Box(Modifier.scale(if (i == pageIndex) indicatorScale else 1f).size(if (i == pageIndex) 24.dp else 7.dp, 7.dp).background(if (i == pageIndex) LifeOSPrimary else scheme.outlineVariant, RoundedCornerShape(50)))
                         }
                     }
                 }

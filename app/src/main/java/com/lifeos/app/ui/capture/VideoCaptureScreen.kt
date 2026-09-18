@@ -5,6 +5,7 @@ package com.lifeos.app.ui.capture
 import android.annotation.SuppressLint
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -50,6 +51,10 @@ import com.lifeos.app.core.util.LifeOSPermissions
 import com.lifeos.app.core.util.MediaStorage
 import com.lifeos.app.core.util.PermissionStatus
 import com.lifeos.app.core.util.rememberPermissionState
+import java.io.File
+
+/** Hard cap so a forgotten recording can never fill the device's storage. */
+private const val MAX_VIDEO_SECONDS = 5 * 60
 
 @Composable
 fun VideoCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> Unit) {
@@ -72,15 +77,43 @@ fun VideoCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
     val lifecycleOwner = LocalLifecycleOwner.current
     val recorder = remember { Recorder.Builder().build() }
     val videoCapture = remember { VideoCapture.withOutput(recorder) }
+    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     var recording by remember { mutableStateOf<Recording?>(null) }
+    var pendingFile by remember { mutableStateOf<File?>(null) }
     var isRecording by remember { mutableStateOf(false) }
+    var cancelled by remember { mutableStateOf(false) }
     var seconds by remember { mutableStateOf(0) }
+
+    fun stopRecording(discard: Boolean) {
+        if (discard) cancelled = true
+        val current = recording
+        recording = null
+        runCatching { current?.stop() }
+        isRecording = false
+    }
+
+    fun discardAndLeave() {
+        stopRecording(discard = true)
+        onCancel()
+    }
+
+    BackHandler { discardAndLeave() }
 
     LaunchedEffect(isRecording) {
         seconds = 0
-        while (isRecording) { kotlinx.coroutines.delay(1000); seconds++ }
+        while (isRecording) {
+            kotlinx.coroutines.delay(1000)
+            seconds++
+            if (seconds >= MAX_VIDEO_SECONDS) { stopRecording(discard = false); break }
+        }
     }
-    DisposableEffect(Unit) { onDispose { recording?.stop() } }
+    DisposableEffect(Unit) {
+        onDispose {
+            stopRecording(discard = true)
+            cameraProvider?.unbindAll()
+            pendingFile?.delete()
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         AndroidView(factory = { ctx ->
@@ -89,6 +122,7 @@ fun VideoCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
                 val future = ProcessCameraProvider.getInstance(ctx)
                 future.addListener({
                     val provider = future.get()
+                    cameraProvider = provider
                     val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
                     runCatching { provider.unbindAll(); provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, videoCapture) }
                         .onFailure { Toast.makeText(ctx, "Camera failed: ${it.message}", Toast.LENGTH_SHORT).show() }
@@ -97,19 +131,21 @@ fun VideoCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
         }, modifier = Modifier.fillMaxSize())
 
         Surface(Modifier.align(Alignment.TopStart).statusBarsPadding().padding(14.dp), color = Color.Black.copy(alpha = .42f), shape = CircleShape) {
-            IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Close camera", tint = Color.White) }
+            IconButton(onClick = { discardAndLeave() }) { Icon(Icons.Filled.Close, contentDescription = "Close camera", tint = Color.White) }
         }
         Column(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("VIDEO", color = Color.White, style = MaterialTheme.typography.labelLarge)
-            if (isRecording) Text("Recording · ${seconds}s", color = Color.White, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 3.dp))
+            if (isRecording) Text("Recording · ${seconds}s / ${MAX_VIDEO_SECONDS / 60} min", color = Color.White, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 3.dp))
         }
         Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Surface(
                 onClick = {
                     if (isRecording) {
-                        recording?.stop(); recording = null
+                        stopRecording(discard = false)
                     } else {
                         val file = MediaStorage.newVideoFile(context)
+                        pendingFile = file
+                        cancelled = false
                         val output = FileOutputOptions.Builder(file).build()
                         recording = videoCapture.output.prepareRecording(context, output).withAudioEnabled()
                             .start(ContextCompat.getMainExecutor(context)) { event ->
@@ -117,8 +153,14 @@ fun VideoCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
                                     is VideoRecordEvent.Start -> isRecording = true
                                     is VideoRecordEvent.Finalize -> {
                                         isRecording = false
-                                        if (!event.hasError()) onCaptured(file.absolutePath)
-                                        else Toast.makeText(context, "Recording failed: ${event.cause?.message}", Toast.LENGTH_SHORT).show()
+                                        val failed = event.hasError()
+                                        if (failed || cancelled) {
+                                            file.delete()
+                                            if (failed) Toast.makeText(context, "Recording failed: ${event.cause?.message}", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            onCaptured(file.absolutePath)
+                                        }
+                                        if (pendingFile == file) pendingFile = null
                                     }
                                 }
                             }

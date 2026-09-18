@@ -63,7 +63,7 @@ abstract class AppDatabase : RoomDatabase() {
                     Room.databaseBuilder(
                         context.applicationContext,
                         AppDatabase::class.java,
-                        "lifeos.db"
+                        DatabasePassphraseProvider.DATABASE_NAME
                     )
                         // SQLCipher encrypts the database at rest.
                         .openHelperFactory(SupportOpenHelperFactory(passphrase))

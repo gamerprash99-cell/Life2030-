@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Settings
@@ -53,6 +52,7 @@ import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSGradientButton
 import com.lifeos.app.ui.components.LifeOSIntelligenceCard
 import com.lifeos.app.ui.components.LifeOSSectionHeader
+import com.lifeos.app.ui.components.ProfileAvatar
 import com.lifeos.app.ui.theme.LifeOSAccentLavender
 import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSSpacing
@@ -167,7 +167,7 @@ private fun HomeHeader(dateLabel: String?, onSearch: () -> Unit, onSettings: () 
         }
         IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, contentDescription = "Search") }
         IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = "Settings") }
-        Surface(onClick = onProfile, modifier = Modifier.size(44.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .32f)) { Icon(Icons.Filled.Person, contentDescription = "Profile", tint = LifeOSPrimary, modifier = Modifier.padding(10.dp)) }
+        ProfileAvatar(size = 44.dp, onClick = onProfile)
     }
 }
 

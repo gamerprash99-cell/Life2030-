@@ -2,6 +2,7 @@ package com.lifeos.app.ui.capture
 
 import android.media.MediaRecorder
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,9 @@ import com.lifeos.app.core.util.PermissionStatus
 import com.lifeos.app.core.util.rememberPermissionState
 import java.io.File
 
+/** Hard cap so a forgotten recording can never fill the device's storage. */
+private const val MAX_AUDIO_SECONDS = 15 * 60
+
 @Composable
 fun AudioCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> Unit) {
     val context = LocalContext.current
@@ -51,33 +55,80 @@ fun AudioCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var file by remember { mutableStateOf<File?>(null) }
     var seconds by remember { mutableStateOf(0) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    fun releaseRecorder() {
+        runCatching { recorder?.release() }
+        recorder = null
+    }
+
+    /** Discards the in-progress recording and cleans up its partial file. */
+    fun discard() {
+        val current = file
+        releaseRecorder()
+        isRecording = false
+        current?.delete()
+        file = null
+        seconds = 0
+    }
 
     fun start() {
         val output = MediaStorage.newAudioFile(context)
         val current = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(context) else @Suppress("DEPRECATION") MediaRecorder()
-        current.apply {
-            setAudioSource(MediaRecorder.AudioSource.MIC)
-            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            setOutputFile(output.absolutePath)
-            prepare(); start()
+        error = null
+        try {
+            current.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setOutputFile(output.absolutePath)
+                prepare()
+                start()
+            }
+        } catch (t: Throwable) {
+            runCatching { current.release() }
+            runCatching { output.delete() }
+            error = "Couldn't start recording. Please try again."
+            return
         }
         file = output
         recorder = current
         isRecording = true
     }
+
     fun stop() {
-        runCatching { recorder?.stop() }
-        runCatching { recorder?.release() }
+        val current = recorder
+        val saved = runCatching { current?.stop() }.isSuccess
+        runCatching { current?.release() }
         recorder = null
         isRecording = false
-        file?.let { onCaptured(it.absolutePath) }
+        val output = file
+        when {
+            !saved || output == null || !output.exists() || output.length() == 0L -> {
+                output?.delete()
+                error = "That recording was too short to save."
+            }
+            else -> onCaptured(output.absolutePath)
+        }
+        file = null
+        seconds = 0
     }
+
+    BackHandler { if (isRecording) discard(); onCancel() }
     LaunchedEffect(isRecording) {
         seconds = 0
-        while (isRecording) { kotlinx.coroutines.delay(1000); seconds++ }
+        while (isRecording) {
+            kotlinx.coroutines.delay(1000)
+            seconds++
+            if (seconds >= MAX_AUDIO_SECONDS) { stop(); break }
+        }
     }
-    DisposableEffect(Unit) { onDispose { runCatching { recorder?.release() } } }
+    DisposableEffect(Unit) {
+        onDispose {
+            releaseRecorder()
+            file?.delete()
+        }
+    }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.fillMaxSize().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
@@ -85,15 +136,24 @@ fun AudioCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
                 Column(Modifier.weight(1f)) {
                     Text("AUDIO", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     Text(if (isRecording) "Recording" else "Voice Capture", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 5.dp))
-                    Text(if (isRecording) "${seconds}s · stored locally" else "Record a thought without leaving LifeOS.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                    Text(
+                        when {
+                            isRecording -> "${seconds}s · max ${MAX_AUDIO_SECONDS / 60} min · stored locally"
+                            else -> "Record a thought without leaving LifeOS."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp)) }
                 }
-                IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Close recorder") }
+                IconButton(onClick = { if (isRecording) discard(); onCancel() }) { Icon(Icons.Filled.Close, contentDescription = "Close recorder") }
             }
             Surface(onClick = { if (isRecording) stop() else start() }, shape = CircleShape, color = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary) {
                 Icon(if (isRecording) Icons.Filled.Stop else Icons.Filled.Mic, contentDescription = if (isRecording) "Stop recording" else "Start recording", tint = Color.White, modifier = Modifier.padding(26.dp).size(34.dp))
             }
             Text(if (isRecording) "Tap to save" else "Tap to start", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 12.dp))
-            TextButton(onClick = onCancel, modifier = Modifier.padding(top = 20.dp).padding(bottom = 8.dp)) { Text("Cancel") }
+            TextButton(onClick = { if (isRecording) discard(); onCancel() }, modifier = Modifier.padding(top = 20.dp).padding(bottom = 8.dp)) { Text("Cancel") }
         }
     }
 }

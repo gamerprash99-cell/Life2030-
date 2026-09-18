@@ -13,7 +13,10 @@ import kotlinx.coroutines.flow.Flow
 class TaskRepository(private val dao: TaskDao, private val appContext: Context) {
 
     fun observeForDay(epochDay: Long): Flow<List<TaskEntity>> = dao.observeForDay(epochDay)
-    fun observeOverdue(todayEpochDay: Long): Flow<List<TaskEntity>> = dao.observeOverdue(todayEpochDay)
+    fun observeOverdue(
+        todayEpochDay: Long,
+        nowMinutes: Int = com.lifeos.app.core.util.DateTimeUtils.nowMinutesOfDay()
+    ): Flow<List<TaskEntity>> = dao.observeOverdue(todayEpochDay, nowMinutes)
     fun observeAll(): Flow<List<TaskEntity>> = dao.observeAll()
     fun observeCountForDay(epochDay: Long): Flow<Int> = dao.observeCountForDay(epochDay)
     fun observeCompletedCountForDay(epochDay: Long): Flow<Int> = dao.observeCompletedCountForDay(epochDay)
@@ -135,6 +138,14 @@ class TaskRepository(private val dao: TaskDao, private val appContext: Context) 
 
     suspend fun countCompletedBetween(startMillis: Long, endMillis: Long): Int =
         dao.countCompletedBetween(startMillis, endMillis)
+
+    /** Re-registers WorkManager jobs for all future reminders (e.g. after reminders are re-enabled). */
+    suspend fun rescheduleAllReminders() {
+        val now = System.currentTimeMillis()
+        dao.getAllForBackup()
+            .filter { !it.isDeleted && !it.isCompleted && it.reminderEpochMillis != null && it.reminderEpochMillis > now }
+            .forEach { ReminderScheduler.scheduleTaskReminder(appContext, it.id, it.reminderEpochMillis!!) }
+    }
 
     suspend fun getAllForBackup(): List<TaskEntity> = dao.getAllForBackup()
     suspend fun restoreFromBackup(tasks: List<TaskEntity>) = tasks.forEach { dao.upsert(it) }

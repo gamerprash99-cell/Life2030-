@@ -19,6 +19,12 @@ object DateTimeUtils {
 
     fun nowEpochMillis(): Long = System.currentTimeMillis()
 
+    /** Current local time as minutes since midnight (0..1439). */
+    fun nowMinutesOfDay(): Int {
+        val now = LocalTime.now()
+        return now.hour * 60 + now.minute
+    }
+
     fun LocalDate.toEpochDayLong(): Long = this.toEpochDay()
 
     fun epochDayToLocalDate(epochDay: Long): LocalDate = LocalDate.ofEpochDay(epochDay)
@@ -58,4 +64,17 @@ object DateTimeUtils {
         date.withDayOfMonth(date.lengthOfMonth()).toEpochDay()
 
     fun zoneId(): ZoneId = ZoneId.systemDefault()
+
+    /**
+     * UTC-epoch-millis boundary at the *local* start of [epochDay]. Using this
+     * instead of `epochDay * 86_400_000L` is essential: the raw multiplication
+     * treats midnight as UTC, so any user not on UTC would see notes/tasks
+     * fall into the wrong calendar day (and DST days would be off by an hour).
+     */
+    fun startOfLocalDayMillis(epochDay: Long): Long =
+        epochDayToLocalDate(epochDay).atStartOfDay(zoneId()).toInstant().toEpochMilli()
+
+    /** Exclusive local-midnight boundary that begins the day after [epochDay]. */
+    fun endOfLocalDayMillis(epochDay: Long): Long =
+        epochDayToLocalDate(epochDay + 1).atStartOfDay(zoneId()).toInstant().toEpochMilli()
 }

@@ -27,6 +27,7 @@ import com.lifeos.app.ui.insights.InsightsScreen
 import com.lifeos.app.ui.notes.NoteEditorScreen
 import com.lifeos.app.ui.notes.NotesListScreen
 import com.lifeos.app.ui.profile.ProfileScreen
+import com.lifeos.app.ui.search.SearchCategory
 import com.lifeos.app.ui.search.SearchScreen
 import com.lifeos.app.ui.security.AppLockSetupScreen
 import com.lifeos.app.ui.settings.SettingsScreen
@@ -107,6 +108,7 @@ fun LifeOSNavHost() {
             composable(Screen.Diary.route) { DiaryScreen(onBack = { navController.popBackStack() }) }
             composable(Screen.Timeline.route) {
                 TimelineScreen(
+                    onBack = { navController.popBackStack() },
                     onOpenCapture = { captureId -> navController.navigate(Screen.CaptureDetail.createRoute(captureId)) }
                 )
             }
@@ -117,7 +119,19 @@ fun LifeOSNavHost() {
                 val captureId = entry.arguments?.getString("captureId").orEmpty()
                 CaptureDetailScreen(captureId = captureId, onBack = { navController.popBackStack() })
             }
-            composable(Screen.Search.route) { SearchScreen() }
+            composable(Screen.Search.route) {
+                SearchScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenHit = { hit ->
+                        when (hit.category) {
+                            SearchCategory.NOTES -> navController.navigate(Screen.NoteEditor.createRoute(hit.id))
+                            SearchCategory.TASKS -> navController.navigate(Screen.Tasks.route)
+                            SearchCategory.EXPENSES -> navController.navigate(Screen.Expenses.route)
+                            SearchCategory.DIARY -> navController.navigate(Screen.Diary.route)
+                        }
+                    }
+                )
+            }
             composable(Screen.AiAssistant.route) {
                 AiAssistantScreen(
                     onOpenDestination = { destination ->
@@ -147,7 +161,8 @@ fun LifeOSNavHost() {
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     onBack = { navController.popBackStack() },
-                    onOpenSettings = { navController.navigate(Screen.Settings.route) }
+                    onOpenSettings = { navController.navigate(Screen.Settings.route) },
+                    onOpenAppLock = { navController.navigate(Screen.AppLockSetup.route) }
                 )
             }
             composable(Screen.Settings.route) {

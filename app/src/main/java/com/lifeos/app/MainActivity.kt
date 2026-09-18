@@ -12,19 +12,28 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import java.io.File
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.AppLockType
 import com.lifeos.app.ui.navigation.LifeOSNavHost
 import com.lifeos.app.ui.onboarding.OnboardingScreen
 import com.lifeos.app.ui.security.AppLockScreen
+import com.lifeos.app.ui.security.DataKeyErrorScreen
 import com.lifeos.app.ui.theme.LifeOSTheme
 import kotlinx.coroutines.launch
+
+/** Grace period before auto-lock engages after the app leaves the foreground. */
+private const val AUTO_LOCK_GRACE_MILLIS = 30_000L
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
@@ -32,9 +41,30 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val serviceLocator = (application as LifeOSApplication).serviceLocator
+        val app = application as LifeOSApplication
 
         setContent {
+            var locator by remember { mutableStateOf(app.serviceLocator) }
+            var error by remember { mutableStateOf(app.initializationError) }
+            val context = LocalContext.current
+
+            if (locator == null) {
+                DataKeyErrorScreen(
+                    technicalDetail = error?.message,
+                    onRetry = {
+                        if (app.retryInitialization()) {
+                            locator = app.serviceLocator
+                            error = app.initializationError
+                        } else {
+                            error = app.initializationError
+                        }
+                    },
+                    onExit = { (context as? ComponentActivity)?.finish() }
+                )
+                return@setContent
+            }
+
+            val serviceLocator = locator!!
             val darkTheme by serviceLocator.settingsStore.darkThemeEnabled.collectAsState(initial = false)
 
             LifeOSTheme(darkTheme = darkTheme) {
@@ -52,8 +82,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun OnboardingGate(content: @Composable () -> Unit) {
     val locator = LocalServiceLocator.current
-    val scope = rememberCoroutineScopeCompat()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val context = LocalContext.current
     val onboardingComplete by locator.settingsStore.onboardingComplete.collectAsState(initial = false)
     var restoreStatus by remember { mutableStateOf<String?>(null) }
 
@@ -88,21 +118,46 @@ private fun OnboardingGate(content: @Composable () -> Unit) {
     }
 }
 
-@Composable
-private fun rememberCoroutineScopeCompat() = androidx.compose.runtime.rememberCoroutineScope()
-
 /**
- * Gates the whole app behind App Lock (Section 3/4 security pass) when
- * AppLockType != NONE. Delegates to AppLockScreen for the PIN path and
- * PIN recovery. Session stays unlocked until the
- * process is killed (matches the prior behavior — this is not a per-
- * background-return re-lock, which would be a separate product decision).
+ * Gates the whole app behind App Lock when [AppLockType] != NONE.
+ *
+ * Auto-lock (Section 6): when auto-lock is enabled and the app has been in the
+ * background for longer than [AUTO_LOCK_GRACE_MILLIS], the next foreground
+ * visit requires the PIN again. The short grace period prevents an external
+ * file picker or permission dialog from locking the user out mid-flow.
  */
 @Composable
 private fun AppLockGate(content: @Composable () -> Unit) {
     val locator = LocalServiceLocator.current
     val lockType by locator.settingsStore.appLockType.collectAsState(initial = AppLockType.NONE)
+    val autoLockEnabled by locator.settingsStore.autoLockEnabled.collectAsState(initial = true)
+    val lifecycleOwner = LocalLifecycleOwner.current
+
     var unlocked by remember { mutableStateOf(false) }
+    var backgroundedAt by remember { mutableStateOf<Long?>(null) }
+
+    DisposableEffect(lifecycleOwner, lockType, autoLockEnabled) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> backgroundedAt = System.currentTimeMillis()
+                Lifecycle.Event.ON_START -> {
+                    val since = backgroundedAt
+                    if (lockType != AppLockType.NONE && autoLockEnabled && since != null &&
+                        System.currentTimeMillis() - since > AUTO_LOCK_GRACE_MILLIS
+                    ) {
+                        unlocked = false
+                    }
+                    backgroundedAt = null
+                }
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Changing the lock configuration must require a fresh unlock.
+    androidx.compose.runtime.LaunchedEffect(lockType) { unlocked = false }
 
     when {
         lockType == AppLockType.NONE -> content()

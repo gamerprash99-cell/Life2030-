@@ -5,7 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
@@ -15,6 +16,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,12 +24,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.AppLockType
 import com.lifeos.app.core.util.PinAttemptResult
+import com.lifeos.app.core.util.SettingsStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -46,21 +48,56 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
     var newPin by remember { mutableStateOf("") }
     var newPinConfirm by remember { mutableStateOf("") }
 
+    fun submitPin() {
+        scope.launch {
+            when (val result = locator.settingsStore.attemptPinUnlock(pinInput)) {
+                PinAttemptResult.Success -> {
+                    error = null
+                    onUnlocked()
+                }
+                is PinAttemptResult.Incorrect -> {
+                    error = if (result.attemptsRemaining <= 0) "Incorrect PIN."
+                    else "Incorrect PIN. ${result.attemptsRemaining} attempt(s) left."
+                    pinInput = ""
+                }
+                is PinAttemptResult.LockedOut -> {
+                    val seconds = (result.remainingMillis / 1000L).coerceAtLeast(1)
+                    error = "Too many attempts. Try again in $seconds second(s)."
+                    pinInput = ""
+                }
+            }
+        }
+    }
+
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp))
         Text("LifeOS is locked", style = MaterialTheme.typography.titleLarge)
         Text(
-            "Enter your LifeOS PIN to continue.",
+            "Enter your 4-digit LifeOS PIN to continue.",
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 8.dp)
         )
 
-        when {
-            recoveryStep == RecoveryStep.ANSWER_QUESTION -> {
+        error?.let {
+            Text(
+                it,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+            )
+        }
+
+        when (recoveryStep) {
+            RecoveryStep.ANSWER_QUESTION -> {
                 Text(recoveryQuestionText ?: "", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 16.dp))
                 OutlinedTextField(
                     value = recoveryAnswerInput,
@@ -68,7 +105,6 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
                     label = { Text("Your answer") },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                 )
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) }
                 Button(
                     onClick = {
                         scope.launch {
@@ -86,45 +122,35 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
                 TextButton(onClick = { recoveryStep = RecoveryStep.NONE; error = null }) { Text("Cancel") }
             }
 
-            recoveryStep == RecoveryStep.NEW_PIN -> {
-                Text("Choose a new PIN", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 16.dp))
-                OutlinedTextField(
-                    value = newPin,
-                    onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) newPin = it },
-                    label = { Text("New PIN") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            RecoveryStep.NEW_PIN -> {
+                Text("Choose a new 4-digit PIN", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 16.dp))
+                PinDots(newPin.length, Modifier.padding(top = 12.dp))
+                PinKeypad(
+                    onDigit = { digit -> if (newPin.length < SettingsStore.PIN_LENGTH) { newPin += digit; error = null } },
+                    onBackspace = { newPin = newPin.dropLast(1) },
+                    modifier = Modifier.padding(top = 16.dp)
                 )
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) }
-                Button(
-                    onClick = {
-                        if (newPin.length < 4) error = "PIN must be at least 4 digits."
-                        else {
-                            error = null
-                            newPinConfirm = ""
-                            recoveryStep = RecoveryStep.NEW_PIN_CONFIRM
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                ) { Text("Next") }
+                LaunchedEffect(newPin) {
+                    if (newPin.length == SettingsStore.PIN_LENGTH) {
+                        newPinConfirm = ""
+                        recoveryStep = RecoveryStep.NEW_PIN_CONFIRM
+                    }
+                }
             }
 
-            recoveryStep == RecoveryStep.NEW_PIN_CONFIRM -> {
+            RecoveryStep.NEW_PIN_CONFIRM -> {
                 Text("Confirm your new PIN", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 16.dp))
-                OutlinedTextField(
-                    value = newPinConfirm,
-                    onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) newPinConfirm = it },
-                    label = { Text("Re-enter PIN") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                PinDots(newPinConfirm.length, Modifier.padding(top = 12.dp))
+                PinKeypad(
+                    onDigit = { digit -> if (newPinConfirm.length < SettingsStore.PIN_LENGTH) { newPinConfirm += digit; error = null } },
+                    onBackspace = { newPinConfirm = newPinConfirm.dropLast(1) },
+                    modifier = Modifier.padding(top = 16.dp)
                 )
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) }
-                Button(
-                    onClick = {
+                LaunchedEffect(newPinConfirm) {
+                    if (newPinConfirm.length == SettingsStore.PIN_LENGTH) {
                         if (newPinConfirm != newPin) {
                             error = "PINs don't match. Try again."
+                            newPinConfirm = ""
                         } else {
                             scope.launch {
                                 locator.settingsStore.enablePinLock(
@@ -135,47 +161,20 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
                                 onUnlocked()
                             }
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                ) { Text("Reset PIN and unlock") }
+                    }
+                }
             }
 
-            else -> {
-                OutlinedTextField(
-                    value = pinInput,
-                    onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) pinInput = it },
-                    label = { Text("Enter PIN") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+            RecoveryStep.NONE -> {
+                PinDots(pinInput.length, Modifier.padding(top = 24.dp), isError = error != null)
+                PinKeypad(
+                    onDigit = { digit -> if (pinInput.length < SettingsStore.PIN_LENGTH) { pinInput += digit; error = null } },
+                    onBackspace = { pinInput = pinInput.dropLast(1) },
+                    modifier = Modifier.padding(top = 24.dp)
                 )
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) }
-                Button(
-                    onClick = {
-                        scope.launch {
-                            when (val result = locator.settingsStore.attemptPinUnlock(pinInput)) {
-                                PinAttemptResult.Success -> {
-                                    error = null
-                                    onUnlocked()
-                                }
-                                is PinAttemptResult.Incorrect -> {
-                                    error = if (result.attemptsRemaining <= 0) {
-                                        "Incorrect PIN."
-                                    } else {
-                                        "Incorrect PIN. ${result.attemptsRemaining} attempt(s) left."
-                                    }
-                                    pinInput = ""
-                                }
-                                is PinAttemptResult.LockedOut -> {
-                                    val seconds = (result.remainingMillis / 1000L).coerceAtLeast(1)
-                                    error = "Too many attempts. Try again in $seconds second(s)."
-                                    pinInput = ""
-                                }
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                ) { Text("Unlock") }
+                LaunchedEffect(pinInput) {
+                    if (pinInput.length == SettingsStore.PIN_LENGTH) submitPin()
+                }
                 TextButton(
                     onClick = {
                         scope.launch {
