@@ -5,8 +5,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -29,10 +31,22 @@ fun GlassCard(modifier: Modifier = Modifier, cornerRadius: androidx.compose.ui.u
 }
 
 @Composable
-fun GlassChip(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+fun GlassChip(
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    content: @Composable () -> Unit
+) {
     val glass = LocalGlassColors.current
     val shape = RoundedCornerShape(50)
-    Box(modifier = modifier.clip(shape).background(glass.surface).border(width = 1.dp, color = glass.border, shape = shape).padding(horizontal = 12.dp, vertical = 6.dp)) {
-        content()
+    val containerColor = if (selected) MaterialTheme.colorScheme.primary else glass.surface
+    val borderColor = if (selected) MaterialTheme.colorScheme.primary else glass.border
+    Box(modifier = modifier.clip(shape).background(containerColor).border(width = 1.dp, color = borderColor, shape = shape).padding(horizontal = 12.dp, vertical = 6.dp)) {
+        if (selected) {
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onPrimary) {
+                content()
+            }
+        } else {
+            content()
+        }
     }
 }

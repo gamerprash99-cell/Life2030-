@@ -15,6 +15,7 @@
 .cxx
 local.properties
 *.hprof
+.kotlin
 keystore.properties
 *.jks
 *.keystore

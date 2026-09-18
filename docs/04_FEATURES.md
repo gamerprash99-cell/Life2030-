@@ -47,10 +47,13 @@ Full inventory of every implemented feature, with exact file paths.
 **Purpose**: Personal expense logging with categories and monthly totals.
 
 - **User flow**: `ui/expenses/ExpensesScreen.kt` → "+" → amount, category (from `domain/model/Categories.kt`'s `ExpenseCategories.ALL`), optional merchant → Save
+- **Dashboard**: monthly total (`observeTotalInRange`), daily average, a fixed budget constant (`15_000.0`) and remaining ("Left"), plus the current month's Recent Transactions and an empty state.
+- **Add-expense sheet**: a Material 3 `ModalBottomSheet`. It opens in the **expanded** position by default (`rememberModalBottomSheetState(skipPartiallyExpanded = true)`) and its body scrolls, so the whole form is reachable immediately across screen sizes, insets and font scales.
+- **Category selection**: a single existing `selectedCategory` state inside `AddExpenseSheet` (default `Food`). The selected chip renders in `MaterialTheme.colorScheme.primary` with `onPrimary` content color; all other chips keep the normal glass appearance. Exactly one category is highlighted at a time.
 - **Database**: `data/db/entities/ExpenseEntity.kt`, `data/db/dao/ExpenseDao.kt` (includes `getCategoryTotals` for category breakdowns)
 - **Repository**: `data/repository/ExpenseRepository.kt`
 - **Status**: Implemented
-- **Known limitations**: No editing of an existing expense (only add + implicit list); no budget/limit feature
+- **Known limitations**: No editing of an existing expense (only add + implicit list); the budget is a fixed display constant with no user-configurable limit.
 
 ## 5. Diary
 
@@ -171,3 +174,7 @@ Home, Habits, Tasks, Insights, Settings and Life Capture now use the updated lav
 - Expenses and Add Expense received the Stitch visual treatment while retaining live repository-backed data.
 - App Lock received the keypad-oriented UI treatment while retaining secure PIN/recovery behavior.
 - Audio capture/playback lifecycle handling was hardened.
+
+## 2026-09-19 feature update — Expenses micro UX
+- The existing "Add expense" `ModalBottomSheet` now opens expanded by default and its content scrolls; no redesign, fields, buttons or dismissal behavior changed.
+- The selected expense category chip now uses the theme's `colorScheme.primary`/`onPrimary`, driven by the existing single category-selection state. `GlassChip` was extended with an optional `selected` parameter rather than duplicating UI logic.

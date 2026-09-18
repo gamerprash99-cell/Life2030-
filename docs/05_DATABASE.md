@@ -4,13 +4,25 @@
 
 **Room** (`androidx.room`, version 2.6.1) on top of **SQLite** — a fully
 local, on-device database. There is no cloud/remote database. Confirmed by
-`app/src/main/java/com/lifeos/app/data/db/AppDatabase.kt`:
+`app/src/main/java/com/lifeos/app/data/db/AppDatabase.kt` (opened through
+SQLCipher's `SupportOpenHelperFactory`, file name from
+`DatabasePassphraseProvider.DATABASE_NAME`):
 
 ```kotlin
-Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "lifeos.db").build()
+System.loadLibrary("sqlcipher")
+val passphrase = DatabasePassphraseProvider.getOrCreate(context.applicationContext)
+Room.databaseBuilder(
+    context.applicationContext,
+    AppDatabase::class.java,
+    DatabasePassphraseProvider.DATABASE_NAME
+)
+    .openHelperFactory(SupportOpenHelperFactory(passphrase))
+    .build()
 ```
 
 - **File location on device**: internal app storage, filename `lifeos.db`
+- **Encryption at rest**: SQLCipher; passphrase is random per install and
+  wrapped by an Android Keystore AES-GCM key — see `docs/08_SECURITY.md`.
 - **Schema version**: `1`
 - **Migrations**: None defined yet — `AppDatabase.kt`'s comment notes *"No
   destructive fallback in production; migrations must be added explicitly
@@ -19,9 +31,8 @@ Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "lifeo
   crash on upgrade** rather than silently deleting data. See
   `docs/16_KNOWN_ISSUES.md`.
 - **Schema export**: `app/build.gradle.kts` configures
-  `room.schemaLocation = "$projectDir/schemas"`, but ⚠️ **no `schemas/`
-  directory currently exists in the repository** — it is only generated the
-  first time the project is actually built.
+  `room.schemaLocation = "$projectDir/schemas"`; the exported schema is
+  committed at `app/schemas/com.lifeos.app.data.db.AppDatabase/1.json`.
 
 ## Tables (entities)
 
@@ -165,10 +176,13 @@ Not applicable in the traditional sense (no cloud database with rules).
 On-device protection is:
 - `android:allowBackup="false"` in `AndroidManifest.xml` — the OS will not
   auto-backup the database.
-- Optional App Lock (biometric/PIN) gates the whole app, not the database file itself.
-- ⚠️ **The database file itself is not encrypted** — no SQLCipher or Room's
-  encryption support is used. Anyone with root access or a backup-extraction
-  tool on the device could read `lifeos.db` directly. See `docs/08_SECURITY.md`.
+- Optional App Lock (PIN) gates the whole app, not the database file itself.
+- **The database file is encrypted at rest with SQLCipher** (OpenSSL-backed),
+  with a random per-install passphrase wrapped by an Android Keystore AES-GCM
+  key (`core/security/DatabasePassphraseProvider.kt`); the raw passphrase is
+  never stored in plaintext. A key-resolution failure is non-destructive: it
+  throws `DatabaseKeyUnavailableException` and shows a recovery screen instead
+  of rotating the key or deleting data. See `docs/08_SECURITY.md`.
 
 ## Read/write operations
 

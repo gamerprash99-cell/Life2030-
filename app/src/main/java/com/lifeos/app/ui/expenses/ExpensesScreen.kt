@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -18,9 +20,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -200,9 +204,14 @@ private fun AddExpenseSheet(
     var merchant by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(ExpenseCategories.ALL.first().name) }
 
-    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 22.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Add expense", style = MaterialTheme.typography.headlineSmall)
@@ -229,6 +238,7 @@ private fun AddExpenseSheet(
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(ExpenseCategories.ALL) { cat ->
                     GlassChip(
+                        selected = selectedCategory == cat.name,
                         modifier = Modifier.clickable { selectedCategory = cat.name }
                     ) {
                         Text("${cat.emoji} ${cat.name}", style = MaterialTheme.typography.labelSmall)

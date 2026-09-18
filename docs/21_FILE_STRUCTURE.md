@@ -173,3 +173,10 @@ New shared presentation code includes ui/components/LifeOSTopBar.kt; the updated
 - `MainActivity.kt` — onboarding startup gating.
 - `core/util/SettingsStore.kt` — local profile-photo URI preference.
 - `ui/capture/AudioCaptureScreen.kt` and `CaptureMediaPreview.kt` — audio lifecycle fixes.
+
+## 2026-09-19 affected areas — Expenses micro UX
+- `ui/expenses/ExpensesScreen.kt` — `AddExpenseSheet` opens expanded by default
+  (`skipPartiallyExpanded = true`) with a scrollable body; category `GlassChip`
+  passes `selected = selectedCategory == cat.name`.
+- `ui/components/GlassCard.kt` — `GlassChip` gained an optional `selected`
+  parameter (theme primary container + `onPrimary` content color).

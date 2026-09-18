@@ -187,3 +187,28 @@ Verification: archive integrity checked after the source update. Full Android Gr
 - Updated Profile, Expenses, Add Expense, and App Lock Compose UI from the supplied Stitch direction.
 - Added navigation Back handling and fixed onboarding completion startup gating.
 - Hardened audio recording and playback lifecycle.
+
+## [0.2.x] — 2026-09-19 — Expenses micro UX fix
+
+### Changed
+- The existing "Add expense" `ModalBottomSheet` (`ui/expenses/ExpensesScreen.kt`)
+  now opens expanded by default via
+  `rememberModalBottomSheetState(skipPartiallyExpanded = true)`, and its body is
+  scrollable so all fields remain reachable under IME/landscape/font scaling.
+  Sheet design, fields, buttons, drag handle, swipe-to-dismiss and Back behavior
+  are unchanged.
+- The selected expense category chip now renders in the theme's
+  `colorScheme.primary`/`onPrimary`; `GlassChip` gained an optional `selected`
+  parameter and the Expenses call site reuses the existing single selection
+  state. Exactly one category is highlighted at a time.
+
+### Unchanged
+- No Room schema/entity/DAO/migration change; no repository, navigation,
+  architecture, calculation or category-definition change.
+- No network/cloud/AI/telemetry dependency introduced; data stays on device.
+
+### Verification
+- `gradle :app:compileDebugKotlin` — BUILD SUCCESSFUL
+- `gradle :app:assembleDebug` — BUILD SUCCESSFUL
+- `gradle :app:testDebugUnitTest` — BUILD SUCCESSFUL (81 tests, 0 failures)
+- `gradle :app:lintDebug` — BUILD SUCCESSFUL (0 errors, 5 pre-existing warnings)

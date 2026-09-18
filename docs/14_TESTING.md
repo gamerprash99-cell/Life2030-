@@ -68,3 +68,27 @@ Static source review was performed after the UI changes. Full Gradle tests/assem
 
 ## 2026-09-18 verification note
 The changed sources were statically reviewed. Automated Gradle tests/builds were not runnable from the supplied archive because the Gradle wrapper and system Gradle executable are unavailable in the current environment. Do not interpret this as a passing build; CI/local Android verification remains required.
+
+## 2026-09-19 verification note — actually executed
+
+The Expenses micro UX fix was verified by **running** the project's checks in an
+environment with Gradle 8.9 + AGP 8.6.1 (a locally-installed Gradle distribution,
+since the repo still ships no `gradlew`; offline with the engine's aapt2
+override). Exact commands and results:
+
+```text
+gradle :app:compileDebugKotlin   -> BUILD SUCCESSFUL
+gradle :app:assembleDebug        -> BUILD SUCCESSFUL
+gradle :app:testDebugUnitTest    -> BUILD SUCCESSFUL (81 tests, 0 failures)
+gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors, 5 pre-existing warnings)
+```
+
+The 5 lint warnings are pre-existing and unrelated to the fix (unused
+`tagline`/round-icon resources, adaptive-icon monochrome tag, a `Modifier`
+ordering in `TasksScreen.kt`, `-v26` folder, autoboxing info). No new unit test
+was required for this change — it is pure Compose presentation and reuses
+existing state; no domain/repository logic changed.
+
+Still **not** executed (honest gap): instrumentation tests (no emulator/device
+and no `app/src/androidTest/` source set) and a manual on-device UI walkthrough
+of the two Expenses interactions.

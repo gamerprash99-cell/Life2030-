@@ -31,6 +31,12 @@ The 2026 UI pass uses shared LifeOS design tokens, soft lavender/violet surfaces
 
 This source snapshot was not compile-verified in the supplied environment because the Gradle wrapper is absent and a usable Android Gradle environment is unavailable. Documentation must not describe a build as passed unless it is actually executed.
 
+**2026-09-19 update:** a subsequent audit environment installed Gradle 8.9
+locally and actually executed `:app:compileDebugKotlin`, `:app:assembleDebug`,
+`:app:testDebugUnitTest` (81 tests, 0 failures) and `:app:lintDebug` (0 errors,
+5 pre-existing warnings) successfully for the Expenses micro UX fix. The repo
+still ships no `gradlew`, and no instrumentation/device test has been run.
+
 ## Current-state addendum — 2026-09-16
 
 This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.

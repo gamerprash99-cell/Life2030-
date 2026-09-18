@@ -139,6 +139,23 @@
 - **Status**: Resolved.
 
 
+### Issue #14 — [RESOLVED] Add-expense sheet opened too low
+
+- **Severity**: Was 🟡 Medium (UX — extra manual step every time)
+- **Description**: The "Add expense" `ModalBottomSheet` in `ui/expenses/ExpensesScreen.kt` used the default sheet state and opened at the *partially expanded* position; the user had to drag it upward to see the whole form.
+- **Fix**: The existing sheet now uses `rememberModalBottomSheetState(skipPartiallyExpanded = true)` and a scrollable body, so it opens expanded and all fields stay reachable under IME/landscape/font scaling. Design, fields, buttons, drag handle, swipe-to-dismiss and Back behavior are unchanged.
+- **Status**: Resolved (compile/test/lint verified; on-device walkthrough still recommended).
+
+---
+
+### Issue #15 — [RESOLVED] Selected expense category had no clear visual state
+
+- **Severity**: Was 🟡 Medium (UX — selection only implied by text)
+- **Description**: Category `GlassChip`s in "Add expense" showed selection only through the "Selected: <name>" line; the chips themselves looked identical.
+- **Fix**: `GlassChip` (`ui/components/GlassCard.kt`) gained an optional `selected` parameter that uses `MaterialTheme.colorScheme.primary`/`onPrimary`; the Expenses call site drives it from the existing single `selectedCategory` state. Exactly one chip is highlighted at a time.
+- **Status**: Resolved (compile/test/lint verified; on-device walkthrough still recommended).
+
+
 ## Current-state addendum — 2026-09-16
 
 This document remains part of the LifeOS documentation set. Current UI/UX, motion, responsive and accessibility rules are centralized in [`DESIGN.md`](./DESIGN.md). The current Intelligence implementation is local/offline and requires no external AI provider or API key. Build/test statements are only considered verified when the exact command has been executed in a real Android/Gradle environment.
@@ -149,3 +166,11 @@ The remaining verification gap is build/device validation in a complete Android 
 
 ## 2026-09-18 status update
 The onboarding second-launch flash and navigation Back-handler path were addressed in source. Audio recording cleanup/playback lifecycle was also hardened. Build-level confirmation remains pending because the supplied archive has no Gradle wrapper and no system Gradle executable is available in this environment.
+
+## 2026-09-19 status update
+The two Expenses UX issues (#14 expanded sheet, #15 category highlight) are
+fixed. Build/test/lint were actually executed this pass
+(`assembleDebug`, `testDebugUnitTest` 81/0, `lintDebug` 0 errors) — see
+`docs/14_TESTING.md`. Issue #1 (missing Gradle wrapper scripts) remains open;
+the remaining verification gap is device/instrumentation testing, since no
+emulator/device and no `androidTest` source set are available.
