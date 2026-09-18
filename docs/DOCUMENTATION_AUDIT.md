@@ -56,3 +56,24 @@ Documentation was refreshed for the 2026-09-16 UI/navigation/capture pass; no hi
 
 ## 2026-09-18 update
 Documentation was reviewed for the current UI/interaction pass. Affected product, frontend, architecture, security, database, testing, known-issues, changelog, and file-structure documents now record the changes and verification limitation. Existing historical sections were preserved rather than rewritten.
+
+## 2026-09-19 update — full documentation audit
+
+A full-project documentation audit was performed alongside the Expenses micro UX
+fix. Corrections and additions:
+
+- `README.md` expanded into comprehensive project documentation (overview,
+  principles, real tech stack, architecture, all features, Expenses behavior,
+  database, navigation, UI/UX, security, permissions, media, offline
+  intelligence, build, testing, structure, privacy, recent changes, known
+  limitations, development guidelines).
+- Stale current-state facts corrected: `05_DATABASE.md` no longer states the DB
+  is unencrypted or that no `schemas/` folder exists; `09_FRONTEND.md` bottom
+  navigation/form sections now match `Screen.bottomNavItems` (Home, Tasks,
+  Habits, Insights) and the ModalBottomSheet add-expense form.
+- `04_FEATURES.md`, `16_KNOWN_ISSUES.md` (#14/#15), `17_CHANGELOG.md`,
+  `21_FILE_STRUCTURE.md`, `14_TESTING.md`, `UPDATE.md` and
+  `FINAL_RELEASE_CHECKLIST.md` record the Expenses fix and the actually-executed
+  build/test/lint results.
+- Historical entries and their wording were preserved everywhere; corrections
+  were added as new dated notes rather than overwriting the record.

@@ -49,12 +49,13 @@ Defined in `ui/navigation/Screen.kt` as a sealed class, wired into a single
 | `ai_assistant` | `AiAssistantScreen` | |
 | `settings` | `SettingsScreen` | |
 
-Bottom navigation bar (`ui/components/LifeOSBottomBar.kt`) only shows 5 of
-these routes: Home, Timeline, Tasks, Habits, Settings (`Screen.bottomNavItems`).
-The rest (Notes, Expenses, Diary, Insights, Search) are reached via **quick-link
-chips on the Home screen** (`HomeScreen.kt`), not the bottom bar directly —
-worth knowing if a new developer expects them in the bottom nav and doesn't
-find them there.
+Bottom navigation bar (`ui/components/LifeOSBottomBar.kt`) shows only the four
+primary destinations in `Screen.bottomNavItems`: **Home, Tasks, Habits,
+Insights** (each with an always-visible label and a lavender selected pill).
+Settings is reached from **Profile**; Notes, Expenses, Diary, Timeline, Search,
+Capture Detail, AI Assistant, Profile and App Lock Setup are secondary routes
+stacked outside the `root_tabs` graph. A new developer who expects Settings or
+Expenses in the bottom bar should look there instead.
 
 ## State management
 
@@ -87,11 +88,13 @@ repositories, the AI layer, and settings.
 
 ## Forms
 
-All forms in this app are simple Compose `AlertDialog`s with
-`OutlinedTextField`s (e.g. "Add task" in `TasksScreen.kt`, "Add habit" in
-`HabitsScreen.kt`, "Add expense" in `ExpensesScreen.kt`). There is no shared
-form-validation library or framework — each screen does its own minimal
-validation inline (e.g. `if (title.isBlank()) return`).
+Most small forms use Compose `AlertDialog`s with `OutlinedTextField`s (e.g.
+"Add task" / "Add habit"). The **Add expense** form is a Material 3
+`ModalBottomSheet` (`androidx.compose.material3.ModalBottomSheet` inside
+`ExpensesScreen.kt`); it opens expanded by default
+(`rememberModalBottomSheetState(skipPartiallyExpanded = true)`) and its body is
+scrollable. There is no shared form-validation library or framework — each
+screen does its own minimal validation inline (e.g. `if (title.isBlank()) return`).
 
 ## UI system / Design system
 
@@ -106,7 +109,7 @@ validation inline (e.g. `if (title.isBlank()) return`).
 `ui/components/`:
 - `GlassCard.kt` — the signature translucent card component, used across
   Home, Timeline, Habits, Diary, etc.
-- `LifeOSBottomBar.kt` — the 5-item bottom navigation bar
+- `LifeOSBottomBar.kt` — the four-item bottom navigation bar (Home, Tasks, Habits, Insights)
 - `ReminderTimePickerDialog.kt` — shared Material 3 `TimePicker` dialog used
   by both the Add Task and Add Habit flows
 
@@ -131,9 +134,17 @@ via repositories.
 
 ## Reusable components
 
-- `GlassCard` / `GlassChip` (`ui/components/GlassCard.kt`)
-- `LifeOSBottomBar` (`ui/components/LifeOSBottomBar.kt`) — Today, Habits, Tasks, Insights, Settings with animated selected pills
+- `GlassCard` / `GlassChip` (`ui/components/GlassCard.kt`) — `GlassChip` now
+  accepts an optional `selected` flag; when set it uses
+  `MaterialTheme.colorScheme.primary`/`onPrimary`, otherwise the original glass
+  surface. Used by the Add Expense category row.
+- `LifeOSBottomBar` (`ui/components/LifeOSBottomBar.kt`) — Home, Tasks, Habits,
+  Insights with animated selected pills and always-visible labels
+- `LifeOSTopBar` (`ui/components/LifeOSTopBar.kt`) — consistent screen headers
 - `ReminderTimePickerDialog` (`ui/components/ReminderTimePickerDialog.kt`)
+- `LifeOSCard` / `LifeOSGradientButton` / `LifeOSBadge` /
+  `LifeOSSectionHeader` (`ui/components/LifeOSDesignComponents.kt`)
+- `ProfileAvatar`, `PinComponents`
 
 There is currently no dedicated shared component for buttons, text fields,
 or list rows — each screen builds its own `AlertDialog`/`OutlinedTextField`
@@ -156,3 +167,7 @@ The 2026-09-16 frontend pass maps the Stitch HTML reference into native Compose 
 
 ## 2026-09-18 UI integration notes
 The supplied Stitch screens are implemented as native Jetpack Compose rather than embedded HTML. Profile, Expenses, Add Expense, and App Lock preserve real application state and callbacks. Profile photo selection uses Android's document picker and stores only the selected local content URI in DataStore.
+
+## 2026-09-19 frontend update — Expenses micro UX
+- `AddExpenseSheet` (`ui/expenses/ExpensesScreen.kt`) now uses `rememberModalBottomSheetState(skipPartiallyExpanded = true)` and a scrollable body, so the existing sheet opens expanded and all fields remain reachable under IME/landscape/font scaling.
+- `GlassChip` gained an optional `selected` parameter; the Expenses category row passes `selected = selectedCategory == cat.name`, rendering the active category in the theme's primary color with `onPrimary` text. The existing single selection state is reused.

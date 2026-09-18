@@ -125,3 +125,77 @@ gradle :app:assembleDebug
 
 ### Remaining
 - Run the project's normal Android CI/build locally or in GitHub Actions once the wrapper is present to perform the final compiler, unit-test, instrumentation, and lint verification.
+
+---
+
+## 2026-09-19 — Expenses micro UX fix + documentation audit
+
+### Change summary
+Two small, additive UX improvements to the existing Expenses screen. No
+redesign, no architecture, navigation, schema or business-logic changes.
+
+### Affected files
+- `app/src/main/java/com/lifeos/app/ui/expenses/ExpensesScreen.kt`
+- `app/src/main/java/com/lifeos/app/ui/components/GlassCard.kt`
+- Documentation: `README.md`, `UPDATE.md`, `docs/04_FEATURES.md`,
+  `docs/05_DATABASE.md`, `docs/09_FRONTEND.md`, `docs/14_TESTING.md`,
+  `docs/16_KNOWN_ISSUES.md`, `docs/17_CHANGELOG.md`, `docs/21_FILE_STRUCTURE.md`,
+  `docs/DOCUMENTATION_AUDIT.md`, `docs/00_PROJECT_OVERVIEW.md`,
+  `FINAL_RELEASE_CHECKLIST.md`
+
+### Root cause / problem
+1. **Sheet opened too low.** `AddExpenseSheet` used a default
+   `ModalBottomSheet`, which opens at the *partially expanded* state; users had
+   to drag the sheet upward to see the whole Add Expense form.
+2. **Unclear category selection.** Category `GlassChip`s had no selected
+   visual; selection was only indicated by the "Selected: <name>" text line.
+
+### Implementation
+1. **CHANGE #1 — expanded-by-default sheet.** In `AddExpenseSheet`, the
+   existing `ModalBottomSheet` now receives
+   `sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)`
+   (existing Material 3 API) so it opens fully expanded. The form `Column` gained
+   `verticalScroll(rememberScrollState())` so every field/button stays reachable
+   when available height shrinks (IME, landscape, font scaling). Shape, drag
+   handle, background, fields, category UI, buttons, swipe-to-dismiss and Back
+   behavior are unchanged. No dialog, new screen, `Box` or hardcoded offsets
+   were introduced.
+2. **CHANGE #2 — selected category visual state.** The reusable `GlassChip`
+   (`ui/components/GlassCard.kt`) gained an optional `selected: Boolean = false`
+   parameter. When selected it uses `MaterialTheme.colorScheme.primary` as the
+   container/border with `MaterialTheme.colorScheme.onPrimary` content color;
+   otherwise it keeps its original glass surface/border. The Expenses call site
+   passes `selected = selectedCategory == cat.name`, reusing the **existing**
+   `selectedCategory` state (no second state introduced). Only one chip can be
+   selected; selecting another moves the highlight immediately. The existing
+   "Selected: <name>" line is retained.
+
+### Preserved
+- The entire Expenses screen layout, monthly card, daily average, budget/left
+  math, recent transactions, empty state and FAB are untouched.
+- `ExpenseRepository`, `ExpenseDao`, `ExpenseEntity`, `ExpenseCategories`,
+  navigation, and all other screens are untouched.
+- No Room schema/version/migration change.
+- No network/cloud/AI/telemetry dependency; data stays on device.
+
+### Verification
+Executed in the audit environment with Gradle 8.9 + AGP 8.6.1 (offline; aapt2
+override), not just source review:
+
+```text
+gradle :app:compileDebugKotlin   -> BUILD SUCCESSFUL
+gradle :app:assembleDebug        -> BUILD SUCCESSFUL
+gradle :app:testDebugUnitTest    -> BUILD SUCCESSFUL (81 tests, 0 failures)
+gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors, 4 pre-existing warnings)
+```
+
+The repository still does not ship `gradlew`/wrapper JAR, so a locally-installed
+Gradle 8.9 distribution was used. Instrumentation tests were not run (no
+emulator/device and no `androidTest` source set).
+
+### Remaining
+- Device/emulator UI verification of the two Expenses interactions (sheet
+  initial position and category highlight) is still recommended — it was
+  verified at compile/test/lint level only.
+- `docs/16_KNOWN_ISSUES.md` Issue #1 (missing Gradle wrapper scripts) remains
+  open.
