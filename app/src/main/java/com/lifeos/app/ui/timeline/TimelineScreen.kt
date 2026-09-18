@@ -59,13 +59,16 @@ class TimelineViewModel(private val buildTimeline: BuildTimelineUseCase) : ViewM
 }
 
 @Composable
-fun TimelineScreen(onOpenCapture: (String) -> Unit = {}) {
+fun TimelineScreen(onBack: () -> Unit = {}, onOpenCapture: (String) -> Unit = {}) {
     val locator = LocalServiceLocator.current
     val viewModel: TimelineViewModel = viewModel(factory = LambdaViewModelFactory { TimelineViewModel(locator.buildTimelineUseCase) })
-    var selectedDate by remember { mutableStateOf(DateTimeUtils.today()) }
+    val today = remember { DateTimeUtils.today() }
+    var selectedDate by remember { mutableStateOf(today) }
     val items by viewModel.items.collectAsState()
     LaunchedEffect(selectedDate) { viewModel.loadFor(selectedDate.toEpochDay()) }
-    Scaffold(topBar = { TopAppBar(title = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) { IconButton(onClick = { selectedDate = selectedDate.minusDays(1) }) { Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous day") }; Text(DateTimeUtils.formatFullDate(selectedDate), style = MaterialTheme.typography.titleMedium); IconButton(onClick = { selectedDate = selectedDate.plusDays(1) }) { Icon(Icons.Filled.ChevronRight, contentDescription = "Next day") } } }) }) { padding ->
+    androidx.activity.compose.BackHandler(onBack = onBack)
+    val canGoForward = selectedDate.isBefore(today)
+    Scaffold(topBar = { TopAppBar(title = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) { IconButton(onClick = { selectedDate = selectedDate.minusDays(1) }) { Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous day") }; Text(DateTimeUtils.formatFullDate(selectedDate), style = MaterialTheme.typography.titleMedium); IconButton(enabled = canGoForward, onClick = { if (selectedDate.isBefore(today)) selectedDate = selectedDate.plusDays(1) }) { Icon(Icons.Filled.ChevronRight, contentDescription = "Next day") } } }) }) { padding ->
         if (items.isEmpty()) Column(Modifier.fillMaxWidth().padding(padding).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { Icon(Icons.Filled.EventBusy, contentDescription = null, modifier = Modifier.size(40.dp).padding(bottom = 8.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)); Text("Nothing recorded for this day yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) }
         else LazyColumn(Modifier.padding(padding).fillMaxWidth(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { items(items, key = { it.id }) { item -> TimelineRow(item, locator.captureRepository) { if (item.type == TimelineItemType.CAPTURE) onOpenCapture(item.sourceId) } } }
     }

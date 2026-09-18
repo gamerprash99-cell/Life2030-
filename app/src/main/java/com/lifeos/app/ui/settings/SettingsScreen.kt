@@ -43,6 +43,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
+import com.lifeos.app.core.reminders.ReminderScheduler
 import com.lifeos.app.core.util.AppLockType
 import com.lifeos.app.core.util.NotificationHelper
 import com.lifeos.app.core.util.SettingsStore
@@ -60,10 +61,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 
-class SettingsViewModel(private val settingsStore: SettingsStore, private val backupRepository: BackupRepository) : ViewModel() {
+class SettingsViewModel(
+    private val appContext: android.content.Context,
+    private val settingsStore: SettingsStore,
+    private val backupRepository: BackupRepository,
+    private val taskRepository: com.lifeos.app.data.repository.TaskRepository,
+    private val habitRepository: com.lifeos.app.data.repository.HabitRepository
+) : ViewModel() {
     val appLockType = settingsStore.appLockType
     val aiFeaturesEnabled = settingsStore.aiFeaturesEnabled
     val darkThemeEnabled = settingsStore.darkThemeEnabled
+    val remindersEnabled = settingsStore.remindersEnabled
+    val autoLockEnabled = settingsStore.autoLockEnabled
     private val _status = MutableStateFlow<String?>(null)
     val status: StateFlow<String?> = _status
     private val _lastExportedFile = MutableStateFlow<File?>(null)
@@ -71,6 +80,22 @@ class SettingsViewModel(private val settingsStore: SettingsStore, private val ba
 
     fun setAiFeaturesEnabled(enabled: Boolean) = viewModelScope.launch { settingsStore.setAiFeaturesEnabled(enabled) }
     fun setDarkThemeEnabled(enabled: Boolean) = viewModelScope.launch { settingsStore.setDarkThemeEnabled(enabled) }
+    fun setAutoLockEnabled(enabled: Boolean) = viewModelScope.launch { settingsStore.setAutoLockEnabled(enabled) }
+
+    /**
+     * Persists the global reminder preference and makes it take effect:
+     * turning reminders OFF cancels every scheduled WorkManager job, turning
+     * them ON re-registers all future task/habit reminders.
+     */
+    fun setRemindersEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsStore.setRemindersEnabled(enabled)
+        ReminderScheduler.setRemindersEnabled(appContext, enabled)
+        if (enabled) {
+            NotificationHelper.ensureChannel(appContext)
+            taskRepository.rescheduleAllReminders()
+            habitRepository.rescheduleAllReminders()
+        }
+    }
     fun exportBackup(directory: File) = viewModelScope.launch {
         runCatching { backupRepository.exportToFile(directory, "0.1.0") }
             .onSuccess { _lastExportedFile.value = it; _status.value = "Backup exported successfully." }
@@ -92,10 +117,14 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit) {
     val locator = LocalServiceLocator.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val vm: SettingsViewModel = viewModel(factory = LambdaViewModelFactory { SettingsViewModel(locator.settingsStore, locator.backupRepository) })
+    val vm: SettingsViewModel = viewModel(factory = LambdaViewModelFactory {
+        SettingsViewModel(context.applicationContext, locator.settingsStore, locator.backupRepository, locator.taskRepository, locator.habitRepository)
+    })
     val appLockType by vm.appLockType.collectAsState(initial = AppLockType.NONE)
     val aiEnabled by vm.aiFeaturesEnabled.collectAsState(initial = false)
     val darkTheme by vm.darkThemeEnabled.collectAsState(initial = false)
+    val remindersEnabled by vm.remindersEnabled.collectAsState(initial = true)
+    val autoLockEnabled by vm.autoLockEnabled.collectAsState(initial = true)
     val status by vm.status.collectAsState()
     val exported by vm.lastExportedFile.collectAsState()
 
@@ -137,6 +166,20 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit) {
                     if (appLockType == AppLockType.PIN) "Secure LifeOS PIN" else "Off",
                     onOpenAppLockSetup
                 )
+                LifeOSCard(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SettingsIcon(Icons.Filled.Lock)
+                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                            Text("Auto-lock", style = MaterialTheme.typography.titleMedium)
+                            Text("Require your PIN after LifeOS sits in the background.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = autoLockEnabled,
+                            onCheckedChange = vm::setAutoLockEnabled,
+                            enabled = appLockType == AppLockType.PIN
+                        )
+                    }
+                }
 
                 LifeOSSectionHeader("Appearance")
                 LifeOSCard(Modifier.fillMaxWidth()) {
@@ -163,7 +206,7 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit) {
                 }
 
                 LifeOSSectionHeader("Notifications / Reminders")
-                RemindersCard()
+                RemindersCard(enabled = remindersEnabled, onToggle = vm::setRemindersEnabled)
 
                 LifeOSSectionHeader("Backup & Local Storage")
                 LifeOSCard(Modifier.fillMaxWidth()) {
@@ -216,7 +259,7 @@ private fun SettingsIcon(icon: androidx.compose.ui.graphics.vector.ImageVector) 
 }
 
 @Composable
-private fun RemindersCard() {
+private fun RemindersCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
     val context = LocalContext.current
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) rememberPermissionState(android.Manifest.permission.POST_NOTIFICATIONS) else null
     LifeOSCard(Modifier.fillMaxWidth()) {
@@ -224,9 +267,26 @@ private fun RemindersCard() {
             SettingsIcon(Icons.Filled.Notifications)
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text("Task & habit reminders", style = MaterialTheme.typography.titleMedium)
-                Text("Notifications are requested only when enabled.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    when {
+                        !enabled -> "All reminders are silenced."
+                        permission != null && !permission.isGranted -> "Reminders are on · notifications not allowed yet."
+                        else -> "Notifications are requested only when enabled."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            Switch(checked = permission?.isGranted ?: true, onCheckedChange = { enabled -> if (enabled) { permission?.request?.invoke(); NotificationHelper.ensureChannel(context) } })
+            Switch(
+                checked = enabled,
+                onCheckedChange = { checked ->
+                    if (checked) {
+                        permission?.request?.invoke()
+                        NotificationHelper.ensureChannel(context)
+                    }
+                    onToggle(checked)
+                }
+            )
         }
     }
 }

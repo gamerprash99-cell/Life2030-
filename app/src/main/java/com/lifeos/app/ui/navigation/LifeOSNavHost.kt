@@ -1,6 +1,5 @@
 package com.lifeos.app.ui.navigation
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -28,6 +27,7 @@ import com.lifeos.app.ui.insights.InsightsScreen
 import com.lifeos.app.ui.notes.NoteEditorScreen
 import com.lifeos.app.ui.notes.NotesListScreen
 import com.lifeos.app.ui.profile.ProfileScreen
+import com.lifeos.app.ui.search.SearchCategory
 import com.lifeos.app.ui.search.SearchScreen
 import com.lifeos.app.ui.security.AppLockSetupScreen
 import com.lifeos.app.ui.settings.SettingsScreen
@@ -50,7 +50,6 @@ private const val ROOT_TABS_GRAPH = "root_tabs"
 @Composable
 fun LifeOSNavHost() {
     val navController = rememberNavController()
-    BackHandler(enabled = navController.previousBackStackEntry != null) { navController.popBackStack() }
     var showCapture by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -74,6 +73,7 @@ fun LifeOSNavHost() {
                         onOpenInsights = { navController.navigate(Screen.Insights.route) },
                         onOpenSearch = { navController.navigate(Screen.Search.route) },
                         onOpenTimeline = { navController.navigate(Screen.Timeline.route) },
+                        onOpenSettings = { navController.navigate(Screen.Settings.route) },
                         onOpenProfile = { navController.navigate(Screen.Profile.route) }
                     )
                 }
@@ -108,6 +108,7 @@ fun LifeOSNavHost() {
             composable(Screen.Diary.route) { DiaryScreen(onBack = { navController.popBackStack() }) }
             composable(Screen.Timeline.route) {
                 TimelineScreen(
+                    onBack = { navController.popBackStack() },
                     onOpenCapture = { captureId -> navController.navigate(Screen.CaptureDetail.createRoute(captureId)) }
                 )
             }
@@ -118,7 +119,19 @@ fun LifeOSNavHost() {
                 val captureId = entry.arguments?.getString("captureId").orEmpty()
                 CaptureDetailScreen(captureId = captureId, onBack = { navController.popBackStack() })
             }
-            composable(Screen.Search.route) { SearchScreen() }
+            composable(Screen.Search.route) {
+                SearchScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenHit = { hit ->
+                        when (hit.category) {
+                            SearchCategory.NOTES -> navController.navigate(Screen.NoteEditor.createRoute(hit.id))
+                            SearchCategory.TASKS -> navController.navigate(Screen.Tasks.route)
+                            SearchCategory.EXPENSES -> navController.navigate(Screen.Expenses.route)
+                            SearchCategory.DIARY -> navController.navigate(Screen.Diary.route)
+                        }
+                    }
+                )
+            }
             composable(Screen.AiAssistant.route) {
                 AiAssistantScreen(
                     onOpenDestination = { destination ->

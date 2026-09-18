@@ -22,8 +22,8 @@ class BuildTimelineUseCase(
 ) {
     suspend operator fun invoke(epochDay: Long): List<TimelineItem> {
         val items = mutableListOf<TimelineItem>()
-        val startMillis = epochDay * 86_400_000L
-        val endMillis = startMillis + 86_400_000L
+        val startMillis = com.lifeos.app.core.util.DateTimeUtils.startOfLocalDayMillis(epochDay)
+        val endMillis = com.lifeos.app.core.util.DateTimeUtils.endOfLocalDayMillis(epochDay)
 
         noteRepo.observeAll().first()
             .filter { it.createdAt in startMillis until endMillis }

@@ -8,6 +8,14 @@ import androidx.room.Update
 import com.lifeos.app.data.db.entities.TaskEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * `TaskPriority` is persisted by name ("HIGH"/"MEDIUM"/"LOW"), so a plain
+ * `ORDER BY priority` sorts alphabetically (HIGH, LOW, MEDIUM). This CASE
+ * expression restores the intended numeric ordering.
+ */
+private const val PRIORITY_ORDER =
+    "CASE priority WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 WHEN 'LOW' THEN 2 ELSE 3 END"
+
 @Dao
 interface TaskDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -16,13 +24,31 @@ interface TaskDao {
     @Update
     suspend fun update(task: TaskEntity)
 
-    @Query("SELECT * FROM tasks WHERE isDeleted = 0 AND dueDateEpochDay = :epochDay ORDER BY isCompleted ASC, priority ASC, dueTimeMinutes ASC")
+    @Query("""
+        SELECT * FROM tasks WHERE isDeleted = 0 AND dueDateEpochDay = :epochDay
+        ORDER BY isCompleted ASC, $PRIORITY_ORDER ASC, dueTimeMinutes ASC
+    """)
     fun observeForDay(epochDay: Long): Flow<List<TaskEntity>>
 
-    @Query("SELECT * FROM tasks WHERE isDeleted = 0 AND isCompleted = 0 AND dueDateEpochDay < :todayEpochDay ORDER BY dueDateEpochDay ASC")
-    fun observeOverdue(todayEpochDay: Long): Flow<List<TaskEntity>>
+    /**
+     * A task counts as overdue when it is unfinished and either its due date is
+     * in the past, or it is due today with a due time that has already passed.
+     * Uses numeric priority ordering, since `priority` is persisted as a string.
+     */
+    @Query("""
+        SELECT * FROM tasks
+        WHERE isDeleted = 0 AND isCompleted = 0 AND (
+            dueDateEpochDay < :todayEpochDay
+            OR (dueDateEpochDay = :todayEpochDay AND dueTimeMinutes IS NOT NULL AND dueTimeMinutes < :nowMinutes)
+        )
+        ORDER BY dueDateEpochDay ASC, $PRIORITY_ORDER ASC, dueTimeMinutes ASC
+    """)
+    fun observeOverdue(todayEpochDay: Long, nowMinutes: Int): Flow<List<TaskEntity>>
 
-    @Query("SELECT * FROM tasks WHERE isDeleted = 0 ORDER BY isCompleted ASC, dueDateEpochDay ASC")
+    @Query("""
+        SELECT * FROM tasks WHERE isDeleted = 0
+        ORDER BY isCompleted ASC, $PRIORITY_ORDER ASC, dueDateEpochDay ASC
+    """)
     fun observeAll(): Flow<List<TaskEntity>>
 
     @Query("SELECT * FROM tasks WHERE id = :id LIMIT 1")

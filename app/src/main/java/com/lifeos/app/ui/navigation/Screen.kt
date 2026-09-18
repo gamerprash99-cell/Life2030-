@@ -12,11 +12,7 @@ sealed class Screen(val route: String) {
         fun createRoute(habitId: String) = "habits/$habitId"
     }
     object Expenses : Screen("expenses")
-    object AddExpense : Screen("expenses/add")
     object Diary : Screen("diary")
-    object DiaryEditor : Screen("diary/editor?entryId={entryId}") {
-        fun createRoute(entryId: String? = null) = "diary/editor?entryId=${entryId ?: ""}"
-    }
     object Timeline : Screen("timeline")
     object CaptureDetail : Screen("capture/{captureId}") {
         fun createRoute(captureId: String) = "capture/$captureId"
