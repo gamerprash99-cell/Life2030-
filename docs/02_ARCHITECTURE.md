@@ -53,3 +53,6 @@ This document remains part of the LifeOS documentation set. Current UI/UX, motio
 ## Current implementation snapshot — 2026-09-16
 
 UI changes continue to consume repositories, use cases and ViewModels; no UI path was added that accesses Room directly.
+
+## 2026-09-18 architecture note
+The UI pass extends the existing Compose/navigation architecture only. Navigation remains `NavHost` + existing `Screen` routes; repositories/use cases and Room remain the source of persisted application data. Profile photo state is intentionally kept in the existing `SettingsStore` because it is preference metadata rather than domain data.

@@ -255,3 +255,6 @@ This document remains part of the LifeOS documentation set. Current UI/UX, motio
 ## Current implementation snapshot — 2026-09-16
 
 No Room entity, DAO or schema version was changed for this UI pass; existing local data remains the source for displayed statistics and capture history.
+
+## 2026-09-18 schema note
+No Room schema migration was introduced for this UI pass. Profile-photo metadata is a DataStore preference, so existing Room data and migrations remain unchanged.

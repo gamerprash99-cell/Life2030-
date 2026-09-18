@@ -179,3 +179,11 @@ Verification: archive integrity checked after the source update. Full Android Gr
 - Preserved existing Room/repository/navigation architecture.
 - Added final release checklist and Phase 18 documentation.
 - Android build verification remains pending because the supplied project has no Gradle wrapper and the verification environment has no system Gradle.
+
+## 2026-09-18
+### UI / interaction
+- Added local profile-photo selection and persistence.
+- Removed the Home Settings action in favor of Profile → Settings.
+- Updated Profile, Expenses, Add Expense, and App Lock Compose UI from the supplied Stitch direction.
+- Added navigation Back handling and fixed onboarding completion startup gating.
+- Hardened audio recording and playback lifecycle.

@@ -104,3 +104,24 @@ gradle :app:assembleDebug
 ./gradlew :app:testDebugUnitTest
 ./gradlew :app:lintDebug
 ```
+
+## 2026-09-18 — Stitch UI integration + interaction fixes
+### Changed
+- Integrated the supplied Stitch visual direction into the existing Kotlin/Jetpack Compose implementation for Profile, Expenses, Add Expense, and App Lock.
+- Added local profile-photo selection and persistence through `SettingsStore`.
+- Removed the Home-screen Settings action; Settings is now intentionally exposed from Profile.
+- Kept system Back handling per-screen so secondary destinations consistently return to the previous destination (no global interceptor).
+- Changed onboarding startup gating to wait for the persisted completion value before rendering, preventing the onboarding pages from flashing after the first launch.
+- Hardened audio capture cleanup, recorder error handling, and local MediaPlayer preparation/playback.
+
+### Preserved
+- Existing Room database, repositories, use cases, navigation architecture, offline-first behavior, and app-lock hashing/recovery.
+- No Room schema change was required for profile photo storage because the URI is a local DataStore preference.
+- No cloud upload, telemetry, remote AI, or new network dependency was introduced.
+
+### Verification
+- Source-level audit completed against the supplied latest repository and Stitch HTML/screens.
+- Full Gradle verification could not be executed because the supplied repository archive does not contain `gradlew`/`gradle-wrapper.jar`, and no system Gradle executable is available in the execution environment.
+
+### Remaining
+- Run the project's normal Android CI/build locally or in GitHub Actions once the wrapper is present to perform the final compiler, unit-test, instrumentation, and lint verification.

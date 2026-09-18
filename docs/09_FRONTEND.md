@@ -153,3 +153,6 @@ This document remains part of the LifeOS documentation set. Current UI/UX, motio
 ## Current implementation snapshot — 2026-09-16
 
 The 2026-09-16 frontend pass maps the Stitch HTML reference into native Compose components: shared header, floating selected navigation, rounded cards, quick actions, animated progress, and full-screen capture studio.
+
+## 2026-09-18 UI integration notes
+The supplied Stitch screens are implemented as native Jetpack Compose rather than embedded HTML. Profile, Expenses, Add Expense, and App Lock preserve real application state and callbacks. Profile photo selection uses Android's document picker and stores only the selected local content URI in DataStore.

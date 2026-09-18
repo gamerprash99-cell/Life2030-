@@ -146,3 +146,6 @@ This document remains part of the LifeOS documentation set. Current UI/UX, motio
 ## Current implementation snapshot — 2026-09-16
 
 The remaining verification gap is build/device validation in a complete Android environment. The UI source itself was reviewed for the requested navigation and capture changes.
+
+## 2026-09-18 status update
+The onboarding second-launch flash and navigation Back-handler path were addressed in source. Audio recording cleanup/playback lifecycle was also hardened. Build-level confirmation remains pending because the supplied archive has no Gradle wrapper and no system Gradle executable is available in this environment.

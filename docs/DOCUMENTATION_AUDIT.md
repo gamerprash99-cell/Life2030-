@@ -53,3 +53,6 @@ No Android build/test is claimed from this environment. A real Android/JDK/Gradl
 ## Current implementation snapshot — 2026-09-16
 
 Documentation was refreshed for the 2026-09-16 UI/navigation/capture pass; no historical notes were removed.
+
+## 2026-09-18 update
+Documentation was reviewed for the current UI/interaction pass. Affected product, frontend, architecture, security, database, testing, known-issues, changelog, and file-structure documents now record the changes and verification limitation. Existing historical sections were preserved rather than rewritten.

@@ -74,3 +74,6 @@ The capture redesign does not add storage or network permissions. Camera and mic
 ## Current state — 2026-09-16
 
 The biometric App Lock path has been removed. The remaining App Lock choices are `NONE` and `PIN`, with secure salted-hash verification and recovery-question verification.
+
+## 2026-09-18 security update
+Profile photo metadata is stored locally as a content URI in DataStore; the image is not uploaded by LifeOS. App Lock continues to use the existing hashed PIN/recovery flow. Audio and other captures remain in app-private storage.

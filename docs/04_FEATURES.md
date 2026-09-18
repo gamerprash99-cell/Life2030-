@@ -164,3 +164,10 @@ This document remains part of the LifeOS documentation set. Current UI/UX, motio
 ## Current implementation snapshot — 2026-09-16
 
 Home, Habits, Tasks, Insights, Settings and Life Capture now use the updated lavender/violet component language without changing their existing local data responsibilities.
+
+## 2026-09-18 feature update
+- Profile now supports selecting a local profile photo.
+- Settings is intentionally accessed from Profile rather than the Home header.
+- Expenses and Add Expense received the Stitch visual treatment while retaining live repository-backed data.
+- App Lock received the keypad-oriented UI treatment while retaining secure PIN/recovery behavior.
+- Audio capture/playback lifecycle handling was hardened.

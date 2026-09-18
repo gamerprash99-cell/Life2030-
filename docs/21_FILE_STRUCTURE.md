@@ -164,3 +164,12 @@ New shared presentation code includes ui/components/LifeOSTopBar.kt; the updated
 - `ui/profile/ProfileScreen.kt` — local Profile destination opened from Home.
 - `ui/security/AppLockScreen.kt` and `AppLockSetupScreen.kt` — PIN-only lock/recovery flow.
 - Removed `core/security/AppLockManager.kt` after biometric support was retired.
+
+## 2026-09-18 affected areas
+- `ui/profile/ProfileScreen.kt` — profile photo and profile actions.
+- `ui/expenses/ExpensesScreen.kt` — expenses dashboard and add-expense sheet.
+- `ui/security/AppLockScreen.kt` — keypad-oriented lock UI.
+- `ui/navigation/LifeOSNavHost.kt` — navigation Back handling.
+- `MainActivity.kt` — onboarding startup gating.
+- `core/util/SettingsStore.kt` — local profile-photo URI preference.
+- `ui/capture/AudioCaptureScreen.kt` and `CaptureMediaPreview.kt` — audio lifecycle fixes.

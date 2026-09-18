@@ -81,11 +81,14 @@ fun AudioCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setAudioSamplingRate(44_100)
+                setAudioEncodingBitRate(128_000)
                 setOutputFile(output.absolutePath)
                 prepare()
                 start()
             }
         } catch (t: Throwable) {
+            runCatching { current.reset() }
             runCatching { current.release() }
             runCatching { output.delete() }
             error = "Couldn't start recording. Please try again."

@@ -114,3 +114,10 @@ Start with:
 
 ## LIFE Phase 18 Consolidation
 LIFE is integrated into the supplied LifeOS source as a local, allow-listed controller with repository-only data access and optional Android on-device voice input. No cloud AI or network fallback is part of the LIFE execution path. Production neural inference remains gated on a real validated LIFE checkpoint. See `FINAL_RELEASE_CHECKLIST.md` and `docs/33_LIFE_INTEGRATION_PHASE18.md`.
+
+## 2026-09-18 UI and interaction update
+- Added an on-device profile photo picker with persisted URI storage.
+- Moved Settings access out of the Home header; Settings is now reached from Profile.
+- Refined Profile, Expenses, Add Expense, and App Lock UI using the supplied Stitch direction while keeping existing repositories/use cases and local data flows.
+- Hardened Compose navigation Back handling and onboarding startup gating to avoid the first-page flash on subsequent launches.
+- Hardened audio recording lifecycle and local playback so canceled/incomplete recordings are cleaned up and saved recordings are prepared safely.

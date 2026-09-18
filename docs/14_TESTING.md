@@ -65,3 +65,6 @@ This document remains part of the LifeOS documentation set. Current UI/UX, motio
 ## Current implementation snapshot — 2026-09-16
 
 Static source review was performed after the UI changes. Full Gradle tests/assemble could not be executed because the supplied snapshot has no Gradle wrapper and this environment has no usable Android Gradle setup.
+
+## 2026-09-18 verification note
+The changed sources were statically reviewed. Automated Gradle tests/builds were not runnable from the supplied archive because the Gradle wrapper and system Gradle executable are unavailable in the current environment. Do not interpret this as a passing build; CI/local Android verification remains required.
