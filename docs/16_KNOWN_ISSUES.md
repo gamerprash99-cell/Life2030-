@@ -174,3 +174,55 @@ fixed. Build/test/lint were actually executed this pass
 `docs/14_TESTING.md`. Issue #1 (missing Gradle wrapper scripts) remains open;
 the remaining verification gap is device/instrumentation testing, since no
 emulator/device and no `androidTest` source set are available.
+
+---
+
+### Issue #16 — [RESOLVED] Home cold-start freeze and overlapping empty states
+
+- **Severity**: Was 🟠 High (felt broken/unresponsive for seconds on every cold launch)
+- **Description**:
+  1. SQLCipher's one-time key derivation ran on Room's query executor at the
+     *first* Home query — after the UI was on screen — stalling Home data (and
+     responsiveness to taps/Back) for ~4–5 s.
+  2. `GetHomeSummaryUseCase.assemble()` issued one full-history analytics query
+     per active habit plus a serial 7-stream `BuildTimelineUseCase`, all on the
+     collector thread, compounding the stall.
+  3. Home's two empty `LifeOSCard`s passed sibling `Text`s into the card's
+     internal `Box`, so "No routines yet" / "No activity recorded today"
+     titles overlapped their body text (most visible exactly during the stall).
+- **Fix**: `AppDatabase.warmUpOpen()` opens the DB on a background dispatcher
+  at app start; the summary flow runs `flowOn(Dispatchers.Default)` and uses
+  `HabitRepository.computeAnalyticsBatch` (one completions read); the timeline
+  sources are fetched concurrently; the empty states wrap their texts in a
+  `Column`. No Room schema or navigation/architecture change.
+- **Status**: Resolved (compile + 88 JVM tests + lint verified; on-device
+  timing check of the startup freeze still recommended).
+
+---
+
+### Issue #17 — [RESOLVED] Bottom-nav labels truncated on narrow screens
+
+- **Severity**: Was 🟡 Medium (UX)
+- **Description**: `LifeOSBottomBar` laid icon and label out side by side in a
+  `weight(1f)` cell; on ~360dp-wide displays "Insights" rendered as "Insi",
+  "Home" as "Ho", making the primary sections ambiguous.
+- **Fix**: `BottomNavEntry` is now a stacked column (icon above label, centered
+  pill, 22dp icon) with ellipsizing `labelMedium` text; labels stay fully
+  readable on standard 360–420dp phones.
+- **Status**: Resolved (compile/test/lint verified; on-device visual check at
+  320–360dp recommended).
+
+---
+
+### Issue #18 — [RESOLVED] Predictive-back contract not declared
+
+- **Severity**: Was 🟡 Medium (targetSdk 35 correctness)
+- **Description**: The app declared `targetSdk 35` with Compose Navigation
+  2.8.4 but never opted the activity into the new `OnBackInvokedDispatcher`
+  path, so predictive-back gesture animations did not participate and Back
+  could read as broken during the startup main-thread stall (Issue #16).
+- **Fix**: `android:enableOnBackInvokedCallback="true"` added to the
+  application. Every screen's Back path was audited: none swallow presses; the
+  nested `root_tabs` graph plus stacked secondary routes already pop correctly.
+- **Status**: Resolved (code-verified; on-device predictive-back gesture check
+  is part of the final release checklist).

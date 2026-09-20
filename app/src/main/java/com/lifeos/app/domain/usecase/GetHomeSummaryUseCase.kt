@@ -10,8 +10,10 @@ import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.data.repository.TaskRepository
 import com.lifeos.app.domain.model.TimelineItem
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import java.time.LocalDate
 
 /** Everything the Home dashboard needs, assembled live from real persisted data. */
@@ -77,7 +79,7 @@ class GetHomeSummaryUseCase(
                 spend = args[4] as Double,
                 weekCompletions = args[5] as List<HabitCompletionEntity>
             )
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     private suspend fun assemble(
@@ -94,17 +96,22 @@ class GetHomeSummaryUseCase(
         val todayProgressByHabit = todayCompletions.associateBy { it.habitId }
         val weekProgressByHabit = weekCompletions.groupBy { it.habitId }
 
+        // One pass over the completions table for every active habit, instead of
+        // a full-history Room query per habit, so startup stays responsive as
+        // the habit library grows.
+        val analytics = runCatching { habitRepo.computeAnalyticsBatch(habits, today) }.getOrDefault(emptyMap())
+
         val habitRows = habits.map { habit ->
             val progress = todayProgressByHabit[habit.id]?.progressCount ?: 0
-            val analytics = runCatching { habitRepo.computeAnalytics(habit, today) }.getOrNull()
+            val row = analytics[habit.id]
             HabitSummaryRow(
                 habit = habit,
                 progressCount = progress,
                 goalCount = habit.goalCount,
                 isDone = progress >= habit.goalCount,
-                currentStreak = analytics?.currentStreak ?: 0,
-                longestStreak = analytics?.longestStreak ?: 0,
-                completionPercent = analytics?.completionPercentThisMonth ?: 0
+                currentStreak = row?.currentStreak ?: 0,
+                longestStreak = row?.longestStreak ?: 0,
+                completionPercent = row?.completionPercentThisMonth ?: 0
             )
         }
         val habitsDoneToday = habitRows.count { it.isDone }

@@ -20,6 +20,9 @@ import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.NoteEntity
 import com.lifeos.app.data.db.entities.TaskEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
@@ -71,6 +74,21 @@ abstract class AppDatabase : RoomDatabase() {
                         // explicitly as the schema evolves post-v1.
                         .build()
                 }.also { INSTANCE = it }
+            }
+        }
+
+        /**
+         * SQLCipher performs a one-time key derivation (PBKDF2) the first time the
+         * database is opened. Kick it off on a background dispatcher at app startup
+         * so that cost never lands on the first Home query after the UI is shown.
+         */
+        fun warmUpOpen(context: Context, scope: CoroutineScope) {
+            scope.launch(Dispatchers.IO) {
+                // Force the one-time SQLCipher key derivation (PBKDF2) to run on a
+                // background thread instead of on the first Home query after the UI
+                // is shown. A trivial read is enough: the database opens lazily on
+                // the first statement executed against it.
+                runCatching { getInstance(context).habitDao().getAllForBackup() }
             }
         }
     }

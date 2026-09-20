@@ -8,11 +8,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -39,6 +41,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -109,7 +113,7 @@ fun LifeOSBottomBar(navController: NavHostController) {
     }
 }
 
-/** One tappable bottom-nav entry: icon + label, with a soft lavender pill when selected. */
+/** One tappable bottom-nav entry: stacked icon + label, with a pill when selected. */
 @Composable
 private fun BottomNavEntry(
     item: BottomNavItem,
@@ -135,10 +139,10 @@ private fun BottomNavEntry(
         label = "bottomNavPress"
     )
 
-    Row(
+    Column(
         modifier = modifier
             .scale(pressedScale)
-            .clip(RoundedCornerShape(26.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(pillColor)
             .semantics { this.role = Role.Tab; this.selected = selected }
             .clickable(
@@ -146,22 +150,25 @@ private fun BottomNavEntry(
                 indication = null,
                 onClick = onClick
             )
-            .defaultMinSize(minHeight = 48.dp)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .defaultMinSize(minHeight = 56.dp)
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Icon(
             if (selected) item.selectedIcon else item.unselectedIcon,
             contentDescription = null,
             tint = contentColor,
-            modifier = Modifier.scale(if (selected) 1f else 0.96f)
+            modifier = Modifier.size(22.dp).scale(if (selected) 1f else 0.96f)
         )
         Text(
             item.label,
             style = MaterialTheme.typography.labelMedium,
             color = contentColor,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            softWrap = false,
+            textAlign = TextAlign.Center
         )
     }
 }
