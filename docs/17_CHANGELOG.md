@@ -16,6 +16,36 @@ output.
 
 ---
 
+## [Unreleased] — 2026-09-20 Home startup, Home empty states, bottom-nav labels & predictive back
+
+### Fixed
+- **Cold-start freeze (was ~4–5 s of blank/overlapping Home):** `AppDatabase`
+  now warm-opens the encrypted SQLCipher database on a background dispatcher
+  from `LifeOSApplication.onCreate`, moving the one-time key-derivation cost
+  off the first Home query. `GetHomeSummaryUseCase` builds the whole summary
+  off the main thread (`flowOn(Dispatchers.Default)`) and computes per-habit
+  analytics from a single completions read (`HabitRepository.computeAnalyticsBatch`)
+  instead of one full-history query per habit. `BuildTimelineUseCase` fetches
+  its seven sources concurrently. No Room schema or architecture change.
+- **Home empty-state text overlap:** both empty `LifeOSCard`s ("No routines
+  yet", "No activity recorded today") passed two sibling `Text`s into the
+  card's internal `Box`, stacking them on top of each other. They now wrap the
+  texts in a `Column` (the reusable `LifeOSCard` container is unchanged).
+- **Bottom-nav label truncation:** the icon+label row in `LifeOSBottomBar`
+  clipped "Insights"/"Home" on ~360dp screens; entries are now stacked columns
+  (icon above label) with ellipsis fallback, matching Material 3 direction.
+- **System Back:** verified all screen dismiss paths (none consume presses);
+  `android:enableOnBackInvokedCallback="true"` added for the predictive-back
+  contract at targetSdk 35.
+
+### Notes
+- Audio/capture pipeline audited end-to-end; no concrete defect found, none
+  fabricated. Previous fix #12 on-device verification remains outstanding.
+- Build/test/lint run in the audit environment: `compileDebugKotlin` PASS,
+  `testDebugUnitTest` PASS (88 tests, 0 failures), `lintDebug` PASS (0 errors).
+
+---
+
 ## [0.2.0] — Hardening pass
 
 ### Security

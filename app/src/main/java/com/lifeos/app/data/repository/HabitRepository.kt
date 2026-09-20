@@ -85,9 +85,38 @@ class HabitRepository(
 
     /** Computes real analytics from the completions table — never hardcoded (Rule #12). */
     suspend fun computeAnalytics(habit: HabitEntity, today: LocalDate = DateTimeUtils.today()): HabitAnalytics {
+        val allCompletions = completionDao.getForHabitInRange(habit.id, habit.startDateEpochDay, today.toEpochDay())
+        return analyticsFor(habit, allCompletions, today)
+    }
+
+    /**
+     * Computes analytics for every habit from a single pass over the completions
+     * table, instead of one full-history query per habit. Used by the Home
+     * summary so the dashboard renders without a fan-out of Room queries.
+     */
+    suspend fun computeAnalyticsBatch(
+        habits: List<HabitEntity>,
+        today: LocalDate = DateTimeUtils.today()
+    ): Map<String, HabitAnalytics> {
+        if (habits.isEmpty()) return emptyMap()
+        val allCompletions = completionDao.getAllForBackup()
+        val todayEpochDay = today.toEpochDay()
+        return habits.associate { habit ->
+            habit.id to analyticsFor(
+                habit,
+                allCompletions.filter { it.habitId == habit.id && it.dateEpochDay in habit.startDateEpochDay..todayEpochDay },
+                today
+            )
+        }
+    }
+
+    private fun analyticsFor(
+        habit: HabitEntity,
+        allCompletions: List<HabitCompletionEntity>,
+        today: LocalDate
+    ): HabitAnalytics {
         val monthStart = DateTimeUtils.startOfMonthEpochDay(today)
         val monthEnd = DateTimeUtils.endOfMonthEpochDay(today)
-        val allCompletions = completionDao.getForHabitInRange(habit.id, habit.startDateEpochDay, today.toEpochDay())
         val monthCompletions = allCompletions.filter { it.dateEpochDay in monthStart..monthEnd }
 
         val doneDays = allCompletions.filter { it.progressCount >= habit.goalCount }.map { it.dateEpochDay }.toSet()

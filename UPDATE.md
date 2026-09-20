@@ -346,3 +346,86 @@ cloud/AI/analytics, no gesture-based progress. `HomeScreen`'s callback contract
   stop / device restart, the audio-capture error path, and the re-tap Home
   behavior (no emulator in this environment — verified via compile + JVM tests
   + code reasoning).
+
+---
+
+## 2026-09-20 — Home startup, Home empty states, bottom-nav labels & predictive back
+
+### Fix 14 — Home startup freeze (4–5 s of blank/overlapping Home on cold launch)
+
+Root cause was two-fold, both now fixed without touching architecture, schema
+or Room:
+
+1. **SQLCipher cold-open cost landed on the first render.** The encrypted
+   database was opened lazily on Room's query executor at the *first* Home
+   query — after the UI was already showing. SQLCipher's one-time key
+   derivation (PBKDF2) and file open ran right when Home began collecting the
+   summary flows, stalling data for several seconds (and making the system
+   feel unresponsive to taps/Back during that window).
+   - **Fix:** `AppDatabase.warmUpOpen(context, scope)` forces the database open
+     on a background dispatcher from `LifeOSApplication.onCreate`, so the
+     one-time key derivation overlaps UI setup instead of Home's first query.
+2. **`GetHomeSummaryUseCase.assemble()` did full-history analytics per habit.**
+   `habitRepo.computeAnalytics(habit, today)` issued one full-history Room query
+   per active habit, and `BuildTimelineUseCase` pulled its 7 source streams one
+   at a time — all serial, on the collector (main) thread.
+   - **Fix:** new `HabitRepository.computeAnalyticsBatch(habits, today)` loads
+     the completions table **once** and computes every habit's analytics
+     in-memory (same `analyticsFor` math reused by `computeAnalytics`, so detail
+     and Home stay consistent). `BuildTimelineUseCase` now fires its source
+     queries concurrently (`coroutineScope { async { … } }`). The summary flow
+     is `flowOn(Dispatchers.Default)`, so assembly never runs on the main thread.
+
+### Fix 15 — Home empty-state cards overlapped their text (`LifeOSCard` Box root cause)
+- `LifeOSCard` renders card children inside a `Box` (press-scale surface); two
+  sibling `Text`s passed straight into it stack at the same top-start corner.
+  The "No routines yet" (Habits) and "No activity recorded today" (Today's
+  Activity) empty states did exactly that, so the title and body overlapped.
+  (This was the most visible state right after launch, compounding Fix 14.)
+- **Fix:** both Home empty states now wrap their texts in a
+  `Column(verticalArrangement = Arrangement.spacedBy(10.dp))` — the same
+  pattern `HabitsScreen` already used. The `LifeOSCard` container itself is
+  unchanged (other callers rely on `Row`/single-child content).
+
+### Fix 16 — Bottom-nav labels truncated on narrow screens
+- The bottom bar rendered icon and label side by side inside a `weight(1f)`
+  cell; on ~360dp displays "Insights" clipped to "Insi", "Home" to "Ho", etc.
+- **Fix:** each `BottomNavEntry` is now a stacked column (icon above label,
+  Material 3 `NavigationBar` direction), centered pill, 22dp icon, ellipsizing
+  `labelMedium` text. Labels remain always visible and fully readable on
+  standard 360–420dp phones.
+
+### Fix 17 — System Back: verified + predictive-back enabled
+- Code audit confirmed every screen's Back path is correct and none swallows
+  presses (no global interceptor; nested `root_tabs` graph; per-screen
+  `BackHandler`s call their dismiss/save). The perceived unresponsiveness
+  traced to the Fix-14 main-thread stall during startup.
+- `AndroidManifest.xml` now declares
+  `android:enableOnBackInvokedCallback="true"` so Compose Navigation's
+  `OnBackInvokedDispatcher` path is active (it was required for the predictive
+  back contract at targetSdk 35).
+
+### Audio / capture
+- Full pipeline re-audited (`AudioCaptureScreen`, `CaptureSheet` confirmation,
+  `CameraCaptureScreen`, `VideoCaptureScreen`, `CaptureMediaPreview`,
+  `MediaStorage`, `PermissionManager`, Timeline audio rows, AI voice input).
+  No concrete defect found in the current code; correct-by-construction paths
+  were left untouched rather than fabricated (Fix 12 on-device check remains
+  outstanding).
+
+### Verification
+```text
+gradle :app:compileDebugKotlin   -> BUILD SUCCESSFUL
+gradle :app:testDebugUnitTest    -> BUILD SUCCESSFUL (88 tests, 0 failures)
+gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existing warnings)
+```
+
+No Room schema change (DB version stays 1), no navigation architecture change,
+no new dependencies, no cloud/AI/analytics. `HomeScreen`'s callback contract
+and `LifeOSNavHost` are unchanged.
+
+### Remaining
+- On-device confirmation of the startup freeze elimination (timing), predictive
+  back gesture animation, and the bottom-bar label rendering at 320–360dp (no
+  emulator/device in this environment — verified via compile + 88 JVM tests +
+  lint + code reasoning).

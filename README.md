@@ -382,6 +382,25 @@ See [`docs/21_FILE_STRUCTURE.md`](./docs/21_FILE_STRUCTURE.md) for per-file note
 
 ## 18. Recent Changes
 
+**2026-09-20 — Home startup, Home empty states, bottom-nav labels & predictive back**
+- Cold-start freeze: `AppDatabase.warmUpOpen()` opens the SQLCipher DB on a
+  background thread from app startup, so the one-time key derivation no longer
+  lands on Home's first Room query; `GetHomeSummaryUseCase` computes habit
+  analytics from a single completions read (`computeAnalyticsBatch`) and runs
+  off the main thread (`flowOn(Dispatchers.Default)`); `BuildTimelineUseCase`
+  fires its source queries concurrently. No schema/architecture change.
+- Home empty-state text overlap ("No routines yet", "No activity recorded
+  today") fixed by wrapping the card texts in a `Column` — the `LifeOSCard`
+  Box container is unchanged.
+- Bottom-nav labels are stacked (icon above text) so "Insights"/"Home"/etc. no
+  longer clip on ~360dp screens; ellipsis fallback on very narrow displays.
+- `android:enableOnBackInvokedCallback="true"` enables the predictive-back
+  contract (targetSdk 35); every Back path was audited — none consume presses.
+- Audio/capture pipeline re-audited; no fabrication where no defect exists.
+- Verified in this environment: `gradle :app:compileDebugKotlin`,
+  `:app:testDebugUnitTest` (88 tests, 0 failures) and `:app:lintDebug`
+  (0 errors, pre-existing warnings only).
+
 **2026-09-19 — Expenses micro UX fix**
 - The existing "Add expense" `ModalBottomSheet` now opens expanded by default
   (`skipPartiallyExpanded = true`) and its body scrolls, so the whole form is
@@ -461,8 +480,8 @@ Verified in the audit environment with Gradle 8.9 + Android Gradle Plugin 8.6.1
 
 - `gradle :app:compileDebugKotlin` — **PASS**
 - `gradle :app:assembleDebug` — **PASS**
-- `gradle :app:testDebugUnitTest` — **PASS** (81 tests, 0 failures)
-- `gradle :app:lintDebug` — **PASS** (0 errors, 4 pre-existing warnings)
+- `gradle :app:testDebugUnitTest` — **PASS** (88 tests, 0 failures)
+- `gradle :app:lintDebug` — **PASS** (0 errors, pre-existing warnings only)
 
 The repository still does not ship the Gradle wrapper JAR/scripts, so builds use
 a locally-installed Gradle 8.9 distribution. Instrumentation tests were not run

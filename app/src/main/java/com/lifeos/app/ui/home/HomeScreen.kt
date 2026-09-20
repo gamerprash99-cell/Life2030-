@@ -139,8 +139,10 @@ fun HomeScreen(
             if (activityItems.isEmpty()) {
                 item {
                     LifeOSCard(Modifier.fillMaxWidth()) {
-                        Text("No activity recorded today", style = MaterialTheme.typography.titleMedium)
-                        Text("Tasks, habits, expenses and captures you log today will appear here.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("No activity recorded today", style = MaterialTheme.typography.titleMedium)
+                            Text("Tasks, habits, expenses and captures you log today will appear here.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             } else {
@@ -422,8 +424,10 @@ private fun HabitsSection(summary: HomeSummary?, onOpenHabits: () -> Unit, onTog
     }
     if (habits.isEmpty()) {
         LifeOSCard(Modifier.fillMaxWidth()) {
-            Text("No routines yet", style = MaterialTheme.typography.titleMedium)
-            Text("Create a small habit to start a local streak.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("No routines yet", style = MaterialTheme.typography.titleMedium)
+                Text("Create a small habit to start a local streak.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     } else {
         LifeOSCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.surface) {
