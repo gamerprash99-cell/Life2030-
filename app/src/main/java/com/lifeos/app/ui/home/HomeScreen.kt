@@ -5,12 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,26 +32,25 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timeline
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -73,7 +70,6 @@ import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LifeOSWarning
 import java.time.LocalDate
 import java.util.Locale
-import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(
@@ -97,7 +93,6 @@ fun HomeScreen(
         }
     )
     val summary by viewModel.summary.collectAsState()
-    val dayProgress = rememberDayProgress()
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -121,7 +116,7 @@ fun HomeScreen(
                 }
                 item {
                     DayProgressCard(
-                        dayProgress = dayProgress,
+                        dailyUpdatePercent = s.dailyUpdatePercent,
                         tasksDone = s.tasksCompletedToday,
                         tasksTotal = s.tasksTotalToday,
                         habitsDone = s.habitsToday.count { it.isDone },
@@ -129,8 +124,14 @@ fun HomeScreen(
                         spend = s.todaySpend
                     )
                 }
+                item {
+                    TodayTasksSection(
+                        summary = summary,
+                        onOpenTasks = onOpenTasks,
+                        onToggleTask = viewModel::toggleTask
+                    )
+                }
             }
-            item { FocusNowSection(summary = summary, onOpenTasks = onOpenTasks, onToggleFocus = viewModel::toggleFocusTask) }
             item { QuickActionsSection(onOpenDiary, onOpenExpenses, onOpenTimeline) }
             item { HabitsSection(summary = summary, onOpenHabits = onOpenHabits, onToggleHabit = viewModel::toggleHabit) }
             item { ActivityHeader(summary) }
@@ -161,19 +162,6 @@ fun HomeScreen(
             Icon(Icons.Filled.Camera, contentDescription = "Capture")
         }
     }
-}
-
-/** Live day progress that recomputes once a minute from the device clock. */
-@Composable
-private fun rememberDayProgress(): Int {
-    var progress by remember { mutableIntStateOf(DateTimeUtils.dayProgressPercent()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            progress = DateTimeUtils.dayProgressPercent()
-            delay(60_000)
-        }
-    }
-    return progress
 }
 
 @Composable
@@ -219,9 +207,15 @@ private fun GreetingHeader(dateLabel: String, greeting: String, dayStatusLabel: 
     }
 }
 
+/**
+ * The "DAILY UPDATE" card. Percent comes from [HomeSummary.dailyUpdatePercent],
+ * which is computed live from real persisted data (completed tasks + habits),
+ * and is drawn as a single horizontal bar — no four-segment artwork, no
+ * device-clock fill.
+ */
 @Composable
 private fun DayProgressCard(
-    dayProgress: Int,
+    dailyUpdatePercent: Int,
     tasksDone: Int,
     tasksTotal: Int,
     habitsDone: Int,
@@ -232,29 +226,23 @@ private fun DayProgressCard(
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("CIRCADIAN VELOCITY", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("DAILY UPDATE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("$dayProgress%", style = MaterialTheme.typography.headlineLarge)
-                        Text("Day progress", style = MaterialTheme.typography.labelMedium, color = LifeOSPrimary, modifier = Modifier.padding(bottom = 4.dp))
+                        Text("${dailyUpdatePercent.coerceIn(0, 100)}%", style = MaterialTheme.typography.headlineLarge)
+                        Text("of today's goals", style = MaterialTheme.typography.labelMedium, color = LifeOSPrimary, modifier = Modifier.padding(bottom = 4.dp))
                     }
                 }
-                CircularDayProgress(dayProgress)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                val activeSegments = (dayProgress / 25).coerceIn(0, 4)
-                repeat(4) { index ->
-                    Box(
-                        Modifier
-                            .weight(1f)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(
-                                if (index < activeSegments) LifeOSPrimary
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            )
-                    )
-                }
-            }
+            LinearProgressIndicator(
+                progress = { dailyUpdatePercent.coerceIn(0, 100) / 100f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(50)),
+                color = LifeOSPrimary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                strokeCap = StrokeCap.Round
+            )
             Surface(
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                 shape = RoundedCornerShape(18.dp),
@@ -275,20 +263,6 @@ private fun DayProgressCard(
 }
 
 @Composable
-private fun CircularDayProgress(dayProgress: Int) {
-    Box(Modifier.size(54.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(
-            progress = { dayProgress / 100f },
-            modifier = Modifier.fillMaxSize(),
-            strokeWidth = 5.dp,
-            color = LifeOSPrimary,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-        Icon(Icons.Filled.Bolt, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.size(18.dp))
-    }
-}
-
-@Composable
 private fun DayStat(icon: ImageVector, value: String, label: String, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
         Icon(icon, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.size(15.dp))
@@ -299,11 +273,17 @@ private fun DayStat(icon: ImageVector, value: String, label: String, modifier: M
     }
 }
 
+/**
+ * "TODAY'S TASKS" — the real list of today's tasks from Room. When nothing is
+ * planned the section renders nothing at all (no placeholder card, no stale
+ * text), so the dashboard stays clean and the cards can never overlap.
+ */
 @Composable
-private fun FocusNowSection(summary: HomeSummary?, onOpenTasks: () -> Unit, onToggleFocus: () -> Unit) {
-    val focusTask = summary?.focusTask
-    val pendingCount = summary?.tasksToday?.count { !it.isCompleted } ?: 0
-    HomeSectionHeader("Focus Now") {
+private fun TodayTasksSection(summary: HomeSummary?, onOpenTasks: () -> Unit, onToggleTask: (String, Boolean) -> Unit) {
+    val tasks = summary?.tasksToday.orEmpty()
+    if (tasks.isEmpty()) return
+    val pendingCount = tasks.count { !it.isCompleted }
+    HomeSectionHeader("Today's Tasks") {
         if (pendingCount > 0) {
             Box(
                 Modifier
@@ -318,69 +298,58 @@ private fun FocusNowSection(summary: HomeSummary?, onOpenTasks: () -> Unit, onTo
         Spacer(Modifier.width(6.dp))
         SectionAction("View tasks", onOpenTasks)
     }
-    if (focusTask == null) {
-        LifeOSCard(Modifier.fillMaxWidth()) {
-            Text("No tasks planned for today", style = MaterialTheme.typography.titleMedium)
-            Text("Add a task when you are ready to focus.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    LifeOSCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.surface) {
+        Column {
+            tasks.forEachIndexed { index, task ->
+                TodayTaskRow(task = task, onToggle = { onToggleTask(task.id, !task.isCompleted) })
+                if (index < tasks.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                }
+            }
         }
-    } else {
-        FocusTaskCard(
-            task = focusTask,
-            isDone = summary?.focusTaskIsDone ?: false,
-            onToggle = onToggleFocus
-        )
     }
 }
 
 @Composable
-private fun FocusTaskCard(task: TaskEntity, isDone: Boolean, onToggle: () -> Unit) {
-    LifeOSCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.surface) {
-        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .width(5.dp)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(LifeOSPrimary)
+private fun TodayTaskRow(task: TaskEntity, onToggle: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(
+                    if (task.isCompleted) LifeOSPrimary
+                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+                )
+        )
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(
+                task.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
             )
-            Spacer(Modifier.width(12.dp))
-            Surface(
-                color = if (isDone) LifeOSPrimary else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                shape = CircleShape,
-                modifier = Modifier.size(38.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Filled.Check,
-                        contentDescription = null,
-                        tint = if (isDone) Color.White else LifeOSPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text(task.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    focusTaskSubtitle(task, isDone),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            IconButton(onClick = onToggle) {
-                Icon(
-                    if (isDone) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
-                    contentDescription = if (isDone) "Task done, undo completion" else "Mark task done",
-                    tint = if (isDone) LifeOSPrimary else MaterialTheme.colorScheme.outline
-                )
-            }
+            Text(
+                todayTaskSubtitle(task),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        IconButton(onClick = onToggle) {
+            Icon(
+                if (task.isCompleted) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+                contentDescription = if (task.isCompleted) "Task done, undo completion" else "Mark task done",
+                tint = if (task.isCompleted) LifeOSPrimary else MaterialTheme.colorScheme.outline
+            )
         }
     }
 }
 
-private fun focusTaskSubtitle(task: TaskEntity, isDone: Boolean): String {
-    if (isDone) return "Completed today"
+private fun todayTaskSubtitle(task: TaskEntity): String {
     val parts = listOfNotNull(
         task.category?.let { "#$it" },
         task.description?.takeUnless { it.isBlank() }
@@ -430,11 +399,23 @@ private fun QuickActionTile(label: String, icon: ImageVector, onClick: () -> Uni
     }
 }
 
+/**
+ * Habits block with a prominent title (larger, semibold onSurface) so the
+ * section reads as a clear heading rather than a small caption — alongside the
+ * trailing "n/N Active" and "Open all" actions.
+ */
 @Composable
 private fun HabitsSection(summary: HomeSummary?, onOpenHabits: () -> Unit, onToggleHabit: (String, Boolean, Int) -> Unit) {
     val habits = summary?.habitsToday.orEmpty()
     val doneToday = habits.count { it.isDone }
-    HomeSectionHeader("Habits") {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "Habits",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.weight(1f))
         Text("$doneToday/${habits.size} Active", style = MaterialTheme.typography.labelMedium, color = LifeOSPrimary)
         Spacer(Modifier.width(8.dp))
         SectionAction("Open all", onOpenHabits)

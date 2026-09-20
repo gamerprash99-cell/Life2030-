@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.app.core.util.LifeOSPermissions
 import com.lifeos.app.core.util.MediaStorage
+import com.lifeos.app.core.util.PermissionManager
 import com.lifeos.app.core.util.PermissionStatus
 import com.lifeos.app.core.util.rememberPermissionState
 import java.io.File
@@ -73,33 +74,45 @@ fun AudioCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
     }
 
     fun start() {
-        val output = MediaStorage.newAudioFile(context)
-        val current = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(context) else @Suppress("DEPRECATION") MediaRecorder()
+        if (isRecording || recorder != null) return
+        // Always confirm real mic permission at the moment the button is tapped;
+        // if it went missing (e.g. cleared in Settings) start() is never reached.
+        if (!PermissionManager.hasPermission(context, LifeOSPermissions.RECORD_AUDIO)) {
+            permission.request()
+            return
+        }
         error = null
+        var output: File? = null
+        var current: MediaRecorder? = null
         try {
+            output = MediaStorage.newAudioFile(context)
+            current = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(context) else @Suppress("DEPRECATION") MediaRecorder()
             current.apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setAudioSamplingRate(44_100)
                 setAudioEncodingBitRate(128_000)
-                setOutputFile(output.absolutePath)
+                setOutputFile(output!!.absolutePath)
                 prepare()
                 start()
             }
+            file = output
+            recorder = current
+            isRecording = true
         } catch (t: Throwable) {
-            runCatching { current.reset() }
-            runCatching { current.release() }
-            runCatching { output.delete() }
+            runCatching { current?.reset() }
+            runCatching { current?.release() }
+            runCatching { output?.delete() }
+            recorder = null
+            file = null
+            isRecording = false
             error = "Couldn't start recording. Please try again."
-            return
         }
-        file = output
-        recorder = current
-        isRecording = true
     }
 
     fun stop() {
+        if (!isRecording && recorder == null) return
         val current = recorder
         val saved = runCatching { current?.stop() }.isSuccess
         runCatching { current?.release() }

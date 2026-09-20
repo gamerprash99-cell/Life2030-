@@ -24,4 +24,16 @@ object MediaStorage {
 
     fun newAudioFile(context: Context): File =
         File(capturesDir(context), "AUDIO_${timestampFormat.format(java.util.Date())}.m4a")
+
+    /**
+     * App-private directory for the user's profile photo. The photo lives here
+     * (not as a content URI) so it survives day changes, app restarts and
+     * process death, and is never at the mercy of a provider's temporary read
+     * grant. It still lives entirely on-device.
+     */
+    fun profilePhotosDir(context: Context): File =
+        File(context.filesDir, "profile-photos").apply { if (!exists()) mkdirs() }
+
+    fun newProfilePhotoFile(context: Context): File =
+        File(profilePhotosDir(context), "profile_${timestampFormat.format(java.util.Date())}.jpg")
 }

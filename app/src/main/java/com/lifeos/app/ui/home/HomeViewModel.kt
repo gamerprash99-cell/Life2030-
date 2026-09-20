@@ -25,13 +25,6 @@ class HomeViewModel(
         viewModelScope.launch { taskRepository.setCompleted(id, completed) }
     }
 
-    /** Toggles the focus task's real completion state in Room. */
-    fun toggleFocusTask() {
-        val current = summary.value ?: return
-        val task = current.focusTask ?: return
-        toggleTask(task.id, !current.focusTaskIsDone)
-    }
-
     /**
      * Toggles a habit's real completion for today: completing writes progress
      * up to the goal, undoing clears today's record. Both are persisted, so the

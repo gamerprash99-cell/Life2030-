@@ -22,13 +22,12 @@ data class HomeSummary(
     val tasksToday: List<TaskEntity>,
     val tasksCompletedToday: Int,
     val tasksTotalToday: Int,
-    val focusTask: TaskEntity?,
-    val focusTaskIsDone: Boolean,
     val habitsToday: List<HabitSummaryRow>,
     val weeklyConsistency: List<DayCheck>,
     val weeklyDoneDays: Int,
     val todaySpend: Double,
     val overdueTaskCount: Int,
+    val dailyUpdatePercent: Int,
     val recentActivity: List<TimelineItem>
 )
 
@@ -123,13 +122,9 @@ class GetHomeSummaryUseCase(
             DayCheck(epochDay = day, isDone = dayDone, isToday = day == epochDay)
         }
 
-        // Focus Now: the highest-priority incomplete task of today, or the most
-        // recently completed task when everything is already done (existing
-        // priority/focus semantics — tasks are served by the DAO in that order).
-        val pendingFocus = tasksToday.firstOrNull { !it.isCompleted }
-        val focusTask = pendingFocus ?: tasksToday.lastOrNull { it.isCompleted }
-        val focusTaskIsDone = pendingFocus == null && tasksToday.isNotEmpty()
-
+        // The Daily Update is the real, live progress toward today's goals:
+        // completed tasks + completed habits over every task/habit scheduled
+        // today. Pure arithmetic so the card can never show stale or fixed data.
         val totalGoals = habitRows.size + tasksToday.size
         val doneGoals = habitsDoneToday + tasksToday.count { it.isCompleted }
         val dayStatusLabel = when {
@@ -146,13 +141,17 @@ class GetHomeSummaryUseCase(
             tasksToday = tasksToday,
             tasksCompletedToday = tasksToday.count { it.isCompleted },
             tasksTotalToday = tasksToday.size,
-            focusTask = focusTask,
-            focusTaskIsDone = focusTaskIsDone,
             habitsToday = habitRows,
             weeklyConsistency = days,
             weeklyDoneDays = days.count { it.isDone },
             todaySpend = spend,
             overdueTaskCount = overdueTasks.size,
+            dailyUpdatePercent = computeDailyUpdatePercent(
+                tasksToday = tasksToday.size,
+                tasksDoneToday = tasksToday.count { it.isCompleted },
+                habitsToday = habitRows.size,
+                habitsDoneToday = habitsDoneToday
+            ),
             recentActivity = runCatching { buildTimeline(epochDay) }.getOrDefault(emptyList())
         )
     }
@@ -162,4 +161,21 @@ class GetHomeSummaryUseCase(
         customDays = HabitStatsCalculator.parseCustomDays(habit.customDaysCsv),
         startEpochDay = habit.startDateEpochDay
     )
+}
+
+/**
+ * Real Daily Update percentage for today: completed goals (tasks + habits)
+ * over all goals scheduled today. Deterministic — 0 when nothing is planned so
+ * a fresh day never claims progress that was driven by the device clock.
+ */
+internal fun computeDailyUpdatePercent(
+    tasksToday: Int,
+    tasksDoneToday: Int,
+    habitsToday: Int,
+    habitsDoneToday: Int
+): Int {
+    val done = tasksDoneToday + habitsDoneToday
+    val total = tasksToday + habitsToday
+    if (total <= 0) return 0
+    return (done * 100 / total).coerceIn(0, 100)
 }
