@@ -58,6 +58,9 @@ interface HabitCompletionDao {
     @Query("SELECT * FROM habit_completions WHERE dateEpochDay = :epochDay")
     fun observeAllForDay(epochDay: Long): Flow<List<HabitCompletionEntity>>
 
+    @Query("SELECT * FROM habit_completions WHERE dateEpochDay BETWEEN :startEpochDay AND :endEpochDay ORDER BY dateEpochDay ASC")
+    fun observeAllInRange(startEpochDay: Long, endEpochDay: Long): Flow<List<HabitCompletionEntity>>
+
     @Query("SELECT * FROM habit_completions WHERE dateEpochDay BETWEEN :startEpochDay AND :endEpochDay")
     suspend fun getAllInRange(startEpochDay: Long, endEpochDay: Long): List<HabitCompletionEntity>
 

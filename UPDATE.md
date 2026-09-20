@@ -199,3 +199,61 @@ emulator/device and no `androidTest` source set).
   verified at compile/test/lint level only.
 - `docs/16_KNOWN_ISSUES.md` Issue #1 (missing Gradle wrapper scripts) remains
   open.
+
+---
+
+## 2026-09-20 — Home screen redesign (`feat/expenses-micro-ux`)
+
+Home rebuilt in Compose to match the Google Stitch dashboard design while
+keeping the LifeOS purple theme and real Room data throughout.
+
+### Home layout (top to bottom)
+- **Header**: LifeOS wordmark + logo dot, Search, ProfileAvatar (unchanged flow).
+- **Greeting band**: date line (`SATURDAY, 19 SEPTEMBER 2026`), live greeting
+  (`DateTimeUtils.greeting()`), and a day-status label derived from completed
+  goals ("Day on track" / "Building momentum" / "Fresh start" / "Day starting").
+- **Circadian Velocity card**: `$dayProgress%` (minutes-elapsed / 1440, refreshed
+  every 60 s), circular bolt progress ring, 4-segment bar ((pct/25), 0..4), and a
+  TASKS / HABITS / SPEND stats pill — all real values from today's DAO flows.
+- **Focus Now**: highest-priority incomplete task of today (first from
+  `observeForDay`, which already sorts by `PRIORITY_ORDER`); when every task is
+  done it shows the most recently completed one with a DONE state and a
+  one-tap undo. Empty state when no tasks planned.
+- **Quick Actions**: Diary / Expense / Timeline tiles routed to existing screens.
+- **Habits**: "n/N Active" head + WEEKLY CONSISTENCY row (scheduled-day aware:
+  a day counts only when every active habit scheduled on it passed its goal),
+  per-habit rows with icon, `{n}d streak` badge, and one-tap check-in/undo that
+  persists via `logProgress`/`clearProgress`.
+- **Today's Activity**: real timeline (`BuildTimelineUseCase`, today only) with
+  typed dot + time pill; empty state otherwise.
+- FAB (camera) → Capture coverage, unchanged.
+
+### Data-layer additions
+- `DateTimeUtils.dayProgressPercent()`.
+- `HabitCompletionDao.observeAllInRange(start, end)` +
+  `HabitRepository.observeAllInRange` (weekly consistency window).
+- `GetHomeSummaryUseCase` now also consumes `BuildTimelineUseCase` (4th
+  dependency, wired in `ServiceLocator`) and exposes `focusTask`,
+  `focusTaskIsDone`, `weeklyConsistency: List<DayCheck>`, `weeklyDoneDays`,
+  `recentActivity`, plus per-habit `currentStreak/longestStreak/completionPercent`.
+- `HomeViewModel`: `toggleTask` kept, `toggleFocusTask` added, `incrementHabit`
+  replaced by `toggleHabit(habitId, isDone, goalCount)` (check → log to goal,
+  uncheck → clear today's record).
+
+### Verification
+```text
+gradle :app:compileDebugKotlin   -> BUILD SUCCESSFUL
+gradle :app:assembleDebug        -> BUILD SUCCESSFUL
+gradle :app:testDebugUnitTest    -> BUILD SUCCESSFUL (81 tests, 0 failures)
+gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existing
+                                     dependency-version warnings)
+```
+
+No Room schema change (DB version stays 1), no new navigation stacks, no novel
+dependencies, no cloud/AI/analytics; the Screen callback contract of
+`HomeScreen` (and therefore `LifeOSNavHost`) is unchanged.
+
+### Remaining
+- Device/emulator visual check of the Stitch-to-LifeOS mapping (e.g. Fast Yet
+  Fresh / "14 day streak" sample labels in the reference were intentionally not
+  reproduced).
