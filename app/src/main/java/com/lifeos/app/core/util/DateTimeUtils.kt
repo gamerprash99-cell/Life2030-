@@ -33,6 +33,12 @@ object DateTimeUtils {
 
     fun minutesToLocalTime(minutes: Int): LocalTime = LocalTime.of(minutes / 60, minutes % 60)
 
+    /** Whole-number percentage of the current local day that has already elapsed (0..100). */
+    fun dayProgressPercent(now: LocalTime = LocalTime.now()): Int {
+        val minutes = now.hour * 60 + now.minute
+        return (minutes * 100 / 1440).coerceIn(0, 100)
+    }
+
     fun formatMinutes(minutes: Int): String {
         val t = minutesToLocalTime(minutes)
         return t.format(DateTimeFormatter.ofPattern("h:mm a"))

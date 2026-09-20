@@ -27,6 +27,8 @@ class HabitRepository(
     fun observeCompletion(habitId: String, epochDay: Long): Flow<HabitCompletionEntity?> =
         completionDao.observe(habitId, epochDay)
     fun observeAllForDay(epochDay: Long): Flow<List<HabitCompletionEntity>> = completionDao.observeAllForDay(epochDay)
+    fun observeAllInRange(startEpochDay: Long, endEpochDay: Long): Flow<List<HabitCompletionEntity>> =
+        completionDao.observeAllInRange(startEpochDay, endEpochDay)
     fun observeAllForHabit(habitId: String): Flow<List<HabitCompletionEntity>> = completionDao.observeAllForHabit(habitId)
 
     suspend fun getById(id: String): HabitEntity? = habitDao.getById(id)

@@ -50,10 +50,10 @@ class ServiceLocator private constructor(context: Context) {
 
     val lifeController = LifeController(noteRepository, taskRepository, habitRepository, diaryRepository, expenseRepository)
 
-    val getHomeSummaryUseCase = GetHomeSummaryUseCase(taskRepository, habitRepository, expenseRepository)
     val buildTimelineUseCase = BuildTimelineUseCase(
         noteRepository, taskRepository, habitRepository, expenseRepository, diaryRepository, captureRepository
     )
+    val getHomeSummaryUseCase = GetHomeSummaryUseCase(taskRepository, habitRepository, expenseRepository, buildTimelineUseCase)
 
     companion object {
         @Volatile private var INSTANCE: ServiceLocator? = null
