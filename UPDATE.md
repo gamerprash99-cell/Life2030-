@@ -257,3 +257,92 @@ dependencies, no cloud/AI/analytics; the Screen callback contract of
 - Device/emulator visual check of the Stitch-to-LifeOS mapping (e.g. Fast Yet
   Fresh / "14 day streak" sample labels in the reference were intentionally not
   reproduced).
+
+---
+
+## 2026-09-20 — Home dashboard, profile photo, capture & navigation hardening
+
+### DAILY UPDATE card (real data, no gestures)
+- The speculative 4-segment "CIRCADIAN VELOCITY" card is gone. The reference
+  spec shows a single **"TODAY'S PROGRESS" title + one percentage + one bar**,
+  so the Home header card is now **DAILY UPDATE**: current percentage
+  (`headlineLarge`), one `LinearProgressIndicator`, and the TASKS / HABITS /
+  SPEND stat surface (real per-module counts from Room).
+- The percentage is real and deterministic: completed tasks + completed habits
+  over every task/habit scheduled today (`computeDailyUpdatePercent`), with
+  `0` when nothing is planned so a fresh day never claims clock-driven
+  progress. It no longer uses the device wall-clock / gesture math
+  (`rememberDayProgress` + `DateTimeUtils.dayProgressPercent` removed from
+  Home).
+- `HomeSummary` swaps `focusTask`/`focusTaskIsDone` for `dailyUpdatePercent`;
+  `toggleFocusTask()` removed (the task's real checkbox toggle in TODAY'S TASKS
+  replaces it).
+- **Fix 11** (focus-empty-state overlap): the Focus-Now card rendered even when
+  empty, producing the overlapping text ghost. TODAY'S TASKS omits its section
+  entirely when no tasks are scheduled, so there is nothing to overlap; the
+  FAB/labels were already clear of the extended FAB. LifeOSSpacing reviewed.
+
+### TODAY'S TASKS (replaces FOCUS NOW)
+- Real, live list of today's tasks (checkbox toggles the Room state directly,
+  struck-through when done, priority chip + time subtitles). Empty list → no
+  badge, no ghost card. Follows the spec's TODAY'S TASKS block.
+
+### Prominent Habits heading
+- NEW-section heading now `titleMedium` SemiBold with an "n/N Active" count and
+  an "Open all" affordance, matching the spec's TODAY'S HABITS block.
+
+### Profile photo — persistent, cropped, resilient
+- **Root cause of the disappearing photo:** the previous flow stored the picked
+  image as a *content:// URI* backed by a temporary read grant. Grants expire
+  at day change / process kill, and `takePersistableUriPermission` is rejected
+  by many providers — so the avatar silently failed.
+- **Fix:** picking now runs the photo through an **EXIF-correct downscale**
+  (`androidx.exifinterface`), a new **square crop dialog** (Compose-only:
+  Canvas preview, scrimmed bands, drag-to-position, corner-handle resize,
+  `detectDragGestures`), then saves a JPEG to app-private storage
+  `filesDir/profile-photos/profile_<timestamp>.jpg`. `SettingsStore` stores
+  that absolute path — it survives day changes, restarts and process death. Old
+  `content://` values still render when Coil can load them; on any load failure
+  `ProfileAvatar` falls back to the letter avatar (first letter of display
+  name) or a Person icon, never a broken image.
+- `androidx.exifinterface:1.3.7` added (already on the runtime classpath via
+  Coil — no APK growth); this also clears the corresponding lint warning.
+
+### Fix 12 — Voice Capture crash
+- `MediaStorage.newAudioFile()` and the `MediaRecorder` constructor ran on the
+  UI thread **outside** the try/catch, so a failure (e.g. no space, corrupt
+  state) crashed the app instead of showing an error. Both now live inside the
+  try; the mic button re-requests permission if it is missing, `start()`/
+  `stop()` are re-entrancy-guarded, and every failure path cleans up file +
+  recorder and shows the existing error surface. Too-short recording discard
+  preserved.
+
+### Fix 13 — Bottom navigation reliability
+- Re-tapping the already-visible tab previously *navigated again*, so repeated
+  taps could leave duplicate stacks that made the tab appear "dead" (the Home
+  case). Re-tap of the visible tab now pops back to the start destination
+  instead of duplicating; other tabs keep the canonical
+  `popUpTo<saveState> + launchSingleTop + restoreState` pattern. Navigation
+  stays on `navigation-compose:2.8.4`.
+
+### Verification
+```text
+gradle :app:compileDebugKotlin   -> BUILD SUCCESSFUL
+gradle :app:assembleDebug        -> BUILD SUCCESSFUL (app-debug.apk built)
+gradle test                      -> BUILD SUCCESSFUL (88 unit tests, 0 failures:
+                                     81 prior + 7 new DailyUpdatePercentTest)
+gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; ExifInterface
+                                     warning cleared; only pre-existing Info
+                                     autoboxing/Icon/unused-resource items)
+```
+
+No Room schema change (DB version stays 1), no nav-dependency change, no
+cloud/AI/analytics, no gesture-based progress. `HomeScreen`'s callback contract
+(and `LifeOSNavHost`) is unchanged: only the removed `toggleFocusTask` and the
+`HomeSummary` field swap touched anything outside Home.
+
+### Remaining
+- On-device check of the crop dialog, the avatar persistence after a forced
+  stop / device restart, the audio-capture error path, and the re-tap Home
+  behavior (no emulator in this environment — verified via compile + JVM tests
+  + code reasoning).

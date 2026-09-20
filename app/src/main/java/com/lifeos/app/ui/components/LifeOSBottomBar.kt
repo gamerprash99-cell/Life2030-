@@ -89,12 +89,19 @@ fun LifeOSBottomBar(navController: NavHostController) {
             bottomNavItems.forEach { item ->
                 val selected = destination?.hierarchy?.any { it.route == item.screen.route } == true
                 BottomNavEntry(item = item, selected = selected, onClick = {
-                    navController.navigate(item.screen.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+                    if (selected) {
+                        // Re-tap of the already-visible tab: surface the tab itself
+                        // (pop anything above the start destination) without adding a
+                        // duplicate entry, so the tab can never become unresponsive.
+                        navController.popBackStack(navController.graph.findStartDestination().id, false)
+                    } else {
+                        navController.navigate(item.screen.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                        launchSingleTop = true
-                        restoreState = true
                     }
                 }, modifier = Modifier.weight(1f))
             }
