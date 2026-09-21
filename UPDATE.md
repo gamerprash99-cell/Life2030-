@@ -429,3 +429,55 @@ and `LifeOSNavHost` are unchanged.
   back gesture animation, and the bottom-bar label rendering at 320–360dp (no
   emulator/device in this environment — verified via compile + 88 JVM tests +
   lint + code reasoning).
+
+---
+
+## 2026-09-21 — Capture sheet redesign (LifeOS Moment Capture, from the Stitch design project)
+
+Implemented from the single Stitch design screen into `CaptureSheet.kt`'s
+capture menu. **Visual-layer only**: navigation, data, persistence, permissions
+and the photo/video/audio sub-screens are unchanged.
+
+- **Header:** removed the top-right Close `IconButton` (dismiss now flows
+  through system Back, tap-outside, and the "Close → Return to LifeOS" tile).
+  Title `headlineMedium` → `displayLarge` (40/48, per measured 82px cap ≈
+  27.3dp at 3x); subtitle `bodySmall` → `bodyMedium`, still `onSurfaceVariant`
+  (measured ~`#494455`).
+- **Quick-thought card:** surface tint `#F7F2F9` (`LifeOSCaptureCardLight`),
+  20dp radius, no elevation; "Quick thought" label `titleMedium` →
+  `headlineSmall`; input switched from `OutlinedTextField` (visible border) to a
+  borderless M3 `TextField` — transparent container, single bottom indicator in
+  `outline`, placeholder in `outline`, `bodyMedium`, `minLines = 3` — matching
+  the design's borderless entry; "Save thought" `Button` unchanged.
+- **Life Capture grid:** section label `titleMedium` → `titleLarge`; tiles use
+  the design's lavender `#F1ECFF` (`LifeOSCaptureTileLight`) instead of white
+  `surface`, no elevation; labels `titleMedium` → `titleLarge`; subtitles
+  `labelSmall` → `bodyMedium`; icon container stays `primaryContainer` 44dp /
+  15dp radius with 24dp branded icon.
+- **Spacing:** outer side padding 22 → 30dp; card→header gap 28dp (top padding
+  12 + 16 spacedBy); tile gap 12dp; title→subtitle 2dp — all from measured
+  pixel geometry.
+- Content now scrolls (`verticalScroll`) with `imePadding` so the sheet fits
+  ~360×640 screens and the keyboard never covers the field.
+- **Dark mode:** paired tone tokens added to `Color.kt`
+  (`LifeOSCaptureCardDark` `#37323D`, `LifeOSCaptureTileDark` `#2C2844`).
+- The punch-hole-era top-right decorative cluster (paper-plane doodle, floating
+  "audio" label, ✕ shapes) was judged a Stitch ambient decoration and was
+  deliberately **not** reproduced.
+
+### Verification
+```text
+gradle :app:compileDebugKotlin   -> BUILD SUCCESSFUL
+gradle :app:testDebugUnitTest    -> BUILD SUCCESSFUL (176 tests, 0 failures, 0 errors)
+gradle :app:assembleDebug        -> BUILD SUCCESSFUL
+gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existing warnings)
+```
+
+No Room schema change (DB version stays 1), no navigation architecture change,
+no new dependencies, no cloud/AI/analytics. `LifeOSNavHost` and the sheet's
+callback contract are unchanged.
+
+### Remaining
+- On-device visual confirmation (no emulator/device in this environment —
+  verified via compile + 176 JVM tests + lint + pixel-measurement spec match +
+  code reasoning).

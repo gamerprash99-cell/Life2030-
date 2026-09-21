@@ -1,13 +1,17 @@
 package com.lifeos.app.ui.capture
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
@@ -17,11 +21,11 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,9 +35,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.lifeos.app.ui.theme.LifeOSCaptureCardDark
+import com.lifeos.app.ui.theme.LifeOSCaptureCardLight
+import com.lifeos.app.ui.theme.LifeOSCaptureTileDark
+import com.lifeos.app.ui.theme.LifeOSCaptureTileLight
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.CaptureType
@@ -104,45 +113,77 @@ private fun CaptureMenu(
     thought: String, onThoughtChange: (String) -> Unit, onSaveThought: () -> Unit,
     onPhoto: () -> Unit, onVideo: () -> Unit, onAudio: () -> Unit, onDismiss: () -> Unit
 ) {
-    Column(Modifier.fillMaxSize().padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Capture a moment", style = MaterialTheme.typography.headlineMedium)
-                Text("Thoughts, photos, video and audio — stored locally.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
+    val dark = isSystemInDarkTheme()
+    val cardColor = if (dark) LifeOSCaptureCardDark else LifeOSCaptureCardLight
+    val tileColor = if (dark) LifeOSCaptureTileDark else LifeOSCaptureTileLight
+    val outline = MaterialTheme.colorScheme.outline
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal = 30.dp, vertical = 20.dp).imePadding(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Column {
+            Text("Capture a moment", style = MaterialTheme.typography.displayLarge)
+            Text(
+                "Thoughts, photos, video and audio — stored locally.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
+            )
         }
-        Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Surface(
+            color = cardColor,
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.EditNote, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text("Quick thought", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 8.dp))
+                    Icon(Icons.Filled.EditNote, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Text("Quick thought", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 8.dp))
                 }
-                OutlinedTextField(value = thought, onValueChange = onThoughtChange, modifier = Modifier.fillMaxWidth(), placeholder = { Text("What's on your mind?") }, minLines = 3)
+                TextField(
+                    value = thought,
+                    onValueChange = onThoughtChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("What's on your mind?", color = outline) },
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    minLines = 3,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        errorContainerColor = Color.Transparent,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = outline,
+                        disabledIndicatorColor = outline,
+                        errorIndicatorColor = outline,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    )
+                )
                 Button(onClick = onSaveThought, enabled = thought.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Save thought") }
             }
         }
-        Text("Life Capture", style = MaterialTheme.typography.titleMedium)
+        Text("Life Capture", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CaptureTile("Photo", "Take a photo", Icons.Filled.CameraAlt, onPhoto, Modifier.weight(1f))
-            CaptureTile("Video", "Record a moment", Icons.Filled.Videocam, onVideo, Modifier.weight(1f))
+            CaptureTile("Photo", "Take a photo", Icons.Filled.CameraAlt, onPhoto, tileColor, Modifier.weight(1f))
+            CaptureTile("Video", "Record a moment", Icons.Filled.Videocam, onVideo, tileColor, Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CaptureTile("Audio", "Record your voice", Icons.Filled.Mic, onAudio, Modifier.weight(1f))
-            CaptureTile("Close", "Return to LifeOS", Icons.Filled.Close, onDismiss, Modifier.weight(1f))
+            CaptureTile("Audio", "Record your voice", Icons.Filled.Mic, onAudio, tileColor, Modifier.weight(1f))
+            CaptureTile("Close", "Return to LifeOS", Icons.Filled.Close, onDismiss, tileColor, Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun CaptureTile(label: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun CaptureTile(label: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit, tileColor: Color, modifier: Modifier = Modifier) {
+    Surface(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(20.dp), color = tileColor) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(15.dp)) {
                 Icon(icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(10.dp))
             }
-            Text(label, style = MaterialTheme.typography.titleMedium)
-            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(label, style = MaterialTheme.typography.titleLarge)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

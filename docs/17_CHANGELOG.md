@@ -16,6 +16,31 @@ output.
 
 ---
 
+## [Unreleased] — 2026-09-21 Capture sheet redesign (LifeOS Moment Capture)
+
+### Changed
+- **`CaptureSheet` capture menu redesigned** from the Stitch "LifeOS Moment
+  Capture" design (visual layer only — no navigation, schema, or data change).
+  - Header: removed the top-right Close `IconButton`; title →
+    `displayLarge`; subtitle → `bodyMedium` (`onSurfaceVariant`).
+  - Quick-thought card: `#F7F2F9` tint, 20dp radius; "Quick thought" →
+    `headlineSmall`; `OutlinedTextField` → borderless M3 `TextField`
+    (transparent container, `outline` indicator/placeholder, `minLines = 3`);
+    "Save thought" button unchanged.
+  - "Life Capture" 2×2 grid: lavender `#F1ECFF` tiles (`LifeOSCaptureTileLight`,
+    20dp radius, no elevation), `titleLarge` labels, `bodyMedium` subtitles,
+    `primaryContainer` 44dp /15dp icon containers.
+  - Spacing matched to measured design geometry (30dp side margins, 12–28dp
+    column gaps); content scrolls with `imePadding`.
+  - New dark-mode tokens in `Color.kt`: `LifeOSCaptureCardDark`,
+    `LifeOSCaptureTileDark`.
+
+### Verification
+- `compileDebugKotlin`, `testDebugUnitTest` (176 tests, 0 failures),
+  `assembleDebug`, `lintDebug` (0 errors) — all BUILD SUCCESSFUL.
+
+---
+
 ## [Unreleased] — 2026-09-20 Home startup, Home empty states, bottom-nav labels & predictive back
 
 ### Fixed

@@ -267,8 +267,13 @@ declared `required="false"`.
   Audio: `MediaRecorder`; Thought: text.
 - Files are written to **app-private storage** (`core/util/MediaStorage.kt`,
   `filesDir/captures/`) — never to public storage or MediaStore.
-- `CaptureSheet` shows a confirmation with a real preview before closing;
-  `CaptureDetailScreen` reopens captures from the Timeline.
+- `CaptureSheet` (full-screen capture menu) is the redesigned **Moment
+  Capture** entry: a `displayLarge` title, a borderless quick-thought field with
+  a Save action, and a 2×2 "Life Capture" tile grid (Photo / Video / Audio /
+  Close) drawn from `ui/theme/Color.kt`'s design tokens
+  (`LifeOSCaptureCard*`, `LifeOSCaptureTile*`). Sub-screens show a
+  confirmation with a real preview before closing; `CaptureDetailScreen`
+  reopens captures from the Timeline.
 - `FileProvider` (`res/xml/file_paths.xml`) is used only to share an exported
   backup file.
 

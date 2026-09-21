@@ -27,6 +27,11 @@ val LifeOSTextSecondaryLight = Color(0xFF7A6A91)
 val LifeOSTextPrimaryDark = Color(0xFFF6EFFB)
 val LifeOSTextSecondaryDark = Color(0xFFC5B9CF)
 
+val LifeOSCaptureCardLight = Color(0xFFF7F2F9)
+val LifeOSCaptureCardDark = Color(0xFF37323D)
+val LifeOSCaptureTileLight = Color(0xFFF1ECFF)
+val LifeOSCaptureTileDark = Color(0xFF2C2844)
+
 val CategoryFood = Color(0xFFFF7A59)
 val CategoryCafe = Color(0xFF9B6B43)
 val CategoryShopping = Color(0xFFEA5FA0)
