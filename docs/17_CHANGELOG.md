@@ -16,6 +16,53 @@ output.
 
 ---
 
+## [Unreleased] — 2026-09-21 Diary (LifeOS Journal) redesign, from the Stitch design project
+
+Native Kotlin + Compose implementation of the Stitch "LifeOS Diary / Journal"
+screens. **Visual and informational layer only** — no Room schema change (DB
+version stays 1), no new dependencies, no cloud/AI/analytics, navigation
+architecture unchanged (`Screen.DiaryDetail` route added).
+
+### Added
+- **Editorial palette** in `Color.kt`: `DiaryPaper` `#FDF8FF`, `DiaryPaperCard`
+  `#FFFCFF`, `DiaryInkViolet` `#21005D`, `DiaryLavender` `#EADDFF` (with
+  dark-mode pairs) and per-mood accents `DiaryMoodHappy` Goldenrod,
+  `DiaryMoodCalm` Sage, `DiaryMoodSad` Indigo, `DiaryMoodStressed` Terracotta,
+  `DiaryMoodExcited` dried-rose.
+- **Diary list** (`DiaryScreen.kt` rewrite): editorial header, 60dp round
+  lavender FAB with ink plus, 14-day strip (newest-first, All option), mood
+  entry cards (24dp radius, inline Edit/Delete, keyword chips), empty state,
+  analytics and connection sections.
+- **Composer** (`DiaryEditorSheet.kt`): Dialog+Surface bottom sheet with grab
+  handle, 5-mood chip row, borderless M3 `TextField`, Cancel/Save, and
+  Delete + date header when editing.
+- **Entry details** (`DiaryDetailScreen.kt` + `DiaryDetailViewModel`): new
+  `Screen.DiaryDetail` route `"diary/{entryId}"`; editorial typography, mood
+  pill, theme keyword chips, per-day connection radar, full editing/deleting.
+- **Local intelligence**: `LifeOSIntelligenceEngine.diaryInsights(today)`
+  (counts, streak, mood trend + average, themes, patterns, narrative,
+  recommendations) returned as new `DiaryInsights` model with a combined
+  summary string; engine exposed via `ServiceLocator.intelligenceEngine`.
+- **Connection radar**: pure `DiaryConnections` builder
+  (`DiaryNode`/`DiaryEdge`/`DiaryGraph`) fed by `BuildTimelineUseCase`,
+  rendered on `Canvas` with DP-based `RadarNodeChip` overlays; capped for
+  legibility; empty-day friendly copy.
+- **Analytics section** (`DiaryAnalyticsSection.kt`): expandable summary,
+  mood bar chart (−2..+2, last 14 days), themes, patterns, weekly narrative,
+  recommendations, and offline "Ask LifeOS" via the existing
+  `LocalQuestionEngine`.
+- **Tests**: `DiaryConnectionsTest` (8), `DiaryMoodsTest` (5).
+
+### Changed
+- `DateTimeUtils.shortDayName` added for the day strip.
+- `ServiceLocator` exposes `val intelligenceEngine` (was private).
+
+### Verification
+- `compileDebugKotlin`, `testDebugUnitTest` (101 tests, 0 failures),
+  `assembleDebug`, `lintDebug` (0 errors) — all BUILD SUCCESSFUL.
+
+---
+
 ## [Unreleased] — 2026-09-21 Capture sheet redesign (LifeOS Moment Capture)
 
 ### Changed

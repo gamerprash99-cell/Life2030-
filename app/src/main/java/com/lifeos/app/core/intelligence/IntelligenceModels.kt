@@ -92,3 +92,22 @@ data class PeriodReport(
 
 /** Result of a single question asked to the LocalQuestionEngine ("Ask LifeOS AI"). */
 data class AnswerResult(val answer: String, val followUpSuggestions: List<String> = emptyList())
+
+/**
+ * Diary-specific introspection for the Diary screen, composed from the existing
+ * analyzers (DiaryAnalyzer, TrendAnalyzer, PatternDetector, CorrelationAnalyzer,
+ * KeywordExtractor) and the weekly report. All deterministic, on-device.
+ */
+data class DiaryInsights(
+    val weekCount: Int,
+    val monthCount: Int,
+    val averageMood: Double,
+    val moodTrend: TrendResult?,
+    val topKeywords: List<KeywordResult>,
+    val diaryStreakDays: Int,
+    val moodByDay: List<TrendPoint>,
+    val habitCorrelation: PatternInsight?,
+    val patterns: List<PatternInsight>,
+    val recommendations: List<Recommendation>,
+    val narrative: String
+)

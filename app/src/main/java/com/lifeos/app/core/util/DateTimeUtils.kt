@@ -50,6 +50,10 @@ object DateTimeUtils {
     fun formatDayOfWeek(date: LocalDate): String =
         date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()).uppercase()
 
+    /** Short day-of-week name for compact date chips and charts, e.g. "Mon". */
+    fun shortDayName(date: LocalDate): String =
+        date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+
     fun greeting(hour: Int = LocalDateTime.now().hour): String = when (hour) {
         in 4..11 -> "Good Morning"
         in 12..16 -> "Good Afternoon"

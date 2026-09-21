@@ -12,6 +12,16 @@ development session, since this repo has no prior commit log).
   new subtitle/dark-mode tokens. Visual layer only — no navigation, schema,
   or data changes. Verified: 176 unit tests pass, `assembleDebug` and
   `lintDebug` (0 errors) succeed.
+- **Diary (LifeOS Journal) redesign** (`ui/diary/`, `core/intelligence/`)
+  from the Stitch "LifeOS Diary / Journal" design: paper/ink-violet editorial
+  palette, day-strip list screen with mood pills and keyword chips, bottom-
+  sheet composer with 5-mood picker, entry detail route, expandable offline
+  analytics (narrative, mood chart, themes, patterns, recommendations) and a
+  connection radar tying entries to the day's timeline. New
+  `LifeOSIntelligenceEngine.diaryInsights()` + `DiaryInsights` model,
+  `DiaryConnections` builder. No schema/dependency/navigation-architecture
+  change. Verified: 101 unit tests pass, `assembleDebug` and `lintDebug`
+  (0 errors) succeed.
 
 ## [0.2.0] — Hardening pass (2026-09-18 … 2026-09-20)
 

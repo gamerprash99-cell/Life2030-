@@ -110,7 +110,7 @@ is no third-party MVI/Redux framework.
 | **Home** | Today dashboard: greeting/date, Daily Momentum progress, quick actions, Today's Priorities, habits streak, Recent Activity, LifeOS Intelligence, Capture entry. `ui/home/HomeScreen.kt`, `HomeViewModel.kt`, `domain/usecase/GetHomeSummaryUseCase.kt` |
 | **Tasks** | Priorities, due date/time, category, description, repeat rules, reminders, overdue handling. `ui/tasks/TasksScreen.kt` |
 | **Habits** | Daily/custom schedules, goal counts, streaks, 12-week heatmap. `ui/habits/HabitsScreen.kt`, `HabitDetailScreen.kt` |
-| **Diary** | Private journal with mood tagging, user-written; explicit Save. `ui/diary/DiaryScreen.kt` |
+| **Diary** | Editorial journal: day strip, mood pills, local-AI analytics (weekly narrative, mood trend + chart, themes, patterns, recommendations), connection radar tying entries to the day's timeline, and an entry detail screen. `ui/diary/DiaryScreen.kt`, `ui/diary/DiaryDetailScreen.kt`, `core/intelligence/DiaryConnections.kt` |
 | **Notes** | Block-based rich text, pin/favorite/archive/trash, folder chips, local AI actions. `ui/notes/` |
 | **Expenses** | Monthly spend, daily average, fixed budget, remaining, recent transactions, add-expense sheet with categories. `ui/expenses/ExpensesScreen.kt` |
 | **Timeline** | Day-by-day merge of notes/tasks/habits/expenses/diary/captures. `ui/timeline/TimelineScreen.kt`, `BuildTimelineUseCase.kt` |

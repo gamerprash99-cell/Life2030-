@@ -42,3 +42,14 @@ val CategoryBills = Color(0xFFFFB13F)
 val CategoryHealth = Color(0xFFFF5C5C)
 val CategorySubscriptions = Color(0xFF5C7CFF)
 val CategoryOther = Color(0xFF8A8C99)
+
+// Diary redesign (Stitch "Tactile Editorial Journal" — mood palette + ink/paper tones)
+val DiaryMoodHappy = Color(0xFFF59E0B)      // goldenrod
+val DiaryMoodCalm = Color(0xFF10B981)       // sage green
+val DiaryMoodSad = Color(0xFF6366F1)        // dusty hydrangea
+val DiaryMoodStressed = Color(0xFFF43F5E)   // soft terracotta
+val DiaryMoodExcited = Color(0xFF7D5260)    // dried rose plum
+val DiaryInkViolet = Color(0xFF21005D)      // archival ink violet
+val DiaryLavender = Color(0xFFEADDFF)       // pale thistle lavender
+val DiaryPaper = Color(0xFFFDF8FF)          // milk-tinted parchment
+val DiaryPaperCard = Color(0xFFFFFCFF)      // pristine paper leaf

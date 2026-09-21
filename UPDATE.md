@@ -481,3 +481,70 @@ callback contract are unchanged.
 - On-device visual confirmation (no emulator/device in this environment —
   verified via compile + 176 JVM tests + lint + pixel-measurement spec match +
   code reasoning).
+
+---
+
+## 2026-09-21 — Diary (LifeOS Journal) redesign, from the Stitch design project
+
+Implemented natively (Kotlin + Compose) from the Stitch "LifeOS Diary /
+Journal" screens into `ui/diary/`. The plan (`tasks/plan.md`) and task list
+(`tasks/todo.md`) live under `tasks/`. **Visual and informational layer only**:
+Room schema, repositories, analyzers and navigation architecture are
+unchanged.
+
+- **Palette & tokens:** paper `#FDF8FF`, card `#FFFCFF`, ink violet `#21005D`,
+  lavender `#EADDFF` (with dark-mode pairs) and a per-mood editorial palette —
+  Goldenrod (happy), Sage (calm), Indigo (sad), Terracotta (stressed),
+  dried-rose (excited) — added to `Color.kt` (`DiaryPaper`, `DiaryPaperCard`,
+  `DiaryInkViolet`, `DiaryLavender`, `DiaryMood*`).
+- **List screen (`DiaryScreen.kt` rewrite):** editorial header (title
+  `headlineSmall`, subtitle `bodySmall`), 60dp round lavender FAB with ink
+  plus, day strip (last 14 days, newest-first, All option), mood entry cards
+  (24dp radius, date + mood pill, inline Edit/Delete, keyword chips), friendly
+  empty state, all analytics below the entries.
+- **Composer (`DiaryEditorSheet.kt`):** Dialog + Surface bottom sheet — grab
+  handle, mood chip row (5 moods, tapped chip tinted), borderless
+  `TextField` ("What happened today?"), Cancel / Save (enabled once non-blank),
+  and Delete + date header when editing an existing entry.
+- **Details (`DiaryDetailScreen.kt`):** entry-detail route `diary/{entryId}`
+  (new `Screen.DiaryDetail` + `LifeOSNavHost` wiring) with editorial
+  typography, mood pill, theme keyword chips, the day's connection radar and
+  full editing/deleting from the sheet.
+- **Local intelligence:** new `LifeOSIntelligenceEngine.diaryInsights(today)`
+  (week/month counts, streak, average mood + trend via `TrendAnalyzer`,
+  themes via `KeywordExtractor`, patterns via `PatternDetector`, narrative via
+  `ReportGenerator.weekly`, recommendations via `CorrelationAnalyzer`) returned
+  as a new `DiaryInsights` model with a ready-to-use all-in-one summary string.
+  The engine is now exposed by `ServiceLocator` (`val intelligenceEngine`).
+- **Connection radar (`DiaryConnections.kt` + `DiaryConnectionsView.kt`):** a
+  pure builder turns the selected day's diaries + timeline (via
+  `BuildTimelineUseCase`) into a node/edge graph — entry (center), mood and
+  keywords (left rail), timeline items (right rail), capped for legibility —
+  rendered on `Canvas` with `RadarNodeChip` overlays (DP-based layout). No
+  entry on that day shows a friendly note instead of a graph.
+- **Analytics section (`DiaryAnalyticsSection.kt`):** expandable cards —
+  Summary (week/month/streak), mood bar chart (−2..+2 scale, last 14 days),
+  top themes, repeating patterns, weekly narrative, recommendations, and an
+  **Ask LifeOS** card that runs the existing offline `LocalQuestionEngine`
+  against last week's diary (with follow-up suggestions chips).
+- **Tests:** `DiaryConnectionsTest` (8) covering graph shape, mood
+  preservation/detection, shared-keyword edges, same-day timeline wiring and
+  capping; `DiaryMoodsTest` (5) covering stored-mood equivalence,
+  fallback labels and analyzer mapping.
+
+### Verification
+```text
+gradle :app:compileDebugKotlin   -> BUILD SUCCESSFUL
+gradle :app:testDebugUnitTest    -> BUILD SUCCESSFUL (101 tests, 0 failures, 0 errors)
+gradle :app:assembleDebug        -> BUILD SUCCESSFUL
+gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existing warnings)
+```
+
+No Room schema change (DB version stays 1), no new dependencies, no
+cloud/AI/analytics. Mood values are the existing persisted strings; stored
+mood wins, analyzer detection is the fallback (matching previous behaviour).
+
+### Remaining
+- On-device visual confirmation against the Stitch screens (no
+  emulator/device in this environment — verified via compile + 101 JVM tests +
+  lint + code reasoning); visual QA can't render screenshots here.
