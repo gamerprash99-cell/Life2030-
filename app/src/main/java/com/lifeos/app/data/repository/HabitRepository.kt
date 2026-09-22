@@ -3,8 +3,8 @@ package com.lifeos.app.data.repository
 import android.content.Context
 import com.lifeos.app.core.reminders.ReminderScheduler
 import com.lifeos.app.core.util.DateTimeUtils
-import com.lifeos.app.core.util.HabitSchedule
 import com.lifeos.app.core.util.HabitStatsCalculator
+import com.lifeos.app.core.util.toSchedule
 import com.lifeos.app.core.util.IdGenerator
 import com.lifeos.app.data.db.dao.HabitCompletionDao
 import com.lifeos.app.data.db.dao.HabitDao
@@ -120,7 +120,7 @@ class HabitRepository(
         val monthCompletions = allCompletions.filter { it.dateEpochDay in monthStart..monthEnd }
 
         val doneDays = allCompletions.filter { it.progressCount >= habit.goalCount }.map { it.dateEpochDay }.toSet()
-        val schedule = scheduleOf(habit)
+        val schedule = habit.toSchedule()
         val todayEpochDay = today.toEpochDay()
 
         // Streaks and monthly completion are schedule-aware: only days the habit
@@ -152,7 +152,7 @@ class HabitRepository(
     suspend fun computeHeatmap(habit: HabitEntity, startEpochDay: Long, endEpochDay: Long): List<HeatmapCell> {
         val completions = completionDao.getForHabitInRange(habit.id, startEpochDay, endEpochDay)
             .associateBy { it.dateEpochDay }
-        val schedule = scheduleOf(habit)
+        val schedule = habit.toSchedule()
         val todayEpochDay = DateTimeUtils.today().toEpochDay()
 
         return (startEpochDay..endEpochDay).map { day ->
@@ -174,12 +174,6 @@ class HabitRepository(
             )
         }
     }
-
-    private fun scheduleOf(habit: HabitEntity) = HabitSchedule(
-        frequency = habit.frequency,
-        customDays = HabitStatsCalculator.parseCustomDays(habit.customDaysCsv),
-        startEpochDay = habit.startDateEpochDay
-    )
 
     /** Re-registers WorkManager jobs for all future habit reminders. */
     suspend fun rescheduleAllReminders() {

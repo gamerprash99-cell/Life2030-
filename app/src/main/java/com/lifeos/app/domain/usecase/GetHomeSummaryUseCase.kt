@@ -1,8 +1,8 @@
 package com.lifeos.app.domain.usecase
 
 import com.lifeos.app.core.util.DateTimeUtils
-import com.lifeos.app.core.util.HabitSchedule
 import com.lifeos.app.core.util.HabitStatsCalculator
+import com.lifeos.app.core.util.toSchedule
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.TaskEntity
@@ -118,7 +118,7 @@ class GetHomeSummaryUseCase(
 
         // A calendar day counts as a full consistency day when every active habit
         // scheduled on it was completed. Non-scheduled days are never counted.
-        val scheduled = habits.map { habit -> habit to scheduleOf(habit) }
+        val scheduled = habits.map { habit -> habit to habit.toSchedule() }
         val days = (0L..6L).map { offset ->
             val day = weekStart + offset
             val expected = scheduled.filter { (_, schedule) -> HabitStatsCalculator.isScheduled(schedule, day) }
@@ -162,12 +162,6 @@ class GetHomeSummaryUseCase(
             recentActivity = runCatching { buildTimeline(epochDay) }.getOrDefault(emptyList())
         )
     }
-
-    private fun scheduleOf(habit: HabitEntity) = HabitSchedule(
-        frequency = habit.frequency,
-        customDays = HabitStatsCalculator.parseCustomDays(habit.customDaysCsv),
-        startEpochDay = habit.startDateEpochDay
-    )
 }
 
 /**
