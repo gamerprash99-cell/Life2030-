@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
@@ -132,6 +133,7 @@ class AiAssistantViewModel(private val lifeController: LifeController) : ViewMod
 fun AiAssistantScreen(
     onOpenDestination: (LifeDestination) -> Unit = {},
     onOpenFeedback: (LifeActionFeedback) -> Unit = {},
+    onBack: () -> Unit = {},
     appContext: LifeAppContext = LifeAppContext()
 ) {
     val locator = LocalServiceLocator.current
@@ -151,7 +153,14 @@ fun AiAssistantScreen(
     val voice = remember(androidContext) { LifeVoiceInputController(androidContext) }
     DisposableEffect(Unit) { onDispose { voice.stop() } }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("LIFE") }) }) { padding ->
+    Scaffold(topBar = {
+        TopAppBar(
+            title = { Text("LIFE") },
+            navigationIcon = {
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            }
+        )
+    }) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
