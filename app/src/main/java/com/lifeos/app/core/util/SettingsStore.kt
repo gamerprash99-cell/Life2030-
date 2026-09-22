@@ -24,6 +24,17 @@ sealed interface PinAttemptResult {
 }
 
 /**
+ * Result of a recovery-answer verification attempt. The recovery answer is the
+ * bypass for the PIN lockout, so it is throttled at least as strictly as the
+ * PIN itself (see [SettingsStore.attemptRecoveryAnswer]).
+ */
+sealed interface RecoveryAttemptResult {
+    data object Success : RecoveryAttemptResult
+    data class Incorrect(val attemptsRemaining: Int) : RecoveryAttemptResult
+    data class LockedOut(val remainingMillis: Long) : RecoveryAttemptResult
+}
+
+/**
  * Central app settings — Section 59 (Settings screen). No settings are
  * ever synced off-device except through the explicit Backup/Export flow.
  *
@@ -54,6 +65,8 @@ class SettingsStore(private val context: Context) {
 
         val PIN_FAILED_ATTEMPTS = intPreferencesKey("pin_failed_attempts")
         val PIN_LOCKOUT_UNTIL = longPreferencesKey("pin_lockout_until")
+        val RECOVERY_FAILED_ATTEMPTS = intPreferencesKey("recovery_failed_attempts")
+        val RECOVERY_LOCKOUT_UNTIL = longPreferencesKey("recovery_lockout_until")
     }
 
     companion object {
@@ -61,7 +74,9 @@ class SettingsStore(private val context: Context) {
         const val PIN_LENGTH = 4
 
         private const val MAX_ATTEMPTS = 5
+        private const val RECOVERY_MAX_ATTEMPTS = 3
         private const val BASE_LOCKOUT_MS = 30_000L
+        private const val MAX_LOCKOUT_MS = 16 * 60 * 1000L
     }
 
     val darkThemeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DARK_THEME_ENABLED] ?: false }
@@ -119,6 +134,8 @@ class SettingsStore(private val context: Context) {
             it[Keys.RECOVERY_ANSWER_HASH] = answerHash.hashBase64
             it[Keys.PIN_FAILED_ATTEMPTS] = 0
             it.remove(Keys.PIN_LOCKOUT_UNTIL)
+            it[Keys.RECOVERY_FAILED_ATTEMPTS] = 0
+            it.remove(Keys.RECOVERY_LOCKOUT_UNTIL)
         }
     }
 
@@ -128,6 +145,7 @@ class SettingsStore(private val context: Context) {
         it.remove(Keys.PIN_SALT); it.remove(Keys.PIN_HASH)
         it.remove(Keys.RECOVERY_QUESTION); it.remove(Keys.RECOVERY_ANSWER_SALT); it.remove(Keys.RECOVERY_ANSWER_HASH)
         it.remove(Keys.PIN_FAILED_ATTEMPTS); it.remove(Keys.PIN_LOCKOUT_UNTIL)
+        it.remove(Keys.RECOVERY_FAILED_ATTEMPTS); it.remove(Keys.RECOVERY_LOCKOUT_UNTIL)
     }
 
     suspend fun verifyPin(enteredPin: String): Boolean {
@@ -163,9 +181,8 @@ class SettingsStore(private val context: Context) {
         }
 
         val failures = (prefs[Keys.PIN_FAILED_ATTEMPTS] ?: 0) + 1
-        if (failures >= MAX_ATTEMPTS) {
-            val tier = (failures - MAX_ATTEMPTS).toLong()
-            val duration = minOf(BASE_LOCKOUT_MS shl (tier.coerceAtMost(8)).toInt(), 16 * 60 * 1000L)
+        val duration = LockoutPolicy.lockoutDurationMillis(failures, MAX_ATTEMPTS, BASE_LOCKOUT_MS, MAX_LOCKOUT_MS)
+        if (duration > 0L) {
             val until = now + duration
             context.dataStore.edit {
                 it[Keys.PIN_FAILED_ATTEMPTS] = failures
@@ -175,13 +192,48 @@ class SettingsStore(private val context: Context) {
         }
 
         context.dataStore.edit { it[Keys.PIN_FAILED_ATTEMPTS] = failures }
-        return PinAttemptResult.Incorrect(MAX_ATTEMPTS - failures)
+        return PinAttemptResult.Incorrect(LockoutPolicy.attemptsRemaining(failures, MAX_ATTEMPTS))
     }
 
-    suspend fun verifyRecoveryAnswer(enteredAnswer: String): Boolean {
+    /**
+     * Verify the recovery answer with the same escalating lockout policy the
+     * PIN uses (fewer attempts, since this answer is the PIN's bypass). A
+     * lockout on either secret does not by itself lock the other, but a failed
+     * recovery attempt here is throttled so the answer cannot be brute-forced
+     * once the PIN lockout has driven a user to this screen.
+     */
+    suspend fun attemptRecoveryAnswer(enteredAnswer: String): RecoveryAttemptResult {
         val prefs = context.dataStore.data.first()
-        val salt = prefs[Keys.RECOVERY_ANSWER_SALT] ?: return false
-        val hash = prefs[Keys.RECOVERY_ANSWER_HASH] ?: return false
-        return PinHasher.verify(enteredAnswer.trim().lowercase(), salt, hash)
+        val now = System.currentTimeMillis()
+        val lockoutUntil = prefs[Keys.RECOVERY_LOCKOUT_UNTIL] ?: 0L
+
+        if (now < lockoutUntil) {
+            return RecoveryAttemptResult.LockedOut(lockoutUntil - now)
+        }
+
+        val salt = prefs[Keys.RECOVERY_ANSWER_SALT] ?: return RecoveryAttemptResult.Incorrect(0)
+        val hash = prefs[Keys.RECOVERY_ANSWER_HASH] ?: return RecoveryAttemptResult.Incorrect(0)
+
+        if (PinHasher.verify(enteredAnswer.trim().lowercase(), salt, hash)) {
+            context.dataStore.edit {
+                it[Keys.RECOVERY_FAILED_ATTEMPTS] = 0
+                it.remove(Keys.RECOVERY_LOCKOUT_UNTIL)
+            }
+            return RecoveryAttemptResult.Success
+        }
+
+        val failures = (prefs[Keys.RECOVERY_FAILED_ATTEMPTS] ?: 0) + 1
+        val duration = LockoutPolicy.lockoutDurationMillis(failures, RECOVERY_MAX_ATTEMPTS, BASE_LOCKOUT_MS, MAX_LOCKOUT_MS)
+        if (duration > 0L) {
+            val until = now + duration
+            context.dataStore.edit {
+                it[Keys.RECOVERY_FAILED_ATTEMPTS] = failures
+                it[Keys.RECOVERY_LOCKOUT_UNTIL] = until
+            }
+            return RecoveryAttemptResult.LockedOut(duration)
+        }
+
+        context.dataStore.edit { it[Keys.RECOVERY_FAILED_ATTEMPTS] = failures }
+        return RecoveryAttemptResult.Incorrect(LockoutPolicy.attemptsRemaining(failures, RECOVERY_MAX_ATTEMPTS))
     }
 }
