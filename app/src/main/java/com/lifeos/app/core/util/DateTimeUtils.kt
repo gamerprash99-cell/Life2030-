@@ -1,5 +1,6 @@
 package com.lifeos.app.core.util
 
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -74,6 +75,23 @@ object DateTimeUtils {
         date.withDayOfMonth(date.lengthOfMonth()).toEpochDay()
 
     fun zoneId(): ZoneId = ZoneId.systemDefault()
+
+    /**
+     * Local wall-clock minute of day (0..1439) for a UTC-epoch-millis instant,
+     * resolved through the system zone. Replaces ad-hoc `hour*60+minute` math
+     * so offsets/DST never move an event across a day boundary.
+     */
+    fun minutesOfDay(epochMillis: Long): Int =
+        Instant.ofEpochMilli(epochMillis).atZone(zoneId()).toLocalTime().toMinutesSinceMidnight()
+
+    /**
+     * Inclusive local-day range in UTC-epoch-millis from the start of
+     * [startEpochDay] to the end of [endEpochDay]. Centralises the boundary
+     * math so callers never write `end*86_400_000L` (UTC-midnight, wrong
+     * day for non-UTC zones).
+     */
+    fun dayRangeMillis(startEpochDay: Long, endEpochDay: Long): Pair<Long, Long> =
+        startOfLocalDayMillis(startEpochDay) to endOfLocalDayMillis(endEpochDay)
 
     /**
      * UTC-epoch-millis boundary at the *local* start of [epochDay]. Using this

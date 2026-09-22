@@ -2,6 +2,7 @@ package com.lifeos.app.data.repository
 
 import android.content.Context
 import com.lifeos.app.core.reminders.ReminderScheduler
+import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.core.util.IdGenerator
 import com.lifeos.app.core.util.RepeatRuleCalculator
 import com.lifeos.app.data.db.dao.TaskDao
@@ -15,13 +16,17 @@ class TaskRepository(private val dao: TaskDao, private val appContext: Context) 
     fun observeForDay(epochDay: Long): Flow<List<TaskEntity>> = dao.observeForDay(epochDay)
     fun observeOverdue(
         todayEpochDay: Long,
-        nowMinutes: Int = com.lifeos.app.core.util.DateTimeUtils.nowMinutesOfDay()
+        nowMinutes: Int = DateTimeUtils.nowMinutesOfDay()
     ): Flow<List<TaskEntity>> = dao.observeOverdue(todayEpochDay, nowMinutes)
     fun observeAll(): Flow<List<TaskEntity>> = dao.observeAll()
     fun observeCountForDay(epochDay: Long): Flow<Int> = dao.observeCountForDay(epochDay)
     fun observeCompletedCountForDay(epochDay: Long): Flow<Int> = dao.observeCompletedCountForDay(epochDay)
 
     suspend fun getById(id: String): TaskEntity? = dao.getById(id)
+
+    /** Non-deleted tasks completed within [startMillis, endMillis] (UTC millis). */
+    suspend fun getCompletedBetween(startMillis: Long, endMillis: Long): List<TaskEntity> =
+        dao.getCompletedBetween(startMillis, endMillis)
 
     suspend fun createTask(
         title: String,
@@ -99,7 +104,7 @@ class TaskRepository(private val dao: TaskDao, private val appContext: Context) 
         val rule = task.repeatRule ?: return
         if (rule == RepeatRule.NONE) return
 
-        val today = java.time.LocalDate.now().toEpochDay()
+        val today = DateTimeUtils.today().toEpochDay()
         val nextDay = RepeatRuleCalculator.nextOccurrence(
             rule = rule,
             customDaysCsv = task.repeatDaysCsv,
