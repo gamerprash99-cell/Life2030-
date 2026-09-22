@@ -18,6 +18,7 @@ import com.lifeos.app.ui.ai.AiAssistantScreen
 import com.lifeos.app.ui.capture.CaptureDetailScreen
 import com.lifeos.app.ui.capture.CaptureSheet
 import com.lifeos.app.ui.components.LifeOSBottomBar
+import com.lifeos.app.ui.diary.DiaryDetailScreen
 import com.lifeos.app.ui.diary.DiaryScreen
 import com.lifeos.app.ui.expenses.ExpensesScreen
 import com.lifeos.app.ui.habits.HabitDetailScreen
@@ -105,7 +106,19 @@ fun LifeOSNavHost() {
                 HabitDetailScreen(habitId = habitId, onBack = { navController.popBackStack() })
             }
             composable(Screen.Expenses.route) { ExpensesScreen(onBack = { navController.popBackStack() }) }
-            composable(Screen.Diary.route) { DiaryScreen(onBack = { navController.popBackStack() }) }
+            composable(Screen.Diary.route) {
+                DiaryScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenEntry = { entryId -> navController.navigate(Screen.DiaryDetail.createRoute(entryId)) }
+                )
+            }
+            composable(
+                Screen.DiaryDetail.route,
+                arguments = listOf(navArgument("entryId") { type = NavType.StringType })
+            ) { entry ->
+                val entryId = entry.arguments?.getString("entryId").orEmpty()
+                DiaryDetailScreen(entryId = entryId, onBack = { navController.popBackStack() })
+            }
             composable(Screen.Timeline.route) {
                 TimelineScreen(
                     onBack = { navController.popBackStack() },

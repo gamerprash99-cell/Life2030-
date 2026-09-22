@@ -43,7 +43,7 @@ class ServiceLocator private constructor(context: Context) {
 
     // "Ask LifeOS AI" runs entirely on-device — see core/intelligence/LifeOSIntelligenceEngine.kt.
     // No API key, no network client, no external endpoint anywhere in this dependency graph.
-    private val intelligenceEngine = LifeOSIntelligenceEngine(
+    val intelligenceEngine = LifeOSIntelligenceEngine(
         noteRepository, taskRepository, habitRepository, diaryRepository, expenseRepository, captureRepository
     )
     val aiRepository = AiRepository(intelligenceEngine)

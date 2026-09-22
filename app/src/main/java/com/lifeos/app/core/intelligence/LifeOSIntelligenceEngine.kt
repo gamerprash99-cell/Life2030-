@@ -7,6 +7,9 @@ import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.data.repository.NoteRepository
 import com.lifeos.app.data.repository.TaskRepository
+import com.lifeos.app.core.util.DateTimeUtils
+import java.time.LocalDate
+import kotlinx.coroutines.flow.first
 
 /**
  * LifeOS Intelligence Engine — Level 1 (see docs/11_AI_SYSTEM.md for the
@@ -111,6 +114,80 @@ class LifeOSIntelligenceEngine(
     // ---- Statistics ----
 
     suspend fun personalStatistics() = statisticsEngine.computeAllTime()
+
+    // ---- Diary insights (Diary screen) ----
+
+    /**
+     * Diary introspection for the Diary screen: weekly/monthly counts, an
+     * honest average-mood trend (current vs previous week), per-day mood points
+     * for the little chart, top keywords across the month, streak, a habit/mood
+     * correlation and the existing weekly report's patterns + recommendations.
+     * Everything here reads through the existing repositories — fully on-device.
+     */
+    suspend fun diaryInsights(today: LocalDate = DateTimeUtils.today()): DiaryInsights {
+        val weekStart = DateTimeUtils.startOfWeekEpochDay(today)
+        val weekEnd = DateTimeUtils.endOfWeekEpochDay(today)
+        val weekEntries = diaryRepository.getInRange(weekStart, weekEnd)
+        val prevWeekEntries = diaryRepository.getInRange(weekStart - 7, weekStart - 1)
+        val monthStart = DateTimeUtils.startOfMonthEpochDay(today)
+        val monthEnd = DateTimeUtils.endOfMonthEpochDay(today)
+        val monthEntries = diaryRepository.getInRange(monthStart, monthEnd)
+
+        val weeklyReport = reportGenerator.weekly(today)
+
+        val moodAverage = DiaryAnalyzer.averageMood(weekEntries)
+        val moodTrend = if (weekEntries.isNotEmpty() || prevWeekEntries.isNotEmpty()) {
+            TrendAnalyzer.compare("mood", moodAverage, DiaryAnalyzer.averageMood(prevWeekEntries))
+        } else null
+
+        // Oldest → today, so the chart renders left-to-right in reading order.
+        val moodByDay = (6 downTo 0).map { offset ->
+            val day = today.minusDays(offset.toLong())
+            val dayEntries = weekEntries.filter { it.dateEpochDay == day.toEpochDay() }
+            TrendPoint(
+                DateTimeUtils.shortDayName(day),
+                if (dayEntries.isEmpty()) 0.0 else DiaryAnalyzer.averageMood(dayEntries)
+            )
+        }
+
+        val allEntryDays = diaryRepository.observeAll().first().map { it.dateEpochDay }.toSet()
+        val streak = consecutiveDiaryDays(allEntryDays, today.toEpochDay())
+
+        val habits = habitRepository.observeAll().first().filter { !it.isArchived }
+        val completionsInRange = habitRepository.observeAllInRange(weekStart, weekEnd).first()
+        val habitCorrelation = habits.firstNotNullOfOrNull { habit ->
+            CorrelationAnalyzer.moodVsHabitCompletion(
+                weekEntries,
+                completionsInRange.filter { it.habitId == habit.id },
+                habit.goalCount
+            )
+        }
+
+        return DiaryInsights(
+            weekCount = weekEntries.size,
+            monthCount = monthEntries.size,
+            averageMood = moodAverage,
+            moodTrend = moodTrend,
+            topKeywords = DiaryAnalyzer.topKeywordsAcross(monthEntries, max = 8),
+            diaryStreakDays = streak,
+            moodByDay = moodByDay,
+            habitCorrelation = habitCorrelation,
+            patterns = weeklyReport.patterns,
+            recommendations = weeklyReport.recommendations,
+            narrative = weeklyReport.narrative
+        )
+    }
+
+    private fun consecutiveDiaryDays(entryDays: Set<Long>, todayEpochDay: Long): Int {
+        if (entryDays.isEmpty()) return 0
+        var streak = 0
+        var cursor = todayEpochDay
+        while (entryDays.contains(cursor)) {
+            streak++
+            cursor--
+        }
+        return streak
+    }
 
     // ---- Chat / Q&A ----
 
