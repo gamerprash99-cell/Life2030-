@@ -30,8 +30,35 @@ data class LifeOSBackup(
     val habitCompletions: List<HabitCompletionEntity>,
     val expenses: List<ExpenseEntity>,
     val diaryEntries: List<DiaryEntity>,
-    val captures: List<CaptureEntity>
-)
+    val captures: List<CaptureEntity>,
+    val formatVersion: Int = LifeOSBackup.CURRENT_FORMAT_VERSION
+) {
+    companion object {
+        /**
+         * Bump whenever the serialized shape changes incompatibly so imports
+         * can be rejected clearly instead of restoring garbage silently.
+         */
+        const val CURRENT_FORMAT_VERSION = 1
+
+        /** Hard cap so a giant/corrupt import can't exhaust memory on read. */
+        const val MAX_BACKUP_BYTES = 100L * 1024 * 1024
+
+        fun isOversized(sizeBytes: Long): Boolean = sizeBytes > MAX_BACKUP_BYTES
+    }
+}
+
+/**
+ * Validates a decoded backup before it is written into the database. Returns an
+ * English error message the UI can surface, or null when the backup is safe to
+ * restore.
+ */
+fun validateBackup(backup: LifeOSBackup): String? = when {
+    backup.formatVersion < 1 ->
+        "This file is not a valid LifeOS backup."
+    backup.formatVersion > LifeOSBackup.CURRENT_FORMAT_VERSION ->
+        "This backup was created by a newer version of LifeOS. Update the app first."
+    else -> null
+}
 
 class BackupRepository(
     private val database: AppDatabase,
@@ -53,7 +80,8 @@ class BackupRepository(
         habitCompletions = habitRepo.getAllCompletionsForBackup(),
         expenses = expenseRepo.getAllForBackup(),
         diaryEntries = diaryRepo.getAllForBackup(),
-        captures = captureRepo.getAllForBackup()
+        captures = captureRepo.getAllForBackup(),
+        formatVersion = LifeOSBackup.CURRENT_FORMAT_VERSION
     )
 
     /** Writes the export to app-private external files dir; caller shares it via a share sheet. */
@@ -65,8 +93,22 @@ class BackupRepository(
         return file
     }
 
+    /**
+     * Decodes and validates a backup file before restoring. Throws with a
+     * user-facing message when the file is oversized, not a LifeOS backup, or
+     * was written by a newer app version.
+     */
     suspend fun importFromFile(file: File) {
-        val backup = json.decodeFromString(LifeOSBackup.serializer(), file.readText())
+        if (LifeOSBackup.isOversized(file.length())) {
+            throw IllegalArgumentException("This backup file is too large to restore.")
+        }
+        val backup = try {
+            json.decodeFromString(LifeOSBackup.serializer(), file.readText())
+        } catch (e: Exception) {
+            throw IllegalArgumentException("This file is not a valid LifeOS backup.", e)
+        }
+        val error = validateBackup(backup)
+        if (error != null) throw IllegalArgumentException(error)
         restore(backup)
     }
 
