@@ -13,6 +13,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BackupSerializationTest {
@@ -88,5 +89,44 @@ class BackupSerializationTest {
         val empty = LifeOSBackup(1L, "0.2.0", emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
         val decoded = json.decodeFromString<LifeOSBackup>(json.encodeToString(empty))
         assertEquals(empty, decoded)
+    }
+
+    @Test
+    fun `backup without formatVersion decodes as current version`() {
+        val legacy = """{
+            "exportedAtEpochMillis": 1700000000000,
+            "appVersion": "0.2.0",
+            "notes": [], "tasks": [], "habits": [], "habitCompletions": [],
+            "expenses": [], "diaryEntries": [], "captures": []
+        }"""
+        val decoded = json.decodeFromString<LifeOSBackup>(legacy)
+        assertEquals(LifeOSBackup.CURRENT_FORMAT_VERSION, decoded.formatVersion)
+    }
+
+    @Test
+    fun `current backup carries the current format version`() {
+        val backup = sampleBackup()
+        assertEquals(LifeOSBackup.CURRENT_FORMAT_VERSION, backup.formatVersion)
+    }
+
+    @Test
+    fun `validateBackup accepts current and rejects unknown or newer versions`() {
+        assertEquals(null, validateBackup(sampleBackup()))
+        assertEquals(null, validateBackup(sampleBackup().copy(formatVersion = 1)))
+
+        val newer = sampleBackup().copy(formatVersion = LifeOSBackup.CURRENT_FORMAT_VERSION + 1)
+        val newerError = validateBackup(newer)
+        assertTrue(newerError != null && newerError.contains("newer"))
+
+        val invalid = sampleBackup().copy(formatVersion = 0)
+        val invalidError = validateBackup(invalid)
+        assertTrue(invalidError != null && invalidError.isNotBlank())
+    }
+
+    @Test
+    fun `size guard rejects oversized backup files`() {
+        assertTrue(!LifeOSBackup.isOversized(0L))
+        assertTrue(!LifeOSBackup.isOversized(LifeOSBackup.MAX_BACKUP_BYTES))
+        assertTrue(LifeOSBackup.isOversized(LifeOSBackup.MAX_BACKUP_BYTES + 1))
     }
 }

@@ -47,6 +47,10 @@ class NoteRepository(private val dao: NoteDao) {
 
     suspend fun search(query: String): List<NoteEntity> = if (query.isBlank()) emptyList() else dao.search(query)
 
+    /** Non-deleted notes created within [startMillis, endMillis] (UTC millis). */
+    suspend fun getCreatedBetween(startMillis: Long, endMillis: Long): List<NoteEntity> =
+        dao.getCreatedBetween(startMillis, endMillis)
+
     fun decodeBlocks(note: NoteEntity): List<NoteBlock> = try {
         json.decodeFromString<List<NoteBlock>>(note.contentJson)
     } catch (_: Exception) {

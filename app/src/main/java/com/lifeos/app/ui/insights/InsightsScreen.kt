@@ -78,8 +78,7 @@ class InsightsViewModel(
         viewModelScope.launch {
             val start = DateTimeUtils.startOfWeekEpochDay()
             val end = DateTimeUtils.endOfWeekEpochDay()
-            val startMillis = start * 86_400_000L
-            val endMillis = (end + 1) * 86_400_000L
+            val (startMillis, endMillis) = DateTimeUtils.dayRangeMillis(start, end)
             val tasksCompleted = taskRepository.countCompletedBetween(startMillis, endMillis)
             val spend = expenseRepository.getInRange(start, end).sumOf { it.amount }
             val diaryCount = diaryRepository.countInRange(start, end)

@@ -1,5 +1,6 @@
 package com.lifeos.app.core.util
 
+import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.HabitFrequency
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -12,6 +13,13 @@ data class HabitSchedule(
     val frequency: HabitFrequency,
     val customDays: Set<DayOfWeek>,
     val startEpochDay: Long
+)
+
+/** Single shared builder for [HabitSchedule] from a stored habit. */
+fun HabitEntity.toSchedule(): HabitSchedule = HabitSchedule(
+    frequency = frequency,
+    customDays = HabitStatsCalculator.parseCustomDays(customDaysCsv),
+    startEpochDay = startDateEpochDay
 )
 
 /**

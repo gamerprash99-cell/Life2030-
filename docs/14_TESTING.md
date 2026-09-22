@@ -92,3 +92,29 @@ and reuses existing state; no domain/repository logic changed.
 Still **not** executed (honest gap): instrumentation tests (no emulator/device
 and no `app/src/androidTest/` source set) and a manual on-device UI walkthrough
 of the two Expenses interactions.
+
+## 2026-09-22 hardening-pass verification note
+
+A security/perf/navigation hardening pass (branch `feat/hardening-pass`) was
+verified with the exact commands below; all four actually executed in a real
+Gradle 8.9 + AGP 8.6.1 environment (`ANDROID_HOME=/opt/android-sdk`):
+
+```text
+gradle :app:testDebugUnitTest  -> BUILD SUCCESSFUL (123 tests, 0 failures, 16 classes)
+gradle :app:compileDebugKotlin -> BUILD SUCCESSFUL
+gradle :app:assembleDebug      -> BUILD SUCCESSFUL
+gradle :app:lintDebug          -> BUILD SUCCESSFUL (0 errors, 26 pre-existing warnings)
+```
+
+New test classes added this pass:
+
+- `LockoutPolicyTest` — escalating PIN/recovery lockout windows, attempt countdown
+- `SearchCategoryTest` — pure `SearchCategory.routeFor(hitId)` navigation mapping
+- `LifeDestinationRoutesTest` — pure `LifeDestination.route()` for all 7 variants
+- Extended `DateTimeUtilsTest` — `minutesOfDay`, `dayRangeMillis` (DST-safe zones)
+- Extended `BackupSerializationTest` — legacy decode defaults, validateBackup, size cap
+- Extended `HabitStatsCalculatorTest` — `HabitEntity.toSchedule()`
+
+Baseline before the pass was 101 tests / 0 failures (13 classes) on
+`main`; the pass added 22 tests (123 total) with no removals and no skipped or
+disabled tests.

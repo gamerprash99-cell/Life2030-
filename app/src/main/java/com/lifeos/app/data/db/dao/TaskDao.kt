@@ -73,6 +73,18 @@ interface TaskDao {
     @Query("SELECT COUNT(*) FROM tasks WHERE isDeleted = 0 AND isCompleted = 1 AND completedAtEpochMillis BETWEEN :startMillis AND :endMillis")
     suspend fun countCompletedBetween(startMillis: Long, endMillis: Long): Int
 
+    /**
+     * Tasks completed within [startMillis, endMillis], using
+     * `COALESCE(completedAtEpochMillis, updatedAt)` so legacy completions that
+     * never recorded a completion timestamp still land on their update day
+     * (matches the in-memory filter the timeline previously applied).
+     */
+    @Query("""
+        SELECT * FROM tasks
+        WHERE isDeleted = 0 AND isCompleted = 1 AND COALESCE(completedAtEpochMillis, updatedAt) BETWEEN :startMillis AND :endMillis
+    """)
+    suspend fun getCompletedBetween(startMillis: Long, endMillis: Long): List<TaskEntity>
+
     @Query("SELECT COUNT(*) FROM tasks WHERE isDeleted = 0 AND dueDateEpochDay = :epochDay")
     fun observeCountForDay(epochDay: Long): Flow<Int>
 

@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.AppLockType
 import com.lifeos.app.core.util.PinAttemptResult
+import com.lifeos.app.core.util.RecoveryAttemptResult
 import com.lifeos.app.core.util.SettingsStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -108,12 +109,22 @@ fun AppLockScreen(lockType: AppLockType, onUnlocked: () -> Unit) {
                 Button(
                     onClick = {
                         scope.launch {
-                            if (locator.settingsStore.verifyRecoveryAnswer(recoveryAnswerInput)) {
-                                error = null
-                                newPin = ""
-                                recoveryStep = RecoveryStep.NEW_PIN
-                            } else {
-                                error = "That doesn't match. Try again."
+                            when (val result = locator.settingsStore.attemptRecoveryAnswer(recoveryAnswerInput)) {
+                                RecoveryAttemptResult.Success -> {
+                                    error = null
+                                    newPin = ""
+                                    recoveryStep = RecoveryStep.NEW_PIN
+                                }
+                                is RecoveryAttemptResult.Incorrect -> {
+                                    error = if (result.attemptsRemaining <= 0) "That doesn't match."
+                                    else "That doesn't match. ${result.attemptsRemaining} attempt(s) left."
+                                    recoveryAnswerInput = ""
+                                }
+                                is RecoveryAttemptResult.LockedOut -> {
+                                    val seconds = (result.remainingMillis / 1000L).coerceAtLeast(1)
+                                    error = "Too many attempts. Try again in $seconds second(s)."
+                                    recoveryAnswerInput = ""
+                                }
                             }
                         }
                     },

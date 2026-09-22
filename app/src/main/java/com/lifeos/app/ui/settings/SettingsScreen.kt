@@ -226,6 +226,7 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit) {
                                 context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "application/json"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, "Share LifeOS backup"))
                             }, modifier = Modifier.fillMaxWidth()) { Text("Share exported backup") }
                         }
+                        Text("Exports are plaintext JSON — only share them with people you trust. Restores are validated against the current format.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                 }

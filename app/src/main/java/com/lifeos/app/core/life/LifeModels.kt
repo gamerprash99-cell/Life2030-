@@ -100,7 +100,7 @@ class LifeController(
     private suspend fun createDiary(raw: String): LifeResult {
         val content = raw.substringAfterAny(listOf("save in diary", "save to diary", "diary:", "diary"), raw).trim().trim(':',' ')
         val now = LocalDateTime.now()
-        diary.createEntry(null, content, null, emptyList(), now.toLocalDate().toEpochDay(), now.hour * 60 + now.minute, false)
+        diary.createEntry(null, content, null, emptyList(), now.toLocalDate().toEpochDay(), DateTimeUtils.nowMinutesOfDay(), false)
         return LifeResult("Saved to Diary.", destination = LifeDestination.Diary, feedback = LifeActionFeedback("Open Diary", LifeDestination.Diary))
     }
 
@@ -110,7 +110,7 @@ class LifeController(
             ?: return LifeResult("Tell me the expense amount, for example ₹250.")
         val category = when { raw.contains("food", true) -> "Food"; raw.contains("travel", true) -> "Travel"; raw.contains("shopping", true) -> "Shopping"; raw.contains("bill", true) -> "Bills"; else -> "Other" }
         val now = LocalDateTime.now()
-        expenses.addExpense(amount, category, now.toLocalDate().toEpochDay(), now.hour * 60 + now.minute)
+        expenses.addExpense(amount, category, now.toLocalDate().toEpochDay(), DateTimeUtils.nowMinutesOfDay())
         return LifeResult("Expense added: ₹${amount.toInt()} · $category", destination = LifeDestination.Expenses, feedback = LifeActionFeedback("Open Expenses", LifeDestination.Expenses))
     }
 

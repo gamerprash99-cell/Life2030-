@@ -6,13 +6,13 @@ import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.data.repository.NoteRepository
 import com.lifeos.app.data.repository.TaskRepository
+import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.domain.model.ExpenseCategories
 import com.lifeos.app.domain.model.TimelineItem
 import com.lifeos.app.domain.model.TimelineItemType
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
-import java.time.ZoneOffset
 
 class BuildTimelineUseCase(
     private val noteRepo: NoteRepository,
@@ -29,8 +29,8 @@ class BuildTimelineUseCase(
         return coroutineScope {
             // Fire every source query concurrently instead of waiting on one
             // stream at a time (keeps the Home summary assembly fast).
-            val notes = async { noteRepo.observeAll().first() }
-            val tasks = async { taskRepo.observeAll().first() }
+            val notes = async { noteRepo.getCreatedBetween(startMillis, endMillis) }
+            val tasks = async { taskRepo.getCompletedBetween(startMillis, endMillis) }
             val habits = async { habitRepo.observeAll().first() }
             val todayCompletions = async { habitRepo.observeAllForDay(epochDay).first() }
             val expenses = async { expenseRepo.observeForDay(epochDay).first() }
@@ -41,23 +41,21 @@ class BuildTimelineUseCase(
             val habitsById = habits.await().associateBy { it.id }
 
             notes.await()
-                .filter { it.createdAt in startMillis until endMillis }
                 .forEach { note ->
                     items += TimelineItem(
                         id = "note-${note.id}", type = TimelineItemType.NOTE,
                         title = note.title.ifBlank { "Untitled note" }, subtitle = note.folder,
-                        dateEpochDay = epochDay, timeMinutes = epochMillisToMinutesOfDay(note.createdAt),
+                        dateEpochDay = epochDay, timeMinutes = DateTimeUtils.minutesOfDay(note.createdAt),
                         icon = "📝", sourceId = note.id
                     )
                 }
 
             tasks.await()
-                .filter { it.isCompleted && (it.completedAtEpochMillis ?: it.updatedAt) in startMillis until endMillis }
                 .forEach { task ->
                     items += TimelineItem(
                         id = "task-${task.id}", type = TimelineItemType.TASK_COMPLETED,
                         title = task.title, subtitle = "Task completed", dateEpochDay = epochDay,
-                        timeMinutes = task.completedAtEpochMillis?.let(::epochMillisToMinutesOfDay) ?: epochMillisToMinutesOfDay(task.updatedAt),
+                        timeMinutes = task.completedAtEpochMillis?.let { DateTimeUtils.minutesOfDay(it) } ?: DateTimeUtils.minutesOfDay(task.updatedAt),
                         icon = "✅", sourceId = task.id, moodOrCategory = task.category
                     )
                 }
@@ -72,7 +70,7 @@ class BuildTimelineUseCase(
                     items += TimelineItem(
                         id = "habit-${habit.id}-$epochDay", type = TimelineItemType.HABIT_COMPLETED,
                         title = habit.name, subtitle = "Habit completed", dateEpochDay = epochDay,
-                        timeMinutes = epochMillisToMinutesOfDay(completion.completedAtEpochMillis),
+                        timeMinutes = DateTimeUtils.minutesOfDay(completion.completedAtEpochMillis),
                         icon = habit.icon, sourceId = habit.id
                     )
                 }
@@ -109,10 +107,5 @@ class BuildTimelineUseCase(
 
             items.sortedBy { it.timeMinutes }
         }
-    }
-
-    private fun epochMillisToMinutesOfDay(millis: Long): Int {
-        val local = java.time.Instant.ofEpochMilli(millis).atZone(ZoneOffset.systemDefault()).toLocalTime()
-        return local.hour * 60 + local.minute
     }
 }

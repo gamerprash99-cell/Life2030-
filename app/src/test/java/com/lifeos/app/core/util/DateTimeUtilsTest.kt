@@ -64,4 +64,38 @@ class DateTimeUtilsTest {
         val minutes = DateTimeUtils.nowMinutesOfDay()
         assertTrue(minutes in 0..1439)
     }
+
+    @Test
+    fun `minutesOfDay converts local wall-clock via the system zone`() {
+        val date = LocalDate.of(2024, 10, 27) // DST transition day in many zones
+        val midnight = DateTimeUtils.startOfLocalDayMillis(date.toEpochDay())
+        assertEquals(0, DateTimeUtils.minutesOfDay(midnight))
+        assertEquals(720, DateTimeUtils.minutesOfDay(midnight + 12 * 60 * 60 * 1000L))
+        assertEquals(1439, DateTimeUtils.minutesOfDay(DateTimeUtils.endOfLocalDayMillis(date.toEpochDay()) - 60_000L))
+    }
+
+    @Test
+    fun `dayRangeMillis spans day-count days with local-midnight boundaries`() {
+        val startDay = LocalDate.of(2024, 6, 15).toEpochDay() // no DST transition anywhere in June
+        val endDay = startDay + 2
+        val (start, end) = DateTimeUtils.dayRangeMillis(startDay, endDay)
+
+        assertEquals(DateTimeUtils.startOfLocalDayMillis(startDay), start)
+        assertEquals(DateTimeUtils.endOfLocalDayMillis(endDay), end)
+        // exactly three local days of wall-clock span
+        assertEquals(3 * 86_400_000L, end - start)
+    }
+
+    @Test
+    fun `dayRangeMillis stays on local midnight even across a DST day`() {
+        val dstDay = LocalDate.of(2024, 10, 27).toEpochDay() // fall-back/spring-forward in many zones
+        val (start, end) = DateTimeUtils.dayRangeMillis(dstDay, dstDay)
+
+        assertEquals(LocalTime.MIDNIGHT, Instant.ofEpochMilli(start).atZone(DateTimeUtils.zoneId()).toLocalTime())
+        assertEquals(LocalTime.MIDNIGHT, Instant.ofEpochMilli(end).atZone(DateTimeUtils.zoneId()).toLocalTime())
+        assertTrue(end > start)
+        // contiguous with the local boundaries of that single day
+        assertEquals(DateTimeUtils.startOfLocalDayMillis(dstDay), start)
+        assertEquals(DateTimeUtils.endOfLocalDayMillis(dstDay), end)
+    }
 }

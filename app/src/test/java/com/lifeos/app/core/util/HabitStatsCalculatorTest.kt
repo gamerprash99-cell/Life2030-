@@ -153,4 +153,23 @@ class HabitStatsCalculatorTest {
         assertEquals(6, HabitStatsCalculator.scheduledDayCount(s, day(2024, 1, 1), day(2024, 1, 14)))
         assertEquals(0, HabitStatsCalculator.scheduledDayCount(s, day(2024, 1, 14), day(2024, 1, 1)))
     }
+
+    @Test
+    fun `toSchedule maps a stored habit to its schedule`() {
+        val habit = com.lifeos.app.data.db.entities.HabitEntity(
+            id = "h1",
+            name = "Run",
+            icon = "🏃",
+            frequency = HabitFrequency.CUSTOM,
+            customDaysCsv = "2,4,6", // Tue, Thu, Sat (ISO day numbers)
+            startDateEpochDay = day(2024, 1, 1),
+            createdAt = 1L,
+            updatedAt = 1L
+        )
+
+        val s = habit.toSchedule()
+        assertEquals(HabitFrequency.CUSTOM, s.frequency)
+        assertEquals(setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY, DayOfWeek.SATURDAY), s.customDays)
+        assertEquals(habit.startDateEpochDay, s.startEpochDay)
+    }
 }

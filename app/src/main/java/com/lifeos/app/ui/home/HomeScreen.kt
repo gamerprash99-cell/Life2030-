@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Camera
@@ -83,7 +84,6 @@ fun HomeScreen(
     onOpenInsights: () -> Unit = {},
     onOpenSearch: () -> Unit = {},
     onOpenTimeline: () -> Unit = {},
-    onOpenSettings: () -> Unit = {},
     onOpenProfile: () -> Unit = {}
 ) {
     val locator = LocalServiceLocator.current
@@ -105,7 +105,7 @@ fun HomeScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
         ) {
-            item { HomeHeader(onOpenSearch, onOpenProfile) }
+            item { HomeHeader(onOpenSearch, onOpenProfile, onOpenAiAssistant) }
             summary?.let { s ->
                 item {
                     GreetingHeader(
@@ -132,7 +132,7 @@ fun HomeScreen(
                     )
                 }
             }
-            item { QuickActionsSection(onOpenDiary, onOpenExpenses, onOpenTimeline) }
+            item { QuickActionsSection(onOpenDiary, onOpenNotes, onOpenExpenses, onOpenTimeline) }
             item { HabitsSection(summary = summary, onOpenHabits = onOpenHabits, onToggleHabit = viewModel::toggleHabit) }
             item { ActivityHeader(summary) }
             val activityItems = summary?.recentActivity.orEmpty()
@@ -167,7 +167,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeHeader(onSearch: () -> Unit, onProfile: () -> Unit) {
+private fun HomeHeader(onSearch: () -> Unit, onProfile: () -> Unit, onOpenAiAssistant: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("LifeOS", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -179,6 +179,7 @@ private fun HomeHeader(onSearch: () -> Unit, onProfile: () -> Unit) {
             )
         }
         Spacer(Modifier.weight(1f))
+        IconButton(onClick = onOpenAiAssistant) { Icon(Icons.Filled.AutoAwesome, contentDescription = "Ask LIFE") }
         IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, contentDescription = "Search") }
         ProfileAvatar(size = 40.dp, onClick = onProfile)
     }
@@ -364,10 +365,11 @@ private fun todayTaskSubtitle(task: TaskEntity): String {
 }
 
 @Composable
-private fun QuickActionsSection(onOpenDiary: () -> Unit, onOpenExpenses: () -> Unit, onOpenTimeline: () -> Unit) {
+private fun QuickActionsSection(onOpenDiary: () -> Unit, onOpenNotes: () -> Unit, onOpenExpenses: () -> Unit, onOpenTimeline: () -> Unit) {
     HomeSectionHeader("Quick Actions")
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         QuickActionTile("Diary", Icons.Filled.Book, onOpenDiary, Modifier.weight(1f))
+        QuickActionTile("Notes", Icons.Filled.EditNote, onOpenNotes, Modifier.weight(1f))
         QuickActionTile("Expense", Icons.AutoMirrored.Filled.ReceiptLong, onOpenExpenses, Modifier.weight(1f))
         QuickActionTile("Timeline", Icons.Filled.Timeline, onOpenTimeline, Modifier.weight(1f))
     }

@@ -16,6 +16,56 @@ output.
 
 ---
 
+## [Unreleased] — 2026-09-22 Security/perf/navigation hardening pass (`feat/hardening-pass`)
+
+### Security
+- **Recovery-answer throttling**: new pure `LockoutPolicy` (escalating lockout,
+  capped at 16 min) shared by the PIN and the recovery answer; recovery uses a
+  stricter 3-attempt budget via `SettingsStore.attemptRecoveryAnswer`, and
+  `AppLockScreen` renders attempts/remaining lockout. Counters reset on
+  `enablePinLock`/`disableAppLock`. (`LockoutPolicyTest`)
+- **Backup format versioning**: `LifeOSBackup.formatVersion` (default = current
+  so legacy exports import), `validateBackup()` rejecting invalid/newer files,
+  100 MB size cap, user-facing import errors; Settings notes the plaintext-JSON
+  caveat. (`BackupSerializationTest`)
+
+### Navigation
+- Home header sparkle now opens the AI assistant; a **Notes quick-action tile**
+  was added; the dead `HomeScreen.onOpenSettings` callback was removed.
+- **Search Diary hits open the matching entry** (`DiaryDetail`) via pure
+  `SearchCategory.routeFor`; `AiAssistantScreen` gained an AutoMirrored Back
+  button wired to `popBackStack`.
+
+### Date/time correctness
+- New `DateTimeUtils.minutesOfDay(epochMillis)` / `dayRangeMillis(start, end)`;
+  fixed Insights' UTC-midnight week range, `BuildTimelineUseCase`'s private
+  min-of-day math, `TaskRepository`'s raw `LocalDate.now()`, and `LifeModels`'
+  `hour*60+minute` timestamps. No raw `*86_400_000` or `hour*60+minute` remains
+  in main sources. (`DateTimeUtilsTest`)
+
+### Performance
+- Timeline/Home no longer read full `notes`/`tasks` tables: ranged
+  `NoteRepository.getCreatedBetween` (existing DAO) and new
+  `TaskDao.getCompletedBetween` keep the exact prior in-memory semantics
+  (`isDeleted=0, isCompleted=1, COALESCE(completedAtEpochMillis, updatedAt)`).
+- `AppDatabase` **v2**: 14 single-column `@Index`es (notes/tasks/habits/
+  completions/diary/expenses/captures) via `MIGRATION_1_2`; exported `2.json`,
+  `1.json` untouched.
+
+### Cleanup
+- Removed dead `SettingsStore.verifyPin` and `Screen.bottomNavItems` (grep-verified).
+- Consolidated duplicate `LifeDestination`→route `when` blocks into pure
+  `LifeDestination.route()` and the two private `scheduleOf(habit)` builders
+  into `HabitEntity.toSchedule()`.
+
+### Verification
+- `compileDebugKotlin`, `testDebugUnitTest` (**123 tests, 0 failures**,
+  16 classes), `assembleDebug`, `lintDebug` (**0 errors**, 26 pre-existing
+  warnings) — all BUILD SUCCESSFUL. DB migration verified via generated
+  `2.json` (index names match `MIGRATION_1_2` 1:1).
+
+---
+
 ## [Unreleased] — 2026-09-21 Diary (LifeOS Journal) redesign, from the Stitch design project
 
 Native Kotlin + Compose implementation of the Stitch "LifeOS Diary / Journal"

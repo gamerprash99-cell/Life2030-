@@ -43,7 +43,18 @@ enum class SearchCategory(val label: String) {
     NOTES("Notes"),
     TASKS("Tasks"),
     EXPENSES("Expenses"),
-    DIARY("Diary")
+    DIARY("Diary");
+
+    /**
+     * Maps a search hit to the route that should open. Kept pure so the same
+     * navigation logic is unit-testable and reusable (e.g. calendar jumps).
+     */
+    fun routeFor(hitId: String): String = when (this) {
+        NOTES -> com.lifeos.app.ui.navigation.Screen.NoteEditor.createRoute(hitId)
+        TASKS -> com.lifeos.app.ui.navigation.Screen.Tasks.route
+        EXPENSES -> com.lifeos.app.ui.navigation.Screen.Expenses.route
+        DIARY -> com.lifeos.app.ui.navigation.Screen.DiaryDetail.createRoute(hitId)
+    }
 }
 
 data class SearchHit(

@@ -1,6 +1,7 @@
 package com.lifeos.app.data.db.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
@@ -11,7 +12,11 @@ import kotlinx.serialization.Serializable
  * support real rich formatting without needing a second table per block type.
  */
 @Serializable
-@Entity(tableName = "notes")
+@Entity(tableName = "notes", indices = [
+    Index(value = ["createdAt"]),
+    Index(value = ["updatedAt"]),
+    Index(value = ["isDeleted"])
+])
 data class NoteEntity(
     @PrimaryKey val id: String,
     val title: String,

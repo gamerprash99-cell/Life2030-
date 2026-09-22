@@ -1,6 +1,7 @@
 package com.lifeos.app.data.db.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
@@ -12,7 +13,14 @@ enum class RepeatRule { NONE, DAILY, WEEKLY, MONTHLY, CUSTOM_DAYS }
 
 /** Task Management — Section 9/10. */
 @Serializable
-@Entity(tableName = "tasks")
+@Entity(tableName = "tasks", indices = [
+    Index(value = ["dueDateEpochDay"]),
+    Index(value = ["createdAt"]),
+    Index(value = ["updatedAt"]),
+    Index(value = ["completedAtEpochMillis"]),
+    Index(value = ["isDeleted"]),
+    Index(value = ["isCompleted"])
+])
 data class TaskEntity(
     @PrimaryKey val id: String,
     val title: String,
