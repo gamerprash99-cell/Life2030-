@@ -148,13 +148,6 @@ class SettingsStore(private val context: Context) {
         it.remove(Keys.RECOVERY_FAILED_ATTEMPTS); it.remove(Keys.RECOVERY_LOCKOUT_UNTIL)
     }
 
-    suspend fun verifyPin(enteredPin: String): Boolean {
-        val prefs = context.dataStore.data.first()
-        val salt = prefs[Keys.PIN_SALT] ?: return false
-        val hash = prefs[Keys.PIN_HASH] ?: return false
-        return PinHasher.verify(enteredPin, salt, hash)
-    }
-
     /**
      * Verify the PIN with brute-force throttling. Each failure is recorded;
      * after [MAX_ATTEMPTS] failures the check refuses to run until the current
