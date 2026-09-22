@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.lifeos.app.core.security.DatabasePassphraseProvider
 import com.lifeos.app.data.db.dao.CaptureDao
 import com.lifeos.app.data.db.dao.DiaryDao
@@ -41,7 +43,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         DiaryEntity::class,
         CaptureEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -72,8 +74,34 @@ abstract class AppDatabase : RoomDatabase() {
                         .openHelperFactory(SupportOpenHelperFactory(passphrase))
                         // No destructive fallback in production; migrations must be added
                         // explicitly as the schema evolves post-v1.
+                        .addMigrations(MIGRATION_1_2)
                         .build()
                 }.also { INSTANCE = it }
+            }
+        }
+
+        /**
+         * v1 → v2: add the single-column indexes the hot day/range queries scan.
+         * Creates every index Room's default naming would have generated
+         * (`index_<table>_<column>`) so the running schema exactly matches the
+         * exported v2 schema.
+         */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_notes_createdAt ON notes(createdAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_notes_updatedAt ON notes(updatedAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_notes_isDeleted ON notes(isDeleted)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_tasks_dueDateEpochDay ON tasks(dueDateEpochDay)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_tasks_createdAt ON tasks(createdAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_tasks_updatedAt ON tasks(updatedAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_tasks_completedAtEpochMillis ON tasks(completedAtEpochMillis)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_tasks_isDeleted ON tasks(isDeleted)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_tasks_isCompleted ON tasks(isCompleted)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_habits_isArchived ON habits(isArchived)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_habit_completions_dateEpochDay ON habit_completions(dateEpochDay)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_diary_entries_dateEpochDay ON diary_entries(dateEpochDay)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_dateEpochDay ON expenses(dateEpochDay)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_captures_dateEpochDay ON captures(dateEpochDay)")
             }
         }
 

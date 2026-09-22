@@ -1,6 +1,7 @@
 package com.lifeos.app.data.db.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
@@ -9,7 +10,7 @@ enum class CaptureType { PHOTO, VIDEO, AUDIO, THOUGHT }
 
 /** Life Capture — local media metadata model. */
 @Serializable
-@Entity(tableName = "captures")
+@Entity(tableName = "captures", indices = [Index(value = ["dateEpochDay"])])
 data class CaptureEntity(
     @PrimaryKey val id: String,
     val type: CaptureType,
