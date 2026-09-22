@@ -23,16 +23,16 @@ Room.databaseBuilder(
 - **File location on device**: internal app storage, filename `lifeos.db`
 - **Encryption at rest**: SQLCipher; passphrase is random per install and
   wrapped by an Android Keystore AES-GCM key — see `docs/08_SECURITY.md`.
-- **Schema version**: `1`
-- **Migrations**: None defined yet — `AppDatabase.kt`'s comment notes *"No
-  destructive fallback in production; migrations must be added explicitly
-  as the schema evolves post-v1."* This means: **if the schema changes in a
-  future version without a Room `Migration` being written, the app will
-  crash on upgrade** rather than silently deleting data. See
-  `docs/16_KNOWN_ISSUES.md`.
+- **Schema version**: `2`
+- **Migrations**: `MIGRATION_1_2` in `AppDatabase.kt` upgrades v1 → v2 by
+  creating the index set below (`CREATE INDEX IF NOT EXISTS` for each). No
+  destructive fallback is configured — if a future schema change lands without
+  a `Migration`, the app will crash on upgrade rather than silently deleting
+  data. See `docs/16_KNOWN_ISSUES.md`.
 - **Schema export**: `app/build.gradle.kts` configures
-  `room.schemaLocation = "$projectDir/schemas"`; the exported schema is
-  committed at `app/schemas/com.lifeos.app.data.db.AppDatabase/1.json`.
+  `room.schemaLocation = "$projectDir/schemas"`; exported schemas are
+  committed at `app/schemas/com.lifeos.app.data.db.AppDatabase/1.json` (v1,
+  unchanged) and `2.json` (v2).
 
 ## Tables (entities)
 
@@ -165,10 +165,22 @@ rows are not cleaned up. See `docs/16_KNOWN_ISSUES.md`.
 
 ## Indexes
 
-⚠️ **NOT VERIFIED / NOT PRESENT** — no `@Index` annotations exist on any
-entity. All queries rely on SQLite's default primary-key index only; date-
-range and `LIKE` queries (used heavily by Timeline and Search) are not
-backed by a secondary index.
+⚠️ **PRESENT as of v2 (2026-09-22)** — all single-column, Room default names
+(`index_<table>_<column>`), backed by `MIGRATION_1_2`:
+
+| Table | Indexed column | Rationale |
+|---|---|---|
+| notes | `createdAt`, `updatedAt`, `isDeleted` | list ordering + trash filter |
+| tasks | `dueDateEpochDay`, `createdAt`, `updatedAt`, `completedAtEpochMillis`, `isDeleted`, `isCompleted` | day views, timeline, completed-range reads |
+| habits | `isArchived` | active-habit listing |
+| habit_completions | `dateEpochDay` | per-day/range completion reads |
+| diary_entries | `dateEpochDay` | calendar/timeline reads |
+| expenses | `dateEpochDay` | day/range reads |
+| captures | `dateEpochDay` | timeline reads |
+
+No composite indexes yet; the `habit_completions` primary key
+(`habitId`, `dateEpochDay`) already covers habit+day lookups. `LIKE` searches
+remain unindexed (correct for a local single-user DB).
 
 ## Security rules
 

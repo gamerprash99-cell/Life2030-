@@ -226,3 +226,114 @@ emulator/device and no `androidTest` source set are available.
   nested `root_tabs` graph plus stacked secondary routes already pop correctly.
 - **Status**: Resolved (code-verified; on-device predictive-back gesture check
   is part of the final release checklist).
+
+---
+
+### Issue #19 — [RESOLVED] Recovery answer could be brute-forced without throttling
+
+- **Severity**: Was 🟠 High (security)
+- **Description**: The App-Lock *recovery answer* (the PIN's bypass) was verified
+  with no rate limiting or lockout, unlike the PIN path — an attacker with the
+  device could replay guesses indefinitely.
+- **Fix**: Extracted `core/util/LockoutPolicy.kt` (pure, unit-tested escalating
+  window capped at 16 min) and reused it for the recovery answer
+  (`SettingsStore.attemptRecoveryAnswer`) with a stricter 3-attempt budget.
+  `AppLockScreen` renders remaining attempts and the lockout countdown. Recovery
+  counters reset on `enablePinLock`/`disableAppLock`.
+- **Status**: Resolved (covered by `LockoutPolicyTest`).
+
+### Issue #20 — [RESOLVED] Backup imports were unversioned and could restore garbage
+
+- **Severity**: Was 🟠 High (data integrity)
+- **Description**: `LifeOSBackup` had no format version; restoring a file written
+  by a future/incompatible version would silently write wrong data, and there
+  was no size sanity guard before reading the whole file into memory.
+- **Fix**: `formatVersion` field (default = current, so legacy exports still
+  import), `validateBackup()` rejecting invalid/newer files, a 100 MB cap, and
+  user-facing errors from `importFromFile` instead of silent garbage.
+- **Status**: Resolved (covered by `BackupSerializationTest`).
+
+### Issue #21 — [RESOLVED] Insights weekly range treated midnight as UTC
+
+- **Severity**: Was 🟡 Medium (wrong numbers off-UTC / on DST days)
+- **Description**: `InsightsViewModel.loadStats()` computed
+  `start * 86_400_000L` / `(end + 1) * 86_400_000L`, which is UTC-midnight math —
+  wrong for every non-UTC zone and for DST days, exactly what
+  `DateTimeUtils.startOfLocalDayMillis`/`endOfLocalDayMillis` exist to avoid.
+- **Fix**: Added `DateTimeUtils.dayRangeMillis(startDay, endDay)` and
+  `minutesOfDay(epochMillis)`; routed Insights, `BuildTimelineUseCase`,
+  `TaskRepository` and `LifeModels` through them. No raw `*86_400_000` or
+  `hour*60+minute` date math remains in main sources.
+- **Status**: Resolved (covered by `DateTimeUtilsTest`).
+
+### Issue #22 — [RESOLVED] Timeline/Home read full tables every build
+
+- **Severity**: Was 🟡 Medium (perf, grows with the database)
+- **Description**: `BuildTimelineUseCase` fetched complete `notes` and `tasks`
+  tables then filtered in memory by day range — the largest wasted I/O on every
+  timeline/Home build.
+- **Fix**: `NoteRepository.getCreatedBetween` (existing DAO query) and new
+  `TaskDao.getCompletedBetween` (`isDeleted=0, isCompleted=1,
+  COALESCE(completedAtEpochMillis, updatedAt)`, matching the old in-memory
+  filter) with `TaskRepository` delegation. Habit reads stay small-table
+  `observeAll().first()`.
+- **Status**: Resolved.
+
+### Issue #23 — [RESOLVED] Hot day/range queries had no index support
+
+- **Severity**: Was 🟡 Medium (perf)
+- **Description**: No entity declared `@Index`; every day/range/filter query
+  (`dateEpochDay`, `createdAt`, `updatedAt`, `isCompleted`, `isDeleted`,
+  `isArchived`, `completedAtEpochMillis`) was a full scan.
+- **Fix**: `AppDatabase` v2 adds 14 single-column indexes via `MIGRATION_1_2`
+  (Room default names; exports `2.json`, `1.json` untouched). No destructive
+  fallback. See `docs/05_DATABASE.md`.
+- **Status**: Resolved (schema-generated `2.json` glance-diffed; migration SQL
+  matches Room's names 1:1).
+
+### Issue #24 — [RESOLVED] Otherwise-reachable screens lacked entries (AI/Notes search/back nav)
+
+- **Severity**: Was 🟡 Medium (UX)
+- **Description**: The AI assistant, quick-action Notes, diary *entry* search
+  navigation and an AI back affordance were all missing surface areas; the AI
+  screen's `TopAppBar` had no Back button.
+- **Fix**: Home header sparkle opens LIFE; a Notes quick-action tile was added;
+  pure `SearchCategory.routeFor(hitId)` routes Diary hits to the matching entry
+  (`DiaryDetail`); `AiAssistantScreen` gained an AutoMirrored Back button wired
+  to `popBackStack`.
+- **Status**: Resolved (covered by `SearchCategoryTest` / `LifeDestinationRoutesTest`).
+
+### Issue #25 — [RESOLVED] Dead code and duplicate navigation/schedule builders
+
+- **Severity**: Was 🟢 Low (maintainability)
+- **Description**: Dead `SettingsStore.verifyPin` and `Screen.bottomNavItems`;
+  two identical `LifeDestination`→route `when` blocks in the NavHost; two
+  identical private `scheduleOf(habit)` builders.
+- **Fix**: Removed the dead code (grep-verified zero references; keep
+  `TaskEntity.sourceType/sourceId` for AI provenance); extracted pure
+  `LifeDestination.route()` and `HabitEntity.toSchedule()` (both unit-tested)
+  and collapsed the call sites.
+- **Status**: Resolved (covered by `LifeDestinationRoutesTest` /
+  `HabitStatsCalculatorTest`).
+
+---
+
+## 2026-09-22 hardening-pass status update
+
+A security/perf/navigation hardening pass was executed and verified on-device
+available tooling (Gradle 8.9 + AGP 8.6.1, system Gradle since the repo still
+ships no `gradlew`). Exact commands and results:
+
+```text
+gradle :app:testDebugUnitTest  -> BUILD SUCCESSFUL (123 tests, 0 failures)
+gradle :app:compileDebugKotlin -> BUILD SUCCESSFUL
+gradle :app:assembleDebug      -> BUILD SUCCESSFUL
+gradle :app:lintDebug          -> BUILD SUCCESSFUL (0 errors, 26 pre-existing warnings)
+```
+
+The 26 lint warnings are pre-existing and unrelated (GradleDependency version
+bumps, autoboxing state hints, obsolete `-v26` folder, unused round icon and
+`tagline` string, missing monochrome icon tag, one ModifierParameter hint).
+Issues #1 (missing Gradle wrapper scripts) remains open; device/instrumentation
+verification remains the standing gap (`app/src/androidTest/` does not exist).
+All other fixes above are committed on the `feat/hardening-pass` branch.
