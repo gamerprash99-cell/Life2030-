@@ -1,5 +1,13 @@
 package com.lifeos.app.ui.navigation
 
+/**
+ * Route of the nested graph that owns the primary (bottom-navigation)
+ * destinations. Kept here (not private to the NavHost) so the bottom bar can
+ * tell "inside a tab" apart from "on an overlay stacked above the tabs" and
+ * decide whether a tap should switch tabs or push the tab on top.
+ */
+internal const val ROOT_TABS_GRAPH = "root_tabs"
+
 sealed class Screen(val route: String) {
     object Home : Screen("home")
     object Tasks : Screen("tasks")

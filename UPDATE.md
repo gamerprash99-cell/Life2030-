@@ -662,4 +662,52 @@ gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existin
 
 ### Remaining
 - On-device: native-splash→Home transition timing, re-tap stays-on-tab behaviour, Profile→Back tab sync, and an actual reminder firing without exact-alarm access (no emulator/device here — verified via compile + 93 JVM tests + lint + code reasoning).
+
+## 2026-09-23 — Back-nav fix on overlays, POST_NOTIFICATIONS gate, task-reminder parity & zombie-reminder normalization (branch `fix/startup-navigation-reminders`)
+
+Completes this branch's hardening. No Room-schema (v4), entity, migration, repository-API or dependency-catalog changes.
+
+### 1. Back navigation from a tab tapped on an overlay (Home → Profile → Habits → Back → Profile → Back → Home)
+- **Root cause:** the previous fix made every bottom-bar tap the one canonical pattern — `navigate(route) { popUpTo(findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true }`, which is *always wrong when the current destination lives outside the tabs graph*. Tapping a tab while Profile/Habit Detail/Expenses is stacked on top **pops the overlay off the stack** (because `popUpTo` reaches past it to the tabs' start destination), so system Back from the tab returned to Home instead of Profile, and the overlay's saved state could ghost a duplicate.
+- **Fix:** `LifeOSBottomBar` is now overlay-aware. `isOnTab` checks the visible destination's `hierarchy` for the nested tabs graph (`ROOT_TABS_GRAPH`, promoted from a private const to `internal const val` in `Screen.kt`, same package as the NavHost):
+  - inside the tabs → the canonical switch is preserved unchanged;
+  - on an overlay → the tab is **pushed on top** (no `popUpTo`), deduping first via `popBackStack(tabRoute, false)` so an existing tab below the overlay is returned to instead of duplicated; if none exists, `navigate { launchSingleTop = true }`. System Back now unwinds exactly Profile → tab → Profile → Home.
+
+### 2. POST_NOTIFICATIONS is requested when a timed reminder is created — never at startup
+- **Root cause:** the permission was only ever requested from the Settings toggle; creating a habit/task reminder on a fresh install silently scheduled a full-screen notification the OS would never deliver — a "broken reminder" the user had to debug via Settings.
+- **Fix:** new `ReminderPermissionHost` composable (`ui/components/ReminderPermissionHost.kt`) owns its own request launcher (mirroring `PermissionManager`/`rememberPermissionState` semantics) and only runs the held action on actual OS grant. It is composed inline in the reminder creation/edit paths — `NewTaskDialog` Add, Habits add-habit confirm, `HabitDetailScreen.ReminderCard` (time + repeat-change arms), and the new task reminder editor — never at startup. API<33 or already granted → runs immediately; denied → an explanation AlertDialog ("Allow notifications?") holds the action until grant (or drops it); permanently denied → "Open Settings" via `PermissionManager.openAppSettings`. Clearing a reminder stays ungated. The Settings RemindersCard now routes a permanently-denied toggle to system Settings instead of a silent `request()`.
+
+### 3. Task reminders reach full parity with habit reminders
+- **Root cause:** habits get a dedicated reminder card in their detail screen; tasks could only set/remove a reminder at creation time — no edit, no repeat change, no way to see the alarm cadence from the task itself.
+- **Fix:** `TaskRepository.setReminder(taskId, epochMillis, repeatType)` + `getReminderFor(taskId)` (mirrors `HabitRepository.setReminder`, sharing `syncReminderForTask` — same stable row id, so edit/clear replaces rather than duplicates), `TasksViewModel.updateReminder`/`reminderRepeatFor`, a tappable "Remind at …" chip on any task with a reminder, and `TaskReminderEditorDialog` (time picker + repeat selector + Save/Clear, insets-safe like `NewTaskDialog`), gated by the permission host when arming.
+
+### 4. Past-due ("zombie") reminders normalize instead of silently never firing
+- **Root cause:** `syncReminderForEntity` / `rebuildAllActive` / `rebuildFromMirrors` silently skipped rows whose trigger was already in the past, leaving them *enabled forever* with an alarm that could never fire — e.g. a DAILY reminder set after today's time would never trigger today's notification and stayed armed-forever-dormant rows in the DB.
+- **Fix:** one arming path, `ReminderRepository.armNextOccurrence`, with a pure helper `ReminderScheduleCalculator.nextFutureOccurrenceMillis` (already-future → as-is; past DAILY/WEEKDAYS → fast-forward to the next future occurrence, persisted via `advanceTrigger`; past ONCE → disabled + alarm cancelled). All lifecycle arming now flows through it: create/edit sync, `rebuildAllActive` (boot/toggle/time-change), `rebuildFromMirrors` (backup restore / v4 upgrade), and `handleFired`'s recurring branch (which previously did a bare `rearmIfFuture`).
+
+### Files changed
+- `app/src/main/java/com/lifeos/app/ui/navigation/Screen.kt` (`ROOT_TABS_GRAPH` internal const)
+- `app/src/main/java/com/lifeos/app/ui/navigation/LifeOSNavHost.kt` (reference shared const)
+- `app/src/main/java/com/lifeos/app/ui/components/LifeOSBottomBar.kt` (overlay-aware tab tap)
+- `app/src/main/java/com/lifeos/app/ui/components/ReminderPermissionHost.kt` (new)
+- `app/src/main/java/com/lifeos/app/ui/tasks/TasksScreen.kt` (NewTaskDialog gate, TaskCard reminder chip, `TaskReminderEditorDialog`, VM `updateReminder`/`reminderRepeatFor`)
+- `app/src/main/java/com/lifeos/app/data/repository/TaskRepository.kt` (`setReminder`/`getReminderFor`)
+- `app/src/main/java/com/lifeos/app/ui/habits/HabitsScreen.kt` (add-habit gate)
+- `app/src/main/java/com/lifeos/app/ui/habits/HabitDetailScreen.kt` (ReminderCard arms gated)
+- `app/src/main/java/com/lifeos/app/ui/settings/SettingsScreen.kt` (permanently-denied → open Settings)
+- `app/src/main/java/com/lifeos/app/core/reminders/ReminderScheduleCalculator.kt` (`nextFutureOccurrenceMillis`)
+- `app/src/main/java/com/lifeos/app/data/repository/ReminderRepository.kt` (`armNextOccurrence`; rewire all arming)
+- `app/src/test/java/com/lifeos/app/core/reminders/ReminderScheduleCalculatorTest.kt` (+6 fast-forward cases)
+- `UPDATE.md`, plan `docs/superpowers/plans/2026-09-23-task-reminder-navigation-permissions.md`
+
+### Verification
+```text
+gradle :app:compileDebugKotlin   -> BUILD SUCCESSFUL
+gradle :app:assembleDebug        -> BUILD SUCCESSFUL
+gradle :app:testDebugUnitTest    -> BUILD SUCCESSFUL (99 tests, 0 failures)
+gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existing warnings)
+```
+
+### Remaining
+- On-device: overlay back-stack behaviour, the permission dialog lifecycle, and a real notification firing at the set time (no emulator/device in this sandbox — verified via compile + 99 JVM tests + lint + code reasoning).
  
