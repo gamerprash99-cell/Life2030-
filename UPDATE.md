@@ -3,6 +3,54 @@
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).
 
 ---
+---
+
+## 2026-09-23 — Exact-alarm permission flow (SCHEDULE_EXACT_ALARM), shared & permission-safe scheduler
+
+Task and habit reminders have always used the permission-free, Doze-aware
+inexact `AlarmManager` API, which is reliable but delivers reminders only when
+the system batches them. This pass adds Android 12+ special access so timed
+task reminders can fire at the exact scheduled minute.
+
+### What changed
+- **Manifest** (`AndroidManifest.xml`): declared `SCHEDULE_EXACT_ALARM`. This is
+  a *special access* the user must enable on the system "Alarms & reminders"
+  page — never requested at launch, and its absence can never crash or throw.
+- **`ReminderScheduler`** (shared by tasks and habits): when exact scheduling
+  is granted it uses `setExactAndAllowWhileIdle`; otherwise it falls back to the
+  existing permission-free `setAndAllowWhileIdle`. Both are Doze-aware; a
+  `SecurityException` can never propagate, so nothing throws and no reminder is
+  left as a silent zombie. Habits keep their existing ungated flow unchanged.
+- **`PermissionManager`**: added `openExactAlarmSettings(context)` → system
+  `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` page (fallback to app details on old
+  Android).
+- **`ExactAlarmPermissionHost`** (new, `ui/components`): mirrors
+  `ReminderPermissionHost`. Shows an explanatory dialog with "Open Settings" /
+  "Not now" and re-checks the grant on every `ON_RESUME` (returning from the
+  system page), releasing the held action only once the grant is present — it
+  never claims "reminder scheduled" while access is still denied.
+- **`SettingsScreen`**: added an "Alarms & reminders" row that reads the *live*
+  system grant (allowed / not allowed / not required on API < 31) and deep-links
+  to the exact-alarm system page. No fake in-app switch.
+- **`TasksScreen`**: the task-reminder save is gated behind exact-alarm access
+  (via `ExactAlarmPermissionHost`); habits call it untouched. `POST_NOTIFICATIONS`
+  permission remains required for notifications.
+- **`strings.xml`**: added the settings-row and `exact_alarm_dialog_*` strings.
+
+### Database
+No Room schema/migration change. DB stays at version 4; `reminders` table
+unchanged; no columns dropped or added.
+
+### Verification (offline, deps cached)
+```text
+gradle :app:compileDebugKotlin -> BUILD SUCCESSFUL
+:app:testDebugUnitTest        -> BUILD SUCCESSFUL (12 suites, 99 tests, 0 failures)
+:app:assembleDebug            -> BUILD SUCCESSFUL (APK + dex packaged)
+:app:lintDebug                -> 0 errors, 0 warnings
+```
+Exact-alarm scheduling is Android-version-conditional (only lives on API 31+, is
+granted by the user on the system page, and only ever *armed* on-task-save), so
+it is not exercised by the current on-device scenario tests.
 
 ## 2026-09-18 — Audit hardening pass (P0 data safety, correctness, polish)
 

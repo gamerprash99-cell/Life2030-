@@ -11,11 +11,15 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Full-screen alarms keep the reminder visible above the lock screen. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- SCHEDULE_EXACT_ALARM lets LifeOS deliver task/habit reminders at the
+         exact scheduled minute. It is a special access the user enables in
+         Android's "Alarms & reminders" system page (requested from Settings and
+         from the task-reminder gate — never at launch). When it is denied the
+         shared scheduler falls back to the permission-free, Doze-aware inexact
+         API, so reminders always keep working without ever throwing. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- No INTERNET permission: all LifeOS features run entirely on-device.
          There is no HTTP client, no API key, and no network code anywhere in this app. -->
-    <!-- No SCHEDULE_EXACT_ALARM: reminders use the permission-free, Doze-aware
-         inexact AlarmManager API (setAndAllowWhileIdle), so no exact-alarm
-         special access is requested or required. -->
 
     <application
         android:name=".LifeOSApplication"

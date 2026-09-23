@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
@@ -29,22 +30,31 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.lifeos.app.R
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.reminders.ReminderScheduler
 import com.lifeos.app.core.util.AppLockType
 import com.lifeos.app.core.util.NotificationHelper
+import com.lifeos.app.core.util.PermissionManager
 import com.lifeos.app.core.util.PermissionStatus
 import com.lifeos.app.core.util.SettingsStore
 import com.lifeos.app.core.util.rememberPermissionState
@@ -189,6 +199,7 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit, onBack: () -> Unit = {}) {
 
                 LifeOSSectionHeader("Notifications / Reminders")
                 RemindersCard(enabled = remindersEnabled, onToggle = vm::setRemindersEnabled)
+                ExactAlarmsRemindersRow()
 
                 LifeOSSectionHeader("Backup & Local Storage")
                 LifeOSCard(Modifier.fillMaxWidth()) {
@@ -279,10 +290,56 @@ private fun RemindersCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
                     }
                 )
             }
-            // Reminders schedule through Android's permission-free, Doze-aware
-            // inexact AlarmManager API (setAndAllowWhileIdle), so no
-            // SCHEDULE_EXACT_ALARM special access is ever required and the
-            // user is never pushed to system Settings for it.
+            // Schedule delivery is driven by the shared ReminderScheduler: exact
+            // (setExactAndAllowWhileIdle) when SCHEDULE_EXACT_ALARM is granted or
+            // not required, otherwise the permission-free inexact fallback.
         }
     }
+}
+
+/**
+ * Settings → "Alarms & reminders": read-only status of LifeOS's
+ * `SCHEDULE_EXACT_ALARM` special access. Tapping it deep-links the user to the
+ * Android "Alarms & reminders" system page (API 31+); on older Android the
+ * permission does not exist, so the row shows a static "not required" note and
+ * is not tappable. There is deliberately no in-app fake switch — the grant can
+ * only be toggled by the user inside the system page. The state is re-read
+ * whenever the screen resumes so returning from system Settings immediately
+ * reflects the current grant.
+ */
+@Composable
+private fun ExactAlarmsRemindersRow() {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var canScheduleExact by remember { mutableStateOf(ReminderScheduler.canScheduleExactAlarms(context)) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                canScheduleExact = ReminderScheduler.canScheduleExactAlarms(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val requiresPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val statusText = context.getString(
+        when {
+            !requiresPermission -> R.string.settings_alarms_reminders_not_required
+            canScheduleExact -> R.string.settings_alarms_reminders_allowed
+            else -> R.string.settings_alarms_reminders_not_allowed
+        }
+    )
+
+    SettingsRow(
+        icon = Icons.Filled.Alarm,
+        title = context.getString(R.string.settings_alarms_reminders_title),
+        subtitle = "${context.getString(R.string.settings_alarms_reminders_subtitle)}\n$statusText",
+        onClick = if (requiresPermission) {
+            { PermissionManager.openExactAlarmSettings(context) }
+        } else {
+            null
+        }
+    )
 }

@@ -6,4 +6,17 @@
     <string name="alarm_generic_reminder">LifeOS reminder</string>
     <string name="alarm_stop">STOP</string>
     <string name="snooze_minutes">%1$dm</string>
+
+    <!-- Settings → Alarms & reminders (SCHEDULE_EXACT_ALARM) -->
+    <string name="settings_alarms_reminders_title">Alarms &amp; reminders</string>
+    <string name="settings_alarms_reminders_subtitle">Allow LifeOS to schedule time-sensitive reminders and alarms.</string>
+    <string name="settings_alarms_reminders_allowed">Allowed — LifeOS can schedule exact alarms</string>
+    <string name="settings_alarms_reminders_not_allowed">Not allowed — tap to open the Alarms &amp; reminders page</string>
+    <string name="settings_alarms_reminders_not_required">Not required on this Android version</string>
+
+    <!-- Task-reminder exact-alarm permission gate -->
+    <string name="exact_alarm_dialog_title">Alarms &amp; reminders</string>
+    <string name="exact_alarm_dialog_message">LifeOS needs the Alarms &amp; reminders permission to schedule time-sensitive task reminders. Allow LifeOS to schedule time-sensitive reminders and alarms.</string>
+    <string name="exact_alarm_dialog_open_settings">Open Settings</string>
+    <string name="exact_alarm_dialog_not_now">Not now</string>
 </resources>
