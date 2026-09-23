@@ -89,20 +89,20 @@ fun LifeOSBottomBar(navController: NavHostController) {
         ) {
             bottomNavItems.forEach { item ->
                 val selected = destination?.hierarchy?.any { it.route == item.screen.route } == true
+                // One canonical pattern for every tap (selected or not):
+                // pop every tab off the stack down to the start destination
+                // (saving their state, so each tab is restored intact),
+                // launchSingleTop so re-tapping the visible tab never duplicates
+                // or pops somewhere unexpected, restoreState so an existing
+                // tab's stack comes back. Re-tapping the current tab therefore
+                // stays on that tab; Home always navigates explicitly to Home.
                 BottomNavEntry(item = item, selected = selected, onClick = {
-                    if (selected) {
-                        // Re-tap of the already-visible tab: surface the tab itself
-                        // (pop anything above the start destination) without adding a
-                        // duplicate entry, so the tab can never become unresponsive.
-                        navController.popBackStack(navController.graph.findStartDestination().id, false)
-                    } else {
-                        navController.navigate(item.screen.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
+                    navController.navigate(item.screen.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
                         }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 }, modifier = Modifier.weight(1f))
             }
