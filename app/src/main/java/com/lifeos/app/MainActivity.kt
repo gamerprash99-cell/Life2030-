@@ -7,13 +7,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -22,11 +18,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.unit.dp
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.lifeos.app.core.di.LocalServiceLocator
@@ -45,10 +40,23 @@ private const val AUTO_LOCK_GRACE_MILLIS = 30_000L
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Android's own startup screen. It must be installed before
+        // super.onCreate so the system splash covers the encrypted-database
+        // open; it stays on screen (via keepOnScreenCondition below) only while
+        // the one-time SQLCipher open runs, then dismisses straight into the
+        // real destination (Home / App Lock / Onboarding) — no custom
+        // intermediate "Unlocking your data…" screen is ever drawn.
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         val app = application as LifeOSApplication
+
+        // Keep the native splash on screen while the database is still opening
+        // on a background thread (see LifeOSApplication.launchDatabaseOpen).
+        // The condition turns false for ReadY OR Error, so a key failure
+        // dismisses into the non-destructive DataKeyErrorScreen.
+        splashScreen.setKeepOnScreenCondition { app.databaseState.value == DatabaseInit.Initializing }
 
         setContent {
             val initState by app.databaseState.collectAsState(initial = DatabaseInit.Initializing)
@@ -63,7 +71,6 @@ class MainActivity : ComponentActivity() {
                     onExit = { (context as? ComponentActivity)?.finish() }
                 )
 
-                initState != DatabaseInit.Ready -> BrandSplash()
                 else -> {
                     val serviceLocator = locator
                     val darkTheme by serviceLocator.settingsStore.darkThemeEnabled.collectAsState(initial = false)
@@ -71,38 +78,22 @@ class MainActivity : ComponentActivity() {
                     LifeOSTheme(darkTheme = darkTheme) {
                         CompositionLocalProvider(LocalServiceLocator provides serviceLocator) {
                             Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                                OnboardingGate { AppLockGate { LifeOSNavHost() } }
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    OnboardingGate {
+                                        AppLockGate { LifeOSNavHost() }
+                                    }
+                                    // Safety net while the database opens: the native
+                                    // splash still covers this frame, so all that is
+                                    // required here is the app's own background color —
+                                    // never a loading label or a fake screen.
+                                    if (initState != DatabaseInit.Ready) {
+                                        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {}
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-/**
- * Lightweight instant first frame shown while the encrypted database opens on
- * a background thread (see [LifeOSApplication.databaseState]). Purely static —
- * no database, no DataStore — so it renders without a stall and replaces the
- * previous black/frozen window.
- */
-@Composable
-private fun BrandSplash() {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "LifeOS",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Unlocking your data…",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
