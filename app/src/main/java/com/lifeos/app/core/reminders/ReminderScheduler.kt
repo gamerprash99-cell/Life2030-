@@ -5,20 +5,21 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import com.lifeos.app.data.db.entities.ReminderEntity
 
 /**
  * Projects enabled [ReminderEntity] rows onto real `AlarmManager` alarms.
  *
- * Scheduling is deliberately **inexact** and permission-free: normal LifeOS
- * task/habit reminders do NOT require exact-to-the-minute delivery, so the
- * scheduler never requires the `SCHEDULE_EXACT_ALARM` special access that
- * Android 12+ gates behind Settings (and Android 14+ denies by default).
- * `setAndAllowWhileIdle(RTC_WAKEUP)` is Doze-aware — it wakes the device to
- * deliver the reminder — while remaining a supported, permission-free API on
- * every API level LifeOS supports. There is therefore no
- * "Allow exact alarms" requirement, no Settings nudge, and no possibility of
- * a `SecurityException` from a missing exact-alarm grant.
+ * Scheduling is **exact-when-permitted**: LifeOS asks for Android's
+ * `SCHEDULE_EXACT_ALARM` special access (user-enabled in the system
+ * "Alarms & reminders" page via Settings / the task-reminder permission gate),
+ * and arms each reminder with `setExactAndAllowWhileIdle(RTC_WAKEUP)` whenever
+ * that access is granted or not required (API < 31). When exact access is
+ * denied (or revoked mid-flight), the scheduler gracefully falls back to the
+ * permission-free, Doze-aware `setAndAllowWhileIdle` — so reminders still
+ * deliver (possibly batched, e.g. once-per-~15-min in Doze), nothing ever
+ * throws a `SecurityException`, and no reminder is left as a silent zombie.
  *
  * A single alarm is scheduled per reminder; when it fires [AlarmReceiver]
  * either re-arms the next occurrence (DAILY/WEEKDAYS) or disables the
@@ -41,12 +42,25 @@ object ReminderScheduler {
     }
 
     /**
+     * Shared helper for the Settings state readout and the task-reminder
+     * permission gate. Exact alarms are always available below Android 12
+     * (the special access simply doesn't exist there); from Android 12 on,
+     * exact scheduling requires the user's `SCHEDULE_EXACT_ALARM` grant.
+     */
+    fun canScheduleExactAlarms(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        return context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+    }
+
+    /**
      * Arms (or re-arms) the alarm for [reminder]. The alarm is armed at the
      * snooze-return time when the user is snoozing, otherwise at the next real
-     * occurrence. Inexact, permission-free, and Doze-aware
-     * (`setAndAllowWhileIdle`). Using the same PendingIntent identity as
-     * [cancel] guarantees a re-schedule replaces any previously armed alarm
-     * for this reminder.
+     * occurrence. Uses `setExactAndAllowWhileIdle` when exact scheduling is
+     * permitted (or not required), otherwise falls back to the permission-free
+     * `setAndAllowWhileIdle` — both are Doze-aware, and the fallback guarantees
+     * this entry point never throws for a missing exact-alarm grant. Using the
+     * same PendingIntent identity as [cancel] guarantees a re-schedule replaces
+     * any previously armed alarm for this reminder.
      */
     fun schedule(context: Context, reminder: ReminderEntity) {
         if (!areRemindersEnabled(context) || !reminder.enabled) return
@@ -54,9 +68,20 @@ object ReminderScheduler {
         if (triggerAt <= System.currentTimeMillis()) return
 
         val alarmManager = context.getSystemService(AlarmManager::class.java)
-        // setAndAllowWhileIdle(RTC_WAKEUP): fires even in Doze, needs no
-        // permission, and never throws for a missing exact-alarm grant.
-        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntentFor(context, reminder.id))
+        val pendingIntent = pendingIntentFor(context, reminder.id)
+        if (canScheduleExactAlarms(context)) {
+            try {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+            } catch (_: SecurityException) {
+                // Access was revoked between the check and the call — fall back
+                // to the permission-free inexact API rather than failing.
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+            }
+        } else {
+            // Permission-free fallback: reminders still deliver, possibly with
+            // the system's normal (Doze-aware) batching.
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+        }
         addScheduledId(context, reminder.id)
     }
 
