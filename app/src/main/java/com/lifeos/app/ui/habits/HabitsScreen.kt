@@ -50,8 +50,10 @@ import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSGradientButton
 import com.lifeos.app.ui.components.LifeOSSectionHeader
 import com.lifeos.app.ui.components.LifeOSTopBar
+import com.lifeos.app.ui.components.ReminderPermissionHost
 import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
+import com.lifeos.app.ui.components.rememberReminderPermissionHost
 import com.lifeos.app.ui.theme.LifeOSAccentLavender
 import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSSpacing
@@ -94,6 +96,8 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
     var icon by remember { mutableStateOf("🔥") }
     var reminderTime by remember { mutableStateOf<LocalTime?>(null) }
     var reminderRepeatType by remember { mutableStateOf(ReminderRepeatType.DAILY) }
+    // Only reached when the user actually creates a habit with a timed reminder — never at startup.
+    val permissionHost: ReminderPermissionHost = rememberReminderPermissionHost()
     Scaffold(floatingActionButton = { androidx.compose.material3.FloatingActionButton(onClick = { showAddDialog = true }, containerColor = LifeOSPrimary) { Icon(Icons.Filled.Add, contentDescription = "New habit", tint = Color.White) } }) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxWidth().padding(padding),
@@ -118,7 +122,11 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
                     ReminderRepeatSelector(selected = reminderRepeatType, onSelect = { reminderRepeatType = it })
                 }
             }
-        }, confirmButton = { TextButton(onClick = { viewModel.addHabit(name, icon, reminderTime, reminderRepeatType); name = ""; reminderTime = null; reminderRepeatType = ReminderRepeatType.DAILY; showAddDialog = false }) { Text("Add") } }, dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancel") } })
+        }, confirmButton = { TextButton(onClick = {
+                val submit = { viewModel.addHabit(name, icon, reminderTime, reminderRepeatType); name = ""; reminderTime = null; reminderRepeatType = ReminderRepeatType.DAILY; showAddDialog = false }
+                // Habit reminder creation must wait for notification permission.
+                if (reminderTime != null) permissionHost.runProtected(submit) else submit()
+            }) { Text("Add") } }, dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancel") } })
     }
     if (showTimePicker) ReminderTimePickerDialog(onDismiss = { showTimePicker = false }, onConfirm = { reminderTime = it; showTimePicker = false })
 }

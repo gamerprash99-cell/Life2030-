@@ -61,6 +61,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,8 +89,10 @@ import com.lifeos.app.data.db.entities.TaskPriority
 import com.lifeos.app.data.repository.TaskRepository
 import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSGradientButton
+import com.lifeos.app.ui.components.ReminderPermissionHost
 import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
+import com.lifeos.app.ui.components.rememberReminderPermissionHost
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -97,6 +100,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.Instant
 
 class TasksViewModel(private val taskRepository: TaskRepository) : ViewModel() {
     private val today = DateTimeUtils.today().toEpochDay()
@@ -132,6 +136,16 @@ class TasksViewModel(private val taskRepository: TaskRepository) : ViewModel() {
     }
 
     fun keepForTomorrow(id: String) = viewModelScope.launch { taskRepository.keepForTomorrow(id, today) }
+
+    /** Updates (or clears) a task's reminder time/cadence via the shared reminder pipeline. */
+    fun updateReminder(id: String, reminderEpochMillis: Long?, repeatType: ReminderRepeatType) = viewModelScope.launch {
+        taskRepository.setReminder(id, reminderEpochMillis, repeatType)
+    }
+
+    /** The task's current reminder repeat cadence (for the edit dialog's initial state). */
+    fun reminderRepeatFor(taskId: String, onResult: (ReminderRepeatType) -> Unit) = viewModelScope.launch {
+        onResult(taskRepository.getReminderFor(taskId)?.repeatType ?: ReminderRepeatType.ONCE)
+    }
 }
 
 @Composable
@@ -142,6 +156,9 @@ fun TasksScreen() {
     val overdue by viewModel.overdue.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("All") }
+    var editReminderTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var editRepeatType by remember { mutableStateOf(ReminderRepeatType.ONCE) }
+    val scope = rememberCoroutineScope()
 
     val categories = remember(today) { listOf("All") + today.mapNotNull { it.category }.distinct() }
     val activeFilter = if (categories.any { it == filter }) filter else "All"
@@ -180,7 +197,13 @@ fun TasksScreen() {
                     TaskCard(
                         task = task,
                         onToggle = { viewModel.toggleTask(task.id, it) },
-                        onKeepForTomorrow = { viewModel.keepForTomorrow(task.id) }
+                        onKeepForTomorrow = { viewModel.keepForTomorrow(task.id) },
+                        onEditReminder = {
+                            scope.launch {
+                                viewModel.reminderRepeatFor(task.id) { editRepeatType = it }
+                                editReminderTask = task
+                            }
+                        }
                     )
                 }
             }
@@ -198,7 +221,13 @@ fun TasksScreen() {
                     TaskCard(
                         task = task,
                         onToggle = { viewModel.toggleTask(task.id, it) },
-                        onKeepForTomorrow = { viewModel.keepForTomorrow(task.id) }
+                        onKeepForTomorrow = { viewModel.keepForTomorrow(task.id) },
+                        onEditReminder = {
+                            scope.launch {
+                                viewModel.reminderRepeatFor(task.id) { editRepeatType = it }
+                                editReminderTask = task
+                            }
+                        }
                     )
                 }
             }
@@ -208,7 +237,13 @@ fun TasksScreen() {
                     TaskCard(
                         task = task,
                         onToggle = { viewModel.toggleTask(task.id, it) },
-                        onKeepForTomorrow = {}
+                        onKeepForTomorrow = {},
+                        onEditReminder = {
+                            scope.launch {
+                                viewModel.reminderRepeatFor(task.id) { editRepeatType = it }
+                                editReminderTask = task
+                            }
+                        }
                     )
                 }
             }
@@ -229,6 +264,18 @@ fun TasksScreen() {
                     reminderRepeatType = reminderRepeatType
                 )
                 showAddDialog = false
+            }
+        )
+    }
+
+    editReminderTask?.let { task ->
+        TaskReminderEditorDialog(
+            task = task,
+            initialRepeatType = editRepeatType,
+            onDismiss = { editReminderTask = null },
+            onSave = { millis, repeatType ->
+                viewModel.updateReminder(task.id, millis, repeatType)
+                editReminderTask = null
             }
         )
     }
@@ -371,7 +418,8 @@ private fun EmptyFocusCard(currentFilter: String?, onAddTask: () -> Unit) {
 private fun TaskCard(
     task: TaskEntity,
     onToggle: (Boolean) -> Unit,
-    onKeepForTomorrow: () -> Unit
+    onKeepForTomorrow: () -> Unit,
+    onEditReminder: () -> Unit
 ) {
     LifeOSCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Top) {
@@ -408,7 +456,7 @@ private fun TaskCard(
                     )
                 }
                 Spacer(Modifier.height(9.dp))
-                TaskMetaRow(task)
+                TaskMetaRow(task, onEditReminder)
             }
             if (!task.isCompleted) {
                 IconButton(
@@ -428,7 +476,7 @@ private fun TaskCard(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TaskMetaRow(task: TaskEntity) {
+private fun TaskMetaRow(task: TaskEntity, onEditReminder: () -> Unit) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -449,10 +497,45 @@ private fun TaskMetaRow(task: TaskEntity) {
         task.repeatRule?.takeIf { it != RepeatRule.NONE }?.let { rule ->
             MetaItem(icon = Icons.Filled.Repeat, text = repeatLabel(rule))
         }
+        task.reminderEpochMillis?.let { millis ->
+            // Tappable reminder chip — opens the same full-screen aware
+            // reminder editor used by habits (parity requirement).
+            Surface(
+                onClick = onEditReminder,
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
+                shape = RoundedCornerShape(50)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Notifications,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        reminderTimeLabel(millis),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
         dueDateLabel(task)?.let { time ->
             MetaItem(icon = Icons.Filled.Schedule, text = time)
         }
     }
+}
+
+@Composable
+private fun reminderTimeLabel(epochMillis: Long): String {
+    val time = LocalTime.from(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()))
+    return "Remind at ${DateTimeUtils.formatMinutes(time.hour * 60 + time.minute)}"
 }
 
 @Composable
@@ -466,6 +549,147 @@ private fun MetaItem(icon: ImageVector, text: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun TaskReminderEditorDialog(
+    task: TaskEntity,
+    initialRepeatType: ReminderRepeatType,
+    onDismiss: () -> Unit,
+    onSave: (Long?, ReminderRepeatType) -> Unit
+) {
+    var time by remember(task.id) {
+        mutableStateOf(task.reminderEpochMillis?.let { LocalTime.from(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())) })
+    }
+    var repeatType by remember(task.id) { mutableStateOf(initialRepeatType) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    // Only reached when the user actually arms a timed reminder — never at startup.
+    val permissionHost: ReminderPermissionHost = rememberReminderPermissionHost()
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
+                .imePadding(),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 460.dp),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 12.dp,
+                tonalElevation = 1.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text("Task reminder", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        task.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Surface(
+                        onClick = { showTimePicker = true },
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Notifications,
+                                contentDescription = null,
+                                tint = if (time != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text("Reminder", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    time?.let { "Remind at ${DateTimeUtils.formatMinutes(it.hour * 60 + it.minute)}" } ?: "Set a reminder",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            if (time != null) {
+                                Surface(
+                                    onClick = { time = null },
+                                    shape = CircleShape,
+                                    color = Color.Transparent
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Close,
+                                        contentDescription = "Clear reminder",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(8.dp).size(16.dp)
+                                    )
+                                }
+                            } else {
+                                Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+
+                    if (time != null) {
+                        Text("Repeat reminder", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        ReminderRepeatSelector(selected = repeatType, onSelect = { repeatType = it })
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = onDismiss, shape = RoundedCornerShape(16.dp)) {
+                            Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Button(
+                            onClick = {
+                                val millis = time?.let {
+                                    DateTimeUtils.today().atTime(it).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                                }
+                                val submit = { onSave(millis, repeatType); onDismiss() }
+                                // Arming must wait for notification permission; clearing does not.
+                                if (millis != null) permissionHost.runProtected(submit) else submit()
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) { Text("Save", modifier = Modifier.padding(horizontal = 6.dp)) }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showTimePicker) {
+        ReminderTimePickerDialog(
+            initial = time ?: LocalTime.now(),
+            onDismiss = { showTimePicker = false },
+            onConfirm = {
+                time = it
+                showTimePicker = false
+            }
         )
     }
 }
@@ -485,6 +709,8 @@ private fun NewTaskDialog(
     var showTimePicker by remember { mutableStateOf(false) }
     var priorityMenuOpen by remember { mutableStateOf(false) }
     var repeatMenuOpen by remember { mutableStateOf(false) }
+    // Only reached when the user actually sets a timed reminder — never at startup.
+    val permissionHost: ReminderPermissionHost = rememberReminderPermissionHost()
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -628,7 +854,12 @@ private fun NewTaskDialog(
                         }
                         Button(
                             onClick = {
-                                onAdd(title, description, category, priority, repeatRule, reminderTime, reminderRepeatType)
+                                val submit = {
+                                    onAdd(title, description, category, priority, repeatRule, reminderTime, reminderRepeatType)
+                                }
+                                // Reminder creation must wait for notification permission;
+                                // a reminder-less task is unaffected.
+                                if (reminderTime != null) permissionHost.runProtected(submit) else submit()
                             },
                             enabled = title.isNotBlank(),
                             shape = RoundedCornerShape(16.dp),

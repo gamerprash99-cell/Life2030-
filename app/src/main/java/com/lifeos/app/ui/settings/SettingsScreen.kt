@@ -45,6 +45,7 @@ import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.reminders.ReminderScheduler
 import com.lifeos.app.core.util.AppLockType
 import com.lifeos.app.core.util.NotificationHelper
+import com.lifeos.app.core.util.PermissionStatus
 import com.lifeos.app.core.util.SettingsStore
 import com.lifeos.app.core.util.rememberPermissionState
 import com.lifeos.app.data.repository.BackupRepository
@@ -265,7 +266,13 @@ private fun RemindersCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
                     checked = enabled,
                     onCheckedChange = { checked ->
                         if (checked) {
-                            permission?.request?.invoke()
+                            if (permission != null && !permission.isGranted) {
+                                // A permanently-denied permission can no longer be
+                                // requested (the OS silently no-ops), so route the
+                                // user to system Settings instead of "asking" nothing.
+                                if (permission.status == PermissionStatus.PERMANENTLY_DENIED) permission.openSettings()
+                                else permission.request()
+                            }
                             NotificationHelper.ensureChannel(context)
                         }
                         onToggle(checked)

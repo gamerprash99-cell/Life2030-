@@ -31,10 +31,8 @@ import com.lifeos.app.ui.timeline.TimelineScreen
  *
  * Child/secondary screens (Habit Detail, Expense, Diary, …) live OUTSIDE this
  * graph so they stack naturally on top of the active tab and Android's system
- * Back dismisses them one level at a time.
+ * Back dismisses them one level at a time. See [ROOT_TABS_GRAPH].
  */
-private const val ROOT_TABS_GRAPH = "root_tabs"
-
 @androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun LifeOSNavHost() {

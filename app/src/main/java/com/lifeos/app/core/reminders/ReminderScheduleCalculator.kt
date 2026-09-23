@@ -55,4 +55,32 @@ object ReminderScheduleCalculator {
             ?.toSet()
         return if (parsed.isNullOrEmpty()) defaults else parsed
     }
+
+    /**
+     * Returns the earliest real occurrence that is strictly after [fromMillis]
+     * *and* strictly after [nowMillis] — i.e. the next trigger that can still be
+     * delivered. A recurring reminder whose current trigger has already passed
+     * fast-forwards to its next future occurrence; returns `null` when there is
+     * no future occurrence to arm ([ReminderRepeatType.ONCE], or a WEEKDAYS
+     * reminder with no valid days).
+     *
+     * Used by [ReminderRepository]'s single arming path so a past-due trigger is
+     * never left enabled and silently skipped (a "zombie" reminder that can
+     * never fire, e.g. a DAILY reminder created after today's set time).
+     */
+    fun nextFutureOccurrenceMillis(
+        repeatType: ReminderRepeatType,
+        repeatDaysCsv: String?,
+        fromMillis: Long,
+        nowMillis: Long
+    ): Long? {
+        // Already future → it is (still) the deliverable trigger.
+        if (fromMillis > nowMillis) return fromMillis
+        var candidate = nextOccurrenceMillis(repeatType, repeatDaysCsv, fromMillis) ?: return null
+        while (candidate <= nowMillis) {
+            val advanced = nextOccurrenceMillis(repeatType, repeatDaysCsv, candidate) ?: return null
+            candidate = advanced
+        }
+        return candidate
+    }
 }

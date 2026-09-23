@@ -88,4 +88,71 @@ class ReminderScheduleCalculatorTest {
         // Out-of-range values are dropped.
         assertEquals(setOf(1), ReminderScheduleCalculator.parseWeekdaySet("1,9,0"))
     }
+
+    // ———— nextFutureOccurrenceMillis: normalization of past-due ("zombie") triggers ————
+
+    @Test
+    fun futureDaily_isReturnedAsIs() {
+        val second = at(2026, 2, 1, 9, 30)
+        val now = at(2026, 2, 1, 8, 0)
+        val next = ReminderScheduleCalculator.nextFutureOccurrenceMillis(
+            ReminderRepeatType.DAILY, null, second, now
+        )!!
+        assertEquals("2026-02-01 09:30", toText(next))
+    }
+
+    @Test
+    fun pastDaily_fastForwardsToNextDay() {
+        // Trigger 09:30 already passed; the next armable occurrence is tomorrow 09:30.
+        val trigger = at(2026, 1, 31, 9, 30)
+        val now = at(2026, 2, 1, 10, 0)
+        val next = ReminderScheduleCalculator.nextFutureOccurrenceMillis(
+            ReminderRepeatType.DAILY, null, trigger, now
+        )!!
+        assertEquals("2026-02-02 09:30", toText(next))
+    }
+
+    @Test
+    fun pastWeekdays_skipsWeekendToNextWeekday() {
+        // Saturday 09:00 trigger already passed: Thursday/Friday happened, weekend
+        // is skipped, next armable occurrence is Monday 09:00.
+        val trigger = at(2026, 1, 31, 9, 0)
+        val now = at(2026, 1, 31, 12, 0)
+        val next = ReminderScheduleCalculator.nextFutureOccurrenceMillis(
+            ReminderRepeatType.WEEKDAYS, ReminderEntity.WEEKDAYS_DEFAULT_CSV, trigger, now
+        )!!
+        assertEquals("2026-02-02 09:00", toText(next))
+    }
+
+    @Test
+    fun pastWeekdays_fastForwardsAcrossEntireWeek() {
+        // A whole week behind: 2026-01-23 (Fri) 09:00, now 2026-01-30 (Fri) 18:00
+        // -> next armable occurrence is Monday 2026-02-02 09:00.
+        val trigger = at(2026, 1, 23, 9, 0)
+        val now = at(2026, 1, 30, 18, 0)
+        val next = ReminderScheduleCalculator.nextFutureOccurrenceMillis(
+            ReminderRepeatType.WEEKDAYS, ReminderEntity.WEEKDAYS_DEFAULT_CSV, trigger, now
+        )!!
+        assertEquals("2026-02-02 09:00", toText(next))
+    }
+
+    @Test
+    fun pastOnce_returnsNull() {
+        // A one-off whose time has passed can never become due again.
+        val trigger = at(2026, 1, 31, 9, 0)
+        val now = at(2026, 2, 1, 12, 0)
+        assertNull(
+            ReminderScheduleCalculator.nextFutureOccurrenceMillis(ReminderRepeatType.ONCE, null, trigger, now)
+        )
+    }
+
+    @Test
+    fun futureOnce_isReturnedAsIs() {
+        val trigger = at(2026, 2, 1, 9, 0)
+        val now = at(2026, 2, 1, 8, 0)
+        val next = ReminderScheduleCalculator.nextFutureOccurrenceMillis(
+            ReminderRepeatType.ONCE, null, trigger, now
+        )!!
+        assertEquals("2026-02-01 09:00", toText(next))
+    }
 }

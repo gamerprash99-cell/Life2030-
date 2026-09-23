@@ -74,8 +74,7 @@ class ReminderRepository(
         )
         dao.upsert(reminder)
 
-        val triggerAt = reminder.snoozeReturnAtEpochMillis ?: reminder.nextTriggerAtEpochMillis
-        if (triggerAt > now) ReminderScheduler.schedule(appContext, reminder)
+        armNextOccurrence(reminder)
     }
 
     suspend fun syncReminderForTask(task: TaskEntity, preferredRepeat: ReminderRepeatType? = null) {
@@ -140,17 +139,10 @@ class ReminderRepository(
                 dao.disable(id, now)
                 ReminderScheduler.cancel(appContext, id)
             }
+            // A delayed recurring fire still re-arms for the next *future*
+            // occurrence (never a bare +1 day that could land in the past).
             ReminderRepeatType.DAILY, ReminderRepeatType.WEEKDAYS -> {
-                val next = ReminderScheduleCalculator.nextOccurrenceMillis(
-                    reminder.repeatType, reminder.repeatDaysCsv, reminder.nextTriggerAtEpochMillis
-                )
-                if (next == null) {
-                    dao.disable(id, now)
-                    ReminderScheduler.cancel(appContext, id)
-                } else {
-                    dao.advanceTrigger(id, next, now)
-                    rearmIfFuture(id)
-                }
+                dao.getById(id)?.let { armNextOccurrence(it) }
             }
         }
     }
@@ -165,22 +157,19 @@ class ReminderRepository(
         ReminderScheduler.schedule(appContext, dao.getById(id) ?: return)
     }
 
-    /** Re-arms every enabled reminder that is still in the future (toggle on, boot, time change). */
+    /** Re-arms every enabled reminder to its next future trigger (toggle on, boot, time change). */
     suspend fun rebuildAllActive() {
         if (!ReminderScheduler.areRemindersEnabled(appContext)) return
-        val now = System.currentTimeMillis()
-        dao.getEnabled().forEach { reminder ->
-            val triggerAt = reminder.snoozeReturnAtEpochMillis ?: reminder.nextTriggerAtEpochMillis
-            if (triggerAt > now) ReminderScheduler.schedule(appContext, reminder)
-        }
+        dao.getEnabled().forEach { armNextOccurrence(it) }
     }
 
     /**
      * Rebuilds the reminders table from the task/habit `reminderEpochMillis`
      * mirrors (backup restore, first-run upgrade to v4). Preserves repeat/sound/
-     * vibration/snooze choices where a row already exists, and skips past-due
-     * one-shots while fast-forwarding past-due recurring reminders to their next
-     * occurrence.
+     * vibration/snooze choices where a row already exists; past-due occurrences
+     * are normalized by [armNextOccurrence] (recurring reminders fast-forward to
+     * the next future occurrence, forgotten one-shots are disabled instead of
+     * left as silent zombies).
      */
     suspend fun rebuildFromMirrors(tasks: List<TaskEntity>, habits: List<HabitEntity>) {
         tasks.forEach {
@@ -207,25 +196,41 @@ class ReminderRepository(
                 active = !it.isArchived
             )
         }
-        // Fast-forward past-due recurring occurrences, then arm everything future.
+        // Normalize + arm everything still enabled (past one-shots are disabled).
+        dao.getEnabled().forEach { armNextOccurrence(it) }
+    }
+
+    /**
+     * The single arming path for every reminder lifecycle (create/edit, rebuild,
+     * real fire). Schedules [reminder] for its next *future* trigger and
+     * normalizes past-due rows so an enabled reminder is never stranded with a
+     * trigger that can never fire:
+     *  - a future snooze-return or real trigger schedules as-is;
+     *  - a past-due recurring (DAILY/WEEKDAYS) trigger fast-forwards to the next
+     *    future occurrence (persisted, then armed);
+     *  - a past-due [ReminderRepeatType.ONCE] is disabled and its alarm cancelled
+     *    (a one-off that is already past can never become due again).
+     */
+    private suspend fun armNextOccurrence(reminder: ReminderEntity) {
+        if (!reminder.enabled) return
         val now = System.currentTimeMillis()
-        dao.getEnabled().forEach { reminder ->
-            var trigger = reminder.nextTriggerAtEpochMillis
-            if (reminder.repeatType != ReminderRepeatType.ONCE) {
-                var next = trigger
-                while (next <= now) {
-                    val advanced = ReminderScheduleCalculator.nextOccurrenceMillis(reminder.repeatType, reminder.repeatDaysCsv, next) ?: break
-                    next = advanced
-                }
-                if (next <= now) return@forEach
-                if (next != trigger) {
-                    dao.advanceTrigger(reminder.id, next, now)
-                    trigger = next
-                }
-            } else if (trigger <= now) {
-                return@forEach
-            }
-            ReminderScheduler.schedule(appContext, reminder.copy(nextTriggerAtEpochMillis = trigger))
+        val triggerAt = reminder.snoozeReturnAtEpochMillis ?: reminder.nextTriggerAtEpochMillis
+        if (triggerAt > now) {
+            ReminderScheduler.schedule(appContext, reminder)
+            return
+        }
+        val next = ReminderScheduleCalculator.nextFutureOccurrenceMillis(
+            reminder.repeatType, reminder.repeatDaysCsv, reminder.nextTriggerAtEpochMillis, now
+        )
+        if (next == null) {
+            dao.disable(reminder.id, now)
+            ReminderScheduler.cancel(appContext, reminder.id)
+        } else {
+            dao.advanceTrigger(reminder.id, next, now)
+            ReminderScheduler.schedule(appContext, reminder.copy(
+                nextTriggerAtEpochMillis = next,
+                snoozeReturnAtEpochMillis = null
+            ))
         }
     }
 

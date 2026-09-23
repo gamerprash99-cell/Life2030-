@@ -5,6 +5,7 @@ import com.lifeos.app.core.util.IdGenerator
 import com.lifeos.app.core.util.RepeatRuleCalculator
 import com.lifeos.app.data.db.dao.TaskDao
 import com.lifeos.app.data.db.entities.RepeatRule
+import com.lifeos.app.data.db.entities.ReminderEntity
 import com.lifeos.app.data.db.entities.ReminderRepeatType
 import com.lifeos.app.data.db.entities.TaskEntity
 import com.lifeos.app.data.db.entities.TaskPriority
@@ -29,6 +30,27 @@ class TaskRepository(
         dao.getCompletedBetween(startMillis, endMillis)
 
     suspend fun getById(id: String): TaskEntity? = dao.getById(id)
+
+    /** The task's reminder row (used by the task-card reminder editor for its initial repeat cadence). */
+    suspend fun getReminderFor(taskId: String): ReminderEntity? =
+        reminderRepository.getById(ReminderEntity.idFor(ReminderRepository.TYPE_TASK, taskId))
+
+    /**
+     * Updates (or clears, when [reminderEpochMillis] is null) a task's reminder
+     * time and repeat cadence — the task equivalent of
+     * [HabitRepository.setReminder], sharing the same scheduling path
+     * (`syncReminderForTask`), so editing/time-changes/clearing replace the
+     * alarm for the same stable id and can never leave a duplicate behind.
+     */
+    suspend fun setReminder(taskId: String, reminderEpochMillis: Long?, repeatType: ReminderRepeatType) {
+        val task = dao.getById(taskId) ?: return
+        val updated = task.copy(
+            reminderEpochMillis = reminderEpochMillis,
+            updatedAt = System.currentTimeMillis()
+        )
+        dao.upsert(updated)
+        reminderRepository.syncReminderForTask(updated, repeatType)
+    }
 
     suspend fun createTask(
         title: String,

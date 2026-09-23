@@ -48,8 +48,10 @@ import com.lifeos.app.domain.model.HabitAnalytics
 import com.lifeos.app.domain.model.HeatmapCell
 import com.lifeos.app.domain.model.HeatmapIntensity
 import com.lifeos.app.ui.components.GlassCard
+import com.lifeos.app.ui.components.ReminderPermissionHost
 import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
+import com.lifeos.app.ui.components.rememberReminderPermissionHost
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -150,6 +152,8 @@ private fun ReminderCard(habit: HabitEntity, onSave: (Long?, ReminderRepeatType)
     }
     var repeatType by remember(habit.id) { mutableStateOf(ReminderRepeatType.DAILY) }
     var showTimePicker by remember { mutableStateOf(false) }
+    // Only reached when the user actually sets/enables a timed reminder — never at startup.
+    val permissionHost: ReminderPermissionHost = rememberReminderPermissionHost()
 
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -174,7 +178,7 @@ private fun ReminderCard(habit: HabitEntity, onSave: (Long?, ReminderRepeatType)
                 }
             }
             if (time != null) {
-                ReminderRepeatSelector(selected = repeatType, onSelect = { repeatType = it; onSave(toMillis(time!!), it) })
+                ReminderRepeatSelector(selected = repeatType, onSelect = { repeatType = it; permissionHost.runProtected { onSave(toMillis(time!!), it) } })
             }
         }
     }
@@ -186,7 +190,7 @@ private fun ReminderCard(habit: HabitEntity, onSave: (Long?, ReminderRepeatType)
             onConfirm = {
                 time = it
                 showTimePicker = false
-                onSave(toMillis(it), repeatType)
+                permissionHost.runProtected { onSave(toMillis(it), repeatType) }
             }
         )
     }
