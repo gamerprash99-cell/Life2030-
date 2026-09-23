@@ -9,7 +9,6 @@ class DiaryRepository(private val dao: DiaryDao) {
 
     fun observeAll(): Flow<List<DiaryEntity>> = dao.observeAll()
     fun observeForDay(epochDay: Long): Flow<List<DiaryEntity>> = dao.observeForDay(epochDay)
-    fun observeUnreviewedAiDrafts(): Flow<List<DiaryEntity>> = dao.observeUnreviewedAiDrafts()
 
     suspend fun getById(id: String): DiaryEntity? = dao.getById(id)
 
@@ -45,22 +44,7 @@ class DiaryRepository(private val dao: DiaryDao) {
         )
     }
 
-    suspend fun approveAiDraft(id: String) = dao.markReviewed(id, System.currentTimeMillis())
-
     suspend fun delete(id: String) = dao.delete(id)
-
-    suspend fun daysSinceLastEntry(todayEpochDay: Long): Int? {
-        val last = dao.getLastEntryEpochDay() ?: return null
-        return (todayEpochDay - last).toInt()
-    }
-
-    suspend fun countInRange(startEpochDay: Long, endEpochDay: Long): Int = dao.countInRange(startEpochDay, endEpochDay)
-    suspend fun getInRange(startEpochDay: Long, endEpochDay: Long): List<DiaryEntity> = dao.getInRange(startEpochDay, endEpochDay)
-
-    suspend fun search(query: String): List<DiaryEntity> {
-        if (query.isBlank()) return emptyList()
-        return dao.search(query)
-    }
 
     suspend fun getAllForBackup(): List<DiaryEntity> = dao.getAllForBackup()
     suspend fun restoreFromBackup(entries: List<DiaryEntity>) = entries.forEach { dao.upsert(it) }

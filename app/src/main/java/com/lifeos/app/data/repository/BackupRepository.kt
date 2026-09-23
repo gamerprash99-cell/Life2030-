@@ -1,12 +1,10 @@
 package com.lifeos.app.data.repository
 
 import com.lifeos.app.data.db.AppDatabase
-import com.lifeos.app.data.db.entities.CaptureEntity
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.db.entities.ExpenseEntity
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
-import com.lifeos.app.data.db.entities.NoteEntity
 import com.lifeos.app.data.db.entities.TaskEntity
 import androidx.room.withTransaction
 import kotlinx.serialization.Serializable
@@ -24,19 +22,20 @@ import java.io.File
 data class LifeOSBackup(
     val exportedAtEpochMillis: Long,
     val appVersion: String,
-    val notes: List<NoteEntity>,
     val tasks: List<TaskEntity>,
     val habits: List<HabitEntity>,
     val habitCompletions: List<HabitCompletionEntity>,
     val expenses: List<ExpenseEntity>,
     val diaryEntries: List<DiaryEntity>,
-    val captures: List<CaptureEntity>,
     val formatVersion: Int = LifeOSBackup.CURRENT_FORMAT_VERSION
 ) {
     companion object {
         /**
          * Bump whenever the serialized shape changes incompatibly so imports
-         * can be rejected clearly instead of restoring garbage silently.
+         * can be rejected clearly instead of restoring garbage silently. v1
+         * backups written by older LifeOS builds contained "notes" and
+         * "captures" keys; those keys are simply ignored on import now
+         * (ignoreUnknownKeys), so old export files remain restorable.
          */
         const val CURRENT_FORMAT_VERSION = 1
 
@@ -62,25 +61,21 @@ fun validateBackup(backup: LifeOSBackup): String? = when {
 
 class BackupRepository(
     private val database: AppDatabase,
-    private val noteRepo: NoteRepository,
     private val taskRepo: TaskRepository,
     private val habitRepo: HabitRepository,
     private val expenseRepo: ExpenseRepository,
-    private val diaryRepo: DiaryRepository,
-    private val captureRepo: CaptureRepository
+    private val diaryRepo: DiaryRepository
 ) {
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
     suspend fun buildBackup(appVersion: String): LifeOSBackup = LifeOSBackup(
         exportedAtEpochMillis = System.currentTimeMillis(),
         appVersion = appVersion,
-        notes = noteRepo.getAllForBackup(),
         tasks = taskRepo.getAllForBackup(),
         habits = habitRepo.getAllForBackup(),
         habitCompletions = habitRepo.getAllCompletionsForBackup(),
         expenses = expenseRepo.getAllForBackup(),
         diaryEntries = diaryRepo.getAllForBackup(),
-        captures = captureRepo.getAllForBackup(),
         formatVersion = LifeOSBackup.CURRENT_FORMAT_VERSION
     )
 
@@ -113,11 +108,9 @@ class BackupRepository(
     }
 
     suspend fun restore(backup: LifeOSBackup) = database.withTransaction {
-        noteRepo.restoreFromBackup(backup.notes)
         taskRepo.restoreFromBackup(backup.tasks)
         habitRepo.restoreFromBackup(backup.habits, backup.habitCompletions)
         expenseRepo.restoreFromBackup(backup.expenses)
         diaryRepo.restoreFromBackup(backup.diaryEntries)
-        captureRepo.restoreFromBackup(backup.captures)
     }
 }

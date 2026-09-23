@@ -1,6 +1,5 @@
 package com.lifeos.app.core.util
 
-import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -91,9 +90,4 @@ fun rememberPermissionState(permission: String): PermissionState {
             openSettings = { PermissionManager.openAppSettings(context) }
         )
     }
-}
-
-object LifeOSPermissions {
-    const val CAMERA = Manifest.permission.CAMERA
-    const val RECORD_AUDIO = Manifest.permission.RECORD_AUDIO
 }

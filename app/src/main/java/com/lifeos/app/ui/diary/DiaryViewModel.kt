@@ -2,33 +2,23 @@ package com.lifeos.app.ui.diary
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lifeos.app.core.intelligence.AnswerResult
-import com.lifeos.app.core.intelligence.DiaryConnections
-import com.lifeos.app.core.intelligence.DiaryGraph
-import com.lifeos.app.core.intelligence.DiaryInsights
-import com.lifeos.app.core.intelligence.LifeOSIntelligenceEngine
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.repository.DiaryRepository
-import com.lifeos.app.domain.usecase.BuildTimelineUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Diary screen state. Everything flows from `DiaryRepository.observeAll()` and,
- * for the "connections" radar, `BuildTimelineUseCase` — the same deterministic,
- * offline aggregation the Home timeline uses. The Analytics card is computed by
- * the existing LifeOS Intelligence Engine (`diaryInsights()`), never fabricated.
+ * Diary screen state. Everything flows from `DiaryRepository.observeAll()` —
+ * the list, the date filter and the new/edit sheet are all Room-backed, no
+ * simulated data.
  */
 class DiaryViewModel(
-    private val diaryRepository: DiaryRepository,
-    private val intelligenceEngine: LifeOSIntelligenceEngine,
-    private val buildTimelineUseCase: BuildTimelineUseCase
+    private val diaryRepository: DiaryRepository
 ) : ViewModel() {
 
     val entries: StateFlow<List<DiaryEntity>> = diaryRepository.observeAll()
@@ -43,18 +33,6 @@ class DiaryViewModel(
                 .sortedWith(compareByDescending<DiaryEntity> { it.dateEpochDay }.thenByDescending { it.timeMinutes })
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _insights = MutableStateFlow<DiaryInsights?>(null)
-    val insights: StateFlow<DiaryInsights?> = _insights
-    private val _insightsLoading = MutableStateFlow(true)
-    val insightsLoading: StateFlow<Boolean> = _insightsLoading
-
-    private val _connections = MutableStateFlow<DiaryGraph?>(null)
-    val connections: StateFlow<DiaryGraph?> = _connections
-    private val _connectionsLoading = MutableStateFlow(false)
-    val connectionsLoading: StateFlow<Boolean> = _connectionsLoading
-    private val _connectionsDay = MutableStateFlow<Long?>(null)
-    val connectionsDay: StateFlow<Long?> = _connectionsDay
-
     private val _showEditor = MutableStateFlow(false)
     val showEditor: StateFlow<Boolean> = _showEditor
     private val _editingEntry = MutableStateFlow<DiaryEntity?>(null)
@@ -62,16 +40,6 @@ class DiaryViewModel(
 
     private val _entryToDelete = MutableStateFlow<DiaryEntity?>(null)
     val entryToDelete: StateFlow<DiaryEntity?> = _entryToDelete
-
-    private val _question = MutableStateFlow<AnswerResult?>(null)
-    val question: StateFlow<AnswerResult?> = _question
-    private val _asking = MutableStateFlow(false)
-    val asking: StateFlow<Boolean> = _asking
-
-    init {
-        loadInsights()
-        observeConnections()
-    }
 
     fun selectDay(day: Long?) {
         _selectedDay.value = day
@@ -123,51 +91,6 @@ class DiaryViewModel(
     fun deleteEntry(id: String) {
         _entryToDelete.value = null
         viewModelScope.launch { diaryRepository.delete(id) }
-    }
-
-    fun askDiary(questionText: String) {
-        if (questionText.isBlank()) return
-        viewModelScope.launch {
-            _asking.value = true
-            _question.value = try {
-                intelligenceEngine.answerQuestion(questionText)
-            } catch (_: Throwable) {
-                AnswerResult("Couldn't answer that on-device right now. Try again in a moment.")
-            }
-            _asking.value = false
-        }
-    }
-
-    private fun loadInsights() {
-        viewModelScope.launch {
-            _insightsLoading.value = true
-            _insights.value = try {
-                intelligenceEngine.diaryInsights()
-            } catch (_: Throwable) {
-                null
-            }
-            _insightsLoading.value = false
-        }
-    }
-
-    /**
-     * The connections radar reacts to the selected day (or, when "All" is
-     * chosen, the most recent day that actually has an entry) and to every
-     * repository change, so the graph is always derived from live data.
-     */
-    private fun observeConnections() {
-        viewModelScope.launch {
-            combine(entries, _selectedDay) { all, day -> (all to day) }.collect { (all, day) ->
-                val focusDay = day ?: all.maxOfOrNull { it.dateEpochDay }
-                    ?: DateTimeUtils.today().toEpochDay()
-                _connectionsLoading.value = true
-                _connectionsDay.value = focusDay
-                val dayEntries = all.filter { it.dateEpochDay == focusDay }
-                val timeline = runCatching { buildTimelineUseCase(focusDay) }.getOrDefault(emptyList())
-                _connections.value = DiaryConnections.build(dayEntries, timeline)
-                _connectionsLoading.value = false
-            }
-        }
     }
 
     private fun splitTags(csv: String): List<String> = csv.split(',')

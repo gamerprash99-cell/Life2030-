@@ -22,11 +22,11 @@ class TaskRepository(private val dao: TaskDao, private val appContext: Context) 
     fun observeCountForDay(epochDay: Long): Flow<Int> = dao.observeCountForDay(epochDay)
     fun observeCompletedCountForDay(epochDay: Long): Flow<Int> = dao.observeCompletedCountForDay(epochDay)
 
-    suspend fun getById(id: String): TaskEntity? = dao.getById(id)
-
-    /** Non-deleted tasks completed within [startMillis, endMillis] (UTC millis). */
+    /** Completed tasks whose completion timestamp falls inside [startMillis, endMillis] (Timeline source). */
     suspend fun getCompletedBetween(startMillis: Long, endMillis: Long): List<TaskEntity> =
         dao.getCompletedBetween(startMillis, endMillis)
+
+    suspend fun getById(id: String): TaskEntity? = dao.getById(id)
 
     suspend fun createTask(
         title: String,
@@ -65,25 +65,6 @@ class TaskRepository(private val dao: TaskDao, private val appContext: Context) 
             ReminderScheduler.scheduleTaskReminder(appContext, id, reminderEpochMillis)
         }
         return id
-    }
-
-    /**
-     * Bulk-approve AI-extracted tasks (Section 8/10). Every task created here
-     * originates from an explicit user tap on [CREATE TASKS] — never silent,
-     * per Rule #9 ("AI-generated tasks must be reviewable").
-     */
-    suspend fun createFromAiExtraction(
-        titles: List<String>,
-        dueDateEpochDay: Long?,
-        sourceType: String,
-        sourceId: String
-    ): List<String> = titles.map { title ->
-        createTask(
-            title = title,
-            dueDateEpochDay = dueDateEpochDay,
-            sourceType = sourceType,
-            sourceId = sourceId
-        )
     }
 
     suspend fun setCompleted(id: String, completed: Boolean) {
@@ -135,14 +116,6 @@ class TaskRepository(private val dao: TaskDao, private val appContext: Context) 
         dao.softDelete(id, System.currentTimeMillis())
         ReminderScheduler.cancelTaskReminder(appContext, id)
     }
-
-    suspend fun search(query: String): List<TaskEntity> {
-        if (query.isBlank()) return emptyList()
-        return dao.search(query)
-    }
-
-    suspend fun countCompletedBetween(startMillis: Long, endMillis: Long): Int =
-        dao.countCompletedBetween(startMillis, endMillis)
 
     /** Re-registers WorkManager jobs for all future reminders (e.g. after reminders are re-enabled). */
     suspend fun rescheduleAllReminders() {

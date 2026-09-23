@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
-import com.lifeos.app.core.intelligence.KeywordExtractor
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.ui.components.GlassCard
@@ -56,11 +55,9 @@ import com.lifeos.app.ui.theme.LifeOSSpacing
 import java.time.LocalDate
 
 /**
- * Diary (Section 23) — redesigned to the Stitch "LifeOS Diary Redesign"
- * screens: an editorial journal list with paper cards, a date strip for
- * filtering, an expandable on-device analytics section, a same-day connections
- * radar and a mood-first composer. Every value shown comes from the Room-backed
- * repositories and the LifeOS Intelligence Engine; no simulated data.
+ * Diary — an editorial journal list with paper cards, a date strip for
+ * filtering and a mood-first composer. Every value shown comes from the
+ * Room-backed diary repository; no simulated data.
  */
 @Composable
 fun DiaryScreen(
@@ -70,22 +67,15 @@ fun DiaryScreen(
     val locator = LocalServiceLocator.current
     val viewModel: DiaryViewModel = viewModel(
         factory = LambdaViewModelFactory {
-            DiaryViewModel(locator.diaryRepository, locator.intelligenceEngine, locator.buildTimelineUseCase)
+            DiaryViewModel(locator.diaryRepository)
         }
     )
     val entries by viewModel.entries.collectAsState()
     val filtered by viewModel.filteredEntries.collectAsState()
     val selectedDay by viewModel.selectedDay.collectAsState()
-    val insights by viewModel.insights.collectAsState()
-    val insightsLoading by viewModel.insightsLoading.collectAsState()
-    val connections by viewModel.connections.collectAsState()
-    val connectionsLoading by viewModel.connectionsLoading.collectAsState()
-    val connectionsDay by viewModel.connectionsDay.collectAsState()
     val showEditor by viewModel.showEditor.collectAsState()
     val editingEntry by viewModel.editingEntry.collectAsState()
     val entryToDelete by viewModel.entryToDelete.collectAsState()
-    val question by viewModel.question.collectAsState()
-    val asking by viewModel.asking.collectAsState()
 
     BackHandler(onBack = onBack)
 
@@ -116,42 +106,6 @@ fun DiaryScreen(
                 verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.cardSpacing)
             ) {
                 item { DayStrip(selectedDay = selectedDay, onSelect = viewModel::selectDay) }
-
-                if (filtered.isNotEmpty()) {
-                    item {
-                        DiaryAnalyticsSection(
-                            insights = insights,
-                            loading = insightsLoading,
-                            onAsk = viewModel::askDiary,
-                            asking = asking,
-                            question = question
-                        )
-                    }
-
-                    connections?.let { graph ->
-                        item {
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("This day, connected", style = MaterialTheme.typography.titleMedium)
-                                DiaryConnectionsView(
-                                    graph = graph,
-                                    dayLabel = connectionsDay?.let {
-                                        DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(it))
-                                    } ?: "",
-                                    emptyMessage = "No related notes, tasks or habits logged on this day."
-                                )
-                            }
-                        }
-                    }
-                    if (connections == null && connectionsLoading) {
-                        item {
-                            Text(
-                                "Assembling this day's connections…",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
 
                 items(filtered, key = { it.id }) { entry ->
                     DiaryEntryCard(
@@ -246,7 +200,7 @@ private fun dayChipWeekday(day: LocalDate): String =
 
 private fun dayChipLabel(day: LocalDate): String = day.dayOfMonth.toString()
 
-/** The journal card from the Stitch design: date + mood pill, body, themes. */
+/** The journal card: date + mood pill, body, and any stored tags. */
 @Composable
 private fun DiaryEntryCard(
     entry: DiaryEntity,
@@ -255,7 +209,7 @@ private fun DiaryEntryCard(
     onDelete: () -> Unit
 ) {
     val date = DateTimeUtils.epochDayToLocalDate(entry.dateEpochDay)
-    val keywords = remember(entry.id, entry.content) { KeywordExtractor.extract(entry.content, maxKeywords = 2) }
+    val tags = remember(entry.id, entry.tagsCsv) { entryTags(entry) }
     GlassCard(Modifier.fillMaxWidth().clickable(onClick = onOpen), cornerRadius = 24.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -292,11 +246,11 @@ private fun DiaryEntryCard(
                 maxLines = 6,
                 overflow = TextOverflow.Ellipsis
             )
-            if (keywords.isNotEmpty()) {
+            if (tags.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    keywords.forEach { kw ->
+                    tags.forEach { tag ->
                         Text(
-                            kw.keyword,
+                            tag,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
@@ -310,6 +264,12 @@ private fun DiaryEntryCard(
         }
     }
 }
+
+private fun entryTags(entry: DiaryEntity): List<String> = entry.tagsCsv
+    .split(',')
+    .map { it.trim() }
+    .filter { it.isNotBlank() }
+    .take(2)
 
 /** Muted, on-brand empty state — mirrors the Stitch empty screen (icon + copy + FAB hint). */
 @Composable

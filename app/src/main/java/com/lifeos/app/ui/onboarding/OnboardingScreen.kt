@@ -25,9 +25,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -48,10 +49,9 @@ import com.lifeos.app.ui.theme.LifeOSPrimary
 private data class OnboardingPage(val title: String, val body: String, val icon: @Composable () -> Unit)
 
 private val pages = listOf(
-    OnboardingPage("Welcome to LifeOS", "Capture your life. Organize your life. Understand your life.") { Icon(Icons.Filled.AutoAwesome, null, tint = LifeOSPrimary, modifier = Modifier.size(54.dp)) },
-    OnboardingPage("Your life. Your data.", "Your notes, tasks, habits, diary and expenses stay on your device unless you explicitly export them.") { Icon(Icons.Filled.Lock, null, tint = LifeOSPrimary, modifier = Modifier.size(54.dp)) },
-    OnboardingPage("AI, on your terms", "LifeOS Intelligence runs locally on your device. No cloud AI is required.") { Icon(Icons.Filled.AutoAwesome, null, tint = LifeOSPrimary, modifier = Modifier.size(54.dp)) },
-    OnboardingPage("Everything connects", "Notes, tasks, habits, expenses and diary entries become one chronological LifeOS timeline.") { Icon(Icons.Filled.AutoAwesome, null, tint = LifeOSPrimary, modifier = Modifier.size(54.dp)) },
+    OnboardingPage("Welcome to LifeOS", "Track tasks, build habits, record expenses, and journal your day — all on one device.") { Icon(Icons.Filled.Bolt, null, tint = LifeOSPrimary, modifier = Modifier.size(54.dp)) },
+    OnboardingPage("Your life. Your data.", "Your tasks, habits, expenses and diary stay on your device unless you explicitly export them.") { Icon(Icons.Filled.Lock, null, tint = LifeOSPrimary, modifier = Modifier.size(54.dp)) },
+    OnboardingPage("Everything connects", "Tasks, habits, expenses and diary entries become one chronological LifeOS timeline.") { Icon(Icons.Filled.Timeline, null, tint = LifeOSPrimary, modifier = Modifier.size(54.dp)) },
 )
 
 @Composable

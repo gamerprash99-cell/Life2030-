@@ -4,17 +4,11 @@
 
     <!--
         Rule #22 from the LifeOS spec: "Request Android permissions only when required."
-        These are declared because the corresponding Capture / AI features need them,
-        but each is requested at RUNTIME only when the user actually triggers that
-        feature (see core/util/PermissionManager.kt), never on first launch.
+        POST_NOTIFICATIONS is declared because Tasks/Habits schedule local reminders,
+        and is requested at RUNTIME (see SettingsScreen) — never on first launch.
     -->
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- LifeOS works fully without a camera; declare capture as optional hardware
-         so the app is installable on camera-less/ChromeOS devices. -->
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <!-- No INTERNET permission: LifeOS AI (core/intelligence/) runs entirely on-device.
+    <!-- No INTERNET permission: all LifeOS features run entirely on-device.
          There is no HTTP client, no API key, and no network code anywhere in this app. -->
 
     <application

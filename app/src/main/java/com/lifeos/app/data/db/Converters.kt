@@ -1,7 +1,6 @@
 package com.lifeos.app.data.db
 
 import androidx.room.TypeConverter
-import com.lifeos.app.data.db.entities.CaptureType
 import com.lifeos.app.data.db.entities.HabitFrequency
 import com.lifeos.app.data.db.entities.PaymentMethod
 import com.lifeos.app.data.db.entities.RepeatRule
@@ -19,7 +18,4 @@ class Converters {
 
     @TypeConverter fun fromPaymentMethod(value: PaymentMethod): String = value.name
     @TypeConverter fun toPaymentMethod(value: String): PaymentMethod = PaymentMethod.valueOf(value)
-
-    @TypeConverter fun fromCaptureType(value: CaptureType): String = value.name
-    @TypeConverter fun toCaptureType(value: String): CaptureType = CaptureType.valueOf(value)
 }

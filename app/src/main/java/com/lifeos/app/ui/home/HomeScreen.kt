@@ -21,19 +21,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timeline
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -76,14 +71,9 @@ import java.util.Locale
 fun HomeScreen(
     onOpenTasks: () -> Unit,
     onOpenHabits: () -> Unit,
-    onOpenCapture: () -> Unit,
-    onOpenAiAssistant: () -> Unit = {},
-    onOpenNotes: () -> Unit = {},
-    onOpenExpenses: () -> Unit = {},
-    onOpenDiary: () -> Unit = {},
-    onOpenInsights: () -> Unit = {},
-    onOpenSearch: () -> Unit = {},
-    onOpenTimeline: () -> Unit = {},
+    onOpenExpenses: () -> Unit,
+    onOpenDiary: () -> Unit,
+    onOpenTimeline: () -> Unit,
     onOpenProfile: () -> Unit = {}
 ) {
     val locator = LocalServiceLocator.current
@@ -94,80 +84,66 @@ fun HomeScreen(
     )
     val summary by viewModel.summary.collectAsState()
 
-    Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = LifeOSSpacing.screenPadding,
-                end = LifeOSSpacing.screenPadding,
-                top = 8.dp,
-                bottom = LifeOSSpacing.extendedFabContentClearance
-            ),
-            verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
-        ) {
-            item { HomeHeader(onOpenSearch, onOpenProfile, onOpenAiAssistant) }
-            summary?.let { s ->
-                item {
-                    GreetingHeader(
-                        dateLabel = s.dateLabel,
-                        greeting = s.greeting,
-                        dayStatusLabel = s.dayStatusLabel
-                    )
-                }
-                item {
-                    DayProgressCard(
-                        dailyUpdatePercent = s.dailyUpdatePercent,
-                        tasksDone = s.tasksCompletedToday,
-                        tasksTotal = s.tasksTotalToday,
-                        habitsDone = s.habitsToday.count { it.isDone },
-                        habitsTotal = s.habitsToday.size,
-                        spend = s.todaySpend
-                    )
-                }
-                item {
-                    TodayTasksSection(
-                        summary = summary,
-                        onOpenTasks = onOpenTasks,
-                        onToggleTask = viewModel::toggleTask
-                    )
-                }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = LifeOSSpacing.screenPadding,
+            end = LifeOSSpacing.screenPadding,
+            top = 8.dp,
+            bottom = LifeOSSpacing.sectionSpacing
+        ),
+        verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
+    ) {
+        item { HomeHeader(onOpenProfile) }
+        summary?.let { s ->
+            item {
+                GreetingHeader(
+                    dateLabel = s.dateLabel,
+                    greeting = s.greeting,
+                    dayStatusLabel = s.dayStatusLabel
+                )
             }
-            item { QuickActionsSection(onOpenDiary, onOpenNotes, onOpenExpenses, onOpenTimeline) }
-            item { HabitsSection(summary = summary, onOpenHabits = onOpenHabits, onToggleHabit = viewModel::toggleHabit) }
-            item { ActivityHeader(summary) }
-            val activityItems = summary?.recentActivity.orEmpty()
-            if (activityItems.isEmpty()) {
-                item {
-                    LifeOSCard(Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("No activity recorded today", style = MaterialTheme.typography.titleMedium)
-                            Text("Tasks, habits, expenses and captures you log today will appear here.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            } else {
-                itemsIndexed(activityItems) { index, item ->
-                    TimelineRow(item, isLast = index == activityItems.lastIndex)
-                }
+            item {
+                DayProgressCard(
+                    dailyUpdatePercent = s.dailyUpdatePercent,
+                    tasksDone = s.tasksCompletedToday,
+                    tasksTotal = s.tasksTotalToday,
+                    habitsDone = s.habitsToday.count { it.isDone },
+                    habitsTotal = s.habitsToday.size,
+                    spend = s.todaySpend
+                )
+            }
+            item {
+                TodayTasksSection(
+                    summary = summary,
+                    onOpenTasks = onOpenTasks,
+                    onToggleTask = viewModel::toggleTask
+                )
             }
         }
-
-        FloatingActionButton(
-            onClick = onOpenCapture,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = LifeOSSpacing.screenPadding, bottom = 16.dp)
-                .padding(4.dp),
-            containerColor = LifeOSPrimary,
-            contentColor = Color.White
-        ) {
-            Icon(Icons.Filled.Camera, contentDescription = "Capture")
+        item { QuickActionsSection(onOpenDiary, onOpenExpenses, onOpenTimeline) }
+        item { HabitsSection(summary = summary, onOpenHabits = onOpenHabits, onToggleHabit = viewModel::toggleHabit) }
+        item { ActivityHeader(summary) }
+        val activityItems = summary?.recentActivity.orEmpty()
+        if (activityItems.isEmpty()) {
+            item {
+                LifeOSCard(Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("No activity recorded today", style = MaterialTheme.typography.titleMedium)
+                        Text("Tasks, habits and expenses you log today will appear here.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        } else {
+            itemsIndexed(activityItems) { index, item ->
+                TimelineRow(item, isLast = index == activityItems.lastIndex)
+            }
         }
     }
 }
 
 @Composable
-private fun HomeHeader(onSearch: () -> Unit, onProfile: () -> Unit, onOpenAiAssistant: () -> Unit) {
+private fun HomeHeader(onProfile: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("LifeOS", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -179,8 +155,6 @@ private fun HomeHeader(onSearch: () -> Unit, onProfile: () -> Unit, onOpenAiAssi
             )
         }
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = onOpenAiAssistant) { Icon(Icons.Filled.AutoAwesome, contentDescription = "Ask LIFE") }
-        IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, contentDescription = "Search") }
         ProfileAvatar(size = 40.dp, onClick = onProfile)
     }
 }
@@ -365,11 +339,10 @@ private fun todayTaskSubtitle(task: TaskEntity): String {
 }
 
 @Composable
-private fun QuickActionsSection(onOpenDiary: () -> Unit, onOpenNotes: () -> Unit, onOpenExpenses: () -> Unit, onOpenTimeline: () -> Unit) {
+private fun QuickActionsSection(onOpenDiary: () -> Unit, onOpenExpenses: () -> Unit, onOpenTimeline: () -> Unit) {
     HomeSectionHeader("Quick Actions")
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         QuickActionTile("Diary", Icons.Filled.Book, onOpenDiary, Modifier.weight(1f))
-        QuickActionTile("Notes", Icons.Filled.EditNote, onOpenNotes, Modifier.weight(1f))
         QuickActionTile("Expense", Icons.AutoMirrored.Filled.ReceiptLong, onOpenExpenses, Modifier.weight(1f))
         QuickActionTile("Timeline", Icons.Filled.Timeline, onOpenTimeline, Modifier.weight(1f))
     }
@@ -629,12 +602,10 @@ private fun TimelineRow(item: TimelineItem, isLast: Boolean) {
 }
 
 private fun iconFor(type: TimelineItemType): ImageVector = when (type) {
-    TimelineItemType.NOTE -> Icons.Filled.EditNote
     TimelineItemType.TASK_COMPLETED -> Icons.Filled.Check
     TimelineItemType.HABIT_COMPLETED -> Icons.Filled.LocalFireDepartment
     TimelineItemType.EXPENSE -> Icons.Filled.Payments
     TimelineItemType.DIARY -> Icons.Filled.Book
-    TimelineItemType.CAPTURE -> Icons.Filled.Camera
 }
 
 @Composable

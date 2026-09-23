@@ -8,19 +8,15 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.lifeos.app.core.security.DatabasePassphraseProvider
-import com.lifeos.app.data.db.dao.CaptureDao
 import com.lifeos.app.data.db.dao.DiaryDao
 import com.lifeos.app.data.db.dao.ExpenseDao
 import com.lifeos.app.data.db.dao.HabitCompletionDao
 import com.lifeos.app.data.db.dao.HabitDao
-import com.lifeos.app.data.db.dao.NoteDao
 import com.lifeos.app.data.db.dao.TaskDao
-import com.lifeos.app.data.db.entities.CaptureEntity
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.db.entities.ExpenseEntity
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
-import com.lifeos.app.data.db.entities.NoteEntity
 import com.lifeos.app.data.db.entities.TaskEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,26 +31,22 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
  */
 @Database(
     entities = [
-        NoteEntity::class,
         TaskEntity::class,
         HabitEntity::class,
         HabitCompletionEntity::class,
         ExpenseEntity::class,
         DiaryEntity::class,
-        CaptureEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun noteDao(): NoteDao
     abstract fun taskDao(): TaskDao
     abstract fun habitDao(): HabitDao
     abstract fun habitCompletionDao(): HabitCompletionDao
     abstract fun expenseDao(): ExpenseDao
     abstract fun diaryDao(): DiaryDao
-    abstract fun captureDao(): CaptureDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -74,7 +66,7 @@ abstract class AppDatabase : RoomDatabase() {
                         .openHelperFactory(SupportOpenHelperFactory(passphrase))
                         // No destructive fallback in production; migrations must be added
                         // explicitly as the schema evolves post-v1.
-                        .addMigrations(MIGRATION_1_2)
+                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                         .build()
                 }.also { INSTANCE = it }
             }
@@ -102,6 +94,19 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_diary_entries_dateEpochDay ON diary_entries(dateEpochDay)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_dateEpochDay ON expenses(dateEpochDay)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_captures_dateEpochDay ON captures(dateEpochDay)")
+            }
+        }
+
+        /**
+         * v2 → v3: the Notes and Capture features were removed wholesale. Drop
+         * their two tables and nothing else — every retained table (tasks,
+         * habits, habit_completions, expenses, diary_entries) keeps its columns and
+         * rows untouched. SQLite drops each table's indexes automatically.
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS notes")
+                db.execSQL("DROP TABLE IF EXISTS captures")
             }
         }
 

@@ -1,13 +1,10 @@
 package com.lifeos.app.data.repository
 
-import com.lifeos.app.data.db.entities.CaptureEntity
-import com.lifeos.app.data.db.entities.CaptureType
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.db.entities.ExpenseEntity
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.HabitFrequency
-import com.lifeos.app.data.db.entities.NoteEntity
 import com.lifeos.app.data.db.entities.TaskEntity
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -23,12 +20,6 @@ class BackupSerializationTest {
     private fun sampleBackup() = LifeOSBackup(
         exportedAtEpochMillis = 1_700_000_000_000L,
         appVersion = "0.2.0",
-        notes = listOf(
-            NoteEntity(
-                id = "n1", title = "Draft", contentJson = "[]", plainTextForSearch = "Hello",
-                folder = null, tagsCsv = "ideas", createdAt = 1L, updatedAt = 1L
-            )
-        ),
         tasks = listOf(
             TaskEntity(
                 id = "t1", title = "Ship release", description = "Push the build",
@@ -57,12 +48,6 @@ class BackupSerializationTest {
                 tagsCsv = "life", dateEpochDay = 19_001L, timeMinutes = 30,
                 createdAt = 1L, updatedAt = 2L
             )
-        ),
-        captures = listOf(
-            CaptureEntity(
-                id = "c1", type = CaptureType.PHOTO, filePath = "/tmp/a.jpg",
-                dateEpochDay = 19_001L, timeMinutes = 5, createdAt = 1L
-            )
         )
     )
 
@@ -86,13 +71,16 @@ class BackupSerializationTest {
 
     @Test
     fun `empty backup round trips`() {
-        val empty = LifeOSBackup(1L, "0.2.0", emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+        val empty = LifeOSBackup(1L, "0.2.0", emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
         val decoded = json.decodeFromString<LifeOSBackup>(json.encodeToString(empty))
         assertEquals(empty, decoded)
     }
 
     @Test
-    fun `backup without formatVersion decodes as current version`() {
+    fun `legacy backup with notes and captures still decodes`() {
+        // v1 backups exported before Notes/Captures were removed carried extra
+        // "notes" and "captures" keys. ignoreUnknownKeys must let them import;
+        // the extra keys are simply dropped.
         val legacy = """{
             "exportedAtEpochMillis": 1700000000000,
             "appVersion": "0.2.0",
@@ -100,6 +88,7 @@ class BackupSerializationTest {
             "expenses": [], "diaryEntries": [], "captures": []
         }"""
         val decoded = json.decodeFromString<LifeOSBackup>(legacy)
+        assertEquals(emptyList<TaskEntity>(), decoded.tasks)
         assertEquals(LifeOSBackup.CURRENT_FORMAT_VERSION, decoded.formatVersion)
     }
 

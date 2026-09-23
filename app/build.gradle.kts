@@ -89,6 +89,10 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    // MigrationTestHelper needs the exported KSP schema JSONs on the
+    // androidTest assets path to validate migrations in connected tests.
+    sourceSets.getByName("androidTest").assets.srcDirs("$projectDir/schemas")
 }
 
 dependencies {
@@ -129,16 +133,8 @@ dependencies {
     // WorkManager (reminders, recurring task/habit rollover, backup scheduling)
     implementation("androidx.work:work-runtime-ktx:2.10.0")
 
-    // Image loading for capture attachments
+    // Image loading (profile photo in ProfileScreen)
     implementation("io.coil-kt:coil-compose:2.7.0")
-
-    // CameraX — real Photo/Video capture (Section 3 Life Capture)
-    val cameraxVersion = "1.4.0"
-    implementation("androidx.camera:camera-core:$cameraxVersion")
-    implementation("androidx.camera:camera-camera2:$cameraxVersion")
-    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
-    implementation("androidx.camera:camera-view:$cameraxVersion")
-    implementation("androidx.camera:camera-video:$cameraxVersion")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
@@ -146,4 +142,6 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.11.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // Room migration testing (MigrationTestHelper) — executed on a device/emulator
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
 }
