@@ -4,9 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -93,9 +91,6 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
     var icon by remember { mutableStateOf("🔥") }
     var reminderTime by remember { mutableStateOf<LocalTime?>(null) }
-    val completionByHabit = completions.associateBy { it.habitId }
-    val todayDone = habits.count { habit -> (completionByHabit[habit.id]?.progressCount ?: 0) >= habit.goalCount }
-    val completionPercent = if (habits.isEmpty()) 0 else (todayDone * 100 / habits.size)
     Scaffold(floatingActionButton = { androidx.compose.material3.FloatingActionButton(onClick = { showAddDialog = true }, containerColor = LifeOSPrimary) { Icon(Icons.Filled.Add, contentDescription = "New habit", tint = Color.White) } }) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxWidth().padding(padding),
@@ -103,25 +98,6 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
         ) {
             item { LifeOSTopBar(title = "Habits & Routines", subtitle = "Build a rhythm that feels sustainable") }
-            item {
-                LifeOSCard(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) { Text("Weekly Rhythm", style = MaterialTheme.typography.titleLarge); Text("Live from your habit check-ins", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                            Surface(color = LifeOSAccentLavender, shape = androidx.compose.foundation.shape.RoundedCornerShape(50)) { Text("$completionPercent% today", color = LifeOSPrimary, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)) }
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            listOf("M", "T", "W", "T", "F", "S", "S").forEachIndexed { index, day ->
-                                val selected = index == 6
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(day, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant); Spacer(Modifier.height(7.dp))
-                                    Surface(color = if (selected) LifeOSPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f), shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp), modifier = Modifier.size(30.dp)) { BoxCentered { if (selected) Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp)) } }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
             item { LifeOSSectionHeader("Active routines", "${habits.size} total") }
             if (habits.isEmpty()) item { EmptyHabits(onAdd = { showAddDialog = true }) }
             else items(habits, key = { it.id }) { habit -> HabitCard(habit, locator.habitRepository, onOpenHabit) { progress -> viewModel.logToday(habit.id, progress, habit.goalCount) } }
@@ -165,6 +141,3 @@ private fun HabitCard(habit: HabitEntity, repository: HabitRepository, onOpen: (
 private fun EmptyHabits(onAdd: () -> Unit) {
     LifeOSCard(Modifier.fillMaxWidth()) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { Text("No routines yet", style = MaterialTheme.typography.titleMedium); Text("Create a small daily ritual and LifeOS will track its streak locally.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant); LifeOSGradientButton("Create first habit", Modifier.fillMaxWidth(), onAdd) } }
 }
-
-@Composable
-private fun BoxCentered(content: @Composable () -> Unit) { androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(30.dp), contentAlignment = Alignment.Center) { content() } }

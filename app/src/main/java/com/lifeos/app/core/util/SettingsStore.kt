@@ -50,7 +50,6 @@ class SettingsStore(private val context: Context) {
     private object Keys {
         val DARK_THEME_ENABLED = booleanPreferencesKey("dark_theme_enabled")
         val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
-        val AI_FEATURES_ENABLED = booleanPreferencesKey("ai_features_enabled")
         val AUTO_LOCK_ENABLED = booleanPreferencesKey("auto_lock_enabled")
         val REMINDERS_ENABLED = booleanPreferencesKey("reminders_enabled")
         val PROFILE_NAME = stringPreferencesKey("profile_name")
@@ -81,7 +80,6 @@ class SettingsStore(private val context: Context) {
 
     val darkThemeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DARK_THEME_ENABLED] ?: false }
     val onboardingComplete: Flow<Boolean> = context.dataStore.data.map { it[Keys.ONBOARDING_COMPLETE] ?: false }
-    val aiFeaturesEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AI_FEATURES_ENABLED] ?: false }
     val autoLockEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_LOCK_ENABLED] ?: true }
     val remindersEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.REMINDERS_ENABLED] ?: true }
     val profileName: Flow<String?> = context.dataStore.data.map { it[Keys.PROFILE_NAME] }
@@ -101,7 +99,6 @@ class SettingsStore(private val context: Context) {
     suspend fun setDarkThemeEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.DARK_THEME_ENABLED] = enabled }
 
     suspend fun setOnboardingComplete(complete: Boolean) = context.dataStore.edit { it[Keys.ONBOARDING_COMPLETE] = complete }
-    suspend fun setAiFeaturesEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.AI_FEATURES_ENABLED] = enabled }
     suspend fun setAutoLockEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.AUTO_LOCK_ENABLED] = enabled }
     suspend fun setRemindersEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.REMINDERS_ENABLED] = enabled }
 

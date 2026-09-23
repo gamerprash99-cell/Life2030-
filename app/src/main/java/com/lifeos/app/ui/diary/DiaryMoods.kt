@@ -1,7 +1,6 @@
 package com.lifeos.app.ui.diary
 
 import androidx.compose.ui.graphics.Color
-import com.lifeos.app.core.intelligence.Mood
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.DiaryMoodCalm
@@ -37,16 +36,6 @@ object DiaryMoods {
         "Stressed" -> DiaryMoodStressed
         "Excited" -> DiaryMoodExcited
         else -> DiaryLavender
-    }
-
-    /** Maps the analyzer's [Mood] (used when no mood is stored) back to a pill. */
-    fun fromAnalysis(mood: Mood): DiaryMood? = when (mood) {
-        Mood.VERY_POSITIVE -> fromStored("🤩 Excited")
-        Mood.POSITIVE -> fromStored("😊 Happy")
-        Mood.NEUTRAL -> fromStored("😌 Calm")
-        Mood.NEGATIVE -> fromStored("😔 Sad")
-        Mood.VERY_NEGATIVE -> fromStored("😤 Stressed")
-        Mood.UNKNOWN -> null
     }
 
     fun inkOn(value: String?): Color = DiaryInkViolet.copy(alpha = 0.92f)

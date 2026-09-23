@@ -54,6 +54,18 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): TaskEntity?
 
+    /**
+     * Completed tasks whose completion timestamp fell inside [startMillis, endMillis] —
+     * the retained Timeline feature's source of data.
+     */
+    @Query("""
+        SELECT * FROM tasks
+        WHERE isDeleted = 0 AND isCompleted = 1
+          AND completedAtEpochMillis >= :startMillis AND completedAtEpochMillis <= :endMillis
+        ORDER BY completedAtEpochMillis ASC
+    """)
+    suspend fun getCompletedBetween(startMillis: Long, endMillis: Long): List<TaskEntity>
+
     @Query("UPDATE tasks SET isCompleted = :completed, completedAtEpochMillis = :completedAt, updatedAt = :now WHERE id = :id")
     suspend fun setCompleted(id: String, completed: Boolean, completedAt: Long?, now: Long)
 
@@ -63,36 +75,11 @@ interface TaskDao {
     @Query("UPDATE tasks SET dueDateEpochDay = :newEpochDay, updatedAt = :now WHERE id = :id")
     suspend fun reschedule(id: String, newEpochDay: Long, now: Long)
 
-    @Query("""
-        SELECT * FROM tasks
-        WHERE isDeleted = 0 AND (title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%')
-        ORDER BY dueDateEpochDay ASC
-    """)
-    suspend fun search(query: String): List<TaskEntity>
-
-    @Query("SELECT COUNT(*) FROM tasks WHERE isDeleted = 0 AND isCompleted = 1 AND completedAtEpochMillis BETWEEN :startMillis AND :endMillis")
-    suspend fun countCompletedBetween(startMillis: Long, endMillis: Long): Int
-
-    /**
-     * Tasks completed within [startMillis, endMillis], using
-     * `COALESCE(completedAtEpochMillis, updatedAt)` so legacy completions that
-     * never recorded a completion timestamp still land on their update day
-     * (matches the in-memory filter the timeline previously applied).
-     */
-    @Query("""
-        SELECT * FROM tasks
-        WHERE isDeleted = 0 AND isCompleted = 1 AND COALESCE(completedAtEpochMillis, updatedAt) BETWEEN :startMillis AND :endMillis
-    """)
-    suspend fun getCompletedBetween(startMillis: Long, endMillis: Long): List<TaskEntity>
-
     @Query("SELECT COUNT(*) FROM tasks WHERE isDeleted = 0 AND dueDateEpochDay = :epochDay")
     fun observeCountForDay(epochDay: Long): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM tasks WHERE isDeleted = 0 AND dueDateEpochDay = :epochDay AND isCompleted = 1")
     fun observeCompletedCountForDay(epochDay: Long): Flow<Int>
-
-    @Query("SELECT * FROM tasks WHERE isDeleted = 0 AND createdAt BETWEEN :startMillis AND :endMillis")
-    suspend fun getCreatedBetween(startMillis: Long, endMillis: Long): List<TaskEntity>
 
     @Query("SELECT * FROM tasks")
     suspend fun getAllForBackup(): List<TaskEntity>

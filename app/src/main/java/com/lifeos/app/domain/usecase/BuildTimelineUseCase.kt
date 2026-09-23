@@ -1,10 +1,8 @@
 package com.lifeos.app.domain.usecase
 
-import com.lifeos.app.data.repository.CaptureRepository
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
-import com.lifeos.app.data.repository.NoteRepository
 import com.lifeos.app.data.repository.TaskRepository
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.domain.model.ExpenseCategories
@@ -15,12 +13,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 
 class BuildTimelineUseCase(
-    private val noteRepo: NoteRepository,
     private val taskRepo: TaskRepository,
     private val habitRepo: HabitRepository,
     private val expenseRepo: ExpenseRepository,
-    private val diaryRepo: DiaryRepository,
-    private val captureRepo: CaptureRepository
+    private val diaryRepo: DiaryRepository
 ) {
     suspend operator fun invoke(epochDay: Long): List<TimelineItem> {
         val startMillis = com.lifeos.app.core.util.DateTimeUtils.startOfLocalDayMillis(epochDay)
@@ -29,26 +25,14 @@ class BuildTimelineUseCase(
         return coroutineScope {
             // Fire every source query concurrently instead of waiting on one
             // stream at a time (keeps the Home summary assembly fast).
-            val notes = async { noteRepo.getCreatedBetween(startMillis, endMillis) }
             val tasks = async { taskRepo.getCompletedBetween(startMillis, endMillis) }
             val habits = async { habitRepo.observeAll().first() }
             val todayCompletions = async { habitRepo.observeAllForDay(epochDay).first() }
             val expenses = async { expenseRepo.observeForDay(epochDay).first() }
             val diaries = async { diaryRepo.observeForDay(epochDay).first() }
-            val captures = async { captureRepo.observeForDay(epochDay).first() }
 
             val items = mutableListOf<TimelineItem>()
             val habitsById = habits.await().associateBy { it.id }
-
-            notes.await()
-                .forEach { note ->
-                    items += TimelineItem(
-                        id = "note-${note.id}", type = TimelineItemType.NOTE,
-                        title = note.title.ifBlank { "Untitled note" }, subtitle = note.folder,
-                        dateEpochDay = epochDay, timeMinutes = DateTimeUtils.minutesOfDay(note.createdAt),
-                        icon = "📝", sourceId = note.id
-                    )
-                }
 
             tasks.await()
                 .forEach { task ->
@@ -91,17 +75,6 @@ class BuildTimelineUseCase(
                     title = diary.title ?: "Diary entry", subtitle = diary.mood,
                     dateEpochDay = epochDay, timeMinutes = diary.timeMinutes, icon = "📔",
                     sourceId = diary.id, moodOrCategory = diary.mood
-                )
-            }
-
-            captures.await().forEach { capture ->
-                val icon = when (capture.type.name) {
-                    "PHOTO" -> "📷"; "VIDEO" -> "🎥"; "AUDIO" -> "🎙"; else -> "💭"
-                }
-                items += TimelineItem(
-                    id = "capture-${capture.id}", type = TimelineItemType.CAPTURE,
-                    title = capture.caption ?: capture.type.name.lowercase().replaceFirstChar { it.uppercase() },
-                    dateEpochDay = epochDay, timeMinutes = capture.timeMinutes, icon = icon, sourceId = capture.id
                 )
             }
 

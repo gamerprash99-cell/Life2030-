@@ -27,52 +27,37 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
-import com.lifeos.app.core.intelligence.DiaryConnections
-import com.lifeos.app.core.intelligence.DiaryGraph
-import com.lifeos.app.core.intelligence.KeywordExtractor
-import com.lifeos.app.core.intelligence.MoodAnalyzer
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.repository.DiaryRepository
-import com.lifeos.app.domain.usecase.BuildTimelineUseCase
 import com.lifeos.app.ui.components.LifeOSTopBar
 import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** Full-page view of one diary entry, plus its same-day connections radar. */
+/** Full-page view of one diary entry. */
 class DiaryDetailViewModel(
     private val entryId: String,
-    private val diaryRepository: DiaryRepository,
-    private val buildTimelineUseCase: BuildTimelineUseCase
+    private val diaryRepository: DiaryRepository
 ) : ViewModel() {
 
     val entry: StateFlow<DiaryEntity?> = diaryRepository.observeAll()
         .map { all -> all.firstOrNull { it.id == entryId } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _graph = MutableStateFlow<DiaryGraph?>(null)
-    val graph: StateFlow<DiaryGraph?> = _graph
-    private val _graphLoading = MutableStateFlow(false)
-    val graphLoading: StateFlow<Boolean> = _graphLoading
-
     private val _showEditor = MutableStateFlow(false)
     val showEditor: StateFlow<Boolean> = _showEditor
-
-    init { observeGraph() }
 
     fun startEdit() { _showEditor.value = true }
 
@@ -89,17 +74,6 @@ class DiaryDetailViewModel(
 
     fun delete(id: String) = viewModelScope.launch { diaryRepository.delete(id) }
 
-    private fun observeGraph() {
-        viewModelScope.launch {
-            entry.filterNotNull().collect { current ->
-                _graphLoading.value = true
-                val timeline = runCatching { buildTimelineUseCase(current.dateEpochDay) }.getOrDefault(emptyList())
-                _graph.value = DiaryConnections.build(listOf(current), timeline)
-                _graphLoading.value = false
-            }
-        }
-    }
-
     private fun splitTags(csv: String): List<String> = csv.split(',').map { it.trim() }.filter { it.isNotBlank() }
 }
 
@@ -110,12 +84,10 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
     val viewModel: DiaryDetailViewModel = viewModel(
         key = "diary-detail-$entryId",
         factory = LambdaViewModelFactory {
-            DiaryDetailViewModel(entryId, locator.diaryRepository, locator.buildTimelineUseCase)
+            DiaryDetailViewModel(entryId, locator.diaryRepository)
         }
     )
     val entry by viewModel.entry.collectAsState()
-    val graph by viewModel.graph.collectAsState()
-    val graphLoading by viewModel.graphLoading.collectAsState()
     val showEditor by viewModel.showEditor.collectAsState()
     var confirmDelete by remember { mutableStateOf(false) }
 
@@ -165,37 +137,21 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                         style = MaterialTheme.typography.bodyLarge,
                         lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.35f
                     )
-                    val keywords = remember(current.id, current.content) { KeywordExtractor.extract(current.content, maxKeywords = 6) }
-                    if (keywords.isNotEmpty()) {
+                    val tags = remember(current.id, current.tagsCsv) {
+                        current.tagsCsv.split(',').map { it.trim() }.filter { it.isNotBlank() }.take(6)
+                    }
+                    if (tags.isNotEmpty()) {
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            keywords.forEach { kw -> ThemeKeywordChip(kw.keyword) }
+                            tags.forEach { tag -> ThemeKeywordChip(tag) }
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         TextButton(onClick = viewModel::startEdit) { Text("Edit entry") }
                         TextButton(onClick = { confirmDelete = true }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
                     }
-                }
-            }
-
-            item {
-                Text(
-                    if (graphLoading) "Assembling this day's connections…" else "This day, connected",
-                    style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Start
-                )
-            }
-
-            graph?.let { g ->
-                item {
-                    DiaryConnectionsView(
-                        graph = g,
-                        dayLabel = dateLabel,
-                        emptyMessage = "No related notes, tasks or habits logged on this day."
-                    )
                 }
             }
         }
@@ -236,11 +192,10 @@ private fun ThemeKeywordChip(text: String) {
     )
 }
 
-/** Mood shown as a tinted pill: stored mood wins, otherwise detected from the text. */
+/** Mood shown as a tinted pill, from the stored mood only. */
 @Composable
 fun EntryMoodPill(entry: DiaryEntity) {
     val mood = DiaryMoods.fromStored(entry.mood)
-        ?: DiaryMoods.fromAnalysis(MoodAnalyzer.analyze(entry.content).mood)
     val label = mood?.let { "${it.emoji} ${it.label}" } ?: DiaryMoods.displayLabel(entry.mood)
     if (label.isEmpty()) return
     val color = mood?.let { DiaryMoods.colorOf(it.key) } ?: LifeOSPrimary

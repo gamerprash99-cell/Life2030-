@@ -548,3 +548,28 @@ mood wins, analyzer detection is the fallback (matching previous behaviour).
 - On-device visual confirmation against the Stitch screens (no
   emulator/device in this environment — verified via compile + 101 JVM tests +
   lint + code reasoning); visual QA can't render screenshots here.
+
+---
+
+## 2026-09-23 — Remove Notes, Capture, LIFE AI, Intelligence, Insights & Search (branch `feat/remove-notes-capture-life-intelligence`)
+
+### Scope removed
+- **Notes & Capture:** Notes list/editor, Photo/Video/Audio capture (CameraX), Capture detail, and their sheets (FAB from Home) are gone. `core/ai`, `core/intelligence`, `core/life` (incl. `LifeModels`, `LifeVoiceInputController`) and the `ui/ai`, `ui/capture`, `ui/notes`, `ui/search`, `ui/insights` trees were deleted.
+- **Insights / Statistics / Connections / Search:** the Insights bottom-nav tab, Diary analytics & connection-radar sections, the Search screen, and the "Weekly Rhythm" home/insights card were removed.
+- **LIFE AI Assistant & settings:** the AI assistant screen, offline intelligence engine wiring, AI features toggle and "Privacy & Local Intelligence" settings section were removed.
+- **Permissions/resources:** CAMERA / RECORD_AUDIO permissions, camera `uses-feature`, the captures FileProvider path, and the CameraX Gradle dependency were removed. Tagline now reads "Organize your life. Understand your day."
+
+### Room migration v2 → v3 (non-destructive)
+- `AppDatabase` is now version **3** with `MIGRATION_2_3`, registered alongside `MIGRATION_1_2`. No `fallbackToDestructiveMigration`.
+- The migration drops **only** the removed features' tables — `notes` and `captures` — and touches nothing else. All retained tables (`tasks`, `habits`, `habit_completions`, `expenses`, `diary_entries`) keep every column and row.
+- Exported schema `app/schemas/.../3.json` now contains exactly the five retained tables (KSP `exportSchema=true`).
+- **Tests:** a JVM `AppDatabaseSchemaTest` asserts the exported 3.json keeps the five retained tables and drops `notes`/`captures` (runs on every unit-test run); an instrumentation `AppDatabaseMigrationTest` (in `app/src/androidTest`) seeds a v2 database with rows in both dropped tables, runs `MIGRATION_2_3` via `MigrationTestHelper` with `validateDroppedTables=true`, and asserts the tables are gone while retained tables survive. The instrumentation test uses the `FrameworkSQLiteOpenHelperFactory` (plain SQLite) so the helper can validate the migration; it compiles via `:app:assembleDebugAndroidTest` but must run on a device/emulator.
+
+### Data preservation
+- **Timeline data:** `TaskDao.getCompletedBetween` was re-introduced as a retained-feature query so the Timeline screen still lists completed tasks; `BuildTimelineUseCase` reads from it unchanged.
+- **Backups:** `LifeOSBackup` no longer carries `notes`/`captures` arrays, but `CURRENT_FORMAT_VERSION` stays **1** and `ignoreUnknownKeys=true` remains, so older v1 backup files that include those keys still import (legacy keys are simply dropped). `BackupSerializationTest` gained a legacy-decode case.
+- Repeated/off-device verification: `assembleDebug`, `testDebugUnitTest`, `lintDebug`, `assembleDebugAndroidTest` all build green (0 lint errors).
+
+### Known issues / notes
+- Deleted-feature data (`notes`, `captures`) is dropped on upgrade by design; no export path exists since the features are removed.
+- The instrumentation migration test cannot be executed in this environment (no device/emulator); it is compiled and documented, and must be run via `:app:connectedDebugAndroidTest`.

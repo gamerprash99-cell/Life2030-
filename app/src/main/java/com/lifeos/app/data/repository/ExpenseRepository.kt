@@ -1,7 +1,6 @@
 package com.lifeos.app.data.repository
 
 import com.lifeos.app.core.util.IdGenerator
-import com.lifeos.app.data.db.dao.CategoryTotal
 import com.lifeos.app.data.db.dao.ExpenseDao
 import com.lifeos.app.data.db.entities.ExpenseEntity
 import com.lifeos.app.data.db.entities.PaymentMethod
@@ -36,16 +35,6 @@ class ExpenseRepository(private val dao: ExpenseDao) {
     }
 
     suspend fun delete(id: String) = dao.delete(id)
-
-    suspend fun getCategoryTotals(startEpochDay: Long, endEpochDay: Long): List<CategoryTotal> =
-        dao.getCategoryTotals(startEpochDay, endEpochDay)
-
-    suspend fun search(query: String): List<ExpenseEntity> {
-        if (query.isBlank()) return emptyList()
-        return dao.search(query)
-    }
-
-    suspend fun getInRange(startEpochDay: Long, endEpochDay: Long): List<ExpenseEntity> = dao.getInRange(startEpochDay, endEpochDay)
 
     suspend fun getAllForBackup(): List<ExpenseEntity> = dao.getAllForBackup()
     suspend fun restoreFromBackup(expenses: List<ExpenseEntity>) = expenses.forEach { dao.upsert(it) }

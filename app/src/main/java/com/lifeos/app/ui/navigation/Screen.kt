@@ -2,10 +2,6 @@ package com.lifeos.app.ui.navigation
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
-    object Notes : Screen("notes")
-    object NoteEditor : Screen("notes/editor?noteId={noteId}") {
-        fun createRoute(noteId: String? = null) = "notes/editor?noteId=${noteId ?: ""}"
-    }
     object Tasks : Screen("tasks")
     object Habits : Screen("habits")
     object HabitDetail : Screen("habits/{habitId}") {
@@ -17,12 +13,6 @@ sealed class Screen(val route: String) {
         fun createRoute(entryId: String) = "diary/$entryId"
     }
     object Timeline : Screen("timeline")
-    object CaptureDetail : Screen("capture/{captureId}") {
-        fun createRoute(captureId: String) = "capture/$captureId"
-    }
-    object Insights : Screen("insights")
-    object Search : Screen("search")
-    object AiAssistant : Screen("ai_assistant")
     object Settings : Screen("settings")
     object Profile : Screen("profile")
     object AppLockSetup : Screen("settings/app_lock")

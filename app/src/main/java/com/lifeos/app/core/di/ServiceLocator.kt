@@ -1,17 +1,12 @@
 package com.lifeos.app.core.di
 
 import android.content.Context
-import com.lifeos.app.core.ai.AiRepository
-import com.lifeos.app.core.intelligence.LifeOSIntelligenceEngine
-import com.lifeos.app.core.life.LifeController
 import com.lifeos.app.core.util.SettingsStore
 import com.lifeos.app.data.db.AppDatabase
 import com.lifeos.app.data.repository.BackupRepository
-import com.lifeos.app.data.repository.CaptureRepository
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
-import com.lifeos.app.data.repository.NoteRepository
 import com.lifeos.app.data.repository.TaskRepository
 import com.lifeos.app.domain.usecase.BuildTimelineUseCase
 import com.lifeos.app.domain.usecase.GetHomeSummaryUseCase
@@ -30,28 +25,17 @@ class ServiceLocator private constructor(context: Context) {
 
     val settingsStore = SettingsStore(appContext)
 
-    val noteRepository = NoteRepository(database.noteDao())
     val taskRepository = TaskRepository(database.taskDao(), appContext)
     val habitRepository = HabitRepository(database.habitDao(), database.habitCompletionDao(), appContext)
     val expenseRepository = ExpenseRepository(database.expenseDao())
     val diaryRepository = DiaryRepository(database.diaryDao())
-    val captureRepository = CaptureRepository(database.captureDao())
 
     val backupRepository = BackupRepository(
-        database, noteRepository, taskRepository, habitRepository, expenseRepository, diaryRepository, captureRepository
+        database, taskRepository, habitRepository, expenseRepository, diaryRepository
     )
-
-    // "Ask LifeOS AI" runs entirely on-device — see core/intelligence/LifeOSIntelligenceEngine.kt.
-    // No API key, no network client, no external endpoint anywhere in this dependency graph.
-    val intelligenceEngine = LifeOSIntelligenceEngine(
-        noteRepository, taskRepository, habitRepository, diaryRepository, expenseRepository, captureRepository
-    )
-    val aiRepository = AiRepository(intelligenceEngine)
-
-    val lifeController = LifeController(noteRepository, taskRepository, habitRepository, diaryRepository, expenseRepository)
 
     val buildTimelineUseCase = BuildTimelineUseCase(
-        noteRepository, taskRepository, habitRepository, expenseRepository, diaryRepository, captureRepository
+        taskRepository, habitRepository, expenseRepository, diaryRepository
     )
     val getHomeSummaryUseCase = GetHomeSummaryUseCase(taskRepository, habitRepository, expenseRepository, buildTimelineUseCase)
 

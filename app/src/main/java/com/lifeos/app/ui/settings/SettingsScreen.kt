@@ -15,7 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
@@ -53,7 +52,6 @@ import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSSectionHeader
 import com.lifeos.app.ui.components.LifeOSTopBar
 import com.lifeos.app.ui.theme.LifeOSAccentLavender
-import com.lifeos.app.ui.theme.LifeOSAccentPink
 import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,7 +67,6 @@ class SettingsViewModel(
     private val habitRepository: com.lifeos.app.data.repository.HabitRepository
 ) : ViewModel() {
     val appLockType = settingsStore.appLockType
-    val aiFeaturesEnabled = settingsStore.aiFeaturesEnabled
     val darkThemeEnabled = settingsStore.darkThemeEnabled
     val remindersEnabled = settingsStore.remindersEnabled
     val autoLockEnabled = settingsStore.autoLockEnabled
@@ -78,7 +75,6 @@ class SettingsViewModel(
     private val _lastExportedFile = MutableStateFlow<File?>(null)
     val lastExportedFile: StateFlow<File?> = _lastExportedFile
 
-    fun setAiFeaturesEnabled(enabled: Boolean) = viewModelScope.launch { settingsStore.setAiFeaturesEnabled(enabled) }
     fun setDarkThemeEnabled(enabled: Boolean) = viewModelScope.launch { settingsStore.setDarkThemeEnabled(enabled) }
     fun setAutoLockEnabled(enabled: Boolean) = viewModelScope.launch { settingsStore.setAutoLockEnabled(enabled) }
 
@@ -121,7 +117,6 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit) {
         SettingsViewModel(context.applicationContext, locator.settingsStore, locator.backupRepository, locator.taskRepository, locator.habitRepository)
     })
     val appLockType by vm.appLockType.collectAsState(initial = AppLockType.NONE)
-    val aiEnabled by vm.aiFeaturesEnabled.collectAsState(initial = false)
     val darkTheme by vm.darkThemeEnabled.collectAsState(initial = false)
     val remindersEnabled by vm.remindersEnabled.collectAsState(initial = true)
     val autoLockEnabled by vm.autoLockEnabled.collectAsState(initial = true)
@@ -154,7 +149,7 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit) {
                         }
                         Column(Modifier.padding(start = 12.dp)) {
                             Text("Zero cloud telemetry", style = MaterialTheme.typography.titleMedium)
-                            Text("LifeOS data and intelligence remain on-device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("LifeOS data stays on your device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -190,18 +185,6 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit) {
                             Text(if (darkTheme) "Dark theme enabled" else "Lavender Day Calm", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(checked = darkTheme, onCheckedChange = vm::setDarkThemeEnabled)
-                    }
-                }
-
-                LifeOSSectionHeader("Privacy & Local Intelligence")
-                LifeOSCard(Modifier.fillMaxWidth(), tint = LifeOSAccentPink) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SettingsIcon(Icons.Filled.AutoAwesome)
-                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text("Local Intelligence", style = MaterialTheme.typography.titleMedium)
-                            Text("Rules, lexicons, statistics and reports run offline.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Switch(checked = aiEnabled, onCheckedChange = vm::setAiFeaturesEnabled)
                     }
                 }
 
