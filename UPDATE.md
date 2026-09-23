@@ -614,4 +614,52 @@ gradle :app:clean :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:
 
 ### Remaining
 - Rescue path verification is on-device only in this sandbox (`pm install/uninstall`, `am start`/`input`/`settings`/`dumpsys --` all throw `SecurityException: Permission Denial`; only `pm list`/`cmd package list` work), so the following could not be executed here: cold-start timing, the v3→v4 migration running against a real SQLCipher file, an actual alarm firing (Doze, reboot, permission-revoked fallback), full-screen-intent launch, and the Settings exact-alarm system screen. Verified here via compile + 93 JVM tests (incl. schema JSON) + lint + code reasoning; `:app:connectedDebugAndroidTest` covers the injectable parts on a device.
+
+---
+
+## 2026-09-23 — Startup splash, nav re-tap, permission-free reminders (branch `fix/startup-navigation-reminders`)
+
+Follow-up hardening on the same feature branch base. No architecture, Room-schema, repository, navigation-structure or dependency-catalog changes beyond one additive AndroidX module.
+
+### 1. "Unlocking your data…" replaced by the Android native splash
+- **Root cause:** `MainActivity.BrandSplash()` was a custom full-screen Compose screen gated on `databaseState != Ready`; on first launch it could stay visible during the SQLCipher open and looked like a hand-rolled loading screen.
+- **Fix:** `MainActivity` now calls `installSplashScreen()` before `super.onCreate` and keeps the system splash on screen (`setKeepOnScreenCondition`) only while `DatabaseInit.Initializing`; it dismisses on **Ready or Error**, straight into the real destination (Home / App Lock / Onboarding / DataKeyErrorScreen). `Theme.LifeOS.Splash` (parent `Theme.SplashScreen`, white background, launcher icon, `postSplashScreenTheme` → `Theme.LifeOS`) is applied to MainActivity; the application and `AlarmFullScreenActivity` keep `Theme.LifeOS`. The `BrandSplash` composable and its `Text("Unlocking your data…")` are deleted; a bare background `Surface` safety net (no label) backs the splash dismiss. New dependency: `androidx.core:core-splashscreen:1.2.0`.
+
+### 2. First content no longer waits on reminder re-arming
+- **Root cause:** `LifeOSApplication.launchDatabaseOpen` ran `reminderRepository.rebuildAllActive()` *before* setting `databaseState = Ready`, so the UI waited on re-scheduling every alarm.
+- **Fix:** `Ready` now flips immediately after `AppDatabase.warmUpOpen`; `rebuildAllActive()` runs after in a non-blocking coroutine (`runCatching`). `BootReceiver` still covers reboot / package-update / time-change re-arming.
+
+### 3. Bottom-bar re-tap no longer redirects to Home
+- **Root cause:** the re-tap branch called `popBackStack(findStartDestination().id, false)`, which pops **to Home** no matter which tab was tapped (Habits→Habits landed on Home; same for Tasks), and cascaded into the intermittent Home-icon / Profile→Back→Tasks weirdness.
+- **Fix:** every tap now uses one canonical pattern — `navigate(route) { popUpTo(startDest) { saveState = true }; launchSingleTop = true; restoreState = true }`. Re-tapping the visible tab stays on it; Profile → Back returns to the prior tab with the correct item selected. `LifeOSNavHost` structure (single NavHost, nested `root_tabs`) untouched.
+
+### 4. Reminders drop the exact-alarm requirement
+- **Root cause:** `ReminderScheduler.schedule()` preferred `setAlarmClock` and branched on `canScheduleExactAlarms()`, demanding `SCHEDULE_EXACT_ALARM` (API 31+ Settings nudge; denied by default on API 34+); Settings surfaced an "Alarms may be delayed · Allow exact alarms" button.
+- **Fix:** LifeOS task/habit reminders don't need exact-to-the-minute delivery, so `schedule()` now always uses `alarmManager.setAndAllowWhileIdle(RTC_WAKEUP, triggerAt, pendingIntent)` — Doze-aware, permission-free, never throws for a missing exact-alarm grant, and the existing PendingIntent identity (`lifeos://reminder/<id>`, `FLAG_UPDATE_CURRENT|FLAG_IMMUTABLE`) still guarantees cancel/replace and no duplicates. The Settings exact-alarm launcher + button are removed (POST_NOTIFICATIONS request path and the global reminders toggle are unchanged), and `SCHEDULE_EXACT_ALARM` is gone from the manifest (POST_NOTIFICATIONS, VIBRATE, USE_FULL_SCREEN_INTENT remain). Past-skip, BootReceiver, Room source of truth and `cancelAll` untouched, verified by grep.
+
+### 5. Unrelated UI
+- No screen visuals, layouts, navigation structure, permissions flow or repository logic were touched beyond the four root causes above. The floating call/PiP overlay seen in screenshots is external (system) UI and was ignored.
+
+### Files changed
+- `app/build.gradle.kts` (add `core-splashscreen` 1.2.0)
+- `app/src/main/AndroidManifest.xml` (MainActivity splash theme; drop `SCHEDULE_EXACT_ALARM`)
+- `app/src/main/res/values/themes.xml` (add `Theme.LifeOS.Splash`)
+- `app/src/main/java/com/lifeos/app/MainActivity.kt` (installSplashScreen + keep-on-screen; remove `BrandSplash`)
+- `app/src/main/java/com/lifeos/app/LifeOSApplication.kt` (Ready-first, async re-arm)
+- `app/src/main/java/com/lifeos/app/ui/components/LifeOSBottomBar.kt` (canonical navigate)
+- `app/src/main/java/com/lifeos/app/core/reminders/ReminderScheduler.kt` (permission-free `setAndAllowWhileIdle`)
+- `app/src/main/java/com/lifeos/app/ui/settings/SettingsScreen.kt` (remove exact-alarm launcher/button)
+- `UPDATE.md`, plan `docs/superpowers/plans/2026-09-23-startup-navigation-reminders.md`
+
+### Verification
+```text
+gradle :app:compileDebugKotlin   -> BUILD SUCCESSFUL
+gradle :app:testDebugUnitTest    -> BUILD SUCCESSFUL (93 tests, 0 failures)
+gradle :app:assembleDebug        -> BUILD SUCCESSFUL
+gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existing
+                                     dependency-version / Info warnings)
+```
+
+### Remaining
+- On-device: native-splash→Home transition timing, re-tap stays-on-tab behaviour, Profile→Back tab sync, and an actual reminder firing without exact-alarm access (no emulator/device here — verified via compile + 93 JVM tests + lint + code reasoning).
  
