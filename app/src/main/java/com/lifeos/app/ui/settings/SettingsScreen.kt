@@ -63,8 +63,7 @@ class SettingsViewModel(
     private val appContext: android.content.Context,
     private val settingsStore: SettingsStore,
     private val backupRepository: BackupRepository,
-    private val taskRepository: com.lifeos.app.data.repository.TaskRepository,
-    private val habitRepository: com.lifeos.app.data.repository.HabitRepository
+    private val reminderRepository: com.lifeos.app.data.repository.ReminderRepository
 ) : ViewModel() {
     val appLockType = settingsStore.appLockType
     val darkThemeEnabled = settingsStore.darkThemeEnabled
@@ -80,16 +79,15 @@ class SettingsViewModel(
 
     /**
      * Persists the global reminder preference and makes it take effect:
-     * turning reminders OFF cancels every scheduled WorkManager job, turning
-     * them ON re-registers all future task/habit reminders.
+     * turning reminders OFF cancels every armed exact alarm, turning them ON
+     * re-arms every still-future task/habit reminder.
      */
     fun setRemindersEnabled(enabled: Boolean) = viewModelScope.launch {
         settingsStore.setRemindersEnabled(enabled)
         ReminderScheduler.setRemindersEnabled(appContext, enabled)
         if (enabled) {
             NotificationHelper.ensureChannel(appContext)
-            taskRepository.rescheduleAllReminders()
-            habitRepository.rescheduleAllReminders()
+            reminderRepository.rebuildAllActive()
         }
     }
     fun exportBackup(directory: File) = viewModelScope.launch {
@@ -109,12 +107,12 @@ class SettingsViewModel(
 }
 
 @Composable
-fun SettingsScreen(onOpenAppLockSetup: () -> Unit) {
+fun SettingsScreen(onOpenAppLockSetup: () -> Unit, onBack: () -> Unit = {}) {
     val locator = LocalServiceLocator.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val vm: SettingsViewModel = viewModel(factory = LambdaViewModelFactory {
-        SettingsViewModel(context.applicationContext, locator.settingsStore, locator.backupRepository, locator.taskRepository, locator.habitRepository)
+        SettingsViewModel(context.applicationContext, locator.settingsStore, locator.backupRepository, locator.reminderRepository)
     })
     val appLockType by vm.appLockType.collectAsState(initial = AppLockType.NONE)
     val darkTheme by vm.darkThemeEnabled.collectAsState(initial = false)
@@ -140,7 +138,7 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit) {
             Modifier.fillMaxWidth().padding(padding).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            LifeOSTopBar("Settings & Security", "Preferences, authentication and local privacy")
+            LifeOSTopBar("Settings & Security", "Preferences, authentication and local privacy", onBack = onBack)
             Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 LifeOSCard(Modifier.fillMaxWidth(), tint = LifeOSAccentLavender) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -246,31 +244,60 @@ private fun SettingsIcon(icon: androidx.compose.ui.graphics.vector.ImageVector) 
 private fun RemindersCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
     val context = LocalContext.current
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) rememberPermissionState(android.Manifest.permission.POST_NOTIFICATIONS) else null
+
+    // Exact-alarm permission (API 31+). Re-checked on every recomposition, which
+    // happens when the user returns from the system screen (activity resume).
+    val exactAlarmLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { _ -> }
+    val canScheduleExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || context
+        .getSystemService(android.app.AlarmManager::class.java)
+        .canScheduleExactAlarms()
+
     LifeOSCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SettingsIcon(Icons.Filled.Notifications)
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("Task & habit reminders", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    when {
-                        !enabled -> "All reminders are silenced."
-                        permission != null && !permission.isGranted -> "Reminders are on · notifications not allowed yet."
-                        else -> "Notifications are requested only when enabled."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SettingsIcon(Icons.Filled.Notifications)
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text("Task & habit reminders", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        when {
+                            !enabled -> "All reminders are silenced."
+                            permission != null && !permission.isGranted -> "Reminders are on · notifications not allowed yet."
+                            else -> "Notifications are requested only when enabled."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = { checked ->
+                        if (checked) {
+                            permission?.request?.invoke()
+                            NotificationHelper.ensureChannel(context)
+                        }
+                        onToggle(checked)
+                    }
                 )
             }
-            Switch(
-                checked = enabled,
-                onCheckedChange = { checked ->
-                    if (checked) {
-                        permission?.request?.invoke()
-                        NotificationHelper.ensureChannel(context)
-                    }
-                    onToggle(checked)
+            // On Android 12+ the user can revoke exact-alarm access; without it the
+            // scheduler falls back to inexact delivery. Offer a one-tap path back.
+            if (enabled && !canScheduleExact && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                TextButton(
+                    onClick = {
+                        runCatching {
+                            exactAlarmLauncher.launch(
+                                Intent(
+                                    android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                    android.net.Uri.parse("package:${context.packageName}")
+                                )
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Alarms may be delayed · Allow exact alarms")
                 }
-            )
+            }
         }
     }
 }

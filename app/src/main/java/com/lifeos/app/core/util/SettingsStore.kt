@@ -85,6 +85,16 @@ class SettingsStore(private val context: Context) {
     val profileName: Flow<String?> = context.dataStore.data.map { it[Keys.PROFILE_NAME] }
     val profilePhotoUri: Flow<String?> = context.dataStore.data.map { it[Keys.PROFILE_PHOTO_URI] }
 
+    /**
+     * Reads the settings file once so subsequent collectors get a cached value
+     * instead of paying the first file read (and any false onboarding/lock
+     * flash) during the first composition. Call from a background scope at
+     * startup.
+     */
+    suspend fun warmUp() {
+        context.dataStore.data.first()
+    }
+
     val appLockType: Flow<AppLockType> = context.dataStore.data.map {
         when (it[Keys.APP_LOCK_TYPE]) {
             AppLockType.PIN.name -> AppLockType.PIN

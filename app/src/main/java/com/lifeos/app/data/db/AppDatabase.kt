@@ -12,15 +12,14 @@ import com.lifeos.app.data.db.dao.DiaryDao
 import com.lifeos.app.data.db.dao.ExpenseDao
 import com.lifeos.app.data.db.dao.HabitCompletionDao
 import com.lifeos.app.data.db.dao.HabitDao
+import com.lifeos.app.data.db.dao.ReminderDao
 import com.lifeos.app.data.db.dao.TaskDao
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.db.entities.ExpenseEntity
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
+import com.lifeos.app.data.db.entities.ReminderEntity
 import com.lifeos.app.data.db.entities.TaskEntity
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
@@ -36,8 +35,9 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         HabitCompletionEntity::class,
         ExpenseEntity::class,
         DiaryEntity::class,
+        ReminderEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -47,6 +47,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun habitCompletionDao(): HabitCompletionDao
     abstract fun expenseDao(): ExpenseDao
     abstract fun diaryDao(): DiaryDao
+    abstract fun reminderDao(): ReminderDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -66,7 +67,7 @@ abstract class AppDatabase : RoomDatabase() {
                         .openHelperFactory(SupportOpenHelperFactory(passphrase))
                         // No destructive fallback in production; migrations must be added
                         // explicitly as the schema evolves post-v1.
-                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                         .build()
                 }.also { INSTANCE = it }
             }
@@ -111,18 +112,57 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         /**
-         * SQLCipher performs a one-time key derivation (PBKDF2) the first time the
-         * database is opened. Kick it off on a background dispatcher at app startup
-         * so that cost never lands on the first Home query after the UI is shown.
+         * v3 → v4: add the reminders table backing the reliable AlarmManager
+         * notifications. Pure additive — no retained table is touched, so rows in
+         * tasks/habits/etc. survive intact. The table is empty until the reminder
+         * repository reconciles it from the `reminderEpochMillis` mirrors on the
+         * tasks/habits tables.
+         *
+         * Column list mirrors Room's generated SQL exactly (enum → TEXT, booleans
+         * → INTEGER, non-null Kotlin fields → NOT NULL) and the index names match
+         * Room's default `index_<table>_<column>` naming so the running schema
+         * equals the exported v4 schema.
          */
-        fun warmUpOpen(context: Context, scope: CoroutineScope) {
-            scope.launch(Dispatchers.IO) {
-                // Force the one-time SQLCipher key derivation (PBKDF2) to run on a
-                // background thread instead of on the first Home query after the UI
-                // is shown. A trivial read is enough: the database opens lazily on
-                // the first statement executed against it.
-                runCatching { getInstance(context).habitDao().getAllForBackup() }
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `reminders` (" +
+                        "`id` TEXT NOT NULL, " +
+                        "`entityType` TEXT NOT NULL, " +
+                        "`entityId` TEXT NOT NULL, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`nextTriggerAtEpochMillis` INTEGER NOT NULL, " +
+                        "`repeatType` TEXT NOT NULL, " +
+                        "`repeatDaysCsv` TEXT, " +
+                        "`enabled` INTEGER NOT NULL, " +
+                        "`soundEnabled` INTEGER NOT NULL, " +
+                        "`vibrationEnabled` INTEGER NOT NULL, " +
+                        "`snoozeMinutes` INTEGER NOT NULL, " +
+                        "`snoozeReturnAtEpochMillis` INTEGER, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`id`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_entityType` ON `reminders` (`entityType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_entityId` ON `reminders` (`entityId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_nextTriggerAtEpochMillis` ON `reminders` (`nextTriggerAtEpochMillis`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_enabled` ON `reminders` (`enabled`)")
             }
+        }
+
+        /**
+         * Forces the one-time SQLCipher open (native load + Keystore passphrase
+         * + Room build + PBKDF2 key derivation) to complete before returning.
+         *
+         * Call this from a background coroutine at startup; [MainActivity] gates
+         * the first frame on `LifeOSApplication.databaseState` so no UI-owned
+         * main-thread access ever triggers this. Exceptions (e.g.
+         * [DatabaseKeyUnavailableException]) propagate to the caller so the
+         * recovery screen can be shown instead of a background crash.
+         */
+        suspend fun warmUpOpen(context: Context) {
+            // A trivial read is enough: the database opens lazily on the first
+            // statement executed against it.
+            getInstance(context).habitDao().getAllForBackup()
         }
     }
 }

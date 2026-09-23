@@ -64,7 +64,8 @@ class BackupRepository(
     private val taskRepo: TaskRepository,
     private val habitRepo: HabitRepository,
     private val expenseRepo: ExpenseRepository,
-    private val diaryRepo: DiaryRepository
+    private val diaryRepo: DiaryRepository,
+    private val reminderRepository: ReminderRepository
 ) {
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
@@ -107,10 +108,15 @@ class BackupRepository(
         restore(backup)
     }
 
-    suspend fun restore(backup: LifeOSBackup) = database.withTransaction {
-        taskRepo.restoreFromBackup(backup.tasks)
-        habitRepo.restoreFromBackup(backup.habits, backup.habitCompletions)
-        expenseRepo.restoreFromBackup(backup.expenses)
-        diaryRepo.restoreFromBackup(backup.diaryEntries)
+    suspend fun restore(backup: LifeOSBackup) {
+        database.withTransaction {
+            taskRepo.restoreFromBackup(backup.tasks)
+            habitRepo.restoreFromBackup(backup.habits, backup.habitCompletions)
+            expenseRepo.restoreFromBackup(backup.expenses)
+            diaryRepo.restoreFromBackup(backup.diaryEntries)
+        }
+        // Rebuild the reminders table + exact alarms from the restored mirrors so
+        // reminders survive a restore without re-entering them by hand.
+        reminderRepository.rebuildFromMirrors(backup.tasks, backup.habits)
     }
 }

@@ -51,17 +51,17 @@ fun LifeOSNavHost() {
             navigation(startDestination = Screen.Home.route, route = ROOT_TABS_GRAPH) {
                 composable(Screen.Home.route) {
                     HomeScreen(
-                        onOpenTasks = { navController.navigate(Screen.Tasks.route) },
-                        onOpenHabits = { navController.navigate(Screen.Habits.route) },
-                        onOpenExpenses = { navController.navigate(Screen.Expenses.route) },
-                        onOpenDiary = { navController.navigate(Screen.Diary.route) },
-                        onOpenTimeline = { navController.navigate(Screen.Timeline.route) },
-                        onOpenProfile = { navController.navigate(Screen.Profile.route) }
+                        onOpenTasks = { navController.navigate(Screen.Tasks.route) { launchSingleTop = true } },
+                        onOpenHabits = { navController.navigate(Screen.Habits.route) { launchSingleTop = true } },
+                        onOpenExpenses = { navController.navigate(Screen.Expenses.route) { launchSingleTop = true } },
+                        onOpenDiary = { navController.navigate(Screen.Diary.route) { launchSingleTop = true } },
+                        onOpenTimeline = { navController.navigate(Screen.Timeline.route) { launchSingleTop = true } },
+                        onOpenProfile = { navController.navigate(Screen.Profile.route) { launchSingleTop = true } }
                     )
                 }
                 composable(Screen.Tasks.route) { TasksScreen() }
                 composable(Screen.Habits.route) {
-                    HabitsScreen(onOpenHabit = { habitId -> navController.navigate(Screen.HabitDetail.createRoute(habitId)) })
+                    HabitsScreen(onOpenHabit = { habitId -> navController.navigate(Screen.HabitDetail.createRoute(habitId)) { launchSingleTop = true } })
                 }
             }
 
@@ -76,7 +76,7 @@ fun LifeOSNavHost() {
             composable(Screen.Diary.route) {
                 DiaryScreen(
                     onBack = { navController.popBackStack() },
-                    onOpenEntry = { entryId -> navController.navigate(Screen.DiaryDetail.createRoute(entryId)) }
+                    onOpenEntry = { entryId -> navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true } }
                 )
             }
             composable(
@@ -92,12 +92,15 @@ fun LifeOSNavHost() {
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     onBack = { navController.popBackStack() },
-                    onOpenSettings = { navController.navigate(Screen.Settings.route) },
-                    onOpenAppLock = { navController.navigate(Screen.AppLockSetup.route) }
+                    onOpenSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                    onOpenAppLock = { navController.navigate(Screen.AppLockSetup.route) { launchSingleTop = true } }
                 )
             }
             composable(Screen.Settings.route) {
-                SettingsScreen(onOpenAppLockSetup = { navController.navigate(Screen.AppLockSetup.route) })
+                SettingsScreen(
+                    onOpenAppLockSetup = { navController.navigate(Screen.AppLockSetup.route) { launchSingleTop = true } },
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable(Screen.AppLockSetup.route) {
                 AppLockSetupScreen(onBack = { navController.popBackStack() })

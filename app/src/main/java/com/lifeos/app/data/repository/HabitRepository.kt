@@ -1,7 +1,5 @@
 package com.lifeos.app.data.repository
 
-import android.content.Context
-import com.lifeos.app.core.reminders.ReminderScheduler
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.core.util.HabitStatsCalculator
 import com.lifeos.app.core.util.toSchedule
@@ -11,6 +9,7 @@ import com.lifeos.app.data.db.dao.HabitDao
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.HabitFrequency
+import com.lifeos.app.data.db.entities.ReminderRepeatType
 import com.lifeos.app.domain.model.HabitAnalytics
 import com.lifeos.app.domain.model.HeatmapCell
 import com.lifeos.app.domain.model.HeatmapIntensity
@@ -20,7 +19,7 @@ import java.time.LocalDate
 class HabitRepository(
     private val habitDao: HabitDao,
     private val completionDao: HabitCompletionDao,
-    private val appContext: Context
+    private val reminderRepository: ReminderRepository
 ) {
     fun observeAll(): Flow<List<HabitEntity>> = habitDao.observeAll()
     fun observeById(id: String): Flow<HabitEntity?> = habitDao.observeById(id)
@@ -41,6 +40,7 @@ class HabitRepository(
         customDaysCsv: String? = null,
         goalCount: Int = 1,
         reminderEpochMillis: Long? = null,
+        reminderRepeatType: ReminderRepeatType = ReminderRepeatType.DAILY,
         startDateEpochDay: Long = DateTimeUtils.today().toEpochDay()
     ): String {
         val id = IdGenerator.newId()
@@ -52,21 +52,34 @@ class HabitRepository(
                 startDateEpochDay = startDateEpochDay, createdAt = now, updatedAt = now
             )
         )
-        if (reminderEpochMillis != null && reminderEpochMillis > System.currentTimeMillis()) {
-            ReminderScheduler.scheduleHabitReminder(appContext, id, reminderEpochMillis)
-        }
+        // Reconcile the reminders mirror + exact alarm in one place.
+        habitDao.getById(id)?.let { reminderRepository.syncReminderForHabit(it, reminderRepeatType) }
         return id
     }
 
     suspend fun archive(id: String) {
         habitDao.archive(id, System.currentTimeMillis())
-        ReminderScheduler.cancelHabitReminder(appContext, id)
+        reminderRepository.deleteForHabit(id)
     }
 
     suspend fun delete(id: String) {
         completionDao.deleteForHabit(id)
         habitDao.delete(id)
-        ReminderScheduler.cancelHabitReminder(appContext, id)
+        reminderRepository.deleteForHabit(id)
+    }
+
+    /**
+     * Updates (or clears, when [reminderEpochMillis] is null) a habit's reminder
+     * time and repeat cadence. Used by the Habit detail screen.
+     */
+    suspend fun setReminder(habitId: String, reminderEpochMillis: Long?, repeatType: ReminderRepeatType) {
+        val habit = habitDao.getById(habitId) ?: return
+        val updated = habit.copy(
+            reminderEpochMillis = reminderEpochMillis,
+            updatedAt = System.currentTimeMillis()
+        )
+        habitDao.upsert(updated)
+        reminderRepository.syncReminderForHabit(updated, repeatType)
     }
 
     /** Increments today's progress by one tap (or sets explicit count for goal-based habits). */
@@ -173,14 +186,6 @@ class HabitRepository(
                 goalCount = habit.goalCount
             )
         }
-    }
-
-    /** Re-registers WorkManager jobs for all future habit reminders. */
-    suspend fun rescheduleAllReminders() {
-        val now = System.currentTimeMillis()
-        habitDao.getAllForBackup()
-            .filter { !it.isArchived && it.reminderEpochMillis != null && it.reminderEpochMillis > now }
-            .forEach { ReminderScheduler.scheduleHabitReminder(appContext, it.id, it.reminderEpochMillis!!) }
     }
 
     suspend fun getAllForBackup(): List<HabitEntity> = habitDao.getAllForBackup()

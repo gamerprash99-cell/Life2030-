@@ -10,13 +10,14 @@ import org.junit.runner.RunWith
 import java.io.IOException
 
 /**
- * On-device/emulator test of the v2 → v3 migration.
+ * On-device/emulator tests of the Room migrations.
  *
  * The production database is SQLCipher-backed, but this test runs the migration
  * against a plain SQLite database (via `FrameworkSQLiteOpenHelperFactory`) so
  * MigrationTestHelper can validate it. It seeds a v2 database with a row in
  * both dropped tables, runs MIGRATION_2_3, and asserts the dropped tables are
- * really gone while every retained table survives.
+ * really gone while every retained table survives. A second test runs the v3 →
+ * v4 migration and confirms the `reminders` table (and its indexes) appear.
  *
  * Run with: `./gradlew :app:assembleDebugAndroidTest` and an emulator/device
  * (`./gradlew :app:connectedDebugAndroidTest`).
@@ -66,6 +67,42 @@ class AppDatabaseMigrationTest {
             }
             assert(!tables.contains("notes")) { "notes table still present" }
             assert(!tables.contains("captures")) { "captures table still present" }
+        }
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate3To4_addsRemindersTableAndIndexes() {
+        // Seed an empty v3 database, then migrate it forward.
+        helper.createDatabase(TEST_DB, 3).close()
+        val db = helper.runMigrationsAndValidate(TEST_DB, 4, true, AppDatabase.MIGRATION_3_4)
+
+        db.use { db ->
+            val tables = mutableSetOf<String>()
+            val indexes = mutableSetOf<String>()
+            db.query(
+                "SELECT name, type FROM sqlite_master WHERE type IN ('table', 'index') AND name NOT LIKE 'sqlite_%'"
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(0)
+                    when (cursor.getString(1)) {
+                        "table" -> tables.add(name)
+                        "index" -> indexes.add(name)
+                    }
+                }
+            }
+            assert(tables.contains("reminders")) { "reminders table missing after migration: $tables" }
+            for (index in listOf(
+                "index_reminders_entityType",
+                "index_reminders_entityId",
+                "index_reminders_nextTriggerAtEpochMillis",
+                "index_reminders_enabled"
+            )) {
+                assert(indexes.contains(index)) { "missing index $index after v3→v4 migration: $indexes" }
+            }
+            // Every column the entity expects must exist (Room validates shape, and
+            // running the SELECT proves the created column set is SELECTable).
+            db.query("SELECT * FROM reminders").close()
         }
     }
 

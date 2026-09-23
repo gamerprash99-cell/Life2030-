@@ -8,6 +8,12 @@
         and is requested at RUNTIME (see SettingsScreen) — never on first launch.
     -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Exact-time alarms need SCHEDULE_EXACT_ALARM on API 31+; without it (user
+         revoked in Settings) the scheduler falls back to a Doze-aware inexact alarm. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Full-screen alarms keep the reminder visible above the lock screen. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- No INTERNET permission: all LifeOS features run entirely on-device.
          There is no HTTP client, no API key, and no network code anywhere in this app. -->
 
@@ -44,6 +50,37 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!--
+            Alarm delivery. AlarmReceiver is reached only via the explicit
+            PendingIntent created in ReminderScheduler (no intent filter, so it
+            can never be triggered by another app). BootReceiver handles the
+            system broadcasts that invalidate armed alarms.
+        -->
+        <receiver
+            android:name=".core.reminders.AlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".core.reminders.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Full-screen alarm (also launched as the notification's FSI). -->
+        <activity
+            android:name=".core.reminders.AlarmFullScreenActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:noHistory="true"
+            android:theme="@style/Theme.LifeOS"
+            tools:targetApi="27" />
 
     </application>
 

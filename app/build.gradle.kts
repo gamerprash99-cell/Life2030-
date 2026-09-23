@@ -130,9 +130,6 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
-    // WorkManager (reminders, recurring task/habit rollover, backup scheduling)
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
-
     // Image loading (profile photo in ProfileScreen)
     implementation("io.coil-kt:coil-compose:2.7.0")
 

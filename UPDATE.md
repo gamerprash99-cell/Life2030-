@@ -573,3 +573,45 @@ mood wins, analyzer detection is the fallback (matching previous behaviour).
 ### Known issues / notes
 - Deleted-feature data (`notes`, `captures`) is dropped on upgrade by design; no export path exists since the features are removed.
 - The instrumentation migration test cannot be executed in this environment (no device/emulator); it is compiled and documented, and must be run via `:app:connectedDebugAndroidTest`.
+
+---
+
+## 2026-09-23 — Reliable reminders, startup unlock gate & back-navigation hardening (branch `feat/remove-notes-capture-life-intelligence`)
+
+Three production-fix problems shipped together after the Notes/Capture/LIFE AI removal batch. No architecture rewrite: Compose Navigation + Room stays, everything stays offline-first.
+
+### 1. Reliable task/habit reminders — WorkManager → AlarmManager exact alarms (Room v4)
+The old reminder path ran WorkManager jobs, which Doze / app-standby bucketing can defer for minutes (or drop) while the app is backgrounded, so a "now + 2h" reminder could arrive late or never.
+
+- **`reminders` table (Room v4, pure additive).** `ReminderEntity` (`id` = `"task:<id>"`/`"habit:<id>"`, entity type/id, title, `nextTriggerAtEpochMillis`, `repeatType` ONCE/DAILY/WEEKDAYS, `repeatDaysCsv`, `enabled`, sound/vibration flags, `snoozeMinutes`, `snoozeReturnAtEpochMillis`, `updatedAt`) + `ReminderDao`. `MIGRATION_3_4` creates the table and four `index_reminders_*` indexes; no retained table is touched and `fallbackToDestructiveMigration` remains off. Schema `app/schemas/.../4.json` is exported (KSP).
+- **`ReminderScheduler` (AlarmManager).** One exact alarm per enabled reminder via `setAlarmClock` (`AlarmManager.AlarmClockInfo`) — Doze-exempt and the strongest priority the platform offers — with a Doze-aware `setAndAllowWhileIdle(RTC_WAKEUP)` fallback when exact-alarm permission is missing on API 31+. Each PendingIntent is an explicit broadcast to `AlarmReceiver` (no intent filter; cannot be triggered by other apps) with a `lifeos://reminder/<id>` data URI + `FLAG_UPDATE_CURRENT|FLAG_IMMUTABLE`, so ids never collide.
+- **`ReminderScheduleCalculator`** — pure JVM recurrence: ONCE → no next; DAILY → +24h; WEEKDAYS → next Mon–Fri at the same wall-clock time (custom day CSV honored, defaults `1,2,3,4,5`). Covered by 7 unit tests.
+- **State machine (`ReminderRepository`)** owns every transition in one place: a real fire advances DAILY/WEEKDAYS and re-arms or disables ONCE; a snooze echoes the current notification after N minutes *without* moving the next real occurrence; completing/archiving/deleting an entity cancels+removes its row; a global toggle cancels everything or re-arms all still-future reminders; `rebuildFromMirrors` rebuilds the table from the retained `reminderEpochMillis` mirrors on `tasks`/`habits` after backup restore.
+- **Delivery.** `AlarmReceiver` runs the fire handler on `goAsync()`+IO, posts a HIGH-importance, CATEGORY_ALARM notification (per-notification sound/vibration flags; channel is silent by default so the sustained in-app ring doesn't double-beep) with a full-screen intent to `AlarmFullScreenActivity` when permitted, and launches that activity when the app is foregrounded. `AlarmFullScreenActivity` (showWhenLocked/turnScreenOn on target-API 27+) plays a looping `TYPE_ALARM` sound, vibes a repeating waveform, and offers STOP + Snooze 5/10/15/30 (slept back to the repository). `BootReceiver` (exported=true) re-arms on BOOT_COMPLETED / MY_PACKAGE_REPLACED / TIME_SET / TIMEZONE_CHANGED; `LifeOSApplication` re-arms at startup as an extra safety net.
+- **Wiring.** `TaskRepository`/`HabitRepository` delegate reminder reconciliation to `ReminderRepository` (their `appContext` params and old `rescheduleAllReminders`/`ReminderScheduler.*Reminder` APIs are gone). `BackupRepository.restore` rebuilds reminders after restore. Task add-dialog → "Repeat reminder" selector (Once/Daily/Mon–Fri); Habit add-dialog and Habit-detail Reminder card get the same selector + time picker. Settings reminders toggle now arms/cancels exact alarms and surfaces an "Allow exact alarms" button (API 31+, `Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM`).
+- **Removed:** `ReminderWorker.kt` and the `androidx.work:work-runtime-ktx` dependency (WorkManager was used nowhere else).
+
+### 2. Startup: encrypted-DB open never blocks the first frame
+Previously the SQLCipher cold open ran on Home's first query *after* the UI was shown. Now `LifeOSApplication.onCreate` builds the DI container cheaply (lazy DB), then opens the database on a background coroutine; `databaseState` gates the UI on a lightweight static `BrandSplash` ("Unlocking your data…") until `Ready`, with a non-destructive `DataKeyErrorScreen` + retry path on `Error`. `SettingsStore.warmUp()` pre-caches the DataStore file and notification channel creation is moved off the main thread.
+
+### 3. Profile → Settings system-Back gap closed
+`SettingsScreen` was pushed without a Back affordance and the stack could lose its parent. It now renders a back arrow + `onBack` (popping back to Profile), and every secondary navigation in `LifeOSNavHost` uses `launchSingleTop` so repeated taps / back-chain navigation never duplicate destinations.
+
+### Tests
+- `ReminderScheduleCalculatorTest` (7: ONCE/DAILY/WEEKDAYS/custom-days/invalid-CSV-defaults/weekend-only).
+- `AppDatabaseSchemaTest`: now asserts the exported 4.json — exactly the six retained tables (tasks, habits, habit_completions, expenses, diary_entries, **reminders**), notes/captures still gone, and the full reminders column set via the createSql.
+- `AppDatabaseMigrationTest`: added a v3→v4 case (seeds v3, runs `MIGRATION_3_4` with validation, asserts `reminders` + its four indexes are SELECTable).
+- `grep` verification (WorkManager, old scheduler APIs, COLUMN_NAME_* in NotificationHelper): no stale callers or hard-coded SQL remain.
+
+### Verification
+```text
+gradle :app:clean :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest
+  -> BUILD SUCCESSFUL in ~4m23s
+  -> 93 JVM unit tests, 0 failures         (app-debug.apk 41.9 MB)
+  -> lintDebug: 0 errors, 22 warnings (pre-existing dependency/Info items only)
+  -> assembleDebugAndroidTest: BUILD SUCCESSFUL (compiles; must run on a device)
+```
+
+### Remaining
+- Rescue path verification is on-device only in this sandbox (`pm install/uninstall`, `am start`/`input`/`settings`/`dumpsys --` all throw `SecurityException: Permission Denial`; only `pm list`/`cmd package list` work), so the following could not be executed here: cold-start timing, the v3→v4 migration running against a real SQLCipher file, an actual alarm firing (Doze, reboot, permission-revoked fallback), full-screen-intent launch, and the Settings exact-alarm system screen. Verified here via compile + 93 JVM tests (incl. schema JSON) + lint + code reasoning; `:app:connectedDebugAndroidTest` covers the injectable parts on a device.
+ 
