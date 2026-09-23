@@ -1,17 +1,19 @@
 package com.lifeos.app.data.repository
 
-import android.content.Context
-import com.lifeos.app.core.reminders.ReminderScheduler
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.core.util.IdGenerator
 import com.lifeos.app.core.util.RepeatRuleCalculator
 import com.lifeos.app.data.db.dao.TaskDao
 import com.lifeos.app.data.db.entities.RepeatRule
+import com.lifeos.app.data.db.entities.ReminderRepeatType
 import com.lifeos.app.data.db.entities.TaskEntity
 import com.lifeos.app.data.db.entities.TaskPriority
 import kotlinx.coroutines.flow.Flow
 
-class TaskRepository(private val dao: TaskDao, private val appContext: Context) {
+class TaskRepository(
+    private val dao: TaskDao,
+    private val reminderRepository: ReminderRepository
+) {
 
     fun observeForDay(epochDay: Long): Flow<List<TaskEntity>> = dao.observeForDay(epochDay)
     fun observeOverdue(
@@ -36,6 +38,7 @@ class TaskRepository(private val dao: TaskDao, private val appContext: Context) 
         priority: TaskPriority = TaskPriority.MEDIUM,
         category: String? = null,
         reminderEpochMillis: Long? = null,
+        reminderRepeatType: ReminderRepeatType = ReminderRepeatType.ONCE,
         repeatRule: RepeatRule = RepeatRule.NONE,
         repeatDaysCsv: String? = null,
         sourceType: String? = null,
@@ -61,17 +64,20 @@ class TaskRepository(private val dao: TaskDao, private val appContext: Context) 
                 updatedAt = now
             )
         )
-        if (reminderEpochMillis != null && reminderEpochMillis > System.currentTimeMillis()) {
-            ReminderScheduler.scheduleTaskReminder(appContext, id, reminderEpochMillis)
-        }
+        // Reconcile the reminders mirror + exact alarm in one place.
+        dao.getById(id)?.let { reminderRepository.syncReminderForTask(it, reminderRepeatType) }
         return id
     }
 
     suspend fun setCompleted(id: String, completed: Boolean) {
         dao.setCompleted(id, completed, if (completed) System.currentTimeMillis() else null, System.currentTimeMillis())
         if (completed) {
-            ReminderScheduler.cancelTaskReminder(appContext, id)
+            // A completed task no longer needs reminding (a repeating task's next
+            // occurrence is spawned below without inheriting the reminder).
+            reminderRepository.deleteForTask(id)
             spawnNextOccurrence(id)
+        } else {
+            dao.getById(id)?.let { reminderRepository.syncReminderForTask(it) }
         }
     }
 
@@ -114,15 +120,7 @@ class TaskRepository(private val dao: TaskDao, private val appContext: Context) 
 
     suspend fun delete(id: String) {
         dao.softDelete(id, System.currentTimeMillis())
-        ReminderScheduler.cancelTaskReminder(appContext, id)
-    }
-
-    /** Re-registers WorkManager jobs for all future reminders (e.g. after reminders are re-enabled). */
-    suspend fun rescheduleAllReminders() {
-        val now = System.currentTimeMillis()
-        dao.getAllForBackup()
-            .filter { !it.isDeleted && !it.isCompleted && it.reminderEpochMillis != null && it.reminderEpochMillis > now }
-            .forEach { ReminderScheduler.scheduleTaskReminder(appContext, it.id, it.reminderEpochMillis!!) }
+        reminderRepository.deleteForTask(id)
     }
 
     suspend fun getAllForBackup(): List<TaskEntity> = dao.getAllForBackup()

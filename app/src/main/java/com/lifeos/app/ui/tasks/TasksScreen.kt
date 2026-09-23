@@ -82,11 +82,13 @@ import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.RepeatRule
+import com.lifeos.app.data.db.entities.ReminderRepeatType
 import com.lifeos.app.data.db.entities.TaskEntity
 import com.lifeos.app.data.db.entities.TaskPriority
 import com.lifeos.app.data.repository.TaskRepository
 import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSGradientButton
+import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.SharingStarted
@@ -109,7 +111,8 @@ class TasksViewModel(private val taskRepository: TaskRepository) : ViewModel() {
         category: String?,
         priority: TaskPriority,
         repeatRule: RepeatRule,
-        reminderTime: LocalTime?
+        reminderTime: LocalTime?,
+        reminderRepeatType: ReminderRepeatType
     ) {
         if (title.isBlank()) return
         viewModelScope.launch {
@@ -122,6 +125,7 @@ class TasksViewModel(private val taskRepository: TaskRepository) : ViewModel() {
                 priority = priority,
                 category = category?.trim()?.takeIf { it.isNotBlank() },
                 reminderEpochMillis = reminder,
+                reminderRepeatType = reminderRepeatType,
                 repeatRule = repeatRule
             )
         }
@@ -214,14 +218,15 @@ fun TasksScreen() {
     if (showAddDialog) {
         NewTaskDialog(
             onDismiss = { showAddDialog = false },
-            onAdd = { title, description, category, priority, repeatRule, reminderTime ->
+            onAdd = { title, description, category, priority, repeatRule, reminderTime, reminderRepeatType ->
                 viewModel.addTask(
                     title = title,
                     description = description,
                     category = category,
                     priority = priority,
                     repeatRule = repeatRule,
-                    reminderTime = reminderTime
+                    reminderTime = reminderTime,
+                    reminderRepeatType = reminderRepeatType
                 )
                 showAddDialog = false
             }
@@ -468,7 +473,7 @@ private fun MetaItem(icon: ImageVector, text: String) {
 @Composable
 private fun NewTaskDialog(
     onDismiss: () -> Unit,
-    onAdd: (String, String?, String?, TaskPriority, RepeatRule, LocalTime?) -> Unit
+    onAdd: (String, String?, String?, TaskPriority, RepeatRule, LocalTime?, ReminderRepeatType) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -476,6 +481,7 @@ private fun NewTaskDialog(
     var priority by remember { mutableStateOf(TaskPriority.MEDIUM) }
     var repeatRule by remember { mutableStateOf(RepeatRule.NONE) }
     var reminderTime by remember { mutableStateOf<LocalTime?>(null) }
+    var reminderRepeatType by remember { mutableStateOf(ReminderRepeatType.ONCE) }
     var showTimePicker by remember { mutableStateOf(false) }
     var priorityMenuOpen by remember { mutableStateOf(false) }
     var repeatMenuOpen by remember { mutableStateOf(false) }
@@ -606,6 +612,10 @@ private fun NewTaskDialog(
                                 }
                             }
                         }
+                        if (reminderTime != null) {
+                            Text("Repeat reminder", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            ReminderRepeatSelector(selected = reminderRepeatType, onSelect = { reminderRepeatType = it })
+                        }
                     }
                     Row(
                         Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 6.dp),
@@ -618,7 +628,7 @@ private fun NewTaskDialog(
                         }
                         Button(
                             onClick = {
-                                onAdd(title, description, category, priority, repeatRule, reminderTime)
+                                onAdd(title, description, category, priority, repeatRule, reminderTime, reminderRepeatType)
                             },
                             enabled = title.isNotBlank(),
                             shape = RoundedCornerShape(16.dp),

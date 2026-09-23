@@ -44,11 +44,13 @@ import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.HabitEntity
+import com.lifeos.app.data.db.entities.ReminderRepeatType
 import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSGradientButton
 import com.lifeos.app.ui.components.LifeOSSectionHeader
 import com.lifeos.app.ui.components.LifeOSTopBar
+import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
 import com.lifeos.app.ui.theme.LifeOSAccentLavender
 import com.lifeos.app.ui.theme.LifeOSPrimary
@@ -64,12 +66,12 @@ private val PRESET_HABIT_ICONS = listOf("🔥", "💧", "🏃", "📖", "🧘", 
 
 class HabitsViewModel(private val habitRepository: HabitRepository) : ViewModel() {
     val habits: StateFlow<List<HabitEntity>> = habitRepository.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    fun addHabit(name: String, icon: String, reminderTime: LocalTime?) {
+    fun addHabit(name: String, icon: String, reminderTime: LocalTime?, reminderRepeatType: ReminderRepeatType) {
         if (name.isBlank()) return
         viewModelScope.launch {
             val today = DateTimeUtils.today()
             val reminderMillis = reminderTime?.let { today.atTime(it).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() }
-            habitRepository.createHabit(name = name, icon = icon.ifBlank { "✅" }, reminderEpochMillis = reminderMillis)
+            habitRepository.createHabit(name = name, icon = icon.ifBlank { "✅" }, reminderEpochMillis = reminderMillis, reminderRepeatType = reminderRepeatType)
         }
     }
     fun logToday(habitId: String, currentProgress: Int, goal: Int) {
@@ -91,6 +93,7 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
     var icon by remember { mutableStateOf("🔥") }
     var reminderTime by remember { mutableStateOf<LocalTime?>(null) }
+    var reminderRepeatType by remember { mutableStateOf(ReminderRepeatType.DAILY) }
     Scaffold(floatingActionButton = { androidx.compose.material3.FloatingActionButton(onClick = { showAddDialog = true }, containerColor = LifeOSPrimary) { Icon(Icons.Filled.Add, contentDescription = "New habit", tint = Color.White) } }) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxWidth().padding(padding),
@@ -110,8 +113,12 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(PRESET_HABIT_ICONS) { preset -> Surface(onClick = { icon = preset }, color = if (icon == preset) LifeOSAccentLavender else MaterialTheme.colorScheme.surfaceVariant, shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text(preset, modifier = Modifier.padding(10.dp), style = MaterialTheme.typography.titleMedium) } } }
                 OutlinedTextField(value = name, onValueChange = { name = it }, placeholder = { Text("Habit name") }, singleLine = true)
                 TextButton(onClick = { showTimePicker = true }) { Icon(Icons.Filled.Notifications, contentDescription = null); Text(reminderTime?.let { "Remind at $it" } ?: "Set a daily reminder") }
+                if (reminderTime != null) {
+                    Text("Repeat reminder", style = MaterialTheme.typography.labelMedium)
+                    ReminderRepeatSelector(selected = reminderRepeatType, onSelect = { reminderRepeatType = it })
+                }
             }
-        }, confirmButton = { TextButton(onClick = { viewModel.addHabit(name, icon, reminderTime); name = ""; reminderTime = null; showAddDialog = false }) { Text("Add") } }, dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancel") } })
+        }, confirmButton = { TextButton(onClick = { viewModel.addHabit(name, icon, reminderTime, reminderRepeatType); name = ""; reminderTime = null; reminderRepeatType = ReminderRepeatType.DAILY; showAddDialog = false }) { Text("Add") } }, dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancel") } })
     }
     if (showTimePicker) ReminderTimePickerDialog(onDismiss = { showTimePicker = false }, onConfirm = { reminderTime = it; showTimePicker = false })
 }

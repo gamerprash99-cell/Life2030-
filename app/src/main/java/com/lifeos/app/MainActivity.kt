@@ -2,15 +2,19 @@ package com.lifeos.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import java.io.File
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -18,9 +22,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.lifeos.app.core.di.LocalServiceLocator
@@ -30,6 +36,7 @@ import com.lifeos.app.ui.onboarding.OnboardingScreen
 import com.lifeos.app.ui.security.AppLockScreen
 import com.lifeos.app.ui.security.DataKeyErrorScreen
 import com.lifeos.app.ui.theme.LifeOSTheme
+import java.io.File
 import kotlinx.coroutines.launch
 
 /** Grace period before auto-lock engages after the app leaves the foreground. */
@@ -44,35 +51,58 @@ class MainActivity : ComponentActivity() {
         val app = application as LifeOSApplication
 
         setContent {
-            var locator by remember { mutableStateOf(app.serviceLocator) }
-            var error by remember { mutableStateOf(app.initializationError) }
+            val initState by app.databaseState.collectAsState(initial = DatabaseInit.Initializing)
+            val locator = app.serviceLocator
+            val error = (initState as? DatabaseInit.Error)?.cause ?: app.initializationError
             val context = LocalContext.current
 
-            if (locator == null) {
-                DataKeyErrorScreen(
+            when {
+                locator == null || error != null -> DataKeyErrorScreen(
                     technicalDetail = error?.message,
-                    onRetry = {
-                        if (app.retryInitialization()) {
-                            locator = app.serviceLocator
-                            error = app.initializationError
-                        } else {
-                            error = app.initializationError
-                        }
-                    },
+                    onRetry = { app.retryInitialization() },
                     onExit = { (context as? ComponentActivity)?.finish() }
                 )
-                return@setContent
-            }
 
-            val serviceLocator = locator!!
-            val darkTheme by serviceLocator.settingsStore.darkThemeEnabled.collectAsState(initial = false)
+                initState != DatabaseInit.Ready -> BrandSplash()
+                else -> {
+                    val serviceLocator = locator
+                    val darkTheme by serviceLocator.settingsStore.darkThemeEnabled.collectAsState(initial = false)
 
-            LifeOSTheme(darkTheme = darkTheme) {
-                CompositionLocalProvider(LocalServiceLocator provides serviceLocator) {
-                    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                        OnboardingGate { AppLockGate { LifeOSNavHost() } }
+                    LifeOSTheme(darkTheme = darkTheme) {
+                        CompositionLocalProvider(LocalServiceLocator provides serviceLocator) {
+                            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                                OnboardingGate { AppLockGate { LifeOSNavHost() } }
+                            }
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Lightweight instant first frame shown while the encrypted database opens on
+ * a background thread (see [LifeOSApplication.databaseState]). Purely static —
+ * no database, no DataStore — so it renders without a stall and replaces the
+ * previous black/frozen window.
+ */
+@Composable
+private fun BrandSplash() {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "LifeOS",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Unlocking your data…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

@@ -1,4 +1,9 @@
 <resources>
     <string name="app_name">LifeOS</string>
     <string name="tagline">Organize your life. Understand your day.</string>
+    <string name="alarm_task_reminder">Task reminder</string>
+    <string name="alarm_habit_reminder">Habit reminder</string>
+    <string name="alarm_generic_reminder">LifeOS reminder</string>
+    <string name="alarm_stop">STOP</string>
+    <string name="snooze_minutes">%1$dm</string>
 </resources>
