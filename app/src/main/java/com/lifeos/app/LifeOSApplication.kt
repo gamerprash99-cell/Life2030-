@@ -72,11 +72,14 @@ class LifeOSApplication : Application() {
         appScope.launch(Dispatchers.IO) {
             try {
                 AppDatabase.warmUpOpen(this@LifeOSApplication)
-                // Re-arm surviving reminders (a process death does not clear
-                // AlarmManager alarms, but THIS is the safety net that covers the
-                // boot/update/time-change reset paths too). Non-fatal by design.
-                serviceLocator?.let { runCatching { it.reminderRepository.rebuildAllActive() } }
+                // Flip to Ready first so the native splash can dismiss and the
+                // UI can draw. Re-arming surviving reminders is then done
+                // NON-blockingly — it must never delay first content
+                // (BootReceiver already covers reboot / time-change / update).
                 _databaseState.value = DatabaseInit.Ready
+                serviceLocator?.let { locator ->
+                    appScope.launch { runCatching { locator.reminderRepository.rebuildAllActive() } }
+                }
             } catch (t: Throwable) {
                 initializationError = t
                 _databaseState.value = DatabaseInit.Error(t)

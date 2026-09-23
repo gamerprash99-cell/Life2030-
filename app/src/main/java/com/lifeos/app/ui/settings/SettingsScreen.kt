@@ -245,13 +245,6 @@ private fun RemindersCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
     val context = LocalContext.current
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) rememberPermissionState(android.Manifest.permission.POST_NOTIFICATIONS) else null
 
-    // Exact-alarm permission (API 31+). Re-checked on every recomposition, which
-    // happens when the user returns from the system screen (activity resume).
-    val exactAlarmLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { _ -> }
-    val canScheduleExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || context
-        .getSystemService(android.app.AlarmManager::class.java)
-        .canScheduleExactAlarms()
-
     LifeOSCard(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -279,25 +272,10 @@ private fun RemindersCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
                     }
                 )
             }
-            // On Android 12+ the user can revoke exact-alarm access; without it the
-            // scheduler falls back to inexact delivery. Offer a one-tap path back.
-            if (enabled && !canScheduleExact && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                TextButton(
-                    onClick = {
-                        runCatching {
-                            exactAlarmLauncher.launch(
-                                Intent(
-                                    android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                                    android.net.Uri.parse("package:${context.packageName}")
-                                )
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Alarms may be delayed · Allow exact alarms")
-                }
-            }
+            // Reminders schedule through Android's permission-free, Doze-aware
+            // inexact AlarmManager API (setAndAllowWhileIdle), so no
+            // SCHEDULE_EXACT_ALARM special access is ever required and the
+            // user is never pushed to system Settings for it.
         }
     }
 }

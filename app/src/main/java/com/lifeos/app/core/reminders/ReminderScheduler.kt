@@ -5,22 +5,24 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import com.lifeos.app.data.db.entities.ReminderEntity
 
 /**
- * Projects enabled [ReminderEntity] rows onto real `AlarmManager` exact alarms.
+ * Projects enabled [ReminderEntity] rows onto real `AlarmManager` alarms.
  *
- * Why AlarmManager and not WorkManager: WorkManager defers work under Doze and
- * app-standby bucketing, so a reminder scheduled "now + 2h" can arrive 10s of
- * minutes late or not at all while the app is backgrounded. AlarmManager with
- * `setAlarmClock` is the OS mechanism alarm/clock apps use — it wakes the device,
- * is delivered close to the requested instant, and (with
- * `SCHEDULE_EXACT_ALARM`) is exempt from Doze.
+ * Scheduling is deliberately **inexact** and permission-free: normal LifeOS
+ * task/habit reminders do NOT require exact-to-the-minute delivery, so the
+ * scheduler never requires the `SCHEDULE_EXACT_ALARM` special access that
+ * Android 12+ gates behind Settings (and Android 14+ denies by default).
+ * `setAndAllowWhileIdle(RTC_WAKEUP)` is Doze-aware — it wakes the device to
+ * deliver the reminder — while remaining a supported, permission-free API on
+ * every API level LifeOS supports. There is therefore no
+ * "Allow exact alarms" requirement, no Settings nudge, and no possibility of
+ * a `SecurityException` from a missing exact-alarm grant.
  *
- * A single foreground-style exact alarm is scheduled per reminder; when it fires
- * [AlarmReceiver] either re-arms the next occurrence (DAILY/WEEKDAYS) or disables
- * the reminder (ONCE). Re-indexing after reboot / package update / time change is
+ * A single alarm is scheduled per reminder; when it fires [AlarmReceiver]
+ * either re-arms the next occurrence (DAILY/WEEKDAYS) or disables the
+ * reminder (ONCE). Re-indexing after reboot / package update / time change is
  * handled by [BootReceiver] + `LifeOSApplication` re-arm, so a rebooted or
  * re-installed app never silently loses a reminder.
  */
@@ -39,10 +41,12 @@ object ReminderScheduler {
     }
 
     /**
-     * Arms (or re-arms) the exact alarm for [reminder]. The alarm is armed at the
+     * Arms (or re-arms) the alarm for [reminder]. The alarm is armed at the
      * snooze-return time when the user is snoozing, otherwise at the next real
-     * occurrence. Using the same PendingIntent identity as [cancel] guarantees a
-     * re-schedule replaces any previously armed alarm for this reminder.
+     * occurrence. Inexact, permission-free, and Doze-aware
+     * (`setAndAllowWhileIdle`). Using the same PendingIntent identity as
+     * [cancel] guarantees a re-schedule replaces any previously armed alarm
+     * for this reminder.
      */
     fun schedule(context: Context, reminder: ReminderEntity) {
         if (!areRemindersEnabled(context) || !reminder.enabled) return
@@ -50,17 +54,9 @@ object ReminderScheduler {
         if (triggerAt <= System.currentTimeMillis()) return
 
         val alarmManager = context.getSystemService(AlarmManager::class.java)
-        val pendingIntent = pendingIntentFor(context, reminder.id)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            // No exact-alarm permission: fall back to a non-exact but still
-            // Doze-aware alarm rather than dropping the reminder entirely.
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
-        } else {
-            // setAlarmClock is exempt from Doze, shows the alarm-clock indicator,
-            // and is the strongest priority the platform offers. The PendingIntent
-            // doubles as the "show" intent so the system can surface the alarm UI.
-            alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAt, pendingIntent), pendingIntent)
-        }
+        // setAndAllowWhileIdle(RTC_WAKEUP): fires even in Doze, needs no
+        // permission, and never throws for a missing exact-alarm grant.
+        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntentFor(context, reminder.id))
         addScheduledId(context, reminder.id)
     }
 
