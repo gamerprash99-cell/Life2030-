@@ -53,6 +53,7 @@ import com.lifeos.app.ui.components.LifeOSTopBar
 import com.lifeos.app.ui.components.ReminderPermissionHost
 import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
+import com.lifeos.app.ui.components.rememberExactAlarmPermissionHost
 import com.lifeos.app.ui.components.rememberReminderPermissionHost
 import com.lifeos.app.ui.theme.LifeOSAccentLavender
 import com.lifeos.app.ui.theme.LifeOSPrimary
@@ -96,8 +97,11 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
     var icon by remember { mutableStateOf("🔥") }
     var reminderTime by remember { mutableStateOf<LocalTime?>(null) }
     var reminderRepeatType by remember { mutableStateOf(ReminderRepeatType.DAILY) }
-    // Only reached when the user actually creates a habit with a timed reminder — never at startup.
+    // Reached only when the user actually creates a habit with a timed reminder — never at startup.
     val permissionHost: ReminderPermissionHost = rememberReminderPermissionHost()
+    // Exact alarms are a system special access (SCHEDULE_EXACT_ALARM); without it the
+    // scheduler still warns/degrades, so arming a timed habit reminder waits for the grant.
+    val exactAlarmHost = rememberExactAlarmPermissionHost()
     Scaffold(floatingActionButton = { androidx.compose.material3.FloatingActionButton(onClick = { showAddDialog = true }, containerColor = LifeOSPrimary) { Icon(Icons.Filled.Add, contentDescription = "New habit", tint = Color.White) } }) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxWidth().padding(padding),
@@ -124,8 +128,9 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
             }
         }, confirmButton = { TextButton(onClick = {
                 val submit = { viewModel.addHabit(name, icon, reminderTime, reminderRepeatType); name = ""; reminderTime = null; reminderRepeatType = ReminderRepeatType.DAILY; showAddDialog = false }
-                // Habit reminder creation must wait for notification permission.
-                if (reminderTime != null) permissionHost.runProtected(submit) else submit()
+                // Habit reminder creation must wait for the notification permission
+                // and, when a timed alarm is being armed, for exact-alarm access.
+                if (reminderTime != null) permissionHost.runProtected { exactAlarmHost.runProtected(submit) } else submit()
             }) { Text("Add") } }, dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancel") } })
     }
     if (showTimePicker) ReminderTimePickerDialog(onDismiss = { showTimePicker = false }, onConfirm = { reminderTime = it; showTimePicker = false })
