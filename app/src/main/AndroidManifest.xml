@@ -9,6 +9,13 @@
     -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- The audible alarm is a foreground service so it keeps ringing even in
+         deep Doze / locked / app-in-background (platform permits starting an FGS
+         from a setAlarmClock alarm). Type mediaPlayback: no special-access
+         criteria to satisfy and it works even when exact alarms are denied. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- Full-screen alarms keep the reminder visible above the lock screen. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- SCHEDULE_EXACT_ALARM lets LifeOS deliver task/habit reminders at the
@@ -75,6 +82,16 @@
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
+
+        <!--
+            Audible alarm foreground service (see AlarmPlaybackService). The
+            sound lives here, never in the full-screen activity, so STOP/snooze
+            from any surface can never double-ring.
+        -->
+        <service
+            android:name=".core.reminders.AlarmPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- Full-screen alarm (also launched as the notification's FSI). -->
         <activity

@@ -18,9 +18,8 @@ import com.lifeos.app.core.reminders.ReminderScheduler
 import com.lifeos.app.core.util.PermissionManager
 
 /**
- * Guards "arm a timed task reminder" behind Android's `SCHEDULE_EXACT_ALARM`
- * special access (task reminders only — Habit reminders intentionally keep
- * their existing ungated flow).
+ * Guards arming a timed reminder (tasks and habits) behind Android's
+ * `SCHEDULE_EXACT_ALARM` special access.
  *
  * Exact alarms are not a runtime permission with a result callback: the access
  * is toggled by the user inside the system "Alarms & reminders" page
@@ -37,6 +36,9 @@ import com.lifeos.app.core.util.PermissionManager
  * The host is composed exactly where a timed reminder can be set (never at
  * startup), mirroring [ReminderPermissionHost]. On API < 31 exact scheduling
  * needs no permission, so [runProtected] always runs the action immediately.
+ * When the user declines, the scheduler still degrades gracefully to a
+ * permission-free, Doze-aware inexact API — reminders keep working, just not
+ * pinned to the exact minute.
  */
 class ExactAlarmPermissionHost(
     /** Runs [action] only when exact-alarm access is available. Returns true if it ran now. */

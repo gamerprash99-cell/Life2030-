@@ -5,6 +5,89 @@ Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and re
 ---
 ---
 
+## 2026-09-24 — Coalesced, reliable alarms: one intelligent alarm per trigger time (branch `feat/reliable-coalesced-alarms`)
+
+### Root causes fixed
+1. **Doze per-app alarm limit.** The old scheduler armed one `AlarmManager`
+   alarm per reminder (`lifeos://reminder/<id>`). Doze allows each app only
+   ~once per 9 minutes of exact delivery across *all* its alarms, so beyond a
+   handful of reminders the extras stopped firing — matching the "stops after
+   5–6 reminders" symptoms.
+2. **Delivery depended on the app being open.** A reminder delivered only a
+   notification + a best-effort `startActivity`; in the background/locked/Doze
+   states the screen could never show and the cold SQLCipher open inside
+   `goAsync()` could exceed the broadcast window.
+3. **No coalescing.** Two reminders at the same time produced two alarms →
+   overlapping alarm UIs + double audio.
+
+### What changed
+- **`AlarmEvent` + `AlarmEventProjector` (new, pure).** The reminders table is
+  now projected into one *event per distinct trigger time* (snooze returns
+  override the real trigger; future-only; events sorted by time, items by id;
+  **no caps** — the number of real alarms equals distinct trigger times, never
+  the number of reminders). `id` = `event:<triggerAt>`.
+- **`AlarmEventCodec` + `AlarmIntents` (new).** The full event snapshot travels
+  inside each PendingIntent/Activity intent (trigger time, item ids/titles), so
+  the alarm presents **instantly from extras with zero DB reads**. Stable
+  identities make re-projection cancel/refresh idempotent (`FLAG_UPDATE_CURRENT`).
+- **`ReminderScheduler` (rewritten).** One alarm per event via the
+  exact-when-permitted ladder: `setAlarmClock` (Doze-exempt, no 9-minute limit,
+  FGS-start allowed) when exact access is granted or API < 31, else
+  `setAndAllowWhileIdle` (permission-free, never throws). `reproject()` diffs
+  against a `scheduled_event_keys` preference set, cancels what left the set and
+  re-arms the rest.
+- **`AlarmPlaybackService` (new).** A `mediaPlayback` foreground service that
+  *owns the audible alarm*: looping `TYPE_ALARM` tone + vibration + partial
+  wakelock, plus ONE high-priority notification with a full-screen intent and
+  STOP/Snooze actions. Started from the alarm broadcast (platform-permitted for
+  `setAlarmClock`, and `mediaPlayback` is a background-startable FGS type), it
+  rings even in deep Doze / locked / app-in-background. If `startForeground` is
+  refused, it degrades to a single HIGH-importance notification carrying the
+  event's own sound/flags. The full-screen activity plays **no sound** — no
+  double-ring by construction.
+- **`AlarmReceiver` (rewritten).** Decodes the event from extras, starts the
+  FGS (fallback notification if refused), then `goAsync()`+IO runs
+  `handleEventFired(ids)` and re-projects. Presentation never waits on the DB.
+- **`AlarmFullScreenActivity` (rewritten, Compose/Material 3).** Dark LifeOS
+  alarm screen: "TASK TIME"/"HABIT TIME"/"IT'S TIME" (existing string keys
+  re-valued), scheduled time, grouped TASKS/HABITS sections, prominent STOP,
+  snooze 5/10/15/20/60 with a Tasks/Habits/Both target selector when an event
+  mixes types (per-type snooze). `setShowWhenLocked`/`turnScreenOn`/keep-screen-
+  on preserved; `noHistory` + `singleTop` + CLEAR_TOP prevents stacked alarm UIs.
+- **`ReminderRepository` (single `reprojectAll()` funnel).** Every mutation —
+  create/edit/delete/fire/snooze/rebuild/toggle — ends in one projection pass;
+  `normalizePastDue()` fast-forwards recurring reminders past missed windows and
+  disables dead one-shots, `handleEventFired` advances the per-fire state, and
+  `snoozeMany` supports per-type snooze.
+- **`BootReceiver`:** TIME_SET / TIMEZONE_CHANGED now rebuilds the reminders
+  table from the task/habit `reminderEpochMillis` wall-clock mirrors
+  (`rebuildFromMirrors`) so recurring reminders stay pinned to local time.
+- **Habits parity:** the habit add-dialog and habit-detail Reminder card now
+  gate timed alarms behind `ExactAlarmPermissionHost` (SCHEDULE_EXACT_ALARM)
+  chained after the notification-permission host — same care as tasks.
+- **Manifest:** added `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`,
+  `WAKE_LOCK` and the `mediaPlayback` FGS service declaration.
+- **strings.xml:** kept the existing alarm keys (re-valued titles), added
+  snooze-target, section, snooze-action and multi-item strings.
+
+### Database
+No Room schema/migration change. DB stays at version 4; `reminders` table and
+all retained tables are untouched.
+
+### Verification (offline, deps cached)
+```text
+gradle :app:testDebugUnitTest  -> BUILD SUCCESSFUL (108 tests, 0 failures
+                                     incl. 9 new AlarmEventProjectorTest)
+gradle :app:assembleDebug      -> BUILD SUCCESSFUL
+gradle :app:lintDebug          -> BUILD SUCCESSFUL (0 errors; only pre-existing
+                                     dependency/Info warnings)
+```
+On-device checks still recommended (no emulator here): an actual alarm firing
+in Doze, lock-screen FSI/heads-up, per-type snooze, reboot/time-zone re-arm.
+
+---
+---
+
 ## 2026-09-23 — Exact-alarm permission flow (SCHEDULE_EXACT_ALARM), shared & permission-safe scheduler
 
 Task and habit reminders have always used the permission-free, Doze-aware

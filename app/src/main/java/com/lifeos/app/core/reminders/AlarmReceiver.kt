@@ -1,98 +1,73 @@
 package com.lifeos.app.core.reminders
 
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import androidx.core.content.ContextCompat
 import com.lifeos.app.core.di.ServiceLocator
 import com.lifeos.app.core.util.NotificationHelper
-import com.lifeos.app.data.db.entities.ReminderEntity
-import com.lifeos.app.data.repository.ReminderRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * Receives every fired reminder alarm (explicit PendingIntent only — no intent
- * filter) and presents it: runs the repository state machine, posts a high
- * priority alarm notification (carrying a full-screen intent when permitted),
- * and — when the app is in the foreground — surfaces the full-screen alarm UI
- * directly so the alarm starts the moment it fires.
+ * Receives every fired coalesced alarm (explicit PendingIntent only — no
+ * intent filter, so no other app can trigger it) and delivers the event in
+ * two steps:
  *
- * `goAsync()` keeps the broadcast alive while the (usually already-open) Room
- * database is read on an IO thread.
+ *  1. **Present instantly from extras** — start [AlarmPlaybackService], which
+ *     owns the audible ring/vibration and posts one high-priority notification
+ *     with a full-screen intent. Nothing here touches the database, so the
+ *     alarm fires immediately even on a cold start in deep Doze (starting a
+ *     foreground service from a `setAlarmClock` alarm is platform-permitted).
+ *  2. **Advance the state machine** — `goAsync()` keeps the broadcast alive
+ *     while the repository runs [handleEventFired] for every reminder in the
+ *     event and re-projects the whole armed alarm set.
+ *
+ * If the foreground-service start itself is refused, the notification fallback
+ * (with the event's own sound flags) still posts in this step 1 branch, so the
+ * user is always alerted exactly once.
  */
 class AlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val reminderId = intent.getStringExtra(EXTRA_REMINDER_ID) ?: return
+        val event = AlarmEventCodec.from(intent) ?: return
+        val appContext = context.applicationContext
+        val notificationId = event.id.hashCode()
+
+        val serviceStarted = runCatching {
+            ContextCompat.startForegroundService(
+                appContext,
+                Intent(appContext, AlarmPlaybackService::class.java).apply {
+                    action = AlarmIntents.ACTION_ALARM_EVENT
+                    AlarmEventCodec.into(this, event)
+                }
+            )
+        }.isSuccess
+        if (!serviceStarted) {
+            NotificationHelper.showReminder(
+                context = appContext,
+                notificationId = notificationId,
+                title = AlarmStrings.titleOf(appContext, event),
+                body = AlarmStrings.bodyOf(appContext, event),
+                fullScreenIntent = AlarmIntents.fullScreenPendingIntent(appContext, event),
+                sound = event.anySoundEnabled,
+                vibration = event.anyVibrationEnabled
+            )
+        }
+
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val locator = ServiceLocator.get(context.applicationContext)
-                locator.reminderRepository.handleFired(reminderId)
-                val reminder = locator.reminderRepository.getById(reminderId)
-                if (reminder != null && reminder.enabled) {
-                    present(context.applicationContext, reminder)
-                }
+                ServiceLocator.get(appContext)
+                    .reminderRepository
+                    .handleEventFired(event.items.map { it.reminderId }.toSet())
             } catch (_: Exception) {
                 // Never crash the broadcast for a delivery hiccup; the next
-                // occurrence (if any) will re-arm normally.
+                // occurrence (if any) re-arms on the next projection pass.
             } finally {
                 pending.finish()
             }
         }
-    }
-
-    private fun present(context: Context, reminder: ReminderEntity) {
-        val fullScreenIntent = fullScreenIntent(context, reminder.id)
-        NotificationHelper.showReminder(
-            context = context,
-            notificationId = reminder.id.hashCode(),
-            title = if (reminder.entityType == ReminderRepository.TYPE_TASK) "Task reminder" else "Habit reminder",
-            body = reminder.title,
-            fullScreenIntent = fullScreenIntent,
-            sound = reminder.soundEnabled,
-            vibration = reminder.vibrationEnabled
-        )
-        try {
-            // Foreground: launch the alarm UI immediately. Background/Doze: the
-            // system surfaces the full-screen intent or falls back to a heads-up.
-            context.startActivity(
-                Intent(context, AlarmFullScreenActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    .putExtra(EXTRA_REMINDER_ID, reminder.id)
-                    .putExtra(EXTRA_TITLE, reminder.title)
-                    .putExtra(EXTRA_ENTITY_TYPE, reminder.entityType)
-                    .putExtra(EXTRA_SOUND_ENABLED, reminder.soundEnabled)
-                    .putExtra(EXTRA_VIBRATION_ENABLED, reminder.vibrationEnabled)
-            )
-        } catch (_: RuntimeException) {
-            // Background-activity-start restricted (normal on Android 10+);
-            // the notification (with its full-screen intent) is the delivery path.
-        }
-    }
-
-    private fun fullScreenIntent(context: Context, reminderId: String): PendingIntent {
-        val intent = Intent(context, AlarmFullScreenActivity::class.java).apply {
-            data = Uri.parse("lifeos://alarm/$reminderId")
-            putExtra(EXTRA_REMINDER_ID, reminderId)
-        }
-        return PendingIntent.getActivity(
-            context,
-            reminderId.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-
-    companion object {
-        const val ACTION_REMINDER = "com.lifeos.app.action.REMINDER"
-        const val EXTRA_REMINDER_ID = "reminder_id"
-        const val EXTRA_TITLE = "title"
-        const val EXTRA_ENTITY_TYPE = "entity_type"
-        const val EXTRA_SOUND_ENABLED = "sound_enabled"
-        const val EXTRA_VIBRATION_ENABLED = "vibration_enabled"
     }
 }

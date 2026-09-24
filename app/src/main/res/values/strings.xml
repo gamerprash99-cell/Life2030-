@@ -1,11 +1,18 @@
 <resources>
     <string name="app_name">LifeOS</string>
     <string name="tagline">Organize your life. Understand your day.</string>
-    <string name="alarm_task_reminder">Task reminder</string>
-    <string name="alarm_habit_reminder">Habit reminder</string>
-    <string name="alarm_generic_reminder">LifeOS reminder</string>
+    <string name="alarm_task_reminder">TASK TIME</string>
+    <string name="alarm_habit_reminder">HABIT TIME</string>
+    <string name="alarm_generic_reminder">IT\'S TIME</string>
     <string name="alarm_stop">STOP</string>
     <string name="snooze_minutes">%1$dm</string>
+    <string name="alarm_section_tasks">TASKS</string>
+    <string name="alarm_section_habits">HABITS</string>
+    <string name="alarm_snooze">Snooze</string>
+    <string name="alarm_snooze_tasks">Tasks</string>
+    <string name="alarm_snooze_habits">Habits</string>
+    <string name="alarm_snooze_both">Both</string>
+    <string name="alarm_multiple_reminders">%1$d due</string>
 
     <!-- Settings → Alarms & reminders (SCHEDULE_EXACT_ALARM) -->
     <string name="settings_alarms_reminders_title">Alarms &amp; reminders</string>
