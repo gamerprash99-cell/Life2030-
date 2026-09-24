@@ -53,3 +53,14 @@ val DiaryInkViolet = Color(0xFF21005D)      // archival ink violet
 val DiaryLavender = Color(0xFFEADDFF)       // pale thistle lavender
 val DiaryPaper = Color(0xFFFDF8FF)          // milk-tinted parchment
 val DiaryPaperCard = Color(0xFFFFFCFF)      // pristine paper leaf
+val DiaryHairline = Color(0xFFE8E1EA)       // hairline borders + timeline spine
+val DiarySaveDisabled = Color(0xFFF4ECFF)   // disabled Save pill (Stitch)
+
+// Pastel mood-pill fills (Stitch "Tactile Editorial Journal" mood palette).
+// Each is the light tint behind its saturated accent; Happy/Sad/Stressed use
+// the exact Stitch hexes, Calm/Excited are harmonized to LifeOS' own accents.
+val DiaryMoodHappyPastel = Color(0xFFFEF3C7)
+val DiaryMoodCalmPastel = Color(0xFFD1FAE5)
+val DiaryMoodSadPastel = Color(0xFFE0E7FF)
+val DiaryMoodStressedPastel = Color(0xFFFFE4E6)
+val DiaryMoodExcitedPastel = Color(0xFFFCE7F3)

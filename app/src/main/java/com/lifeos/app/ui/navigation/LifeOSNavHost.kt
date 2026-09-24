@@ -85,7 +85,19 @@ fun LifeOSNavHost() {
                 DiaryDetailScreen(entryId = entryId, onBack = { navController.popBackStack() })
             }
             composable(Screen.Timeline.route) {
-                TimelineScreen(onBack = { navController.popBackStack() })
+                TimelineScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenItem = { item ->
+                        val route = when (item.type) {
+                            com.lifeos.app.domain.model.TimelineItemType.DIARY ->
+                                Screen.DiaryDetail.createRoute(item.sourceId)
+                            com.lifeos.app.domain.model.TimelineItemType.TASK_COMPLETED -> Screen.Tasks.route
+                            com.lifeos.app.domain.model.TimelineItemType.HABIT_COMPLETED -> Screen.Habits.route
+                            com.lifeos.app.domain.model.TimelineItemType.EXPENSE -> Screen.Expenses.route
+                        }
+                        navController.navigate(route) { launchSingleTop = true }
+                    }
+                )
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(

@@ -199,6 +199,7 @@ fun EntryMoodPill(entry: DiaryEntity) {
     val label = mood?.let { "${it.emoji} ${it.label}" } ?: DiaryMoods.displayLabel(entry.mood)
     if (label.isEmpty()) return
     val color = mood?.let { DiaryMoods.colorOf(it.key) } ?: LifeOSPrimary
+    val pastel = mood?.let { DiaryMoods.backgroundOf(it.key) } ?: color.copy(alpha = 0.14f)
     Text(
         label,
         style = MaterialTheme.typography.labelMedium,
@@ -206,7 +207,7 @@ fun EntryMoodPill(entry: DiaryEntity) {
         color = color,
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(color.copy(alpha = 0.14f))
+            .background(pastel)
             .padding(horizontal = 12.dp, vertical = 6.dp)
     )
 }

@@ -4,10 +4,15 @@ import androidx.compose.ui.graphics.Color
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.DiaryMoodCalm
+import com.lifeos.app.ui.theme.DiaryMoodCalmPastel
 import com.lifeos.app.ui.theme.DiaryMoodExcited
+import com.lifeos.app.ui.theme.DiaryMoodExcitedPastel
 import com.lifeos.app.ui.theme.DiaryMoodHappy
+import com.lifeos.app.ui.theme.DiaryMoodHappyPastel
 import com.lifeos.app.ui.theme.DiaryMoodSad
+import com.lifeos.app.ui.theme.DiaryMoodSadPastel
 import com.lifeos.app.ui.theme.DiaryMoodStressed
+import com.lifeos.app.ui.theme.DiaryMoodStressedPastel
 
 /** One selectable mood on the editor sheet, keyed by the stored string ("😊 Happy"). */
 data class DiaryMood(val key: String, val label: String, val emoji: String)
@@ -35,6 +40,16 @@ object DiaryMoods {
         "Sad" -> DiaryMoodSad
         "Stressed" -> DiaryMoodStressed
         "Excited" -> DiaryMoodExcited
+        else -> DiaryLavender
+    }
+
+    /** Pastel pill fill behind [colorOf] for the five Stitch moods. */
+    fun backgroundOf(value: String?): Color = when (fromStored(value)?.label) {
+        "Happy" -> DiaryMoodHappyPastel
+        "Calm" -> DiaryMoodCalmPastel
+        "Sad" -> DiaryMoodSadPastel
+        "Stressed" -> DiaryMoodStressedPastel
+        "Excited" -> DiaryMoodExcitedPastel
         else -> DiaryLavender
     }
 

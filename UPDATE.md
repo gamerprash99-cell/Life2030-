@@ -1,8 +1,52 @@
 # LifeOS — UPDATE
 
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).
+---
 
 ---
+
+## 2026-09-24 — Timeline & Diary visual pass from Stitch (branch `feat/stitch-timeline-diary`)
+
+Follows the "LifeOS Timeline Overview" + "LifeOS Diary / Journal" Stitch
+reference screens. Visual layer only — no navigation architecture, Room schema
+(v2), repository or use-case changes; the app remains fully offline-first.
+
+### Timeline (`ui/timeline/TimelineScreen.kt`)
+- Header replaced with a centered dated headline and back/previous/next
+  chevrons; the same Single-day navigation semantics (`selectedDate`,
+  `LaunchEffect` reload, `canGoForward` guard) are preserved.
+- Entries now render as a dated journal: a 2px `#E8E1EA` hairline spine on a
+  fixed 32dp left track, 30dp paper node badges (`DiaryPaperCard`,
+  1dp hairline border) carrying each entry's emoji, and 24dp-radius cards with
+  title, subtitle and a time pill. First/last entries get tapered spine ends.
+- Empty state upgraded to mirror the Diary's (lavender circle + timeline icon
+  + title + caption).
+- New `onOpenItem: (TimelineItem) -> Unit` callback (default no-op). The Nav
+  host routes DIARY → Diary detail, TASK/HABIT/EXPENSE → their existing
+  sections; system Back returns to the Timeline.
+- `TimelineViewModel` and `BuildTimelineUseCase` untouched.
+
+### Diary (`ui/diary/`)
+- New pastel mood tokens in `ui/theme/Color.kt` (`DiaryMood*Pastel`,
+  `DiaryHairline` `#E8E1EA`, `DiarySaveDisabled` `#F4ECFF`).
+- `DiaryMoods.backgroundOf()` maps the five stored moods to their pastel fill;
+  `EntryMoodPill` (list + detail) and the editor's selected mood chips now use
+  pastel backgrounds with the saturated accent text. Mood keys persisted are
+  unchanged, so existing entries keep their mood.
+- Save button restyled as a flat lavender pill (`DiaryLavender` fill,
+  `DiaryInkViolet` label, disabled `DiarySaveDisabled`, zero elevation).
+- Day-strip chips: 16dp capsules, unselected bordered by the `#E8E1EA` hairline;
+  selected still fills `DiaryLavender`.
+
+### Database
+- None. Room schema stays v2; `diary_entries` and all readers untouched.
+
+### Verification (offline, deps cached)
+- `gradle :app:testDebugUnitTest` — 108 tests, 0 failures.
+- `gradle :app:assembleDebug` — BUILD SUCCESSFUL.
+- `gradle :app:lintDebug` — 0 errors; 23 pre-existing warnings, none in changed
+  files.
+
 ---
 
 ## 2026-09-24 — Coalesced, reliable alarms: one intelligent alarm per trigger time (branch `feat/reliable-coalesced-alarms`)
