@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -24,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,7 +41,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.lifeos.app.data.db.entities.DiaryEntity
+import com.lifeos.app.ui.theme.DiaryInkViolet
+import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.DiaryMoodCalm
+import com.lifeos.app.ui.theme.DiarySaveDisabled
 import com.lifeos.app.ui.theme.LifeOSSpacing
 
 /**
@@ -145,8 +150,27 @@ fun DiaryEditorSheet(
                     Button(
                         onClick = { onSave(content, mood) },
                         enabled = content.isNotBlank(),
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DiaryLavender,
+                            contentColor = DiaryInkViolet,
+                            disabledContainerColor = DiarySaveDisabled,
+                            disabledContentColor = DiaryInkViolet.copy(alpha = 0.4f)
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp,
+                            disabledElevation = 0.dp
+                        ),
+                        contentPadding = PaddingValues(vertical = 12.dp),
                         modifier = Modifier.weight(1.4f)
-                    ) { Text(if (isEditing) "Save changes" else "Save entry") }
+                    ) {
+                        Text(
+                            if (isEditing) "Save changes" else "Save entry",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }
@@ -156,9 +180,9 @@ fun DiaryEditorSheet(
 @Composable
 private fun DiaryMoodChip(option: DiaryMood, selected: Boolean, onClick: () -> Unit) {
     val color = DiaryMoods.colorOf(option.key)
-    val container = if (selected) color.copy(alpha = 0.16f) else Color.Transparent
-    val borderColor = if (selected) color else MaterialTheme.colorScheme.outline.copy(alpha = 0.14f)
-    val labelColor = if (selected) DiaryMoods.inkOn(option.key) else MaterialTheme.colorScheme.onSurfaceVariant
+    val container = if (selected) DiaryMoods.backgroundOf(option.key) else Color.Transparent
+    val borderColor = if (selected) color.copy(alpha = 0.55f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.14f)
+    val labelColor = if (selected) color else MaterialTheme.colorScheme.onSurfaceVariant
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50))

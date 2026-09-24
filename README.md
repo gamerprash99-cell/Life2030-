@@ -378,6 +378,11 @@ See [`docs/21_FILE_STRUCTURE.md`](./docs/21_FILE_STRUCTURE.md) for per-file note
 - Four-destination bottom bar (Home, Tasks, Habits, Insights) with saved-state
   restoration; Settings is reached from Profile.
 - Home dashboard with animated Daily Momentum and live repository-backed data.
+- Diary: paper-card journal list with a date strip, mood pills, a mood-first
+  composer bottom sheet and a full-page detail view — all offline, Room-backed.
+- Timeline: a dated daily journal with a hairline spine, paper node badges and
+  time-stamped cards fed by the read-only aggregation over tasks, habits,
+  expenses and diary entries.
 - Expenses: monthly card + recent transactions + FAB → expanded add-expense
   sheet with a single purple-highlighted selected category.
 - Capture: full-screen studio with post-capture confirmation.
@@ -386,6 +391,28 @@ See [`docs/21_FILE_STRUCTURE.md`](./docs/21_FILE_STRUCTURE.md) for per-file note
 ---
 
 ## 18. Recent Changes
+
+**2026-09-24 — Timeline & Diary visual pass from Stitch design system**
+- Timeline (`ui/timeline/TimelineScreen.kt`) redrawn to the Stitch reference:
+  a centered dated header with back navigation and day-navigation chevrons, a
+  2px hairline spine on a fixed 24dp+ left track anchored by paper node
+  badges (30dp circles, hairline border), 24dp-radius time-stamped entry
+  cards, and a themed empty state. Data flow untouched — still the read-only
+  aggregation over Tasks, Habits, Expenses and Diary via `BuildTimelineUseCase`.
+- Timeline entries are now tappable: diary entries open the existing Diary
+  detail screen; task/habit/expense entries open their existing sections
+  (Back returns to the Timeline). Made via a new `onOpenItem` callback on
+  `TimelineScreen` (default no-op) — navigation architecture unchanged.
+- Diary polish to the Stitch mood palette: pastel mood-pill backgrounds
+  (`DiaryMoods.backgroundOf` + new `*Pastel` tokens; Happy/Sad/Stressed use the
+  exact Stitch hexes, Calm/Excited harmonized to LifeOS accents), the editor's
+  selected mood chips now fill with their pastel, and the Save button is a
+  flat lavender pill with ink-violet label (disabled `#F4ECFF`). Day strip
+  chips moved to 16dp capsules with `#E8E1EA` hairline borders. No data,
+  schema, repositories or ViewModels changed.
+- Verified in this environment: `:app:testDebugUnitTest` (108 tests, 0
+  failures), `:app:assembleDebug` and `:app:lintDebug` (0 errors, pre-existing
+  warnings only) all pass.
 
 **2026-09-20 — Home startup, Home empty states, bottom-nav labels & predictive back**
 - Cold-start freeze: `AppDatabase.warmUpOpen()` opens the SQLCipher DB on a

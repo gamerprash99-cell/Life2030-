@@ -49,6 +49,7 @@ import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.ui.components.GlassCard
 import com.lifeos.app.ui.components.LifeOSTopBar
+import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.LifeOSSpacing
@@ -172,9 +173,9 @@ private fun DayChip(
     onClick: () -> Unit,
     sublabel: String? = null
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(16.dp)
     val container = if (selected) DiaryLavender else MaterialTheme.colorScheme.surface
-    val borderColor = if (selected) DiaryLavender else MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+    val borderColor = if (selected) DiaryLavender else DiaryHairline
     Column(
         modifier = Modifier
             .width(if (sublabel != null) 52.dp else 62.dp)
