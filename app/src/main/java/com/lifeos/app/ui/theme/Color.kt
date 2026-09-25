@@ -64,3 +64,20 @@ val DiaryMoodCalmPastel = Color(0xFFD1FAE5)
 val DiaryMoodSadPastel = Color(0xFFE0E7FF)
 val DiaryMoodStressedPastel = Color(0xFFFFE4E6)
 val DiaryMoodExcitedPastel = Color(0xFFFCE7F3)
+
+// Second mood wave (Daily Memory redesign). Purely additive: `mood` is a
+// nullable TEXT column, so new keys need no Room migration and every existing
+// entry keeps resolving against the five original accents above.
+val DiaryMoodAngry = Color(0xFFEF6B5E)       // soft coral
+val DiaryMoodAnxious = Color(0xFFF2A65A)     // soft orange
+val DiaryMoodTired = Color(0xFF8B93B8)       // muted lavender-blue
+val DiaryMoodAngryPastel = Color(0xFFFFE3E0)
+val DiaryMoodAnxiousPastel = Color(0xFFFDEBD7)
+val DiaryMoodTiredPastel = Color(0xFFE7E9F5)
+
+/**
+ * Marker colour for an entry stored before moods existed (or with an
+ * unrecognised custom value). Deliberately desaturated so an absent mood reads
+ * as "no signal" rather than as a fifth feeling.
+ */
+val DiaryMoodNeutral = Color(0xFFB9AFC4)

@@ -5,11 +5,70 @@ Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and re
 
 ---
 
+## 2026-09-25 — Diary redesigned as *Daily Memory* (branch `feat/diary-daily-memory-redesign`)
+
+The Diary stops being a list of paper cards with a date strip and becomes an
+editorial memory timeline you read one day at a time. UI layer only — the Room
+schema (v4), entities, DAOs, migrations, repositories, navigation routes, DI
+and Gradle dependencies are all untouched, and the app stays fully offline.
+
+### Files
+- `ui/diary/DiaryScreen.kt` — rewritten around `DiaryDayHeader` +
+  `MemoryTimeline`; inline `+ Memory`; day-scoped `YOUR STORY STARTS HERE`
+  empty state; `BackHandler` layered so back closes the editor, then the screen.
+- `ui/diary/DiaryDayHeader.kt` *(new)* — back, prev/next chevrons, day
+  eyebrow, `1 January · Tuesday` headline and a memory-position tick row.
+- `ui/diary/MemoryTimeline.kt` *(new)* — `MemoryMoment`: 44dp time gutter,
+  1dp spine with tapered first/last ends, mood dot, uppercase mood, journal
+  text at 28sp leading.
+- `ui/diary/DiaryEditor.kt` *(new)* — full-screen composer replacing
+  `DiaryEditorSheet.kt` (deleted): mood-first, 8 moods, saving-aware action.
+- `ui/diary/DiaryEmptyState.kt`, `MoodSelector.kt`, `MemoryDeleteDialog.kt`,
+  `DiaryMotion.kt` *(new)*.
+- `ui/diary/DiaryDetailScreen.kt` — route + ViewModel kept; adopts the same
+  spine/mood/leading so a memory opened alone still reads as part of its day.
+- `ui/diary/DiaryMoods.kt` — data-driven, 8 moods; `ui/theme/Color.kt` —
+  mood/neutral tokens for the new palette.
+
+### Deliberately not a Timeline clone
+Timeline uses a 2px spine with 30dp paper badges and 24dp-radius cards. Diary
+uses a 1dp spine, **no cards**, mood dots and type as the loudest element — the
+two surfaces stay visibly different.
+
+### Mood storage — additive, no migration
+Mood is a `TEXT` column, so new moods need no schema work. Angry / Anxious /
+Tired are added; the five original keys are preserved byte-for-byte and
+`fromStored` still resolves them, so existing entries keep their mood.
+`DiaryMoodsTest` now asserts all 8, plus unique labels/keys and legacy-key
+compatibility.
+
+### Bug fixed
+`DiaryViewModel.saveEntry` stamped every new entry with `today()`, so writing
+while reading a past day saved to today. It now writes to `selectedDay`. Added
+an in-flight `saving` guard (reset in a `finally`, so a failed write cannot
+wedge the composer) and a `shiftDay` guard refusing to move past today.
+
+### Verification (offline, no network)
+`/home/gradle-8.9/bin/gradle --no-daemon testDebugUnitTest assembleDebug lintDebug`
+→ **BUILD SUCCESSFUL**; 111 unit tests, 0 failures/errors; lint 0 errors and 0
+diary-related issues. Also confirmed: no secrets/logging/network in `ui/diary/`,
+`INTERNET` permission still absent, and no diff under `data/`, `core/`,
+`ui/navigation/`, `ui/components/`, `androidTest/` or `schemas/`.
+
+### Docs corrected (pre-existing drift, unrelated to this change)
+- Diary feature row + UI/UX section described removed Notes/Capture/Search/AI
+  directories and a non-existent `core/intelligence/DiaryConnections.kt`.
+- Bottom bar documented as four destinations including Insights; it is three
+  (Home/Tasks/Habits), locked by `BottomNavItemsTest`.
+- Two "Room v2" references should read v4.
+- Not fixed (out of scope, still stale): README's Capture/Timeline/Expenses
+  sections and the `docs/` historical entries.
+
 ## 2026-09-24 — Timeline & Diary visual pass from Stitch (branch `feat/stitch-timeline-diary`)
 
 Follows the "LifeOS Timeline Overview" + "LifeOS Diary / Journal" Stitch
 reference screens. Visual layer only — no navigation architecture, Room schema
-(v2), repository or use-case changes; the app remains fully offline-first.
+(v4), repository or use-case changes; the app remains fully offline-first.
 
 ### Timeline (`ui/timeline/TimelineScreen.kt`)
 - Header replaced with a centered dated headline and back/previous/next
