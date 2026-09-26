@@ -1084,3 +1084,12 @@ gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existin
 - Added clearer hierarchy: "YOUR STORY STARTS HERE" → selected-day message → "Tap + Memory to capture your day" → secondary "Start a memory" action.
 - Preserved the existing day selection, `+ Memory` action, ViewModel, Room repository, navigation and bottom navigation architecture.
 - Verification: source change committed to `feature/diary-ui-v2`; Android emulator/device rendering and Gradle verification are pending in an environment with an Android runner.
+
+
+### 2026-09-26 — Diary UI v2 complete flow
+
+- Completed the first UI flow pass across the existing Diary surfaces: empty day, full-screen composer, filled composer, save confirmation, saved detail and multiple-memory timeline states.
+- `DiaryViewModel` now exposes a one-shot save confirmation counter after a successful local Room write; `DiaryScreen` presents a short fade-in/fade-out `Memory saved` confirmation without changing the repository/data path.
+- Added `docs/diary-ui-v2.md` as the screen-flow reference.
+- No Room schema, navigation route, permission, network, external AI, telemetry or dependency changes.
+- Android device/emulator rendering remains unverified because no Android runner is exposed through the connected GitHub workflow.
