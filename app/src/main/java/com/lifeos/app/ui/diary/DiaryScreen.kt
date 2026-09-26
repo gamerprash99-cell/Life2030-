@@ -1,9 +1,6 @@
 package com.lifeos.app.ui.diary
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,8 +12,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -24,18 +21,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
@@ -74,17 +66,8 @@ fun DiaryScreen(
     val entryToDelete by viewModel.entryToDelete.collectAsState()
     val editorTimeMinutes by viewModel.editorTimeMinutes.collectAsState()
     val saving by viewModel.saving.collectAsState()
-    val saveConfirmation by viewModel.saveConfirmation.collectAsState()
-    var showSaved by remember { mutableStateOf(false) }
 
-    LaunchedEffect(saveConfirmation) {
-        if (saveConfirmation == 0) return@LaunchedEffect
-        showSaved = true
-        delay(1400)
-        showSaved = false
-    }
-
-    // With the editor open, back closes the editor rather than the screen.
+    // With the editor open, Back closes the editor. Otherwise it leaves Diary.
     BackHandler(enabled = showEditor, onBack = viewModel::dismissEditor)
     BackHandler(enabled = !showEditor, onBack = onBack)
 
@@ -118,8 +101,7 @@ fun DiaryScreen(
                             end = LifeOSSpacing.screenPadding,
                             top = LifeOSSpacing.sectionSpacing,
                             bottom = LifeOSSpacing.fabContentClearance
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                        )
                     ) {
                         itemsIndexed(memories, key = { _, entry -> entry.id }) { index, entry ->
                             MemoryMoment(
@@ -133,18 +115,6 @@ fun DiaryScreen(
                             )
                         }
 
-                        // Closing hairline so the day reads as a finished page
-                        // rather than a list that was cut off.
-                        item {
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 4.dp, bottom = 8.dp)
-                                    .height(1.dp)
-                                    .background(DiaryHairline)
-                            )
-                        }
-
                         item {
                             MemoryStreamFooter(
                                 count = memories.size,
@@ -154,15 +124,6 @@ fun DiaryScreen(
                     }
                 }
             }
-        }
-
-        AnimatedVisibility(
-            visible = showSaved && !showEditor,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-            SavedMemoryToast()
         }
 
         DiaryEditorOverlay(visible = showEditor) {
@@ -180,6 +141,7 @@ fun DiaryScreen(
             )
         }
     }
+
 
     entryToDelete?.let { entry ->
         MemoryDeleteDialog(
