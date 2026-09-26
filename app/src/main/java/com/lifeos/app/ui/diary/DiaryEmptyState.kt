@@ -34,7 +34,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.min
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.LifeOSSpacing
 
@@ -67,10 +66,9 @@ fun DiaryEmptyState(
                 .clickable(onClick = onCreate),
             contentAlignment = Alignment.Center
         ) {
-            val illustrationSize = min(
-                maxWidth * 0.88f,
-                maxHeight * 0.62f
-            ).coerceIn(230.dp, 430.dp)
+            val illustrationSize = (maxWidth * 0.88f)
+                .coerceAtMost(maxHeight * 0.62f)
+                .coerceIn(230.dp, 430.dp)
 
             Box(Modifier.size(illustrationSize)) {
                 EmptyDiaryIllustration(Modifier.fillMaxSize())
