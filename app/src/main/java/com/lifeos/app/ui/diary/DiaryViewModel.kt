@@ -86,7 +86,10 @@ class DiaryViewModel(
      * is unable to render.
      */
     fun selectDay(day: Long) {
-        _selectedDay.value = day.coerceIn(todayEpochDay() - HISTORY_DAYS, todayEpochDay())
+        _selectedDay.value = day.coerceIn(
+            todayEpochDay() - HISTORY_DAYS,
+            todayEpochDay() + FUTURE_DAYS
+        )
     }
 
     fun startNewEntry() {
