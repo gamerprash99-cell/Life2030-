@@ -24,7 +24,6 @@ import kotlinx.coroutines.launch
  */
 class DiaryViewModel(
     private val diaryRepository: DiaryRepository,
-    private val nowMinutes: () -> Int = DateTimeUtils::nowMinutesOfDay,
     private val todayEpochDay: () -> Long = { DateTimeUtils.today().toEpochDay() }
 ) : ViewModel() {
 
@@ -54,29 +53,20 @@ class DiaryViewModel(
     private val _entryToDelete = MutableStateFlow<DiaryEntity?>(null)
     val entryToDelete: StateFlow<DiaryEntity?> = _entryToDelete
 
-    /** True while a write is in flight, so the save action cannot be double-fired. */
-    private val _saving = MutableStateFlow(false)
-    val saving: StateFlow<Boolean> = _saving
-
-    /** Monotonic UI event: increments only after a local Room write succeeds. */
-    private val _saveConfirmation = MutableStateFlow(0)
-    val saveConfirmation: StateFlow<Int> = _saveConfirmation
-
     /**
-     * The wall-clock minute this entry is stamped with, decided the moment the
-     * editor opens rather than the moment it is saved.
-     *
-     * This is the whole point of the field: someone who opens the editor at 8:04
-     * and writes for twenty minutes means "8:04", not "8:24". Reading the clock
-     * at save time silently rewrote the timestamp of every long entry, and it
-     * also made the time shown in the editor a value that would change under the
-     * user's hands. Editing an existing entry keeps that entry's original
-     * minute, so re-saving can never move a memory in the day's timeline.
+     * The entry id a just-committed write produced, held while the confirmation
+     * is on screen. It is only the *id*: the sheet's content is resolved from
+     * [entries] below, so what it shows is the stored row rather than a copy that
+     * could disagree with the database.
      */
-    private var capturedTimeMinutes: Int? = null
+    private val _savedEntryId = MutableStateFlow<String?>(null)
+    val savedEntryId: StateFlow<String?> = _savedEntryId
 
-    private val _editorTimeMinutes = MutableStateFlow<Int?>(null)
-    val editorTimeMinutes: StateFlow<Int?> = _editorTimeMinutes
+    /** The committed entry itself, or null while there is nothing to confirm. */
+    val savedEntry: StateFlow<DiaryEntity?> =
+        combine(entries, _savedEntryId) { all, id ->
+            id?.let { wanted -> all.firstOrNull { it.id == wanted } }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /**
      * Selects a day, clamped to the span the strip can actually show: never a
@@ -86,66 +76,48 @@ class DiaryViewModel(
      * is unable to render.
      */
     fun selectDay(day: Long) {
+        // Moving to another day means the user is done looking at what was just
+        // saved, so the confirmation retires rather than sitting over a day it
+        // has nothing to do with.
+        dismissSavedConfirmation()
         _selectedDay.value = day.coerceIn(todayEpochDay() - HISTORY_DAYS, todayEpochDay())
     }
 
     fun startNewEntry() {
+        dismissSavedConfirmation()
         _editingEntry.value = null
-        capturedTimeMinutes = nowMinutes()
-        _editorTimeMinutes.value = capturedTimeMinutes
         _showEditor.value = true
     }
 
     fun startEdit(entry: DiaryEntity) {
+        dismissSavedConfirmation()
         _editingEntry.value = entry
-        // An edit keeps the minute the memory was originally written at.
-        capturedTimeMinutes = entry.timeMinutes
-        _editorTimeMinutes.value = entry.timeMinutes
         _showEditor.value = true
     }
 
     fun dismissEditor() {
         _showEditor.value = false
         _editingEntry.value = null
-        capturedTimeMinutes = null
-        _editorTimeMinutes.value = null
     }
 
     /**
-     * Persists a memory. New entries are stamped with the day currently being
-     * read — not with `today()` — so writing into a past day lands in that day,
-     * and with the minute captured when the editor opened, so the timestamp
-     * reflects when the memory happened rather than when the user finished
-     * typing it. Edits keep the entry's existing id, date and time; only the
-     * fields the editor owns are replaced.
+     * Called once the editor's own view model reports a committed write. Keeps
+     * the day view's "the editor is finished" transition in one place, so the
+     * editor only has to say *that* it saved, not how the screen should react.
+     *
+     * The composer closes immediately — the write is already durable — and the
+     * confirmation takes its place. [savedId] is null when the commit produced no
+     * id, in which case there is nothing to confirm and the sheet is skipped
+     * rather than shown empty.
      */
-    fun saveEntry(content: String, mood: String?) {
-        if (content.isBlank() || _saving.value) return
-        _saving.value = true
-        viewModelScope.launch {
-            try {
-                val editing = _editingEntry.value
-                if (editing != null) {
-                    diaryRepository.updateEntry(
-                        editing.id, editing.title, content, mood, splitTags(editing.tagsCsv)
-                    )
-                } else {
-                    diaryRepository.createEntry(
-                        title = null,
-                        content = content,
-                        mood = mood,
-                        tags = emptyList(),
-                        dateEpochDay = _selectedDay.value,
-                        timeMinutes = capturedTimeMinutes ?: nowMinutes()
-                    )
-                }
-                _saveConfirmation.value += 1
-                dismissEditor()
-            } finally {
-                // Never leave the save action stuck disabled if the write throws.
-                _saving.value = false
-            }
-        }
+    fun onEditorSaved(savedId: String?) {
+        dismissEditor()
+        _savedEntryId.value = savedId
+    }
+
+    /** Retires the confirmation — Back, a tap outside, or either of its actions. */
+    fun dismissSavedConfirmation() {
+        _savedEntryId.value = null
     }
 
     fun requestDelete(entry: DiaryEntity) {
@@ -162,15 +134,22 @@ class DiaryViewModel(
     }
 
     /**
-     * Clear the one-shot confirmation counter after the UI has consumed the
-     * current event. Kept separate from save so a recomposition cannot invent a
-     * second confirmation.
+     * Flips a memory's favourite flag. The write is a single Room update, so
+     * the list re-renders from the same `observeAll()` flow the screen already
+     * collects — there is no separate in-memory copy to fall out of sync.
      */
-    fun consumeSaveConfirmation() {
-        _saveConfirmation.value = 0
+    fun toggleFavorite(id: String) {
+        viewModelScope.launch { diaryRepository.toggleFavorite(id) }
     }
 
-    private fun splitTags(csv: String): List<String> = csv.split(',')
-        .map { it.trim() }
-        .filter { it.isNotBlank() }
+    /**
+     * Strips one attachment from a memory without opening the editor, so the
+     * detail screen's remove affordances do what they look like they do. The
+     * repository no-ops on a path the entry does not hold, and deletes the file
+     * once nothing references it.
+     */
+    fun removeAttachment(id: String, filePath: String) {
+        viewModelScope.launch { diaryRepository.removeAttachment(id, filePath) }
+    }
+
 }

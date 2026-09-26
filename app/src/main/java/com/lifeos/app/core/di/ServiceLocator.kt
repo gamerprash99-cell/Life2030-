@@ -1,6 +1,7 @@
 package com.lifeos.app.core.di
 
 import android.content.Context
+import com.lifeos.app.core.location.DeviceLocationProvider
 import com.lifeos.app.core.util.SettingsStore
 import com.lifeos.app.data.db.AppDatabase
 import com.lifeos.app.data.repository.BackupRepository
@@ -9,6 +10,9 @@ import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.data.repository.ReminderRepository
 import com.lifeos.app.data.repository.TaskRepository
+import com.lifeos.app.data.repository.OfflineOnlyWeatherSource
+import com.lifeos.app.data.repository.WeatherRepository
+import com.lifeos.app.data.repository.WeatherRepositoryImpl
 import com.lifeos.app.domain.usecase.BuildTimelineUseCase
 import com.lifeos.app.domain.usecase.GetHomeSummaryUseCase
 
@@ -21,7 +25,13 @@ import com.lifeos.app.domain.usecase.GetHomeSummaryUseCase
  */
 class ServiceLocator private constructor(context: Context) {
 
-    private val appContext = context.applicationContext
+    /**
+     * The application context, for the few collaborators that need one (the
+     * diary recorder writes into app-private storage). Exposed rather than
+     * private so a ViewModel factory can build them without the container
+     * having to own short-lived, per-screen instances.
+     */
+    val appContext: Context = context.applicationContext
 
     /**
      * Lazily opened so constructing the container never touches the main
@@ -64,6 +74,22 @@ class ServiceLocator private constructor(context: Context) {
     }
     val expenseRepository: ExpenseRepository by lazy { ExpenseRepository(database.expenseDao()) }
     val diaryRepository: DiaryRepository by lazy { DiaryRepository(database.diaryDao()) }
+
+    /**
+     * Weather for diary entries. Backed by [OfflineOnlyWeatherSource] today:
+     * this build declares no INTERNET permission, so the repository reports an
+     * honest "unavailable" rather than a fabricated reading. Swapping in an
+     * approved source is a one-line change here.
+     */
+    val weatherRepository: WeatherRepository = WeatherRepositoryImpl(OfflineOnlyWeatherSource())
+
+    /**
+     * Real device location for diary entries, via platform `LocationManager`
+     * and `Geocoder` only — no Play Services, so the offline-first and
+     * privacy-first guarantees hold. Held by the container because it is
+     * stateless apart from holding the system service handle.
+     */
+    val deviceLocationProvider: DeviceLocationProvider by lazy { DeviceLocationProvider(appContext) }
 
     val backupRepository: BackupRepository by lazy {
         BackupRepository(

@@ -1,15 +1,28 @@
 package com.lifeos.app.ui.diary
 
+import com.lifeos.app.core.location.LocationFailure
+import com.lifeos.app.core.location.LocationOutcome
+import com.lifeos.app.core.location.LocationProvider
+import com.lifeos.app.core.media.AudioPlayback
+import com.lifeos.app.core.media.AudioRecorder
+import com.lifeos.app.core.media.PhotoImporter
+import com.lifeos.app.core.media.PlaybackState
+import com.lifeos.app.core.media.RecordingState
 import com.lifeos.app.data.db.dao.DiaryDao
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.repository.DiaryRepository
+import com.lifeos.app.data.repository.WeatherRepository
+import com.lifeos.app.domain.model.DiaryAttachment
+import com.lifeos.app.domain.model.DiaryWeather
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -18,6 +31,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
@@ -25,11 +39,15 @@ import java.time.LocalDate
 /**
  * The Diary's timestamp and day-selection rules.
  *
- * The behaviour this pins down: `saveEntry` used to read the clock *at save
- * time*, so opening the editor at 8:04, writing for twenty minutes and saving
- * filed the memory at 8:24 — and the time shown while writing was a value that
- * changed under the user's hands. The minute is now captured when the editor
+ * The behaviour this pins down: a save used to read the clock *at save time*,
+ * so opening the composer at 8:04, writing for twenty minutes and saving filed
+ * the memory at 8:24 — and the time shown while writing was a value that
+ * changed under the user's hands. The minute is now captured when the composer
  * opens; these tests hold it there.
+ *
+ * The timestamp and save rules now live in [DiaryEditorViewModel] (which owns the
+ * draft and the write) while day selection and the day list live in
+ * [DiaryViewModel], so both are covered here.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiaryViewModelTest {
@@ -60,9 +78,44 @@ class DiaryViewModelTest {
 
     private fun viewModel() = DiaryViewModel(
         diaryRepository = DiaryRepository(dao),
-        nowMinutes = { clockMinutes },
         todayEpochDay = { today }
     )
+
+    /**
+     * The composer. The platform collaborators are fakes, which is only possible
+     * because the view model depends on the `AudioRecorder` / `AudioPlayback` /
+     * `LocationProvider` / `PhotoImporter` interfaces rather than on the Android
+     * implementations.
+     */
+    /** An editor whose load has deliberately not been allowed to land yet. */
+    private fun rawEditor(entryId: String? = null, defaultDay: Long = today) = DiaryEditorViewModel(
+        diaryRepository = DiaryRepository(dao),
+        weatherRepository = FakeWeatherRepository(),
+        locationProvider = FakeLocationProvider(),
+        recorder = FakeRecorder(),
+        player = FakePlayback(),
+        photoImporter = FakePhotoImporter(),
+        nowMinutes = { clockMinutes },
+        todayEpochDay = { today }
+    ).apply { start(entryId, defaultDay) }
+
+    private suspend fun TestScope.editor(
+        entryId: String? = null,
+        defaultDay: Long = today
+    ): DiaryEditorViewModel = DiaryEditorViewModel(
+        diaryRepository = DiaryRepository(dao),
+        weatherRepository = FakeWeatherRepository(),
+        locationProvider = FakeLocationProvider(),
+        recorder = FakeRecorder(),
+        player = FakePlayback(),
+        photoImporter = FakePhotoImporter(),
+        nowMinutes = { clockMinutes },
+        todayEpochDay = { today }
+    ).apply {
+        start(entryId, defaultDay)
+        // Let the row load land, so what the test types into is the real draft.
+        advanceUntilIdle()
+    }
 
     private fun entry(id: String, day: Long = today, timeMinutes: Int = 480) = DiaryEntity(
         id = id,
@@ -76,16 +129,14 @@ class DiaryViewModelTest {
     // ---- timestamp capture -------------------------------------------------
 
     @Test
-    fun `a new entry keeps the minute the editor was opened at, not the minute it was saved at`() =
+    fun `a new entry keeps the minute the composer was opened at, not the minute it was saved at`() =
         runTest(dispatcher) {
-            val vm = viewModel()
-
-            vm.startNewEntry()
-            assertEquals(8 * 60 + 4, vm.editorTimeMinutes.value)
+            val vm = editor()
 
             // The user writes. Twenty minutes pass; the clock moves on.
             clockMinutes = 8 * 60 + 24
-            vm.saveEntry("a long thought", null)
+            vm.onContentChange("a long thought")
+            vm.save()
             advanceUntilIdle()
 
             assertEquals(8 * 60 + 4, dao.saved.single().timeMinutes)
@@ -94,25 +145,26 @@ class DiaryViewModelTest {
     @Test
     fun `the minute shown while writing does not drift as the clock moves`() =
         runTest(dispatcher) {
-            val vm = viewModel()
+            val vm = editor()
+            val captured = vm.state.value.timeMinutes
 
-            vm.startNewEntry()
             clockMinutes = 23 * 60 + 59
 
-            assertEquals(8 * 60 + 4, vm.editorTimeMinutes.value)
+            assertEquals(captured, vm.state.value.timeMinutes)
         }
 
     @Test
     fun `each new entry is stamped with its own open time`() = runTest(dispatcher) {
-        val vm = viewModel()
+        val vm = editor()
 
-        vm.startNewEntry()
-        vm.saveEntry("morning", null)
+        vm.onContentChange("morning")
+        vm.save()
         advanceUntilIdle()
 
         clockMinutes = 21 * 60 + 15
-        vm.startNewEntry()
-        vm.saveEntry("evening", null)
+        vm.start(null, today)
+        vm.onContentChange("evening")
+        vm.save()
         advanceUntilIdle()
 
         assertEquals(
@@ -122,14 +174,28 @@ class DiaryViewModelTest {
     }
 
     @Test
+    fun `reopening the composer starts a fresh draft rather than keeping the last one`() =
+        runTest(dispatcher) {
+            val vm = editor()
+
+            vm.onContentChange("a half-written thought")
+            vm.onMoodChange("calm")
+            vm.start(null, today)
+
+            assertEquals("", vm.state.value.content)
+            assertNull(vm.state.value.mood)
+        }
+
+    @Test
     fun `editing an existing memory never moves its timestamp`() = runTest(dispatcher) {
         val original = entry("a", timeMinutes = 7 * 60 + 30)
         dao.seed(original)
-        val vm = viewModel()
+        val vm = editor("a")
 
-        vm.startEdit(original)
         clockMinutes = 19 * 60
-        vm.saveEntry("revised wording", "calm")
+        vm.onContentChange("revised wording")
+        vm.onMoodChange("calm")
+        vm.save()
         advanceUntilIdle()
 
         val saved = dao.saved.single()
@@ -139,23 +205,30 @@ class DiaryViewModelTest {
     }
 
     @Test
-    fun `the editor's minute is cleared once it closes`() = runTest(dispatcher) {
-        val vm = viewModel()
+    fun `saving before the edited row finishes loading cannot create a duplicate`() =
+        runTest(dispatcher) {
+            dao.seed(entry("a", timeMinutes = 7 * 60 + 30))
 
-        vm.startNewEntry()
-        assertEquals(8 * 60 + 4, vm.editorTimeMinutes.value)
+            // The composer opens and the user starts typing while the read is
+            // still in flight. The draft has no id yet, so an unguarded save
+            // would insert a second row rather than update the first.
+            val vm = rawEditor("a")
+            vm.onContentChange("typed straight away")
+            assertFalse(vm.state.value.canSave)
 
-        vm.dismissEditor()
-        assertNull(vm.editorTimeMinutes.value)
-    }
+            vm.save()
+            advanceUntilIdle()
+
+            assertEquals(1, dao.saved.size)
+            assertEquals("a", dao.saved.single().id)
+        }
 
     @Test
     fun `a new memory is filed under the day being read, not today`() = runTest(dispatcher) {
-        val vm = viewModel()
-        vm.selectDay(today - 5)
+        val vm = editor(defaultDay = today - 5)
 
-        vm.startNewEntry()
-        vm.saveEntry("a memory from last week", null)
+        vm.onContentChange("a memory from last week")
+        vm.save()
         advanceUntilIdle()
 
         assertEquals(today - 5, dao.saved.single().dateEpochDay)
@@ -216,51 +289,239 @@ class DiaryViewModelTest {
         assertEquals(setOf(today, today - 2), marked)
     }
 
+    // ---- save guards and confirmation --------------------------------------
+
     @Test
     fun `a blank memory is never written`() = runTest(dispatcher) {
-        val vm = viewModel()
-        vm.startNewEntry()
-        vm.saveEntry("   ", null)
+        val vm = editor()
+
+        vm.onContentChange("   ")
+        vm.save()
         advanceUntilIdle()
 
         assertEquals(0, dao.saved.size)
     }
 
     @Test
-    fun `successful save emits one confirmation event and blank save emits none`() = runTest(dispatcher) {
-        val vm = viewModel()
+    fun `a rejected blank save emits no confirmation event`() = runTest(dispatcher) {
+        val vm = editor()
 
-        assertEquals(0, vm.saveConfirmation.value)
-
-        vm.startNewEntry()
-        vm.saveEntry("first", null)
+        vm.onContentChange("first")
+        vm.save()
         advanceUntilIdle()
+        assertEquals(1, vm.state.value.saveCount)
 
-        assertEquals(1, vm.saveConfirmation.value)
-
-        vm.startNewEntry()
-        vm.saveEntry("   ", null)
+        vm.start(null, today)
+        vm.onContentChange("   ")
+        vm.save()
         advanceUntilIdle()
 
         // A rejected blank save must not produce another success event.
-        assertEquals(1, vm.saveConfirmation.value)
+        assertEquals(1, vm.state.value.saveCount)
     }
 
     @Test
-    fun `the editor closes and the save action is released after a write`() = runTest(dispatcher) {
-        val vm = viewModel()
-        vm.startNewEntry()
-        vm.saveEntry("first", null)
+    fun `saving the same memory twice fires the confirmation twice`() = runTest(dispatcher) {
+        dao.seed(entry("a"))
+        val vm = editor("a")
+
+        vm.onContentChange("first revision")
+        vm.save()
+        advanceUntilIdle()
+        vm.onContentChange("second revision")
+        vm.save()
         advanceUntilIdle()
 
-        assertFalse(vm.saving.value)
-        assertFalse(vm.showEditor.value)
+        // A monotonic counter, not the id: the second write of the same row is a
+        // distinct event the UI still has to acknowledge.
+        assertEquals(2, vm.state.value.saveCount)
+    }
+
+    @Test
+    fun `the save action is released after a write`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("first")
+        vm.save()
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isSaving)
+    }
+
+    @Test
+    fun `the day view closes the composer once the editor reports a committed write`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.startNewEntry()
+            assertEquals(true, vm.showEditor.value)
+
+            vm.onEditorSaved("a")
+
+            assertFalse(vm.showEditor.value)
+            assertNull(vm.editingEntry.value)
+        }
+
+    // ---- the post-save confirmation ----------------------------------------
+
+    @Test
+    fun `a committed write is confirmed with the entry it produced`() = runTest(dispatcher) {
+        dao.seed(entry("a", timeMinutes = 8 * 60 + 2))
+        val vm = viewModel()
+
+        vm.startNewEntry()
+        vm.onEditorSaved("a")
+
+        assertEquals("a", vm.savedEntryId.value)
+        // A WhileSubscribed flow, so read it through `first` rather than `.value`.
+        val confirmed = vm.savedEntry.first { it != null }!!
+        assertEquals("a", confirmed.id)
+    }
+
+    @Test
+    fun `the confirmation names the real stored minute, not the minute of the save`() =
+        runTest(dispatcher) {
+            // The row carries the minute it was originally filed under. An edit
+            // re-saves without moving it, and the sheet must report that minute
+            // rather than whatever the clock says now.
+            dao.seed(entry("a", timeMinutes = 7 * 60 + 30))
+            val vm = viewModel()
+
+            clockMinutes = 21 * 60
+            vm.onEditorSaved("a")
+
+            assertEquals(7 * 60 + 30, vm.savedEntry.first { it != null }!!.timeMinutes)
+        }
+
+    @Test
+    fun `a commit that produced no id does not show an empty confirmation`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+
+            vm.startNewEntry()
+            vm.onEditorSaved(null)
+
+            assertNull(vm.savedEntryId.value)
+            // Nothing to name, so the sheet must stay hidden: the screen gates it
+            // on a resolvable entry, and an id-less commit leaves nothing to
+            // resolve.
+            assertNull(vm.savedEntry.first())
+        }
+
+    @Test
+    fun `dismissing the confirmation retires it`() = runTest(dispatcher) {
+        dao.seed(entry("a"))
+        val vm = viewModel()
+
+        vm.onEditorSaved("a")
+        assertEquals("a", vm.savedEntryId.value)
+
+        vm.dismissSavedConfirmation()
+
+        assertNull(vm.savedEntryId.value)
+    }
+
+    @Test
+    fun `moving to another day retires the confirmation`() = runTest(dispatcher) {
+        dao.seed(entry("a", day = today), entry("b", day = today - 1))
+        val vm = viewModel()
+
+        vm.onEditorSaved("a")
+        vm.selectDay(today - 1)
+
+        assertNull(vm.savedEntryId.value)
+    }
+
+    @Test
+    fun `add another memory retires the confirmation and reopens the composer empty`() =
+        runTest(dispatcher) {
+            dao.seed(entry("a"))
+            val vm = viewModel()
+            vm.onEditorSaved("a")
+
+            // What the sheet's second action calls.
+            vm.startNewEntry()
+
+            assertNull(vm.savedEntryId.value)
+            assertEquals(true, vm.showEditor.value)
+            // A second memory must be a new draft, never the one just written.
+            assertNull(vm.editingEntry.value)
+        }
+
+    @Test
+    fun `a second save of the same memory confirms again`() = runTest(dispatcher) {
+        dao.seed(entry("a"))
+        val vm = viewModel()
+
+        vm.onEditorSaved("a")
+        vm.dismissSavedConfirmation()
+        vm.onEditorSaved("a")
+
+        assertEquals("a", vm.savedEntryId.value)
+    }
+
+    // ---- voice note --------------------------------------------------------
+
+    @Test
+    fun `a running recording's live duration and level reach the state the row renders`() =
+        runTest(dispatcher) {
+            // The composer's timer and level dot are rendered from
+            // `state.recording`, which the UI advances only by calling
+            // tickRecording(). That call was never made, so a take used to sit on
+            // the 0:00 / zero-amplitude reading `start()` wrote for its whole
+            // length. This pins the contract the poll depends on.
+            val recorder = FakeRecorder()
+            val vm = DiaryEditorViewModel(
+                diaryRepository = DiaryRepository(dao),
+                weatherRepository = FakeWeatherRepository(),
+                locationProvider = FakeLocationProvider(),
+                recorder = recorder,
+                player = FakePlayback(),
+                photoImporter = FakePhotoImporter(),
+                nowMinutes = { clockMinutes },
+                todayEpochDay = { today }
+            )
+            vm.start(null, today)
+            advanceUntilIdle()
+
+            vm.startRecording()
+            val atStart = vm.state.value.recording
+            assertTrue("expected a running take, was $atStart", atStart is RecordingState.Recording)
+            assertEquals(0L, (atStart as RecordingState.Recording).elapsedMillis)
+
+            recorder.elapsedMillis = 4_500L
+            recorder.amplitude = 9_000
+            vm.tickRecording()
+
+            val live = vm.state.value.recording as RecordingState.Recording
+            assertEquals(4_500L, live.elapsedMillis)
+            assertEquals(9_000, live.amplitude)
+        }
+
+    @Test
+    fun `ticking with no take running reports idle rather than inventing a recording`() =
+        runTest(dispatcher) {
+            val vm = editor()
+
+            vm.tickRecording()
+
+            assertEquals(RecordingState.Idle, vm.state.value.recording)
+        }
+
+    @Test
+    fun `a memory cannot be saved while a take is still running`() = runTest(dispatcher) {
+        val vm = editor()
+        vm.onContentChange("words with a take still open")
+
+        vm.startRecording()
+        vm.tickRecording()
+
+        assertFalse("a running take must block the save", vm.state.value.canSave)
     }
 }
 
 /**
  * Minimal in-memory stand-in for the Room DAO — a real database cannot be opened
- * in a JVM unit test, and the ViewModel only ever needs the six methods below.
+ * in a JVM unit test, and the ViewModels only ever need the six methods below.
  */
 private class FakeDiaryDao : DiaryDao {
 
@@ -289,4 +550,68 @@ private class FakeDiaryDao : DiaryDao {
     override suspend fun getById(id: String): DiaryEntity? = state.value.firstOrNull { it.id == id }
 
     override suspend fun getAllForBackup(): List<DiaryEntity> = state.value
+}
+
+// ---- platform collaborators -------------------------------------------------
+
+private class FakeRecorder : AudioRecorder {
+    private val _state = MutableStateFlow<RecordingState>(RecordingState.Idle)
+    override val state: StateFlow<RecordingState> = _state
+
+    /**
+     * The wall clock a fake recording runs on. Advanced explicitly by the test
+     * so the elapsed reading is a value the test chose, not one that depended on
+     * how long the test took to run.
+     */
+    var elapsedMillis = 0L
+    var amplitude = 0
+
+    override fun start(): RecordingState {
+        elapsedMillis = 0L
+        _state.value = RecordingState.Recording(elapsedMillis = 0L, amplitude = 0)
+        return _state.value
+    }
+
+    override fun tick(): RecordingState {
+        val active = _state.value
+        if (active !is RecordingState.Recording) return active
+        _state.value = RecordingState.Recording(elapsedMillis = elapsedMillis, amplitude = amplitude)
+        return _state.value
+    }
+
+    override fun stop(): RecordingState {
+        val filePath = "/private/fake-take.m4a"
+        _state.value = RecordingState.Finished(filePath, elapsedMillis)
+        return _state.value
+    }
+
+    override fun cancel() { _state.value = RecordingState.Idle }
+
+    override fun isRecording(): Boolean = _state.value is RecordingState.Recording
+}
+
+private class FakePlayback : AudioPlayback {
+    private val _state = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
+    override val state: StateFlow<PlaybackState> = _state
+    override fun toggle(filePath: String): PlaybackState = _state.value
+    override fun play(filePath: String): PlaybackState = _state.value
+    override fun stop() { _state.value = PlaybackState.Idle }
+    override fun release() = stop()
+}
+
+private class FakeLocationProvider(
+    private val outcome: LocationOutcome = LocationOutcome.Failure(LocationFailure.NO_FIX)
+) : LocationProvider {
+    override fun hasLocationPermission(): Boolean = true
+    override suspend fun currentPlace(): LocationOutcome = outcome
+}
+
+private class FakePhotoImporter : PhotoImporter {
+    override fun import(sourceUri: android.net.Uri): DiaryAttachment.Photo? =
+        DiaryAttachment.Photo(filePath = "/private/fake-${sourceUri.lastPathSegment}.jpg")
+}
+
+private class FakeWeatherRepository : WeatherRepository {
+    override suspend fun weatherFor(place: DiaryAttachment.Place?): DiaryWeather =
+        DiaryWeather.Unavailable(DiaryWeather.UnavailableReason.NO_SOURCE_OFFLINE_ONLY)
 }

@@ -19,6 +19,7 @@ data class DiaryEntity(
     val aiGenerated: Boolean = false,
     val isReviewed: Boolean = true,
     val attachmentsJson: String = "[]",
+    val isFavorite: Boolean = false,
     val createdAt: Long,
     val updatedAt: Long
 )

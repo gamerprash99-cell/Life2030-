@@ -82,7 +82,10 @@ fun LifeOSNavHost() {
                 arguments = listOf(navArgument("entryId") { type = NavType.StringType })
             ) { entry ->
                 val entryId = entry.arguments?.getString("entryId").orEmpty()
-                DiaryDetailScreen(entryId = entryId, onBack = { navController.popBackStack() })
+                DiaryDetailScreen(
+                    entryId = entryId,
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable(Screen.Timeline.route) {
                 TimelineScreen(

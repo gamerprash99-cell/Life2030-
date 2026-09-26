@@ -74,22 +74,34 @@ import com.lifeos.app.ui.theme.LifeOSSpacing
  * Nothing is written until [onSave] fires — the editor itself never touches the
  * database, and [saving] disables the action so a double tap cannot create a
  * duplicate entry.
+ *
+ * The words and the mood are *owned by the caller* ([content] / [onContentChange]
+ * and [mood] / [onMoodChange]) rather than held in local state, because the real
+ * draft also has to carry photos, a voice note and a place — all of which live
+ * in one editor view model. Keeping the text here too would split the draft in
+ * half and let the attachments and the words disagree.
+ *
+ * [attachments] is the seam for everything that hangs off an entry: photos, the
+ * voice note, the place and the weather. It is a slot rather than a fixed set of
+ * parameters so this composable stays the presentation layer and the editor
+ * screen decides what those affordances do.
  */
 @Composable
 fun DiaryEditor(
     dayEpochDay: Long,
     editing: DiaryEntity?,
     timeMinutes: Int?,
+    content: String,
+    onContentChange: (String) -> Unit,
+    mood: String?,
+    onMoodChange: (String?) -> Unit,
     saving: Boolean,
     onDismiss: () -> Unit,
-    onSave: (content: String, mood: String?) -> Unit,
-    onDelete: () -> Unit
+    onSave: () -> Unit,
+    onDelete: () -> Unit,
+    attachments: @Composable () -> Unit = {}
 ) {
     val isEditing = editing != null
-    // Keyed on the entry id so switching between entries never leaks the
-    // previous entry's text or mood into the new one.
-    var content by rememberSaveable(editing?.id) { mutableStateOf(editing?.content.orEmpty()) }
-    var mood by rememberSaveable(editing?.id) { mutableStateOf(editing?.mood) }
 
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -182,7 +194,7 @@ fun DiaryEditor(
 
                 MoodSelector(
                     selectedKey = mood,
-                    onSelect = { key -> mood = if (mood == key) null else key },
+                    onSelect = { key -> onMoodChange(if (mood == key) null else key) },
                     modifier = Modifier.padding(top = 6.dp)
                 )
 
@@ -195,7 +207,7 @@ fun DiaryEditor(
             // Borderless field: the page's whitespace is the container.
             BasicTextField(
                 value = content,
-                onValueChange = { content = it },
+                onValueChange = onContentChange,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -220,6 +232,8 @@ fun DiaryEditor(
                 }
             )
 
+            attachments()
+
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -241,7 +255,7 @@ fun DiaryEditor(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Box(Modifier.weight(1f))
-                SaveMemoryAction(enabled = canSave, onClick = { onSave(content, mood) })
+                SaveMemoryAction(enabled = canSave, onClick = onSave)
             }
         }
     }

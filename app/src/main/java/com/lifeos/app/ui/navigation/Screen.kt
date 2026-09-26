@@ -20,6 +20,7 @@ sealed class Screen(val route: String) {
     object DiaryDetail : Screen("diary/{entryId}") {
         fun createRoute(entryId: String) = "diary/$entryId"
     }
+
     object Timeline : Screen("timeline")
     object Settings : Screen("settings")
     object Profile : Screen("profile")

@@ -16,6 +16,93 @@ output.
 
 ---
 
+## [Unreleased] — 2026-09-26 Diary audit follow-up (`feat/stitch-timeline-diary`)
+
+A read-through of the merged Diary against the Stitch reference screens, after
+the entry below landed. Three defects and one missing design, all fixed. No
+schema change, no new dependency, no network, no permission change, no change to
+navigation or media storage.
+
+### Fixed
+- **The voice-note timer and level dot were frozen for the whole take.**
+  `AudioRecorder.tick()` is documented as "advance the elapsed-time reading.
+  Driven by the UI while recording", and `DiaryEditorViewModel.tickRecording()`
+  existed to call it — but nothing called either. `DiaryVoiceNoteRow` renders
+  `elapsedMillis` and `amplitude` from `state.recording`, and that field was only
+  written by `start()` (0 ms, amplitude 0) and by `stop()`. So a recording showed
+  `0:00 Recording…` and a motionless level indicator from the moment it began
+  until it was stopped: the UI presented a live measurement it was never
+  receiving. `DiaryEditorAttachments` now polls while a take runs, in a
+  `LaunchedEffect` keyed on `state.recording is RecordingState.Recording`, so the
+  loop starts with the take, is cancelled when it ends, and is torn down with the
+  composition even if a stop is missed. Interval 100 ms — fast enough that `m:ss`
+  does not visibly jump and the level dot smooths rather than strobes, and
+  `MediaRecorder.maxAmplitude` is cheap enough to read at that rate. This makes
+  the code do what the interface contract already said it did.
+- **The save confirmation could not do what the design asks of it.** Stitch
+  `saved_confirmation.html` is built around two actions: *View memory* and *Add
+  another memory*. The implementation was a 1.4 s auto-dismissing toast, which
+  structurally cannot offer either. Now a scrim plus a paper card carrying the
+  two full-width pill actions.
+- **Confirmation state moved out of the composable.** It was a local
+  `var showSaved` in `DiaryScreen` — precisely the kind of state that cannot be
+  tested. `DiaryViewModel` now holds `savedEntryId` and derives `savedEntry` by
+  resolving that id against the existing Room flow. Only the *id* is stored, so
+  the sheet cannot show a stale copy of a row that has since changed. The old
+  `delay(1400)` dismissal race is gone with the local state.
+- **The confirmation names what was actually filed, not when the save happened.**
+  Copy derives from the stored row, so a back-dated memory confirms the day it
+  was filed under and an edit confirms the minute it kept.
+- **Housekeeping:** `DiaryDetailScreen.kt` imported `LocationOn` and `Star` twice
+  each.
+
+### Changed
+- **"Add another memory" files into the day being read.** It calls
+  `startNewEntry()`, which re-seeds the draft from `selectedDay`.
+- `DiaryViewModel.selectDay`, `startNewEntry` and `startEdit` now retire the
+  confirmation; Back and a scrim tap dismiss it.
+
+### Removed (verified unreferenced repo-wide)
+- `EntryMoodPill`, `DiaryMoodChip` and `ThemeKeywordChip` in
+  `ui/diary/DiaryComponents.kt` — superseded by `MoodSelector`'s hairline glyph
+  row and by quiet inline tags.
+- `DiaryEditorViewModel.recordingState` / `playbackState` — two `StateFlow`
+  aliases the composable state never read.
+- `DiaryEditorViewModel.startAnother()` — unused *and* wrong: hard-coded
+  `today()` and `nowMinutesOfDay()`, so had the confirmation called it, "add
+  another memory" would have filed the new memory under today while the user sat
+  reading a past day.
+
+### Tests
+10 new cases in `DiaryViewModelTest` (24 → 27 in that class): the confirmation
+resolving to the entry a commit produced; the sheet naming the *stored* minute
+rather than the minute of the save; an id-less commit showing no empty sheet;
+dismissal; retirement on a day change; "add another" retiring the sheet and
+reopening the composer empty; a second save of the same memory confirming again;
+and three voice-note cases pinning that a running take's live duration/level
+reach the rendered state, that ticking with no take reports idle rather than
+inventing a recording, and that a running take blocks the save. `FakeRecorder`
+was upgraded from a stub whose `tick()` returned a constant to one that advances
+on a clock the test controls, so the poll is genuinely exercised.
+
+### Verification
+Offline, via `/opt/gradle-8.9/bin/gradle` (the repository has no `gradlew`):
+
+- `compileDebugKotlin` — BUILD SUCCESSFUL
+- `testDebugUnitTest` — BUILD SUCCESSFUL (**157 tests, 0 failures**; was 147)
+- `lintDebug` — BUILD SUCCESSFUL (0 errors; 8 pre-existing issues, none in
+  `ui/diary`)
+- `assembleDebug` — BUILD SUCCESSFUL (42.5 MB debug APK)
+- `assembleDebugAndroidTest` — BUILD SUCCESSFUL
+
+**Not verified:** this sandbox has no emulator, device or AVD. The confirmation
+sheet and the recording poll have not been viewed on a screen, and the v4→v5
+migration test still has not run against a real SQLCipher file. The recording
+fix is pinned at the ViewModel contract by unit tests, not by watching a take
+run.
+
+---
+
 ## [Unreleased] — 2026-09-22 Security/perf/navigation hardening pass (`feat/hardening-pass`)
 
 ### Security

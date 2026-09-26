@@ -3,6 +3,198 @@
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).
 ---
 
+## 2026-09-26 — Diary audit follow-up (branch `feat/stitch-timeline-diary`)
+
+A read-through of the merged Diary against the Stitch reference screens turned up
+three defects and one missing design, all now fixed. No schema change, no new
+dependency, no network, no permission change.
+
+### 1. The voice-note timer never moved
+`AudioRecorder.tick()` carries the contract "advance the elapsed-time reading.
+Driven by the UI while recording", and `DiaryEditorViewModel.tickRecording()`
+existed to call it — but nothing did. `DiaryVoiceNoteRow` reads
+`elapsedMillis` and `amplitude` from `state.recording`, and that field was only
+written by `start()` (0 ms, amplitude 0) and by `stop()`. A take therefore
+displayed `0:00 Recording…` and a motionless level dot for its entire length: the
+UI was presenting a live measurement it never received.
+
+`DiaryEditorAttachments` now polls while a take runs. The effect is keyed on
+`state.recording is RecordingState.Recording`, so the loop begins with the take
+and is cancelled the moment it ends; `while (isActive)` tears it down with the
+composition even if a stop is missed. Poll interval is 100 ms — fast enough that
+`m:ss` does not visibly jump and the level dot smooths rather than strobes, and
+`MediaRecorder.maxAmplitude` is cheap enough to read at that rate.
+
+### 2. The save confirmation could not do what the design asks of it
+The Stitch `saved_confirmation.html` screen is built around two actions: *View
+memory* and *Add another memory*. The implementation was a 1.4 s auto-dismissing
+toast, which structurally cannot offer either.
+
+It is now a scrim plus a paper card carrying the two full-width pill actions. The
+card's copy is derived from the stored row, not from the save event, so:
+
+- a back-dated memory confirms the day it was actually filed under;
+- an edit confirms the minute it kept, not the time the save happened.
+
+"Add another memory" calls `startNewEntry()`, which re-seeds the draft from the
+selected day — writing a second memory from a past day keeps it in that day.
+
+### 3. Confirmation state moved into the ViewModel
+It was a local `var showSaved` in `DiaryScreen`, which is exactly the kind of
+state that cannot be tested. `DiaryViewModel` now holds `savedEntryId` and
+derives `savedEntry` by resolving that id against the existing Room flow. Only
+the id is stored, so the sheet cannot present a stale copy of a row that has since
+changed. `selectDay`, `startNewEntry` and `startEdit` retire it; Back and a
+scrim tap dismiss it. Ten new JVM cases cover the sheet's lifecycle and the
+recording poll.
+
+### 4. Dead code, one item of which was also wrong
+Removed, after confirming repo-wide that nothing referenced them:
+`EntryMoodPill`, `DiaryMoodChip` and `ThemeKeywordChip` (superseded by
+`MoodSelector`'s hairline glyph row and by quiet inline tags), and
+`DiaryEditorViewModel.recordingState` / `playbackState`.
+
+`DiaryEditorViewModel.startAnother()` is deleted too, and it was the interesting
+one: unused, and hard-coded `today()` + `nowMinutesOfDay()`, so had the
+confirmation called it, "add another memory" would have filed the new memory
+under today while the user sat reading a past day. `startNewEntry()` already
+does the right thing.
+
+### 5. Housekeeping
+`DiaryDetailScreen.kt` imported `LocationOn` and `Star` twice each.
+
+### Verification
+Run offline against the Gradle 8.9 install at `/opt/gradle-8.9/bin/gradle`
+(the repository has no `gradlew` checked in):
+
+- `:app:compileDebugKotlin` — pass
+- `:app:testDebugUnitTest` — **157 tests, 0 failures** (was 147)
+- `:app:lintDebug` — 0 errors; 8 pre-existing issues, none in `ui/diary`
+- `:app:assembleDebug` — pass (42.5 MB debug APK)
+- `:app:assembleDebugAndroidTest` — pass
+
+**Still not verified:** this sandbox has no emulator, device or AVD. The
+confirmation sheet and the recording poll have not been viewed on a screen, and
+the v4→v5 migration test still has not run against a real SQLCipher file. The
+recording fix is pinned at the ViewModel contract by unit tests, not by watching
+a take run.
+
+---
+
+## 2026-09-26 — Diary rebuilt on real data (branch `feat/stitch-timeline-diary`)
+
+Turns the Diary from a visual mock-up into a working feature. Every attachment
+is a real on-device artifact and every derived number is computed from stored
+state — no sample entries, no generated weather, no network.
+
+### Data / schema
+- **Room v4 → v5** (`AppDatabase.MIGRATION_4_5`) adds a single column,
+  `diary_entries.isFavorite INTEGER NOT NULL DEFAULT 0`. Additive and
+  reversible-by-rollback only; no existing column is dropped or retyped, so no
+  user data is rewritten. Exported as `schemas/…/5.json`.
+- Photos, voice notes and the captured place were **already** storable: the
+  `attachmentsJson` column existed since v1 and was simply never written to.
+  `DiaryAttachment` (`domain/model/`) is a sealed, `kotlinx.serialization`
+  polymorphic type — `Photo`, `VoiceNote`, `Place` — persisted in that column
+  under a stable lowercase `kind` discriminator. `DiaryAttachments` encodes,
+  decodes and groups them. Decoding is deliberately **total**: null, blank or
+  corrupt payloads degrade to "no attachments" rather than throwing, so one bad
+  row can never take down the list. Unknown keys are ignored, so a row written by
+  a future build still reads.
+- `DiaryRepository` gained `toggleFavorite`/`setFavorite`,
+  `removeAttachment(id, filePath)` and media lifecycle handling. `updateEntry`
+  deletes files that the new attachment set no longer references, and re-reads
+  the row first so a favourite toggled elsewhere is never clobbered. `delete`
+  removes the entry's photos and audio too, so no orphans are left behind.
+
+### Composer (`ui/diary/DiaryEditor.kt`, `DiaryEditorViewModel.kt`)
+- The bottom sheet was **deleted** and replaced by a full-screen composer. It is
+  **not a navigation route**: there is no `Screen.DiaryEditor`. Both the day
+  list and the detail screen own the composer as an overlay (`showEditor`), so
+  Back closes a draft in place and never leaves a half-written memory on the
+  navigation stack.
+- `DiaryEditorViewModel` owns the draft, the captured minute, and the write, and
+  reports commits through a monotonic `saveCount` rather than a boolean — saving
+  the *same* memory twice is two events, and keying a one-shot UI effect on the
+  id would swallow the second. The list screen shows the "Saved" confirmation and
+  closes the composer; the detail screen closes it and leaves the updated entry
+  in place.
+- Title, body with a live character counter, 5-mood picker, tag editor, and a
+  date/time picker. Saving requires a non-blank body.
+- **Save cannot race the load.** Opening an existing memory reads the row
+  asynchronously, and until it lands the draft has no id — so `canSave` is false
+  while `isLoading` is true. Without that gate, a fast typist could save before
+  the read completed and *insert a duplicate* instead of updating. A monotonic
+  `loadToken` likewise drops a stale read that a newer open has overtaken.
+- **Photos** — Android Photo Picker (`PickVisualMedia`), so no storage or
+  media permission is needed. Each pick is copied into app-private storage so
+  the attachment survives the source being deleted.
+- **Voice notes** — real `MediaRecorder` (`DiaryAudioRecorder`) to AAC/M4A in
+  app-private storage with the platform-measured duration, played back with
+  `MediaPlayer` (`DiaryAudioPlayer`). Leaving the screen cancels an in-flight
+  recording and releases the decoder; a file that has vanished from disk
+  reports a "no longer on this device" state rather than failing silently.
+- **Location** — `DeviceLocationProvider` uses only platform `LocationManager`
+  and `Geocoder` (no Play Services, no third-party SDK). Coarse is enough for a
+  place name; GPS is only read when fine access is granted. A geocoder backend
+  that is absent or slow yields empty coordinates-only, never an invented city.
+- **Weather** — `WeatherRepository` models `DiaryWeather` as
+  `Recorded` / `Unavailable(reason)`. This build has **no permitted weather
+  source** (no `INTERNET` permission, so no HTTP client is possible), so the row
+  honestly reports unavailable. The branch is drawn so a future on-device source
+  can be added without touching the UI.
+
+### List & detail
+- `DiaryScreen` renders the selected day from `observeForDay`, with a week
+  strip, a timeline spine, and correct loading/empty states. Timestamps are
+  formatted from the stored `timeMinutes`.
+- `DiaryDetailScreen` rewritten: photos, playable voice note, tags, place,
+  weather, and the real derived metadata (full date, time, word count computed
+  from the stored body so it cannot drift). Actions: **Share** (system chooser;
+  text plus a one-shot `FileProvider` read grant for the first photo),
+  **Copy** (clipboard), **Edit**, **Delete** (confirmation dialog, then real
+  deletion), and **Favourite**. Photos and the voice note can be removed in
+  place, without opening the composer.
+
+### Permissions & privacy
+- Manifest adds `RECORD_AUDIO`, `ACCESS_COARSE_LOCATION` and
+  `ACCESS_FINE_LOCATION`, plus non-required `microphone`/`location` features.
+  `CAMERA` is deliberately **not** declared. `INTERNET` remains absent.
+- Every prompt is user-initiated: the OS dialog only ever appears in response to
+  tapping "Add location" / recording. Reuse of the existing
+  `PermissionManager` semantics means a permission the user has already denied
+  twice routes to system Settings instead of silently no-op'ing; both the
+  location and mic actions re-read the live OS grant at the point of use, so a
+  grant made in Settings is picked up on return.
+
+### Testing
+- `AppDatabaseSchemaTest` — three new v5 assertions: `isFavorite` exists, every
+  pre-v5 column survives, and `attachmentsJson` is still there.
+- `AppDatabaseMigrationTest` — `migrate4To5_addsIsFavoriteAndKeepsExistingEntries`
+  seeds a real v4 row, migrates, and asserts the row survives, the content is
+  byte-identical, `isFavorite` is backfilled to `0` (not NULL), and the new
+  column is writable.
+- New `DiaryAttachmentsTest` — 8 tests over the codec: round-trip of all three
+  kinds, the stable `kind` tag, empty/null handling, corrupt-payload
+  degradation, forward-compatibility with unknown fields, the accessors, and a
+  place with no resolved name.
+- `DeviceLocationProvider` satisfies lint's `MissingPermission` with an explicit
+  per-provider grant check plus explicit `SecurityException` /
+  `IllegalArgumentException` handling.
+
+### Verified
+`testDebugUnitTest` (119 tests, 0 failures), `assembleDebug`,
+`assembleDebugAndroidTest` and `lintDebug` (0 errors) all pass, offline.
+
+### Remaining
+- `migrate4To5_addsIsFavoriteAndKeepsExistingEntries` is written but has **not**
+  been executed: it is an instrumentation test and no emulator or device is
+  attached to this environment. Run
+  `:app:connectedDebugAndroidTest` before release.
+- Weather stays unavailable until an on-device source exists.
+- Geocoding is best-effort; on devices without a geocoder backend the place
+  shows as coordinates.
+
 ---
 
 ## 2026-09-26 — Diary date strip, honest timestamps, startup fix (branch `feature/diary-date-strip-and-startup`)
@@ -55,7 +247,9 @@ at 8:24 — the time silently moved, and there was no way to see it before commi
 - The minute is now captured in `startNewEntry()` / `startEdit()` and reused on save.
   `startEdit` captures the entry's *existing* `timeMinutes`, so re-saving an edited
   memory can never move it in the day's timeline.
-- `editorTimeMinutes` is exposed as state and rendered in `DiaryEditor` under the date
+- `timeMinutes` is captured once when the composer **opens** (from an injected
+  clock, so the rule is testable on a JVM) and is rendered in `DiaryEditor` under
+  the date
   with a small clock glyph (`Written at 8:04 AM` when editing), so the value that will
   be stored is visible before the save, and it does not drift while the user types.
 - No schema change: `DiaryEntity.timeMinutes` and `createdAt` already existed.

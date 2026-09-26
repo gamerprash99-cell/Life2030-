@@ -21,7 +21,7 @@ import java.io.File
 class AppDatabaseSchemaTest {
 
     private fun readSchemaJson(): String {
-        val versions = listOf("4.json", "3.json")
+        val versions = listOf("5.json", "4.json", "3.json")
         for (version in versions) {
             val candidates = listOf(
                 // Room schemaLocation is "$projectDir/schemas"; unit tests run with the
@@ -32,8 +32,20 @@ class AppDatabaseSchemaTest {
             val hit = candidates.firstOrNull { it.exists() && it.isFile }
             if (hit != null) return hit.readText()
         }
-        error("Can't find an exported Room schema (4.json or 3.json); run an assemble first.")
+        error("Can't find an exported Room schema (5.json, 4.json or 3.json); run an assemble first.")
     }
+
+    private fun createSqlFor(table: String, json: String = readSchemaJson()): String =
+        Regex("\"tableName\": \"$table\"")
+            .find(json)
+            ?.let { match ->
+                val tail = json.substring(match.range.last)
+                Regex("\"createSql\": \"([^\"]*)\"").find(tail)?.groupValues?.get(1)
+            }
+            ?: error("can't find createSql for table '$table' in exported schema")
+
+    private fun columnsOf(createSql: String): Set<String> =
+        Regex("`([a-zA-Z_]+)`").findAll(createSql).map { it.groupValues[1] }.toSet()
 
     private fun tableNames(): Set<String> {
         val json = readSchemaJson()
@@ -75,16 +87,7 @@ class AppDatabaseSchemaTest {
 
     @Test
     fun schemaV4_remindersTableHasFullColumnSet() {
-        val json = readSchemaJson()
-        // Room writes entity CREATE statements with a `${TABLE_NAME}` placeholder;
-        // grab the reminders statement specifically (its body contains entityType).
-        val remindersCreateSql = Regex("\"createSql\": \"CREATE TABLE[^\"]*entityType[^\"]*\"")
-            .find(json)?.value
-            ?: error("can't find reminders createSql in exported schema")
-        val columns = Regex("`([a-zA-Z_]+)`")
-            .findAll(remindersCreateSql)
-            .map { it.groupValues[1] }
-            .toSet()
+        val columns = columnsOf(createSqlFor("reminders"))
         val expected = setOf(
             "id", "entityType", "entityId", "title", "nextTriggerAtEpochMillis",
             "repeatType", "repeatDaysCsv", "enabled", "soundEnabled", "vibrationEnabled",
@@ -93,5 +96,51 @@ class AppDatabaseSchemaTest {
         for (column in expected) {
             assertTrue("v4 reminders table must define column '$column' (found: $columns)", column in columns)
         }
+    }
+
+    /**
+     * v5 adds the diary favourites flag. This is the guard for the v4 → v5
+     * migration: if the column is ever dropped or made nullable, an existing
+     * install would fail to open, so assert it here as a plain JVM test.
+     */
+    @Test
+    fun schemaV5_diaryEntriesAddsIsFavorite() {
+        val columns = columnsOf(createSqlFor("diary_entries"))
+        assertTrue(
+            "v5 diary_entries must define the 'isFavorite' column (found: $columns)",
+            "isFavorite" in columns
+        )
+    }
+
+    /**
+     * The migration is additive and has to leave every previously stored field
+     * intact — a favourite flag must not cost us the body, mood, tags or the
+     * attachments payload (which is where photos, audio, place and weather now
+     * live, so the old weather* columns are intentionally not expected here).
+     */
+    @Test
+    fun schemaV5_diaryEntriesKeepsEveryEarlierColumn() {
+        val columns = columnsOf(createSqlFor("diary_entries"))
+        val expected = setOf(
+            "id", "dateEpochDay", "timeMinutes", "mood", "title", "content",
+            "tagsCsv", "aiGenerated", "isReviewed", "attachmentsJson",
+            "createdAt", "updatedAt"
+        )
+        for (column in expected) {
+            assertTrue(
+                "v5 diary_entries must still define column '$column' (found: $columns)",
+                column in columns
+            )
+        }
+    }
+
+    /** Every field the Diary feature persists in `attachmentsJson` must still be an entity column. */
+    @Test
+    fun schemaV5_diaryEntriesStillStoresAttachmentsPayload() {
+        val columns = columnsOf(createSqlFor("diary_entries"))
+        assertTrue(
+            "diary entries must still have the attachmentsJson column (found: $columns)",
+            "attachmentsJson" in columns
+        )
     }
 }

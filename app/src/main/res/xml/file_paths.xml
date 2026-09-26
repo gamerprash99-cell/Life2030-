@@ -2,4 +2,15 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Backup JSON exports live under files/ directly (see BackupRepository) -->
     <files-path name="backups" path="." />
+
+    <!--
+        Diary media. Both directories are created by MediaStorage under the
+        app's private files dir. They are declared here so the Share action on
+        a diary entry can hand a *single* photo or voice note to another app via
+        a content:// URI with a one-shot read grant, instead of exposing the
+        whole files/ tree. The other-app grant is created explicitly by the user
+        tapping Share and is not persisted.
+    -->
+    <files-path name="diary-photos" path="diary-photos/" />
+    <files-path name="diary-audio" path="diary-audio/" />
 </paths>
