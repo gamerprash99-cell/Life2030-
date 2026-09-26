@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 
 /** Full-page view of one diary entry. */
 class DiaryDetailViewModel(
@@ -67,13 +68,40 @@ class DiaryDetailViewModel(
 
     private val _showEditor = MutableStateFlow(false)
     val showEditor: StateFlow<Boolean> = _showEditor
+    private val _editorPhotoUris = MutableStateFlow<List<String>>(emptyList())
+    val editorPhotoUris: StateFlow<List<String>> = _editorPhotoUris
+    private val _editorTags = MutableStateFlow<List<String>>(emptyList())
+    val editorTags: StateFlow<List<String>> = _editorTags
+    private val _editorAudioUri = MutableStateFlow<String?>(null)
+    val editorAudioUri: StateFlow<String?> = _editorAudioUri
+    private val _editorLocation = MutableStateFlow<String?>(null)
+    val editorLocation: StateFlow<String?> = _editorLocation
+    private val _editorWeather = MutableStateFlow<String?>(null)
+    val editorWeather: StateFlow<String?> = _editorWeather
 
     private val _saving = MutableStateFlow(false)
     val saving: StateFlow<Boolean> = _saving
 
-    fun startEdit() { _showEditor.value = true }
+    fun startEdit() {
+        val current = entry.value ?: return
+        val attachments = decode(current.attachmentsJson)
+        _editorPhotoUris.value = attachments.filterNot { it.startsWith("audio:") || it.startsWith("meta:") }
+        _editorAudioUri.value = attachments.firstOrNull { it.startsWith("audio:") }?.removePrefix("audio:")
+        _editorLocation.value = attachments.firstOrNull { it.startsWith("meta:location=") }?.removePrefix("meta:location=")
+        _editorWeather.value = attachments.firstOrNull { it.startsWith("meta:weather=") }?.removePrefix("meta:weather=")
+        _editorTags.value = splitTags(current.tagsCsv)
+        _showEditor.value = true
+    }
 
     fun dismissEditor() { _showEditor.value = false }
+
+    fun updateEditorTime(minutes: Int) = Unit
+    fun setEditorPhotos(value: List<String>) { _editorPhotoUris.value = value.distinct().take(12) }
+    fun removeEditorPhoto(value: String) { _editorPhotoUris.value = _editorPhotoUris.value.filterNot { it == value } }
+    fun setEditorTags(value: List<String>) { _editorTags.value = value.map { it.trim() }.filter { it.isNotBlank() }.distinct().take(8) }
+    fun setEditorAudio(value: String?) { _editorAudioUri.value = value }
+    fun setEditorLocation(value: String?) { _editorLocation.value = value }
+    fun setEditorWeather(value: String?) { _editorWeather.value = value }
 
     fun save(content: String, mood: String?) {
         if (content.isBlank() || _saving.value) return
@@ -83,7 +111,7 @@ class DiaryDetailViewModel(
                 val current = entry.value ?: return@launch
                 // updateEntry copies the stored row, so the id, day and time the
                 // memory was written at are preserved.
-                diaryRepository.updateEntry(current.id, current.title, content, mood, splitTags(current.tagsCsv))
+                diaryRepository.updateEntry(current.id, current.title, content, mood, _editorTags.value, Json.encodeToString(editorAttachments()))
                 _showEditor.value = false
             } finally {
                 _saving.value = false
@@ -94,6 +122,13 @@ class DiaryDetailViewModel(
     fun delete(id: String) = viewModelScope.launch { diaryRepository.delete(id) }
 
     private fun splitTags(csv: String): List<String> = csv.split(',').map { it.trim() }.filter { it.isNotBlank() }
+    private fun decode(json: String): List<String> = runCatching { Json.decodeFromString<List<String>>(json) }.getOrDefault(emptyList())
+    private fun editorAttachments(): List<String> = buildList {
+        addAll(_editorPhotoUris.value)
+        _editorAudioUri.value?.takeIf { it.isNotBlank() }?.let { add("audio:" + it) }
+        _editorLocation.value?.takeIf { it.isNotBlank() }?.let { add("meta:location=" + it) }
+        _editorWeather.value?.takeIf { it.isNotBlank() }?.let { add("meta:weather=" + it) }
+    }
 }
 
 /**
