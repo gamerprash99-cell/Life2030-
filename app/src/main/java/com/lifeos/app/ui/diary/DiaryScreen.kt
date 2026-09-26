@@ -1,8 +1,4 @@
-package com.lifeos.app.ui.diary
-
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -22,16 +19,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
-import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.LifeOSSpacing
+
 
 /**
  * LifeOS Diary — a memory timeline, not a notes list.
@@ -51,9 +46,7 @@ fun DiaryScreen(
 ) {
     val locator = LocalServiceLocator.current
     val viewModel: DiaryViewModel = viewModel(
-        factory = LambdaViewModelFactory {
-            DiaryViewModel(locator.diaryRepository)
-        }
+        factory = LambdaViewModelFactory { DiaryViewModel(locator.diaryRepository) }
     )
     val memories by viewModel.memoriesForSelectedDay.collectAsState()
     val selectedDay by viewModel.selectedDay.collectAsState()
@@ -64,8 +57,6 @@ fun DiaryScreen(
     val editorTimeMinutes by viewModel.editorTimeMinutes.collectAsState()
     val saving by viewModel.saving.collectAsState()
 
-    // Existing Diary data stays Room-backed. This layout only determines how the
-    // current state is presented and lets Compose measure every surface.
     BackHandler(enabled = showEditor, onBack = viewModel::dismissEditor)
     BackHandler(enabled = !showEditor, onBack = onBack)
 
@@ -123,9 +114,9 @@ fun DiaryScreen(
                 }
             }
 
-            // Responsive placement: the button is anchored to the measured content
-            // area and the app's safe bottom spacing, never to a phone-specific y.
-            androidx.compose.material3.FloatingActionButton(
+            // Anchored to the measured content box, then inset from the bottom
+            // by the shared safe-content clearance. No phone-specific coordinates.
+            FloatingActionButton(
                 onClick = viewModel::startNewEntry,
                 containerColor = DiaryInkViolet,
                 contentColor = MaterialTheme.colorScheme.background,
@@ -165,6 +156,7 @@ fun DiaryScreen(
         )
     }
 }
+
 
 /** The "+ Memory" action that closes the day — inline, never floating. */
 @Composable
