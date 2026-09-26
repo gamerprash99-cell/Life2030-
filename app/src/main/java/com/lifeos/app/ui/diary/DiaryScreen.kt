@@ -26,6 +26,14 @@ import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.LifeOSSpacing
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 
 
 /**
@@ -56,6 +64,16 @@ fun DiaryScreen(
     val entryToDelete by viewModel.entryToDelete.collectAsState()
     val editorTimeMinutes by viewModel.editorTimeMinutes.collectAsState()
     val saving by viewModel.saving.collectAsState()
+    val saveConfirmation by viewModel.saveConfirmation.collectAsState()
+    var showSaved by remember { mutableStateOf(false) }
+
+    LaunchedEffect(saveConfirmation) {
+        if (saveConfirmation == 0) return@LaunchedEffect
+        showSaved = true
+        delay(1400)
+        showSaved = false
+        viewModel.consumeSaveConfirmation()
+    }
 
     BackHandler(enabled = showEditor, onBack = viewModel::dismissEditor)
     BackHandler(enabled = !showEditor, onBack = onBack)
@@ -128,6 +146,15 @@ fun DiaryScreen(
                     )
             ) {
                 Text("+", style = MaterialTheme.typography.headlineSmall)
+            }
+
+            AnimatedVisibility(
+                visible = showSaved && !showEditor,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                SavedMemoryToast()
             }
 
             DiaryEditorOverlay(visible = showEditor) {
@@ -210,6 +237,24 @@ private fun SavedMemoryToast() {
                 color = MaterialTheme.colorScheme.background,
                 style = MaterialTheme.typography.labelLarge
             )
+        }
+    }
+}
+
+
+@Composable
+private fun SavedMemoryToast() {
+    Box(
+        modifier = Modifier
+            .padding(top = LifeOSSpacing.compactPadding)
+            .clip(CircleShape)
+            .background(DiaryInkViolet)
+            .padding(horizontal = 18.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("✓", color = MaterialTheme.colorScheme.background, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.width(7.dp))
+            Text("Memory saved", color = MaterialTheme.colorScheme.background, style = MaterialTheme.typography.labelLarge)
         }
     }
 }
