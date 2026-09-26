@@ -3,6 +3,8 @@ package com.lifeos.app.ui.diary
 import android.Manifest
 import android.app.TimePickerDialog
 import android.media.MediaRecorder
+import android.location.LocationManager
+import android.os.Build
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -106,6 +108,8 @@ fun DiaryEditor(
     photoUris: List<String> = emptyList(),
     tags: List<String> = emptyList(),
     audioUri: String? = null,
+    location: String? = null,
+    weather: String? = null,
     saving: Boolean,
     onDismiss: () -> Unit,
     onSave: (content: String, mood: String?) -> Unit,
@@ -114,7 +118,9 @@ fun DiaryEditor(
     onPhotosChange: (List<String>) -> Unit = {},
     onRemovePhoto: (String) -> Unit = {},
     onTagsChange: (List<String>) -> Unit = {},
-    onAudioChange: (String?) -> Unit = {}
+    onAudioChange: (String?) -> Unit = {},
+    onLocationChange: (String?) -> Unit = {},
+    onWeatherChange: (String?) -> Unit = {}
 ) {
     val isEditing = editing != null
     var content by rememberSaveable(editing?.id) { mutableStateOf(editing?.content.orEmpty()) }
@@ -125,10 +131,46 @@ fun DiaryEditor(
     val keyboardController = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
     val audioPermission = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
+    val locationPermission = rememberPermissionState(Manifest.permission.ACCESS_COARSE_LOCATION)
+    var pendingLocation by remember { mutableStateOf(false) }
+    var showWeather by remember { mutableStateOf(false) }
+    var weatherDraft by remember(weather) { mutableStateOf(weather ?: "") }
     var recording by remember { mutableStateOf(false) }
     var pendingRecord by remember { mutableStateOf(false) }
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
+
+
+    fun captureLocation() {
+        if (!locationPermission.isGranted) return
+        val manager = context.getSystemService(LocationManager::class.java) ?: return
+        val provider = when {
+            manager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
+            manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
+            else -> null
+        } ?: return
+        fun use(location: android.location.Location?) {
+            if (location != null) {
+                onLocationChange("Current location • %.5f, %.5f".format(location.latitude, location.longitude))
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            runCatching {
+                manager.getCurrentLocation(provider, null, context.mainExecutor) { use(it) }
+            }.onFailure {
+                use(runCatching { manager.getLastKnownLocation(provider) }.getOrNull())
+            }
+        } else {
+            use(runCatching { manager.getLastKnownLocation(provider) }.getOrNull())
+        }
+    }
+
+    LaunchedEffect(locationPermission.isGranted, pendingLocation) {
+        if (locationPermission.isGranted && pendingLocation) {
+            pendingLocation = false
+            captureLocation()
+        }
+    }
 
     fun startRecording() {
         if (!audioPermission.isGranted || recording) return
@@ -342,8 +384,14 @@ fun DiaryEditor(
                 EditorMediaToolbar(
                     onImages = { imagePicker.launch(arrayOf("image/*")) },
                     onCamera = { cameraPicker.launch(null) },
-                    onLocation = { },
-                    onWeather = { },
+                    onLocation = {
+                        if (locationPermission.isGranted) captureLocation()
+                        else {
+                            pendingLocation = true
+                            locationPermission.request()
+                        }
+                    },
+                    onWeather = { showWeather = true },
                     onTags = { showTags = true }
                 )
 
@@ -385,6 +433,35 @@ fun DiaryEditor(
                 FilledSaveAction(enabled = canSave) { onSave(content, mood) }
             }
         }
+    }
+
+
+    if (showWeather) {
+        AlertDialog(
+            onDismissRequest = { showWeather = false },
+            title = { Text("Add weather") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Weather is stored locally so Diary never sends your location or diary data to a weather service.")
+                    OutlinedTextField(
+                        value = weatherDraft,
+                        onValueChange = { if (it.length <= 40) weatherDraft = it },
+                        label = { Text("Condition and temperature") },
+                        placeholder = { Text("Sunny • 28°C") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onWeatherChange(weatherDraft.trim().takeIf { it.isNotBlank() })
+                    showWeather = false
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showWeather = false }) { Text("Cancel") }
+            }
+        )
     }
 
     if (showTags) {
