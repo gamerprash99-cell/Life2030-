@@ -54,6 +54,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 /** Full-page view of one diary entry. */
 class DiaryDetailViewModel(
@@ -67,13 +70,43 @@ class DiaryDetailViewModel(
 
     private val _showEditor = MutableStateFlow(false)
     val showEditor: StateFlow<Boolean> = _showEditor
+    private val _editorTimeMinutes = MutableStateFlow<Int?>(null)
+    val editorTimeMinutes: StateFlow<Int?> = _editorTimeMinutes
+    private val _editorPhotoUris = MutableStateFlow<List<String>>(emptyList())
+    val editorPhotoUris: StateFlow<List<String>> = _editorPhotoUris
+    private val _editorTags = MutableStateFlow<List<String>>(emptyList())
+    val editorTags: StateFlow<List<String>> = _editorTags
+    private val _editorAudioUri = MutableStateFlow<String?>(null)
+    val editorAudioUri: StateFlow<String?> = _editorAudioUri
+    private val _editorLocation = MutableStateFlow<String?>(null)
+    val editorLocation: StateFlow<String?> = _editorLocation
+    private val _editorWeather = MutableStateFlow<String?>(null)
+    val editorWeather: StateFlow<String?> = _editorWeather
 
     private val _saving = MutableStateFlow(false)
     val saving: StateFlow<Boolean> = _saving
 
-    fun startEdit() { _showEditor.value = true }
+    fun startEdit() {
+        val current = entry.value ?: return
+        val attachments = decode(current.attachmentsJson)
+        _editorTimeMinutes.value = current.timeMinutes
+        _editorPhotoUris.value = attachments.filterNot { it.startsWith("audio:") || it.startsWith("meta:") }
+        _editorAudioUri.value = attachments.firstOrNull { it.startsWith("audio:") }?.removePrefix("audio:")
+        _editorLocation.value = attachments.firstOrNull { it.startsWith("meta:location=") }?.removePrefix("meta:location=")
+        _editorWeather.value = attachments.firstOrNull { it.startsWith("meta:weather=") }?.removePrefix("meta:weather=")
+        _editorTags.value = splitTags(current.tagsCsv)
+        _showEditor.value = true
+    }
 
     fun dismissEditor() { _showEditor.value = false }
+
+    fun updateEditorTime(minutes: Int) { _editorTimeMinutes.value = minutes.coerceIn(0, 1439) }
+    fun setEditorPhotos(value: List<String>) { _editorPhotoUris.value = value.distinct().take(12) }
+    fun removeEditorPhoto(value: String) { _editorPhotoUris.value = _editorPhotoUris.value.filterNot { it == value } }
+    fun setEditorTags(value: List<String>) { _editorTags.value = value.map { it.trim() }.filter { it.isNotBlank() }.distinct().take(8) }
+    fun setEditorAudio(value: String?) { _editorAudioUri.value = value }
+    fun setEditorLocation(value: String?) { _editorLocation.value = value }
+    fun setEditorWeather(value: String?) { _editorWeather.value = value }
 
     fun save(content: String, mood: String?) {
         if (content.isBlank() || _saving.value) return
@@ -83,7 +116,7 @@ class DiaryDetailViewModel(
                 val current = entry.value ?: return@launch
                 // updateEntry copies the stored row, so the id, day and time the
                 // memory was written at are preserved.
-                diaryRepository.updateEntry(current.id, current.title, content, mood, splitTags(current.tagsCsv))
+                diaryRepository.updateEntry(current.id, current.title, content, mood, _editorTags.value, Json.encodeToString(ListSerializer(String.serializer()), editorAttachments()), _editorTimeMinutes.value)
                 _showEditor.value = false
             } finally {
                 _saving.value = false
@@ -94,6 +127,13 @@ class DiaryDetailViewModel(
     fun delete(id: String) = viewModelScope.launch { diaryRepository.delete(id) }
 
     private fun splitTags(csv: String): List<String> = csv.split(',').map { it.trim() }.filter { it.isNotBlank() }
+    private fun decode(json: String): List<String> = runCatching { Json.decodeFromString<List<String>>(json) }.getOrDefault(emptyList())
+    private fun editorAttachments(): List<String> = buildList {
+        addAll(_editorPhotoUris.value)
+        _editorAudioUri.value?.takeIf { it.isNotBlank() }?.let { add("audio:" + it) }
+        _editorLocation.value?.takeIf { it.isNotBlank() }?.let { add("meta:location=" + it) }
+        _editorWeather.value?.takeIf { it.isNotBlank() }?.let { add("meta:weather=" + it) }
+    }
 }
 
 /**
@@ -112,6 +152,12 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
     )
     val entry by viewModel.entry.collectAsState()
     val showEditor by viewModel.showEditor.collectAsState()
+    val editorTimeMinutes by viewModel.editorTimeMinutes.collectAsState()
+    val editorPhotoUris by viewModel.editorPhotoUris.collectAsState()
+    val editorTags by viewModel.editorTags.collectAsState()
+    val editorAudioUri by viewModel.editorAudioUri.collectAsState()
+    val editorLocation by viewModel.editorLocation.collectAsState()
+    val editorWeather by viewModel.editorWeather.collectAsState()
     val saving by viewModel.saving.collectAsState()
     var confirmDelete by remember { mutableStateOf(false) }
 
@@ -244,10 +290,22 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                     editing = current,
                     // This screen only ever edits an existing memory, so the time
                     // shown is the stored one and the edit keeps it.
-                    timeMinutes = current.timeMinutes,
+                    timeMinutes = editorTimeMinutes,
+                    photoUris = editorPhotoUris,
+                    tags = editorTags,
+                    audioUri = editorAudioUri,
+                    location = editorLocation,
+                    weather = editorWeather,
                     saving = saving,
                     onDismiss = viewModel::dismissEditor,
                     onSave = viewModel::save,
+                    onTimeChange = viewModel::updateEditorTime,
+                    onPhotosChange = viewModel::setEditorPhotos,
+                    onRemovePhoto = viewModel::removeEditorPhoto,
+                    onTagsChange = viewModel::setEditorTags,
+                    onAudioChange = viewModel::setEditorAudio,
+                    onLocationChange = viewModel::setEditorLocation,
+                    onWeatherChange = viewModel::setEditorWeather,
                     onDelete = { viewModel.dismissEditor(); confirmDelete = true }
                 )
             }

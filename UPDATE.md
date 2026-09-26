@@ -1,3 +1,34 @@
+## 2026-09-26 — Diary Phase 2 completion pass
+
+- Added **point-of-use location capture** to the Memory Editor. The editor requests coarse location only when the user taps the location action, then reads the device's current/last-known Android location locally. Coordinates are stored inside the existing Diary `attachmentsJson`; no location is sent to a remote service.
+- Added **offline-safe weather capture**. Because LifeOS must not upload location/diary data to a cloud weather API, the weather action now opens a local condition/temperature field (for example `Sunny • 28°C`) and persists exactly what the user records. No fake automatic weather value is generated.
+- Added edit-path preservation for location/weather/photos/audio/tags in `DiaryDetailScreen.kt` and its ViewModel.
+- Added `ACCESS_COARSE_LOCATION` + `ACCESS_FINE_LOCATION` to the manifest; permission remains point-of-use.
+- Fixed new-entry attachment persistence so photos + voice + local metadata all use the same existing `attachmentsJson` path.
+- Created PR #25 so the existing GitHub Actions Android CI runs against the Phase 2 branch. Run **182** is currently executing; build success is not claimed until the workflow completes.
+- Device verification is still a separate boundary: CI currently builds/tests APKs but does not provide a physical Android device or emulator for screenshot/touch/permission smoke testing.
+
+## 2026-09-26 — Diary Phase 2: New Memory Editor
+
+- **Reference screen:** rebuilt `ui/diary/DiaryEditor.kt` around the supplied editor reference: close action, lavender Save memory pill, TODAY/date masthead, moon decoration, editable time pill, 8-mood selector, rounded writing card with 1000-character limit, media toolbar, optional photo/tag strips, Add voice affordance, and bottom Save memory action.
+- **Working editor state:** time changes through the platform TimePickerDialog; moods continue to use the existing persisted vocabulary; tags are editable and saved; photos can be selected from Android's system document/photo picker and are stored as persisted URI strings in the existing `attachmentsJson` field; camera capture uses the platform camera intent and stores a local JPEG in app-private Diary storage.
+- **Voice:** Add voice requests `RECORD_AUDIO` only when the user taps the action for the first time. Recording uses local `MediaRecorder`, writes to app-private `diary/audio/`, and stores the resulting URI in the existing `attachmentsJson` list with an `audio:` prefix. Back/dispose stops and discards an in-progress recording.
+- **Database:** no schema version change and no migration. `DiaryRepository.createEntry/updateEntry` now accept/preserve `attachmentsJson` as an additive optional parameter, so existing rows remain untouched.
+- **Responsive/insets:** editor uses measured Compose layout, shared spacing, WindowInsets with IME/navigation union, and no phone-specific coordinates. Text and controls remain accessible when the keyboard is visible.
+- **Privacy:** no network/cloud upload. Image selection uses Android's system picker rather than requesting broad storage permission. Microphone permission is point-of-use only.
+- **Remaining reference actions:** location and weather icons are visually present but their data capture is intentionally not invented in Phase 2; those flows need the existing/current Location/Weather architecture to be wired in a later phase.
+- **Verification:** source and GitHub branch contents were re-read after edits. A fresh Android/Gradle build and device screenshot pass could not be executed in the connected GitHub environment, so no build-pass claim is made.
+
+
+## 2026-09-26 — Diary Phase 1 reference screen
+
+- **Screen 1 / empty Diary:** aligned the empty-day surface to the supplied reference: back + calendar controls, serif Today/date masthead, seven visible dates on normal phone widths, selected-day pill/dot state, large local journal illustration, "Your story starts here" hierarchy, and a single bottom-right purple capture FAB.
+- **Working interactions:** the calendar control now opens a bounded Material date picker for the existing one-year Diary history; selecting a valid day updates the existing DiaryViewModel selection. The FAB still opens the existing Room-backed Diary editor.
+- **Responsive:** date-cell width is derived from measured window width; very narrow windows fall back to five visible dates. Empty-state illustration size derives from available width/height and is clamped to safe bounds. No phone-specific x/y coordinates were introduced.
+- **Preserved:** Room schema, DiaryRepository/DAO path, navigation, editor overlay, delete/save behavior, offline-first design and existing populated-day timeline are unchanged.
+- **No new data/network dependency:** no schema migration, cloud/API call, telemetry, external asset or permission was added.
+- **Verification:** source changes committed on feature/diary-phase1-reference. Android build/device execution is not available through the connected GitHub environment, so no fresh build pass is claimed.
+
 # LifeOS — UPDATE
 
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).

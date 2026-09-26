@@ -19,7 +19,8 @@ class DiaryRepository(private val dao: DiaryDao) {
         tags: List<String>,
         dateEpochDay: Long,
         timeMinutes: Int,
-        aiGenerated: Boolean = false
+        aiGenerated: Boolean = false,
+        attachmentsJson: String = "[]"
     ): String {
         val id = IdGenerator.newId()
         val now = System.currentTimeMillis()
@@ -28,17 +29,31 @@ class DiaryRepository(private val dao: DiaryDao) {
                 id = id, title = title, content = content, mood = mood, tagsCsv = tags.joinToString(","),
                 dateEpochDay = dateEpochDay, timeMinutes = timeMinutes, aiGenerated = aiGenerated,
                 isReviewed = !aiGenerated, // Rule #8: AI drafts start unreviewed until the user confirms
+                attachmentsJson = attachmentsJson,
                 createdAt = now, updatedAt = now
             )
         )
         return id
     }
 
-    suspend fun updateEntry(id: String, title: String?, content: String, mood: String?, tags: List<String>) {
+    suspend fun updateEntry(
+        id: String,
+        title: String?,
+        content: String,
+        mood: String?,
+        tags: List<String>,
+        attachmentsJson: String? = null,
+        timeMinutes: Int? = null
+    ) {
         val existing = dao.getById(id) ?: return
         dao.upsert(
             existing.copy(
-                title = title, content = content, mood = mood, tagsCsv = tags.joinToString(","),
+                title = title,
+                content = content,
+                mood = mood,
+                tagsCsv = tags.joinToString(","),
+                timeMinutes = timeMinutes ?: existing.timeMinutes,
+                attachmentsJson = attachmentsJson ?: existing.attachmentsJson,
                 updatedAt = System.currentTimeMillis()
             )
         )

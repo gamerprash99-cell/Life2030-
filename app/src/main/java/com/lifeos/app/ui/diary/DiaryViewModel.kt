@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 /**
  * Diary screen state. Everything flows from `DiaryRepository.observeAll()` —
@@ -76,6 +79,16 @@ class DiaryViewModel(
     private var capturedTimeMinutes: Int? = null
 
     private val _editorTimeMinutes = MutableStateFlow<Int?>(null)
+    private val _editorPhotoUris = MutableStateFlow<List<String>>(emptyList())
+    val editorPhotoUris: StateFlow<List<String>> = _editorPhotoUris
+    private val _editorTags = MutableStateFlow<List<String>>(emptyList())
+    private val _editorAudioUri = MutableStateFlow<String?>(null)
+    val editorAudioUri: StateFlow<String?> = _editorAudioUri
+    private val _editorLocation = MutableStateFlow<String?>(null)
+    val editorLocation: StateFlow<String?> = _editorLocation
+    private val _editorWeather = MutableStateFlow<String?>(null)
+    val editorWeather: StateFlow<String?> = _editorWeather
+    val editorTags: StateFlow<List<String>> = _editorTags
     val editorTimeMinutes: StateFlow<Int?> = _editorTimeMinutes
 
     /**
@@ -93,6 +106,11 @@ class DiaryViewModel(
         _editingEntry.value = null
         capturedTimeMinutes = nowMinutes()
         _editorTimeMinutes.value = capturedTimeMinutes
+        _editorPhotoUris.value = emptyList()
+        _editorTags.value = emptyList()
+        _editorAudioUri.value = null
+        _editorLocation.value = null
+        _editorWeather.value = null
         _showEditor.value = true
     }
 
@@ -101,6 +119,13 @@ class DiaryViewModel(
         // An edit keeps the minute the memory was originally written at.
         capturedTimeMinutes = entry.timeMinutes
         _editorTimeMinutes.value = entry.timeMinutes
+        _editorPhotoUris.value = decodeStringList(entry.attachmentsJson)
+        val attachments = decodeStringList(entry.attachmentsJson)
+        _editorPhotoUris.value = attachments.filterNot { it.startsWith("audio:") || it.startsWith("meta:") }
+        _editorAudioUri.value = attachments.firstOrNull { it.startsWith("audio:") }?.removePrefix("audio:")
+        _editorLocation.value = attachments.firstOrNull { it.startsWith("meta:location=") }?.removePrefix("meta:location=")
+        _editorWeather.value = attachments.firstOrNull { it.startsWith("meta:weather=") }?.removePrefix("meta:weather=")
+        _editorTags.value = splitTags(entry.tagsCsv)
         _showEditor.value = true
     }
 
@@ -109,6 +134,19 @@ class DiaryViewModel(
         _editingEntry.value = null
         capturedTimeMinutes = null
         _editorTimeMinutes.value = null
+        _editorPhotoUris.value = emptyList()
+        _editorTags.value = emptyList()
+        _editorAudioUri.value = null
+        _editorLocation.value = null
+        _editorWeather.value = null
+    }
+
+    fun setEditorLocation(value: String?) {
+        _editorLocation.value = value
+    }
+
+    fun setEditorWeather(value: String?) {
+        _editorWeather.value = value
     }
 
     /**
@@ -119,6 +157,28 @@ class DiaryViewModel(
      * typing it. Edits keep the entry's existing id, date and time; only the
      * fields the editor owns are replaced.
      */
+    fun updateEditorTime(minutes: Int) {
+        val safe = minutes.coerceIn(0, 1439)
+        capturedTimeMinutes = safe
+        _editorTimeMinutes.value = safe
+    }
+
+    fun setEditorPhotos(uris: List<String>) {
+        _editorPhotoUris.value = uris.distinct().take(12)
+    }
+
+    fun removeEditorPhoto(uri: String) {
+        _editorPhotoUris.value = _editorPhotoUris.value.filterNot { it == uri }
+    }
+
+    fun setEditorAudio(uri: String?) {
+        _editorAudioUri.value = uri
+    }
+
+    fun setEditorTags(tags: List<String>) {
+        _editorTags.value = tags.map { it.trim() }.filter { it.isNotBlank() }.distinct().take(8)
+    }
+
     fun saveEntry(content: String, mood: String?) {
         if (content.isBlank() || _saving.value) return
         _saving.value = true
@@ -127,7 +187,9 @@ class DiaryViewModel(
                 val editing = _editingEntry.value
                 if (editing != null) {
                     diaryRepository.updateEntry(
-                        editing.id, editing.title, content, mood, splitTags(editing.tagsCsv)
+                        editing.id, editing.title, content, mood, _editorTags.value,
+                        Json.encodeToString(ListSerializer(String.serializer()), editorAttachments()),
+                        timeMinutes = capturedTimeMinutes
                     )
                 } else {
                     diaryRepository.createEntry(
@@ -136,7 +198,8 @@ class DiaryViewModel(
                         mood = mood,
                         tags = emptyList(),
                         dateEpochDay = _selectedDay.value,
-                        timeMinutes = capturedTimeMinutes ?: nowMinutes()
+                        timeMinutes = capturedTimeMinutes ?: nowMinutes(),
+                        attachmentsJson = Json.encodeToString(editorAttachments())
                     )
                 }
                 _saveConfirmation.value += 1
@@ -173,4 +236,15 @@ class DiaryViewModel(
     private fun splitTags(csv: String): List<String> = csv.split(',')
         .map { it.trim() }
         .filter { it.isNotBlank() }
+
+    private fun editorAttachments(): List<String> = buildList {
+        addAll(_editorPhotoUris.value)
+        _editorAudioUri.value?.takeIf { it.isNotBlank() }?.let { add("audio:" + it) }
+        _editorLocation.value?.takeIf { it.isNotBlank() }?.let { add("meta:location=" + it) }
+        _editorWeather.value?.takeIf { it.isNotBlank() }?.let { add("meta:weather=" + it) }
+    }
+
+    private fun decodeStringList(json: String): List<String> = runCatching {
+        Json.decodeFromString<List<String>>(json)
+    }.getOrDefault(emptyList())
 }

@@ -8,6 +8,10 @@
         and is requested at RUNTIME (see SettingsScreen) — never on first launch.
     -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Requested only when the Diary editor's Add voice action is tapped. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- The audible alarm is a foreground service so it keeps ringing even in
