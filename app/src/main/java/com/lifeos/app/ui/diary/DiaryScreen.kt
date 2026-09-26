@@ -74,27 +74,19 @@ fun DiaryScreen(
     val entryToDelete by viewModel.entryToDelete.collectAsState()
     val editorTimeMinutes by viewModel.editorTimeMinutes.collectAsState()
     val saving by viewModel.saving.collectAsState()
-    val saveConfirmation by viewModel.saveConfirmation.collectAsState()
-    var showSaved by remember { mutableStateOf(false) }
 
-    LaunchedEffect(saveConfirmation) {
-        if (saveConfirmation == 0) return@LaunchedEffect
-        showSaved = true
-        delay(1400)
-        showSaved = false
-    }
-
-    // With the editor open, back closes the editor rather than the screen.
+    // Existing Diary data stays Room-backed. This layout only determines how the
+    // current state is presented and lets Compose measure every surface.
     BackHandler(enabled = showEditor, onBack = viewModel::dismissEditor)
     BackHandler(enabled = !showEditor, onBack = onBack)
 
-    Box(Modifier.fillMaxSize()) {
-        Scaffold { padding ->
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
+    Scaffold { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            Column(Modifier.fillMaxSize()) {
                 DiaryDayHeader(
                     selectedDay = selectedDay,
                     daysWithMemories = daysWithMemories,
@@ -108,18 +100,18 @@ fun DiaryScreen(
                         dayLabel = DateTimeUtils.formatFullDate(
                             DateTimeUtils.epochDayToLocalDate(selectedDay)
                         ),
-                        onCreate = viewModel::startNewEntry
+                        onCreate = viewModel::startNewEntry,
+                        modifier = Modifier.weight(1f)
                     )
                 } else {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(
                             start = LifeOSSpacing.screenPadding,
                             end = LifeOSSpacing.screenPadding,
                             top = LifeOSSpacing.sectionSpacing,
                             bottom = LifeOSSpacing.fabContentClearance
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                        )
                     ) {
                         itemsIndexed(memories, key = { _, entry -> entry.id }) { index, entry ->
                             MemoryMoment(
@@ -132,19 +124,6 @@ fun DiaryScreen(
                                 modifier = Modifier.revealAsMemory(index)
                             )
                         }
-
-                        // Closing hairline so the day reads as a finished page
-                        // rather than a list that was cut off.
-                        item {
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 4.dp, bottom = 8.dp)
-                                    .height(1.dp)
-                                    .background(DiaryHairline)
-                            )
-                        }
-
                         item {
                             MemoryStreamFooter(
                                 count = memories.size,
@@ -154,30 +133,37 @@ fun DiaryScreen(
                     }
                 }
             }
-        }
 
-        AnimatedVisibility(
-            visible = showSaved && !showEditor,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-            SavedMemoryToast()
-        }
+            // Responsive placement: the button is anchored to the measured content
+            // area and the app's safe bottom spacing, never to a phone-specific y.
+            androidx.compose.material3.FloatingActionButton(
+                onClick = viewModel::startNewEntry,
+                containerColor = DiaryInkViolet,
+                contentColor = MaterialTheme.colorScheme.background,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = LifeOSSpacing.screenPadding,
+                        bottom = LifeOSSpacing.fabContentClearance
+                    )
+            ) {
+                Text("+", style = MaterialTheme.typography.headlineSmall)
+            }
 
-        DiaryEditorOverlay(visible = showEditor) {
-            DiaryEditor(
-                dayEpochDay = editingEntry?.dateEpochDay ?: selectedDay,
-                editing = editingEntry,
-                timeMinutes = editorTimeMinutes,
-                saving = saving,
-                onDismiss = viewModel::dismissEditor,
-                onSave = viewModel::saveEntry,
-                onDelete = {
-                    editingEntry?.let(viewModel::requestDelete)
-                    viewModel.dismissEditor()
-                }
-            )
+            DiaryEditorOverlay(visible = showEditor) {
+                DiaryEditor(
+                    dayEpochDay = editingEntry?.dateEpochDay ?: selectedDay,
+                    editing = editingEntry,
+                    timeMinutes = editorTimeMinutes,
+                    saving = saving,
+                    onDismiss = viewModel::dismissEditor,
+                    onSave = viewModel::saveEntry,
+                    onDelete = {
+                        editingEntry?.let(viewModel::requestDelete)
+                        viewModel.dismissEditor()
+                    }
+                )
+            }
         }
     }
 
