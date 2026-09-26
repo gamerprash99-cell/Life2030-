@@ -15,11 +15,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -35,26 +36,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
-import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.LifeOSSpacing
+import kotlinx.coroutines.delay
 
-/**
- * LifeOS Diary — a memory timeline, not a notes list.
- *
- * Composition is day → mood → memory: an editorial masthead naming the day, a
- * hairline spine with each memory's mood resting on it, and the journal text
- * as the loudest element on the page. There is no card stack, no date-pill
- * strip and no floating button.
- *
- * Every value shown is Room-backed through [DiaryViewModel]; navigation,
- * repositories and the database are unchanged.
- */
+
 @Composable
 fun DiaryScreen(
     onBack: () -> Unit = {},
@@ -62,9 +52,7 @@ fun DiaryScreen(
 ) {
     val locator = LocalServiceLocator.current
     val viewModel: DiaryViewModel = viewModel(
-        factory = LambdaViewModelFactory {
-            DiaryViewModel(locator.diaryRepository)
-        }
+        factory = LambdaViewModelFactory { DiaryViewModel(locator.diaryRepository) }
     )
     val memories by viewModel.memoriesForSelectedDay.collectAsState()
     val selectedDay by viewModel.selectedDay.collectAsState()
@@ -82,19 +70,19 @@ fun DiaryScreen(
         showSaved = true
         delay(1400)
         showSaved = false
+        viewModel.consumeSaveConfirmation()
     }
 
-    // With the editor open, back closes the editor rather than the screen.
     BackHandler(enabled = showEditor, onBack = viewModel::dismissEditor)
     BackHandler(enabled = !showEditor, onBack = onBack)
 
-    Box(Modifier.fillMaxSize()) {
-        Scaffold { padding ->
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
+    Scaffold { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            Column(Modifier.fillMaxSize()) {
                 DiaryDayHeader(
                     selectedDay = selectedDay,
                     daysWithMemories = daysWithMemories,
@@ -108,18 +96,18 @@ fun DiaryScreen(
                         dayLabel = DateTimeUtils.formatFullDate(
                             DateTimeUtils.epochDayToLocalDate(selectedDay)
                         ),
-                        onCreate = viewModel::startNewEntry
+                        onCreate = viewModel::startNewEntry,
+                        modifier = Modifier.weight(1f)
                     )
                 } else {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(
                             start = LifeOSSpacing.screenPadding,
                             end = LifeOSSpacing.screenPadding,
                             top = LifeOSSpacing.sectionSpacing,
                             bottom = LifeOSSpacing.fabContentClearance
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                        )
                     ) {
                         itemsIndexed(memories, key = { _, entry -> entry.id }) { index, entry ->
                             MemoryMoment(
@@ -132,19 +120,6 @@ fun DiaryScreen(
                                 modifier = Modifier.revealAsMemory(index)
                             )
                         }
-
-                        // Closing hairline so the day reads as a finished page
-                        // rather than a list that was cut off.
-                        item {
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 4.dp, bottom = 8.dp)
-                                    .height(1.dp)
-                                    .background(DiaryHairline)
-                            )
-                        }
-
                         item {
                             MemoryStreamFooter(
                                 count = memories.size,
@@ -154,30 +129,46 @@ fun DiaryScreen(
                     }
                 }
             }
-        }
 
-        AnimatedVisibility(
-            visible = showSaved && !showEditor,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-            SavedMemoryToast()
-        }
+            // Anchored to the measured content box, then inset from the bottom
+            // by the shared safe-content clearance. No phone-specific coordinates.
+            FloatingActionButton(
+                onClick = viewModel::startNewEntry,
+                containerColor = DiaryInkViolet,
+                contentColor = MaterialTheme.colorScheme.background,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = LifeOSSpacing.screenPadding,
+                        bottom = LifeOSSpacing.fabContentClearance
+                    )
+            ) {
+                Text("+", style = MaterialTheme.typography.headlineSmall)
+            }
 
-        DiaryEditorOverlay(visible = showEditor) {
-            DiaryEditor(
-                dayEpochDay = editingEntry?.dateEpochDay ?: selectedDay,
-                editing = editingEntry,
-                timeMinutes = editorTimeMinutes,
-                saving = saving,
-                onDismiss = viewModel::dismissEditor,
-                onSave = viewModel::saveEntry,
-                onDelete = {
-                    editingEntry?.let(viewModel::requestDelete)
-                    viewModel.dismissEditor()
-                }
-            )
+            AnimatedVisibility(
+                visible = showSaved && !showEditor,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                SavedMemoryToast()
+            }
+
+            DiaryEditorOverlay(visible = showEditor) {
+                DiaryEditor(
+                    dayEpochDay = editingEntry?.dateEpochDay ?: selectedDay,
+                    editing = editingEntry,
+                    timeMinutes = editorTimeMinutes,
+                    saving = saving,
+                    onDismiss = viewModel::dismissEditor,
+                    onSave = viewModel::saveEntry,
+                    onDelete = {
+                        editingEntry?.let(viewModel::requestDelete)
+                        viewModel.dismissEditor()
+                    }
+                )
+            }
         }
     }
 
@@ -190,6 +181,7 @@ fun DiaryScreen(
         )
     }
 }
+
 
 /** The "+ Memory" action that closes the day — inline, never floating. */
 @Composable

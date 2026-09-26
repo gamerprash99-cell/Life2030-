@@ -161,6 +161,15 @@ class DiaryViewModel(
         viewModelScope.launch { diaryRepository.delete(id) }
     }
 
+    /**
+     * Clear the one-shot confirmation counter after the UI has consumed the
+     * current event. Kept separate from save so a recomposition cannot invent a
+     * second confirmation.
+     */
+    fun consumeSaveConfirmation() {
+        _saveConfirmation.value = 0
+    }
+
     private fun splitTags(csv: String): List<String> = csv.split(',')
         .map { it.trim() }
         .filter { it.isNotBlank() }
