@@ -8,6 +8,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,12 +32,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.ui.theme.DiaryInkViolet
+import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import java.time.LocalDate
 
@@ -79,7 +89,7 @@ fun DiaryDayHeader(
                     tint = DiaryInkViolet
                 )
             }
-            CreateMemoryAction(onClick = onCreate)
+            CalendarAction(onClick = onCreate)
         }
 
         Spacer(Modifier.height(2.dp))
@@ -106,15 +116,25 @@ fun DiaryDayHeader(
             ) {
                 Text(
                     dayEyebrow(day).uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = DiaryInkViolet.copy(alpha = 0.45f),
-                    letterSpacing = 1.8.sp
+                    style = TextStyle(
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp,
+                        lineHeight = 18.sp,
+                        letterSpacing = 2.2.sp
+                    ),
+                    color = DiaryInkViolet.copy(alpha = 0.55f)
                 )
                 Text(
                     dayHeaderDateLine(day),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = DiaryInkViolet,
-                    fontWeight = FontWeight.SemiBold
+                    style = TextStyle(
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 30.sp,
+                        lineHeight = 36.sp,
+                        letterSpacing = (-0.15).sp
+                    ),
+                    color = DiaryInkViolet
                 )
             }
         }
@@ -146,17 +166,52 @@ private fun dayHeaderDateLine(day: LocalDate): String =
     "${day.dayOfMonth} ${day.month.name.lowercase().replaceFirstChar { it.uppercase() }} · " +
         DateTimeUtils.formatDayOfWeek(day).lowercase().replaceFirstChar { it.uppercase() }
 
-/** The Diary's create affordance: an inline text + glyph action, not a floating button. */
+/** Reference-style calendar affordance; it opens the existing Room-backed editor. */
 @Composable
-fun CreateMemoryAction(onClick: () -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
-    Text(
-        text = if (compact) "Memory" else "+ Memory",
-        style = MaterialTheme.typography.labelLarge,
-        color = DiaryInkViolet,
-        textAlign = TextAlign.Center,
-        modifier = modifier
-            .clip(MaterialTheme.shapes.small)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-    )
+private fun CalendarAction(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .clip(CircleShape)
+            .background(DiaryLavender)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.size(27.dp)) {
+            val stroke = 2.4.dp.toPx()
+            val left = size.width * 0.16f
+            val top = size.height * 0.20f
+            val right = size.width * 0.84f
+            val bottom = size.height * 0.84f
+
+            drawRoundRect(
+                color = DiaryInkViolet,
+                topLeft = Offset(left, top),
+                size = Size(right - left, bottom - top),
+                cornerRadius = CornerRadius(2.dp.toPx()),
+                style = Stroke(width = stroke)
+            )
+            drawLine(
+                color = DiaryInkViolet,
+                start = Offset(left, size.height * 0.38f),
+                end = Offset(right, size.height * 0.38f),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = DiaryInkViolet,
+                start = Offset(size.width * 0.32f, size.height * 0.08f),
+                end = Offset(size.width * 0.32f, size.height * 0.28f),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = DiaryInkViolet,
+                start = Offset(size.width * 0.68f, size.height * 0.08f),
+                end = Offset(size.width * 0.68f, size.height * 0.28f),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round
+            )
+        }
+    }
 }
