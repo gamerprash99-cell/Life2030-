@@ -178,7 +178,8 @@ fun DiaryEditor(
 
             Spacer(Modifier.height(18.dp))
 
-            // Borderless field: the page's whitespace is the container.
+            // Spacious writing surface. The field itself has no boxed border so the
+            // page remains calm while the keyboard is open.
             BasicTextField(
                 value = content,
                 onValueChange = { content = it },
@@ -188,17 +189,29 @@ fun DiaryEditor(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = LifeOSSpacing.screenPadding),
                 textStyle = LocalTextStyle.current.merge(
-                    MaterialTheme.typography.bodyLarge.copy(lineHeight = 28.sp)
+                    MaterialTheme.typography.bodyLarge.copy(lineHeight = 29.sp)
                 ),
                 cursorBrush = SolidColor(DiaryInkViolet),
                 decorationBox = { innerTextField ->
-                    Box {
+                    Box(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         if (content.isEmpty()) {
-                            Text(
-                                "Write whatever is on your mind…",
-                                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 28.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-                            )
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    "Write what you want to remember…",
+                                    style = MaterialTheme.typography.headlineSmall.copy(lineHeight = 32.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
+                                )
+                                Text(
+                                    "Small moments, big feelings, anything on your mind.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
+                                )
+                            }
                         }
                         innerTextField()
                     }
