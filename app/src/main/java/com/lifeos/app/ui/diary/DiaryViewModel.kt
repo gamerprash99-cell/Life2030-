@@ -82,6 +82,10 @@ class DiaryViewModel(
     private val _editorTags = MutableStateFlow<List<String>>(emptyList())
     private val _editorAudioUri = MutableStateFlow<String?>(null)
     val editorAudioUri: StateFlow<String?> = _editorAudioUri
+    private val _editorLocation = MutableStateFlow<String?>(null)
+    val editorLocation: StateFlow<String?> = _editorLocation
+    private val _editorWeather = MutableStateFlow<String?>(null)
+    val editorWeather: StateFlow<String?> = _editorWeather
     val editorTags: StateFlow<List<String>> = _editorTags
     val editorTimeMinutes: StateFlow<Int?> = _editorTimeMinutes
 
@@ -103,6 +107,8 @@ class DiaryViewModel(
         _editorPhotoUris.value = emptyList()
         _editorTags.value = emptyList()
         _editorAudioUri.value = null
+        _editorLocation.value = null
+        _editorWeather.value = null
         _showEditor.value = true
     }
 
@@ -113,8 +119,10 @@ class DiaryViewModel(
         _editorTimeMinutes.value = entry.timeMinutes
         _editorPhotoUris.value = decodeStringList(entry.attachmentsJson)
         val attachments = decodeStringList(entry.attachmentsJson)
-        _editorPhotoUris.value = attachments.filterNot { it.startsWith("audio:") }
+        _editorPhotoUris.value = attachments.filterNot { it.startsWith("audio:") || it.startsWith("meta:") }
         _editorAudioUri.value = attachments.firstOrNull { it.startsWith("audio:") }?.removePrefix("audio:")
+        _editorLocation.value = attachments.firstOrNull { it.startsWith("meta:location=") }?.removePrefix("meta:location=")
+        _editorWeather.value = attachments.firstOrNull { it.startsWith("meta:weather=") }?.removePrefix("meta:weather=")
         _editorTags.value = splitTags(entry.tagsCsv)
         _showEditor.value = true
     }
@@ -127,6 +135,16 @@ class DiaryViewModel(
         _editorPhotoUris.value = emptyList()
         _editorTags.value = emptyList()
         _editorAudioUri.value = null
+        _editorLocation.value = null
+        _editorWeather.value = null
+    }
+
+    fun setEditorLocation(value: String?) {
+        _editorLocation.value = value
+    }
+
+    fun setEditorWeather(value: String?) {
+        _editorWeather.value = value
     }
 
     /**
@@ -178,7 +196,7 @@ class DiaryViewModel(
                         tags = emptyList(),
                         dateEpochDay = _selectedDay.value,
                         timeMinutes = capturedTimeMinutes ?: nowMinutes(),
-                        attachmentsJson = Json.encodeToString(_editorPhotoUris.value)
+                        attachmentsJson = Json.encodeToString(editorAttachments())
                     )
                 }
                 _saveConfirmation.value += 1
@@ -219,6 +237,8 @@ class DiaryViewModel(
     private fun editorAttachments(): List<String> = buildList {
         addAll(_editorPhotoUris.value)
         _editorAudioUri.value?.takeIf { it.isNotBlank() }?.let { add("audio:" + it) }
+        _editorLocation.value?.takeIf { it.isNotBlank() }?.let { add("meta:location=" + it) }
+        _editorWeather.value?.takeIf { it.isNotBlank() }?.let { add("meta:weather=" + it) }
     }
 
     private fun decodeStringList(json: String): List<String> = runCatching {
