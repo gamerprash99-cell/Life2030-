@@ -44,6 +44,12 @@ import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.delay
 
+
+@Composable
+fun DiaryScreen(
+    onBack: () -> Unit = {},
+    onOpenEntry: (String) -> Unit = {}
+) {
     val locator = LocalServiceLocator.current
     val viewModel: DiaryViewModel = viewModel(
         factory = LambdaViewModelFactory { DiaryViewModel(locator.diaryRepository) }
