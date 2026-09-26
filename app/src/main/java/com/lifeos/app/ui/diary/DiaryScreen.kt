@@ -246,21 +246,3 @@ private fun SavedMemoryToast() {
         }
     }
 }
-
-
-@Composable
-private fun SavedMemoryToast() {
-    Box(
-        modifier = Modifier
-            .padding(top = LifeOSSpacing.compactPadding)
-            .clip(CircleShape)
-            .background(DiaryInkViolet)
-            .padding(horizontal = 18.dp, vertical = 10.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("✓", color = MaterialTheme.colorScheme.background, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.width(7.dp))
-            Text("Memory saved", color = MaterialTheme.colorScheme.background, style = MaterialTheme.typography.labelLarge)
-        }
-    }
-}
