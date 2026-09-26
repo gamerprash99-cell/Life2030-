@@ -1078,3 +1078,14 @@ gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existin
 - **Testing**: added a JVM test for the save-confirmation event and blank-save rejection. Existing DiaryViewModel and DayStripRange coverage remains in place.
 - **Database/security**: no Room schema or migration change, no new permission, no network/API, no external AI, no telemetry and no dependency change.
 - **Verification status**: GitHub branch source was updated successfully. No Android emulator/device or GitHub Actions workflow run is available for this branch in the connected environment, and local clone/build is unavailable because outbound GitHub DNS/network access is unavailable here. No build pass is claimed.
+
+
+### 2026-09-26 — Diary UI reference alignment pass
+
+- Applied the approved screen direction to the responsive Diary surface on `feature/diary-ui-v3-screen-references` without introducing phone-specific coordinates.
+- The main `+` action is anchored to the measured content box with shared LifeOS safe-content spacing; it is not positioned by absolute x/y coordinates.
+- Diary remains day-first and starts from `DateTimeUtils.today()` through `DiaryViewModel`, with the selected day and existing one-year history bounds preserved.
+- Diary data remains Room-backed through `DiaryRepository`; unified Timeline remains connected through `BuildTimelineUseCase`, which includes Diary entries in its day aggregation.
+- Existing editor focus/keyboard/inset behavior, timestamp capture, save guard, mood selection, detail/edit/delete routes and offline-first constraints remain in place.
+- Scope guard: reference-only affordances are not backed by fabricated data. Photos, weather, location, voice, tags, favorites and share/copy are only surfaced when an existing local data/feature path supports them; no fake values or network service were introduced.
+- Verification: branch source inspected after changes. No Android device/emulator or CI run is available in the connected environment, so build/device success is not claimed.
