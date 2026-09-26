@@ -1,8 +1,11 @@
+package com.lifeos.app.ui.diary
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,23 +44,6 @@ import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.delay
 
-
-/**
- * LifeOS Diary — a memory timeline, not a notes list.
- *
- * Composition is day → mood → memory: an editorial masthead naming the day, a
- * hairline spine with each memory's mood resting on it. The primary add
- * affordance is anchored responsively to the measured content box rather than
- * to a phone-specific coordinate.
- *
- * Every value shown is Room-backed through [DiaryViewModel]; navigation,
- * repositories and the database are unchanged.
- */
-@Composable
-fun DiaryScreen(
-    onBack: () -> Unit = {},
-    onOpenEntry: (String) -> Unit = {}
-) {
     val locator = LocalServiceLocator.current
     val viewModel: DiaryViewModel = viewModel(
         factory = LambdaViewModelFactory { DiaryViewModel(locator.diaryRepository) }
