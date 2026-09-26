@@ -65,3 +65,11 @@ habits, tasks, home dashboard, media capture hardening. See
 - Added unit coverage for the save-confirmation event and blank-save rejection.
 - Preserved Room v4, existing navigation, Repository/ViewModel boundaries, mood vocabulary, date-strip bounds, delete flow and offline-first/privacy-first behavior.
 - Build/device verification remains pending because no Android runner or outbound GitHub network is available in this environment.
+
+
+## [Unreleased] — 2026-09-26 — Diary UI reference alignment pass
+
+- Aligned the Diary main surface to the approved responsive reference direction, including lower-right responsive add action and adaptive content flow.
+- Preserved the existing Room/ViewModel/Repository and Timeline aggregation architecture.
+- No Room schema, migration, network, external AI, telemetry or new dependency changes.
+- Device/emulator validation remains pending because no Android runner is available in the connected environment.
