@@ -1,3 +1,14 @@
+## 2026-09-26 — Diary Phase 2: New Memory Editor
+
+- **Reference screen:** rebuilt `ui/diary/DiaryEditor.kt` around the supplied editor reference: close action, lavender Save memory pill, TODAY/date masthead, moon decoration, editable time pill, 8-mood selector, rounded writing card with 1000-character limit, media toolbar, optional photo/tag strips, Add voice affordance, and bottom Save memory action.
+- **Working editor state:** time changes through the platform TimePickerDialog; moods continue to use the existing persisted vocabulary; tags are editable and saved; photos can be selected from Android's system document/photo picker and are stored as persisted URI strings in the existing `attachmentsJson` field; camera capture uses the platform camera intent and stores a local JPEG in app-private Diary storage.
+- **Voice:** Add voice requests `RECORD_AUDIO` only when the user taps the action for the first time. Recording uses local `MediaRecorder`, writes to app-private `diary/audio/`, and stores the resulting URI in the existing `attachmentsJson` list with an `audio:` prefix. Back/dispose stops and discards an in-progress recording.
+- **Database:** no schema version change and no migration. `DiaryRepository.createEntry/updateEntry` now accept/preserve `attachmentsJson` as an additive optional parameter, so existing rows remain untouched.
+- **Responsive/insets:** editor uses measured Compose layout, shared spacing, WindowInsets with IME/navigation union, and no phone-specific coordinates. Text and controls remain accessible when the keyboard is visible.
+- **Privacy:** no network/cloud upload. Image selection uses Android's system picker rather than requesting broad storage permission. Microphone permission is point-of-use only.
+- **Remaining reference actions:** location and weather icons are visually present but their data capture is intentionally not invented in Phase 2; those flows need the existing/current Location/Weather architecture to be wired in a later phase.
+- **Verification:** source and GitHub branch contents were re-read after edits. A fresh Android/Gradle build and device screenshot pass could not be executed in the connected GitHub environment, so no build-pass claim is made.
+
 
 ## 2026-09-26 — Diary Phase 1 reference screen
 
