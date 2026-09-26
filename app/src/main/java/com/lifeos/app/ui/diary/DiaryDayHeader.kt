@@ -24,11 +24,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,7 +53,9 @@ import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.LifeOSSpacing
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 
 /**
  * The masthead of a day: a compact eyebrow and date line, with the date strip
@@ -69,6 +77,7 @@ fun DiaryDayHeader(
     modifier: Modifier = Modifier
 ) {
     val date = remember(selectedDay) { DateTimeUtils.epochDayToLocalDate(selectedDay) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -89,7 +98,7 @@ fun DiaryDayHeader(
                     tint = DiaryInkViolet
                 )
             }
-            CalendarAction(onClick = onCreate)
+            CalendarAction(onClick = { showDatePicker = true })
         }
 
         Spacer(Modifier.height(2.dp))
