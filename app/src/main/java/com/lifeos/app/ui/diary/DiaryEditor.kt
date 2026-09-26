@@ -148,7 +148,7 @@ fun DiaryEditor(
             recorder?.release()
             recorder = null
             file.delete()
-            throw error
+            // Permission may be revoked or the microphone may be unavailable; keep the editor usable.
         }
     }
 
@@ -222,7 +222,7 @@ fun DiaryEditor(
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             Modifier.fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
+                 .windowInsetsPadding(WindowInsets.safeDrawing.exclude(bottomInsets))
                 .windowInsetsPadding(bottomInsets)
         ) {
             Row(
