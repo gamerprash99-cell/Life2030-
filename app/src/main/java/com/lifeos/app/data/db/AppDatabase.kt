@@ -37,7 +37,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         DiaryEntity::class,
         ReminderEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -67,7 +67,7 @@ abstract class AppDatabase : RoomDatabase() {
                         .openHelperFactory(SupportOpenHelperFactory(passphrase))
                         // No destructive fallback in production; migrations must be added
                         // explicitly as the schema evolves post-v1.
-                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                         .build()
                 }.also { INSTANCE = it }
             }
@@ -146,6 +146,25 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_entityId` ON `reminders` (`entityId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_nextTriggerAtEpochMillis` ON `reminders` (`nextTriggerAtEpochMillis`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_enabled` ON `reminders` (`enabled`)")
+            }
+        }
+
+        /**
+         * v4 → v5: add the diary "favourite" flag used by the entry detail
+         * actions. Purely additive — a single `NOT NULL DEFAULT 0` column on
+         * `diary_entries`, so every existing diary row (and every other table)
+         * is preserved untouched, with existing entries correctly defaulting to
+         * "not a favourite".
+         *
+         * `ALTER TABLE ... ADD COLUMN` with a NOT NULL constraint requires a
+         * non-null default, which is what makes this safe to run against a
+         * populated table in one statement. No table is dropped, no row is
+         * rewritten, and the change is reversible in the sense that v4 data
+         * read by a v4 build is unaffected.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `diary_entries` ADD COLUMN `isFavorite` INTEGER NOT NULL DEFAULT 0")
             }
         }
 

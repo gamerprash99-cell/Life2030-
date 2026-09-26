@@ -20,6 +20,17 @@ sealed class Screen(val route: String) {
     object DiaryDetail : Screen("diary/{entryId}") {
         fun createRoute(entryId: String) = "diary/$entryId"
     }
+
+    /**
+     * The full-screen composer. `entryId` is optional so the same destination
+     * serves both "new memory" and "edit this memory" — the argument is only
+     * supplied when editing, and defaults to an empty string (a new entry).
+     */
+    object DiaryEditor : Screen("diary/editor?entryId={entryId}") {
+        const val ARG_ENTRY_ID = "entryId"
+        fun createRoute(entryId: String? = null): String =
+            if (entryId.isNullOrBlank()) "diary/editor" else "diary/editor?$ARG_ENTRY_ID=$entryId"
+    }
     object Timeline : Screen("timeline")
     object Settings : Screen("settings")
     object Profile : Screen("profile")

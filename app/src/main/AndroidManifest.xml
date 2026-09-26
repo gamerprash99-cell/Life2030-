@@ -25,8 +25,36 @@
          shared scheduler falls back to the permission-free, Doze-aware inexact
          API, so reminders always keep working without ever throwing. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- Diary voice notes. RECORD_AUDIO is requested at RUNTIME and only when
+         the user taps "Add voice note" (see DiaryEditorScreen) — never at
+         launch. Recordings are written to app-private storage and never leave
+         the device. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Diary location. COARSE is enough for the city/place name shown beside
+         an entry; FINE is declared for the precise case and is requested
+         together with COARSE, in-app, only when the user taps "Add location".
+         Coordinates are resolved to a place name on-device and stored in the
+         encrypted local database — never transmitted. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Diary photos are attached through the Android Photo Picker
+         (ActivityResultContracts.PickVisualMedia), which grants per-URI access
+         with NO storage or media permission. The picked image is then copied
+         into app-private storage so it survives the source being deleted.
+         CAMERA is deliberately NOT declared: Diary attaches existing photos
+         rather than taking new ones, so camera access would be an unnecessary
+         permission. -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+
     <!-- No INTERNET permission: all LifeOS features run entirely on-device.
-         There is no HTTP client, no API key, and no network code anywhere in this app. -->
+         There is no HTTP client, no API key, and no network code anywhere in
+         this app. This is also why the Diary weather row reports an honest
+         "unavailable" state instead of a reading: no permitted weather source
+         exists in this build (see WeatherRepository). -->
 
     <application
         android:name=".LifeOSApplication"

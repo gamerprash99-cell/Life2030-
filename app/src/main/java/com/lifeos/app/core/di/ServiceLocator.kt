@@ -9,6 +9,9 @@ import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.data.repository.ReminderRepository
 import com.lifeos.app.data.repository.TaskRepository
+import com.lifeos.app.data.repository.OfflineOnlyWeatherSource
+import com.lifeos.app.data.repository.WeatherRepository
+import com.lifeos.app.data.repository.WeatherRepositoryImpl
 import com.lifeos.app.domain.usecase.BuildTimelineUseCase
 import com.lifeos.app.domain.usecase.GetHomeSummaryUseCase
 
@@ -45,6 +48,14 @@ class ServiceLocator private constructor(context: Context) {
     val habitRepository = HabitRepository(database.habitDao(), database.habitCompletionDao(), reminderRepository)
     val expenseRepository = ExpenseRepository(database.expenseDao())
     val diaryRepository = DiaryRepository(database.diaryDao())
+
+    /**
+     * Weather for diary entries. Backed by [OfflineOnlyWeatherSource] today:
+     * this build declares no INTERNET permission, so the repository reports an
+     * honest "unavailable" rather than a fabricated reading. Swapping in an
+     * approved source is a one-line change here.
+     */
+    val weatherRepository: WeatherRepository = WeatherRepositoryImpl(OfflineOnlyWeatherSource())
 
     val backupRepository = BackupRepository(
         database, taskRepository, habitRepository, expenseRepository, diaryRepository, reminderRepository

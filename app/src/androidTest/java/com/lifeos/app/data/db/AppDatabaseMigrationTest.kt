@@ -106,6 +106,43 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    /**
+     * v4 → v5 adds the diary favourites flag. The interesting property is that
+     * it is *additive over real data*: a row written before the migration must
+     * still be readable afterwards, and must come back with a non-favourite
+     * default rather than NULL (which would blow up the non-null Kotlin field).
+     */
+    @Test
+    @Throws(IOException::class)
+    fun migrate4To5_addsIsFavoriteAndKeepsExistingEntries() {
+        helper.createDatabase(TEST_DB, 4).apply {
+            execSQL(
+                "INSERT INTO diary_entries (id, dateEpochDay, timeMinutes, mood, title, content, tagsCsv, " +
+                    "aiGenerated, isReviewed, attachmentsJson, createdAt, updatedAt) " +
+                    "VALUES ('d1', 20000, 510, 'JOY', 'A good walk', 'Body text kept.', 'outdoors', " +
+                    "0, 0, '[]', 1, 1)"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 5, true, AppDatabase.MIGRATION_4_5)
+
+        db.use { db ->
+            db.query("SELECT isFavorite FROM diary_entries WHERE id = 'd1'").use { cursor ->
+                assert(cursor.moveToFirst()) { "pre-existing diary entry vanished in v4→v5" }
+                assert(!cursor.isNull(0)) { "isFavorite must be backfilled to 0, not NULL" }
+                assert(cursor.getInt(0) == 0) { "existing entries must default to not-favourite" }
+            }
+            // The stored content must be untouched by the additive migration.
+            db.query("SELECT content FROM diary_entries WHERE id = 'd1'").use { cursor ->
+                assert(cursor.moveToFirst())
+                assert(cursor.getString(0) == "Body text kept.") { "entry content was altered by the migration" }
+            }
+            // And the new column must be writable.
+            db.execSQL("UPDATE diary_entries SET isFavorite = 1 WHERE id = 'd1'")
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

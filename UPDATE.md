@@ -3,6 +3,108 @@
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).
 ---
 
+## 2026-09-26 — Diary rebuilt on real data (branch `feat/stitch-timeline-diary`)
+
+Turns the Diary from a visual mock-up into a working feature. Every attachment
+is a real on-device artifact and every derived number is computed from stored
+state — no sample entries, no generated weather, no network.
+
+### Data / schema
+- **Room v4 → v5** (`AppDatabase.MIGRATION_4_5`) adds a single column,
+  `diary_entries.isFavorite INTEGER NOT NULL DEFAULT 0`. Additive and
+  reversible-by-rollback only; no existing column is dropped or retyped, so no
+  user data is rewritten. Exported as `schemas/…/5.json`.
+- Photos, voice notes and the captured place were **already** storable: the
+  `attachmentsJson` column existed since v1 and was simply never written to.
+  `DiaryAttachment` (`domain/model/`) is a sealed, `kotlinx.serialization`
+  polymorphic type — `Photo`, `VoiceNote`, `Place` — persisted in that column
+  under a stable lowercase `kind` discriminator. `DiaryAttachments` encodes,
+  decodes and groups them. Decoding is deliberately **total**: null, blank or
+  corrupt payloads degrade to "no attachments" rather than throwing, so one bad
+  row can never take down the list. Unknown keys are ignored, so a row written by
+  a future build still reads.
+- `DiaryRepository` gained `toggleFavorite`/`setFavorite`,
+  `removeAttachment(id, filePath)` and media lifecycle handling. `updateEntry`
+  deletes files that the new attachment set no longer references, and re-reads
+  the row first so a favourite toggled elsewhere is never clobbered. `delete`
+  removes the entry's photos and audio too, so no orphans are left behind.
+
+### Composer (`ui/diary/DiaryEditorScreen.kt`, `DiaryEditorViewModel.kt`)
+- The bottom sheet was **deleted** and replaced by a full-screen composer
+  (`Screen.DiaryEditor`, optional `entryId` argument, so "new" and "edit" are
+  one destination). Saving pops the composer and pushes the saved entry's
+  detail, so Back returns to the day list rather than a stale draft.
+- Title, body with a live character counter, 5-mood picker, tag editor, and a
+  date/time picker. Saving requires a non-blank body.
+- **Photos** — Android Photo Picker (`PickVisualMedia`), so no storage or
+  media permission is needed. Each pick is copied into app-private storage so
+  the attachment survives the source being deleted.
+- **Voice notes** — real `MediaRecorder` (`DiaryAudioRecorder`) to AAC/M4A in
+  app-private storage with the platform-measured duration, played back with
+  `MediaPlayer` (`DiaryAudioPlayer`). Leaving the screen cancels an in-flight
+  recording and releases the decoder; a file that has vanished from disk
+  reports a "no longer on this device" state rather than failing silently.
+- **Location** — `DeviceLocationProvider` uses only platform `LocationManager`
+  and `Geocoder` (no Play Services, no third-party SDK). Coarse is enough for a
+  place name; GPS is only read when fine access is granted. A geocoder backend
+  that is absent or slow yields empty coordinates-only, never an invented city.
+- **Weather** — `WeatherRepository` models `DiaryWeather` as
+  `Recorded` / `Unavailable(reason)`. This build has **no permitted weather
+  source** (no `INTERNET` permission, so no HTTP client is possible), so the row
+  honestly reports unavailable. The branch is drawn so a future on-device source
+  can be added without touching the UI.
+
+### List & detail
+- `DiaryScreen` renders the selected day from `observeForDay`, with a week
+  strip, a timeline spine, and correct loading/empty states. Timestamps are
+  formatted from the stored `timeMinutes`.
+- `DiaryDetailScreen` rewritten: photos, playable voice note, tags, place,
+  weather, and the real derived metadata (full date, time, word count computed
+  from the stored body so it cannot drift). Actions: **Share** (system chooser;
+  text plus a one-shot `FileProvider` read grant for the first photo),
+  **Copy** (clipboard), **Edit**, **Delete** (confirmation dialog, then real
+  deletion), and **Favourite**. Photos and the voice note can be removed in
+  place, without opening the composer.
+
+### Permissions & privacy
+- Manifest adds `RECORD_AUDIO`, `ACCESS_COARSE_LOCATION` and
+  `ACCESS_FINE_LOCATION`, plus non-required `microphone`/`location` features.
+  `CAMERA` is deliberately **not** declared. `INTERNET` remains absent.
+- Every prompt is user-initiated: the OS dialog only ever appears in response to
+  tapping "Add location" / recording. Reuse of the existing
+  `PermissionManager` semantics means a permission the user has already denied
+  twice routes to system Settings instead of silently no-op'ing; both the
+  location and mic actions re-read the live OS grant at the point of use, so a
+  grant made in Settings is picked up on return.
+
+### Testing
+- `AppDatabaseSchemaTest` — three new v5 assertions: `isFavorite` exists, every
+  pre-v5 column survives, and `attachmentsJson` is still there.
+- `AppDatabaseMigrationTest` — `migrate4To5_addsIsFavoriteAndKeepsExistingEntries`
+  seeds a real v4 row, migrates, and asserts the row survives, the content is
+  byte-identical, `isFavorite` is backfilled to `0` (not NULL), and the new
+  column is writable.
+- New `DiaryAttachmentsTest` — 8 tests over the codec: round-trip of all three
+  kinds, the stable `kind` tag, empty/null handling, corrupt-payload
+  degradation, forward-compatibility with unknown fields, the accessors, and a
+  place with no resolved name.
+- `DeviceLocationProvider` satisfies lint's `MissingPermission` with an explicit
+  per-provider grant check plus explicit `SecurityException` /
+  `IllegalArgumentException` handling.
+
+### Verified
+`testDebugUnitTest` (119 tests, 0 failures), `assembleDebug`,
+`assembleDebugAndroidTest` and `lintDebug` (0 errors) all pass, offline.
+
+### Remaining
+- `migrate4To5_addsIsFavoriteAndKeepsExistingEntries` is written but has **not**
+  been executed: it is an instrumentation test and no emulator or device is
+  attached to this environment. Run
+  `:app:connectedDebugAndroidTest` before release.
+- Weather stays unavailable until an on-device source exists.
+- Geocoding is best-effort; on devices without a geocoder backend the place
+  shows as coordinates.
+
 ---
 
 ## 2026-09-24 — Timeline & Diary visual pass from Stitch (branch `feat/stitch-timeline-diary`)

@@ -12,6 +12,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.lifeos.app.ui.components.LifeOSBottomBar
 import com.lifeos.app.ui.diary.DiaryDetailScreen
+import com.lifeos.app.ui.diary.DiaryEditorScreen
 import com.lifeos.app.ui.diary.DiaryScreen
 import com.lifeos.app.ui.expenses.ExpensesScreen
 import com.lifeos.app.ui.habits.HabitDetailScreen
@@ -74,7 +75,8 @@ fun LifeOSNavHost() {
             composable(Screen.Diary.route) {
                 DiaryScreen(
                     onBack = { navController.popBackStack() },
-                    onOpenEntry = { entryId -> navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true } }
+                    onOpenEntry = { entryId -> navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true } },
+                    onComposeEntry = { entryId -> navController.navigate(Screen.DiaryEditor.createRoute(entryId)) { launchSingleTop = true } }
                 )
             }
             composable(
@@ -82,7 +84,35 @@ fun LifeOSNavHost() {
                 arguments = listOf(navArgument("entryId") { type = NavType.StringType })
             ) { entry ->
                 val entryId = entry.arguments?.getString("entryId").orEmpty()
-                DiaryDetailScreen(entryId = entryId, onBack = { navController.popBackStack() })
+                DiaryDetailScreen(
+                    entryId = entryId,
+                    onBack = { navController.popBackStack() },
+                    onEdit = { id -> navController.navigate(Screen.DiaryEditor.createRoute(id)) { launchSingleTop = true } }
+                )
+            }
+            composable(
+                Screen.DiaryEditor.route,
+                arguments = listOf(
+                    navArgument(Screen.DiaryEditor.ARG_ENTRY_ID) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { entry ->
+                val entryId = entry.arguments?.getString(Screen.DiaryEditor.ARG_ENTRY_ID)
+                DiaryEditorScreen(
+                    entryId = entryId,
+                    onBack = { navController.popBackStack() },
+                    onOpenEntry = { savedId ->
+                        // Replace the composer with the saved entry so Back
+                        // returns to the day list rather than a stale draft.
+                        navController.navigate(Screen.DiaryDetail.createRoute(savedId)) {
+                            popUpTo(Screen.DiaryEditor.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                )
             }
             composable(Screen.Timeline.route) {
                 TimelineScreen(
