@@ -234,7 +234,7 @@ fun DiaryEditor(
                     when (val count = content.trim().length) {
                         0 -> "0 characters"
                         1 -> "1 character"
-                        else -> "$" + "count characters"
+                        else -> "${count} characters"
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
