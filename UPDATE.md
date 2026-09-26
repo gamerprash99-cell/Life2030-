@@ -1069,3 +1069,12 @@ gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existin
 ### Remaining
 - On-device: overlay back-stack behaviour, the permission dialog lifecycle, and a real notification firing at the set time (no emulator/device in this sandbox — verified via compile + 99 JVM tests + lint + code reasoning).
  
+### 2026-09-26 — Diary UI v2 complete implementation
+
+- **Empty day (`ui/diary/DiaryEmptyState.kt`)** now uses an editorial empty state with a local Compose Canvas journal illustration, clearer story-start hierarchy, and a direct capture action. No remote image or network asset.
+- **Composer (`ui/diary/DiaryEditor.kt`)** remains a full-screen writing surface but is now keyboard-first: the text field requests focus when the editor opens, the software keyboard is shown, and the existing IME/navigation inset union keeps the save row above the keyboard without double padding. Character count now handles singular/plural text cleanly.
+- **Save feedback (`DiaryViewModel.kt` + `DiaryScreen.kt`)** now emits a monotonic confirmation event only after a successful local repository write and renders a short `Memory saved` fade confirmation after the editor closes.
+- **Saved detail / timeline / date strip / mood selector** continue using the same editorial language, selected-day Room flow, mood markers, delete confirmation and bounded date navigation; no alternate data path was introduced.
+- **Testing**: added a JVM test for the save-confirmation event and blank-save rejection. Existing DiaryViewModel and DayStripRange coverage remains in place.
+- **Database/security**: no Room schema or migration change, no new permission, no network/API, no external AI, no telemetry and no dependency change.
+- **Verification status**: GitHub branch source was updated successfully. No Android emulator/device or GitHub Actions workflow run is available for this branch in the connected environment, and local clone/build is unavailable because outbound GitHub DNS/network access is unavailable here. No build pass is claimed.

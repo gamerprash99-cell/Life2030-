@@ -227,6 +227,26 @@ class DiaryViewModelTest {
     }
 
     @Test
+    fun `successful save emits one confirmation event and blank save emits none`() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        assertEquals(0, vm.saveConfirmation.value)
+
+        vm.startNewEntry()
+        vm.saveEntry("first", null)
+        advanceUntilIdle()
+
+        assertEquals(1, vm.saveConfirmation.value)
+
+        vm.startNewEntry()
+        vm.saveEntry("   ", null)
+        advanceUntilIdle()
+
+        // A rejected blank save must not produce another success event.
+        assertEquals(1, vm.saveConfirmation.value)
+    }
+
+    @Test
     fun `the editor closes and the save action is released after a write`() = runTest(dispatcher) {
         val vm = viewModel()
         vm.startNewEntry()

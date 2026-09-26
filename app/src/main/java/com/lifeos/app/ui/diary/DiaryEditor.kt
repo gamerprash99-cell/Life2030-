@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -42,6 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -86,6 +90,16 @@ fun DiaryEditor(
     // previous entry's text or mood into the new one.
     var content by rememberSaveable(editing?.id) { mutableStateOf(editing?.content.orEmpty()) }
     var mood by rememberSaveable(editing?.id) { mutableStateOf(editing?.mood) }
+
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    // Diary is a writing surface: once the editor opens, the cursor is ready and
+    // the keyboard follows, removing the extra tap before the first thought.
+    LaunchedEffect(editing?.id) {
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     BackHandler(onBack = onDismiss)
 
@@ -186,6 +200,7 @@ fun DiaryEditor(
                     .fillMaxWidth()
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
+                    .focusRequester(focusRequester)
                     .padding(horizontal = LifeOSSpacing.screenPadding),
                 textStyle = LocalTextStyle.current.merge(
                     MaterialTheme.typography.bodyLarge.copy(lineHeight = 28.sp)
@@ -217,7 +232,11 @@ fun DiaryEditor(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "${content.trim().length} characters",
+                    when (val count = content.trim().length) {
+                        0 -> "0 characters"
+                        1 -> "1 character"
+                        else -> "${count} characters"
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
