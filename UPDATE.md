@@ -5,6 +5,130 @@ Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and re
 
 ---
 
+## 2026-09-26 — Diary date strip, honest timestamps, startup fix (branch `feature/diary-date-strip-and-startup`)
+
+Three problems, one pass. The Diary gains a real date picker, diary timestamps stop
+lying, and the multi-second cold start gets an actual root cause. Room stays v4 with
+its three migrations untouched, navigation is unchanged, and the app stays offline.
+
+### 1. The date strip replaces the ticks and chevrons
+
+The 2026-09-25 redesign gave day navigation seven ambiguous dots — a filled tick
+meant either "selected" or "has memories" depending only on its size — plus two
+chevrons, and gave the `displayLarge` day numeral more visual weight than the
+memories themselves. Both are gone.
+
+- `ui/diary/DiaryDateStrip.kt` *(new)* — a `LazyRow` of weekday-over-numeral cells
+  that keeps the selected day centred. Everything is **derived, not hard-coded**: a
+  cell is exactly one `VISIBLE_DATES`(=5)th of the measured width, so five dates fit
+  a small phone, a large phone and a landscape window with no magic dp value, and it
+  re-derives on configuration change instead of caching a stale pixel width.
+- **Bounded by construction.** The range is `today-365 .. today` — 366 fixed cells,
+  only ~5 ever realised, and no unbounded or ever-growing list. There is no tomorrow
+  to journal, so the upper bound is `today` itself. `dayStripRange()` is a pure
+  function precisely so the bound is unit-testable.
+- **Centred flings** via `rememberSnapFlingBehavior(state, SnapPosition.Center)` from
+  the `snapping` API already present in the resolved compose-foundation 1.7.5. No new
+  dependency and no reaching into `LazyRow` internals. (There is deliberately no
+  manual fling hook: the built-in provider is the version-correct path.)
+- **One haptic per real day change**, keyed on the *selected* value rather than the
+  tap or the drag. A tap that also re-centres the strip therefore cannot double-fire,
+  and holding a finger down produces nothing. The day-swap is likewise driven by the
+  index the strip has *settled* on, not by intermediate scroll positions.
+- The "which days have memories" signal the ticks carried is preserved as a small
+  dot under the numeral — now unambiguous, because selection is a tinted pill.
+- `ui/diary/DiaryDayHeader.kt` — back + `+ Memory` row, then a compact hierarchy:
+  `TODAY` eyebrow over `26 September · Saturday`. The strip is full-bleed so a
+  centred cell is genuinely centred; the label above keeps its screen padding.
+- `DiaryDayHeader`'s `canGoForward` / `onPrevious` / `onNext` parameters and
+  `DiaryViewModel.shiftDay()` are **removed** — the strip is now the only day-navigation
+  control, so they were dead weight. `selectDay()` clamps to the same range, in the
+  ViewModel rather than the composable, so no caller can park the screen on a day the
+  strip cannot render.
+
+### 2. Timestamps stop lying
+
+`DiaryViewModel.saveEntry` called `DateTimeUtils.nowMinutesOfDay()` **at save time**.
+Open the composer at 8:04, write for twenty minutes, save, and the memory was filed
+at 8:24 — the time silently moved, and there was no way to see it before committing.
+
+- The minute is now captured in `startNewEntry()` / `startEdit()` and reused on save.
+  `startEdit` captures the entry's *existing* `timeMinutes`, so re-saving an edited
+  memory can never move it in the day's timeline.
+- `editorTimeMinutes` is exposed as state and rendered in `DiaryEditor` under the date
+  with a small clock glyph (`Written at 8:04 AM` when editing), so the value that will
+  be stored is visible before the save, and it does not drift while the user types.
+- No schema change: `DiaryEntity.timeMinutes` and `createdAt` already existed.
+  `DiaryDetailScreen` passes the stored `timeMinutes` through; it only ever edits.
+
+### 3. Startup: the actual root cause
+
+- **`ServiceLocator` was forcing SQLCipher open on the main thread.** Every member was
+  an eager `val`, and each one dereferences `database` — directly, or through a
+  repository that already holds a DAO — so the first assignment in
+  `LifeOSApplication.onCreate()` called `AppDatabase.getInstance()` before `setContent`:
+  native library load, Keystore load + AES/GCM unwrap, SharedPreferences read and the
+  Room build. All members are now `by lazy`, which also means a feature nobody opens
+  never pays for its repository.
+- **The warm-up query was reading a whole table.** `AppDatabase.warmUpOpen()` used
+  `habitDao().getAllForBackup()`, deserialising every habit row on the startup path —
+  waste that grew with the user's data, paid for while the splash was still up. It is
+  now `openHelper.writableDatabase.query("SELECT 1")`, which reaches the same code path
+  at constant cost, inside `withContext(Dispatchers.IO)` so the blocking open can never
+  land on the main thread regardless of caller.
+- **`MainActivity` composed the app behind the splash.** It drew a background-coloured
+  `Surface` over `LifeOSNavHost()` while the database was still opening — but
+  *composing* the nav host builds Home's ViewModel, whose repository chain is exactly
+  what forces `AppDatabase.getInstance()`. The overlay would have quietly put the
+  SQLCipher open straight back on the main thread. The content is now genuinely gated
+  on `DatabaseInit.Ready`; the native splash covers the wait, so nothing is lost.
+- **`core/util/StartupTrace.kt` *(new)*** — `android.os.Trace` only, so the framework
+  compiles it to a no-op unless a Perfetto/systrace session is attached: production
+  cost is one boolean check per call site and nothing reaches logcat. Sections:
+  `lifeos:Application.onCreate`, `lifeos:di.build`, `lifeos:db.open` (async),
+  `lifeos:db.passphrase`, `lifeos:MainActivity.setContent`, `lifeos:home.firstFrame`.
+  Supported from API 29, where `Trace.isEnabled()` was added; below that every entry
+  point collapses to a bare call of the wrapped block.
+- No logging, no `INTERNET` permission, no new runtime dependency.
+
+### Animation
+Restrained and system-setting-aware throughout (Compose animation coroutines already
+honour "Remove animations", so no duration-scale plumbing was needed). The strip's
+selected pill and numeral use non-bouncy springs; the mood label cross-fades over
+160/110ms instead of snapping, since it changes on every tap and an instant swap
+reads as a flicker exactly when the user is looking for confirmation;
+`Modifier.fadeInAsContent()` (new, in `DiaryMotion.kt`) fades the empty state's open
+spine in with no translation, because the state is already vertically centred and a
+slide would read as the layout moving.
+
+### Tests
+New `DayStripRangeTest` (8 cases) pins the strip's bounds: ends on today, starts
+exactly one window back, ascending and contiguous, no repeats, never a future day,
+honours a narrower window, and asserts the year-long bound on purpose.
+New `DiaryViewModelTest` (13 cases) covers the open-time-vs-save-time distinction,
+per-entry stamps, edit preservation of both `timeMinutes` and `createdAt`, editor
+minute lifecycle, past-day filing, the day clamps, day-scoped content and
+`daysWithMemories`. The ViewModel gained two defaulted clock seams
+(`nowMinutes`, `todayEpochDay`) purely so these are deterministic; production call
+sites are unchanged. `kotlinx-coroutines-test:1.9.0` was added **test-only**,
+version-matched to the existing `kotlinx-coroutines-android` so no second coroutines
+is pulled in.
+
+### Verification (offline, no network)
+`/opt/gradle-8.9/bin/gradle --offline :app:testDebugUnitTest :app:assembleDebug
+:app:assembleDebugAndroidTest :app:lintDebug` → **BUILD SUCCESSFUL**;
+**132 unit tests, 0 failures/errors** (up from 111); lint **0 errors**, and every
+remaining warning is pre-existing in files this change does not touch. Also
+confirmed by diff review: no `Log.`/`println`/TODO, no secrets, no `INTERNET`
+permission, and no change under `data/db/` migrations, `schemas/`, `ui/navigation/`,
+`androidTest/` or the manifest.
+
+### Not verified here
+No emulator, device or AVD is available in this sandbox, so there are **no measured
+before/after cold-start timings** — the trace sections above are the instrumentation
+that makes that measurement possible on real hardware, not a substitute for it. The
+UI has likewise not been viewed on a screen. Both remain open.
+
 ## 2026-09-25 — Diary redesigned as *Daily Memory* (branch `feat/diary-daily-memory-redesign`)
 
 The Diary stops being a list of paper cards with a date strip and becomes an

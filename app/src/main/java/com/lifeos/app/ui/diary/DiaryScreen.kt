@@ -61,10 +61,8 @@ fun DiaryScreen(
     val showEditor by viewModel.showEditor.collectAsState()
     val editingEntry by viewModel.editingEntry.collectAsState()
     val entryToDelete by viewModel.entryToDelete.collectAsState()
+    val editorTimeMinutes by viewModel.editorTimeMinutes.collectAsState()
     val saving by viewModel.saving.collectAsState()
-
-    val today = DateTimeUtils.today().toEpochDay()
-    val canGoForward = selectedDay < today
 
     // With the editor open, back closes the editor rather than the screen.
     BackHandler(enabled = showEditor, onBack = viewModel::dismissEditor)
@@ -80,11 +78,9 @@ fun DiaryScreen(
                 DiaryDayHeader(
                     selectedDay = selectedDay,
                     daysWithMemories = daysWithMemories,
-                    canGoForward = canGoForward,
                     onBack = onBack,
-                    onPrevious = { viewModel.shiftDay(-1) },
-                    onNext = { viewModel.shiftDay(1) },
-                    onCreate = viewModel::startNewEntry
+                    onCreate = viewModel::startNewEntry,
+                    onSelectDay = viewModel::selectDay
                 )
 
                 if (memories.isEmpty()) {
@@ -144,6 +140,7 @@ fun DiaryScreen(
             DiaryEditor(
                 dayEpochDay = editingEntry?.dateEpochDay ?: selectedDay,
                 editing = editingEntry,
+                timeMinutes = editorTimeMinutes,
                 saving = saving,
                 onDismiss = viewModel::dismissEditor,
                 onSave = viewModel::saveEntry,

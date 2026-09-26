@@ -3,6 +3,7 @@ package com.lifeos.app
 import android.app.Application
 import com.lifeos.app.core.di.ServiceLocator
 import com.lifeos.app.core.util.NotificationHelper
+import com.lifeos.app.core.util.StartupTrace
 import com.lifeos.app.data.db.AppDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,30 +47,38 @@ class LifeOSApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Cheap: builds the DI container without touching the database.
-        val locator = runCatching { ServiceLocator.get(this) }
-            .onSuccess { serviceLocator = it }
-            .onFailure { initializationError = it; _databaseState.value = DatabaseInit.Error(it) }
-            .getOrNull()
-        if (locator == null) return
+        StartupTrace.section("lifeos:Application.onCreate") {
 
-        // Notification channel creation is a binder round-trip; never block the
-        // main thread on it during startup.
-        appScope.launch { runCatching { NotificationHelper.ensureChannel(this@LifeOSApplication) } }
+            // Cheap: builds the DI container. Every ServiceLocator member is
+            // `by lazy`, so this cannot touch SQLCipher, the Keystore or Room —
+            // see ServiceLocator's comment for the bug this replaced.
+            val locator = runCatching {
+                StartupTrace.section("lifeos:di.build") { ServiceLocator.get(this) }
+            }
+                .onSuccess { serviceLocator = it }
+                .onFailure { initializationError = it; _databaseState.value = DatabaseInit.Error(it) }
+                .getOrNull()
+            if (locator == null) return@section
 
-        // Pre-load SettingsStore's DataStore value cache so the first composition
-        // reads are served from memory instead of a first-frame file read (which
-        // would otherwise flash onboarding or the app-lock screen).
-        appScope.launch { runCatching { locator.settingsStore.warmUp() } }
+            // Notification channel creation is a binder round-trip; never block the
+            // main thread on it during startup.
+            appScope.launch { runCatching { NotificationHelper.ensureChannel(this@LifeOSApplication) } }
 
-        // Heavy: SQLCipher native load, Keystore passphrase, Room build and the
-        // one-time PBKDF2 open. The UI stays on a lightweight brand splash until
-        // this completes, then databaseState flips to Ready.
-        launchDatabaseOpen()
+            // Pre-load SettingsStore's DataStore value cache so the first composition
+            // reads are served from memory instead of a first-frame file read (which
+            // would otherwise flash onboarding or the app-lock screen).
+            appScope.launch { runCatching { locator.settingsStore.warmUp() } }
+
+            // Heavy: SQLCipher native load, Keystore passphrase, Room build and the
+            // one-time PBKDF2 open. The UI stays on the native splash until this
+            // completes, then databaseState flips to Ready.
+            launchDatabaseOpen()
+        }
     }
 
     private fun launchDatabaseOpen() {
         appScope.launch(Dispatchers.IO) {
+            StartupTrace.beginAsync("lifeos:db.open")
             try {
                 AppDatabase.warmUpOpen(this@LifeOSApplication)
                 // Flip to Ready first so the native splash can dismiss and the
@@ -83,6 +92,8 @@ class LifeOSApplication : Application() {
             } catch (t: Throwable) {
                 initializationError = t
                 _databaseState.value = DatabaseInit.Error(t)
+            } finally {
+                StartupTrace.endAsync("lifeos:db.open")
             }
         }
     }

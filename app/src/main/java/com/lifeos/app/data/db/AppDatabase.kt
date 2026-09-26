@@ -20,6 +20,8 @@ import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.ReminderEntity
 import com.lifeos.app.data.db.entities.TaskEntity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
@@ -158,11 +160,24 @@ abstract class AppDatabase : RoomDatabase() {
          * main-thread access ever triggers this. Exceptions (e.g.
          * [DatabaseKeyUnavailableException]) propagate to the caller so the
          * recovery screen can be shown instead of a background crash.
+         *
+         * The probe is `SELECT 1`, not a real query. It used to be
+         * `habitDao().getAllForBackup()`, which forced the open but also
+         * deserialised every row in the habits table on the startup path — pure
+         * waste that grew with the user's data and was paid for while the splash
+         * was still on screen. `SELECT 1` reaches the same code path (the
+         * SupportSQLiteOpenHelper is created and the first statement is
+         * executed) at a constant cost.
          */
         suspend fun warmUpOpen(context: Context) {
-            // A trivial read is enough: the database opens lazily on the first
-            // statement executed against it.
-            getInstance(context).habitDao().getAllForBackup()
+            // `openHelper.writableDatabase` is a blocking call, so the context
+            // switch is what guarantees the open never lands on the main thread
+            // regardless of who calls this.
+            withContext(Dispatchers.IO) {
+                getInstance(context).openHelper.writableDatabase
+                    .query("SELECT 1")
+                    .use { it.moveToFirst() }
+            }
         }
     }
 }

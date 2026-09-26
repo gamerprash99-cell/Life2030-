@@ -39,6 +39,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +57,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
+import com.lifeos.app.core.util.StartupTrace
 import com.lifeos.app.data.db.entities.TaskEntity
 import com.lifeos.app.domain.model.TimelineItem
 import com.lifeos.app.domain.model.TimelineItemType
@@ -83,6 +88,16 @@ fun HomeScreen(
         }
     )
     val summary by viewModel.summary.collectAsState()
+
+    // One-shot mark of the first Home composition after the encrypted database
+    // reported Ready, so a cold start can be read as "splash -> Home composed" in
+    // a Perfetto capture (core/util/StartupTrace). The section opens and closes
+    // in the same frame, which is exactly the instant being recorded.
+    var firstFrameMarked by rememberSaveable { mutableStateOf(false) }
+    if (summary != null && !firstFrameMarked) {
+        firstFrameMarked = true
+        StartupTrace.section("lifeos:home.firstFrame") { }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

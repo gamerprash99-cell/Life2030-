@@ -26,6 +26,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.AppLockType
+import com.lifeos.app.core.util.StartupTrace
 import com.lifeos.app.ui.navigation.LifeOSNavHost
 import com.lifeos.app.ui.onboarding.OnboardingScreen
 import com.lifeos.app.ui.security.AppLockScreen
@@ -58,36 +59,45 @@ class MainActivity : ComponentActivity() {
         // dismisses into the non-destructive DataKeyErrorScreen.
         splashScreen.setKeepOnScreenCondition { app.databaseState.value == DatabaseInit.Initializing }
 
-        setContent {
-            val initState by app.databaseState.collectAsState(initial = DatabaseInit.Initializing)
-            val locator = app.serviceLocator
-            val error = (initState as? DatabaseInit.Error)?.cause ?: app.initializationError
-            val context = LocalContext.current
+        // Traced so the Activity's own onCreate cost can be separated from the
+        // database open in a Perfetto capture (see core/util/StartupTrace.kt).
+        StartupTrace.section("lifeos:MainActivity.setContent") {
+            setContent {
+                val initState by app.databaseState.collectAsState(initial = DatabaseInit.Initializing)
+                val locator = app.serviceLocator
+                val error = (initState as? DatabaseInit.Error)?.cause ?: app.initializationError
+                val context = LocalContext.current
 
-            when {
-                locator == null || error != null -> DataKeyErrorScreen(
-                    technicalDetail = error?.message,
-                    onRetry = { app.retryInitialization() },
-                    onExit = { (context as? ComponentActivity)?.finish() }
-                )
+                when {
+                    locator == null || error != null -> DataKeyErrorScreen(
+                        technicalDetail = error?.message,
+                        onRetry = { app.retryInitialization() },
+                        onExit = { (context as? ComponentActivity)?.finish() }
+                    )
 
-                else -> {
-                    val serviceLocator = locator
-                    val darkTheme by serviceLocator.settingsStore.darkThemeEnabled.collectAsState(initial = false)
+                    else -> {
+                        val serviceLocator = locator
+                        val darkTheme by serviceLocator.settingsStore.darkThemeEnabled.collectAsState(initial = false)
 
-                    LifeOSTheme(darkTheme = darkTheme) {
-                        CompositionLocalProvider(LocalServiceLocator provides serviceLocator) {
-                            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                                Box(modifier = Modifier.fillMaxSize()) {
-                                    OnboardingGate {
-                                        AppLockGate { LifeOSNavHost() }
-                                    }
-                                    // Safety net while the database opens: the native
-                                    // splash still covers this frame, so all that is
-                                    // required here is the app's own background color —
-                                    // never a loading label or a fake screen.
-                                    if (initState != DatabaseInit.Ready) {
-                                        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {}
+                        LifeOSTheme(darkTheme = darkTheme) {
+                            CompositionLocalProvider(LocalServiceLocator provides serviceLocator) {
+                                Surface(
+                                    modifier = Modifier.fillMaxSize(),
+                                    color = MaterialTheme.colorScheme.background
+                                ) {
+                                    // Deliberately gated on Ready, and *not* composed
+                                    // behind the splash. Composing it anyway would build
+                                    // Home's ViewModel, whose repository dependency chain
+                                    // is exactly what forces `AppDatabase.getInstance()`
+                                    // — so an overlay here would quietly move the
+                                    // SQLCipher open back onto the main thread. Waiting
+                                    // costs nothing: the native splash is on screen
+                                    // either way, and it is dismissed the moment
+                                    // databaseState flips to Ready.
+                                    if (initState == DatabaseInit.Ready) {
+                                        OnboardingGate {
+                                            AppLockGate { LifeOSNavHost() }
+                                        }
                                     }
                                 }
                             }

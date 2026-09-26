@@ -38,7 +38,10 @@ fun DiaryEmptyState(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.fillMaxSize().padding(LifeOSSpacing.screenPadding),
+        modifier = modifier
+            .fillMaxSize()
+            .fadeInAsContent()
+            .padding(LifeOSSpacing.screenPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

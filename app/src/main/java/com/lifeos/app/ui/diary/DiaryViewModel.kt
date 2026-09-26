@@ -23,16 +23,18 @@ import kotlinx.coroutines.launch
  * is read one day at a time.
  */
 class DiaryViewModel(
-    private val diaryRepository: DiaryRepository
+    private val diaryRepository: DiaryRepository,
+    private val nowMinutes: () -> Int = DateTimeUtils::nowMinutesOfDay,
+    private val todayEpochDay: () -> Long = { DateTimeUtils.today().toEpochDay() }
 ) : ViewModel() {
 
     val entries: StateFlow<List<DiaryEntity>> = diaryRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _selectedDay = MutableStateFlow(DateTimeUtils.today().toEpochDay())
+    private val _selectedDay = MutableStateFlow(todayEpochDay())
     val selectedDay: StateFlow<Long> = _selectedDay
 
-    /** Epoch days that hold at least one memory — drives the masthead's day ticks. */
+    /** Epoch days that hold at least one memory — marks those cells in the strip. */
     val daysWithMemories: StateFlow<Set<Long>> = entries
         .map { all -> all.mapTo(mutableSetOf()) { it.dateEpochDay } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
@@ -56,37 +58,62 @@ class DiaryViewModel(
     private val _saving = MutableStateFlow(false)
     val saving: StateFlow<Boolean> = _saving
 
-    fun selectDay(day: Long) {
-        _selectedDay.value = day
-    }
+    /**
+     * The wall-clock minute this entry is stamped with, decided the moment the
+     * editor opens rather than the moment it is saved.
+     *
+     * This is the whole point of the field: someone who opens the editor at 8:04
+     * and writes for twenty minutes means "8:04", not "8:24". Reading the clock
+     * at save time silently rewrote the timestamp of every long entry, and it
+     * also made the time shown in the editor a value that would change under the
+     * user's hands. Editing an existing entry keeps that entry's original
+     * minute, so re-saving can never move a memory in the day's timeline.
+     */
+    private var capturedTimeMinutes: Int? = null
 
-    /** Steps the selected day, refusing to move past today (there is no tomorrow to journal). */
-    fun shiftDay(delta: Long) {
-        val today = DateTimeUtils.today().toEpochDay()
-        val next = _selectedDay.value + delta
-        if (next <= today) _selectedDay.value = next
+    private val _editorTimeMinutes = MutableStateFlow<Int?>(null)
+    val editorTimeMinutes: StateFlow<Int?> = _editorTimeMinutes
+
+    /**
+     * Selects a day, clamped to the span the strip can actually show: never a
+     * future (there is no tomorrow to journal) and never older than the strip's
+     * history window. Clamping here rather than in the composable means a stale
+     * saved state or any other caller cannot park the screen on a day the strip
+     * is unable to render.
+     */
+    fun selectDay(day: Long) {
+        _selectedDay.value = day.coerceIn(todayEpochDay() - HISTORY_DAYS, todayEpochDay())
     }
 
     fun startNewEntry() {
         _editingEntry.value = null
+        capturedTimeMinutes = nowMinutes()
+        _editorTimeMinutes.value = capturedTimeMinutes
         _showEditor.value = true
     }
 
     fun startEdit(entry: DiaryEntity) {
         _editingEntry.value = entry
+        // An edit keeps the minute the memory was originally written at.
+        capturedTimeMinutes = entry.timeMinutes
+        _editorTimeMinutes.value = entry.timeMinutes
         _showEditor.value = true
     }
 
     fun dismissEditor() {
         _showEditor.value = false
         _editingEntry.value = null
+        capturedTimeMinutes = null
+        _editorTimeMinutes.value = null
     }
 
     /**
      * Persists a memory. New entries are stamped with the day currently being
-     * read — not with `today()` — so writing into a past day lands in that day.
-     * Edits keep the entry's existing id, date and time; only the fields the
-     * editor owns are replaced.
+     * read — not with `today()` — so writing into a past day lands in that day,
+     * and with the minute captured when the editor opened, so the timestamp
+     * reflects when the memory happened rather than when the user finished
+     * typing it. Edits keep the entry's existing id, date and time; only the
+     * fields the editor owns are replaced.
      */
     fun saveEntry(content: String, mood: String?) {
         if (content.isBlank() || _saving.value) return
@@ -105,7 +132,7 @@ class DiaryViewModel(
                         mood = mood,
                         tags = emptyList(),
                         dateEpochDay = _selectedDay.value,
-                        timeMinutes = DateTimeUtils.nowMinutesOfDay()
+                        timeMinutes = capturedTimeMinutes ?: nowMinutes()
                     )
                 }
                 dismissEditor()
