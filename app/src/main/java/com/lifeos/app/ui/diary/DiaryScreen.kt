@@ -1,6 +1,9 @@
 package com.lifeos.app.ui.diary
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,13 +21,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
@@ -63,6 +71,15 @@ fun DiaryScreen(
     val entryToDelete by viewModel.entryToDelete.collectAsState()
     val editorTimeMinutes by viewModel.editorTimeMinutes.collectAsState()
     val saving by viewModel.saving.collectAsState()
+    val saveConfirmation by viewModel.saveConfirmation.collectAsState()
+    var showSaved by remember { mutableStateOf(false) }
+
+    LaunchedEffect(saveConfirmation) {
+        if (saveConfirmation == 0) return@LaunchedEffect
+        showSaved = true
+        delay(1400)
+        showSaved = false
+    }
 
     // With the editor open, back closes the editor rather than the screen.
     BackHandler(enabled = showEditor, onBack = viewModel::dismissEditor)
@@ -136,6 +153,15 @@ fun DiaryScreen(
             }
         }
 
+        AnimatedVisibility(
+            visible = showSaved && !showEditor,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            SavedMemoryToast()
+        }
+
         DiaryEditorOverlay(visible = showEditor) {
             DiaryEditor(
                 dayEpochDay = editingEntry?.dateEpochDay ?: selectedDay,
@@ -187,6 +213,32 @@ private fun MemoryStreamFooter(count: Int, onCreate: () -> Unit) {
                 style = MaterialTheme.typography.labelLarge,
                 color = DiaryInkViolet,
                 textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun SavedMemoryToast() {
+    Box(
+        modifier = Modifier
+            .padding(top = 18.dp)
+            .clip(CircleShape)
+            .background(DiaryInkViolet)
+            .padding(horizontal = 18.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "✓",
+                color = MaterialTheme.colorScheme.background,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(Modifier.width(7.dp))
+            Text(
+                text = "Memory saved",
+                color = MaterialTheme.colorScheme.background,
+                style = MaterialTheme.typography.labelLarge
             )
         }
     }
