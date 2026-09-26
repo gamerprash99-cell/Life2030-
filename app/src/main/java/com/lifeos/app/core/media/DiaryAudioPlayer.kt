@@ -16,10 +16,10 @@ import java.io.File
  * to [PlaybackState.MissingFile] rather than throwing, so a historical entry
  * can still be read.
  */
-class DiaryAudioPlayer {
+class DiaryAudioPlayer : AudioPlayback {
 
     private val _state = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
-    val state: StateFlow<PlaybackState> = _state.asStateFlow()
+    override val state: StateFlow<PlaybackState> = _state.asStateFlow()
 
     private var player: MediaPlayer? = null
     private var playingPath: String? = null
@@ -29,7 +29,7 @@ class DiaryAudioPlayer {
      * is already playing toggles to a stop, which is what the single play/pause
      * button in the UI needs.
      */
-    fun toggle(filePath: String): PlaybackState {
+    override fun toggle(filePath: String): PlaybackState {
         if (playingPath == filePath && _state.value is PlaybackState.Playing) {
             stop()
             return _state.value
@@ -37,7 +37,7 @@ class DiaryAudioPlayer {
         return play(filePath)
     }
 
-    fun play(filePath: String): PlaybackState {
+    override fun play(filePath: String): PlaybackState {
         releasePlayer()
 
         val file = File(filePath)
@@ -70,7 +70,7 @@ class DiaryAudioPlayer {
         return _state.value
     }
 
-    fun stop() {
+    override fun stop() {
         releasePlayer()
         _state.value = PlaybackState.Idle
     }
@@ -85,7 +85,7 @@ class DiaryAudioPlayer {
     }
 
     /** Releases the decoder. Safe to call from `onDispose`. */
-    fun release() = stop()
+    override fun release() = stop()
 }
 
 /** Playback state mirrored into the UI. */

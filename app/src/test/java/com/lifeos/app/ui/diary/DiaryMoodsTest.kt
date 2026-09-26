@@ -8,9 +8,35 @@ import org.junit.Test
 class DiaryMoodsTest {
 
     @Test
-    fun `exactly five moods mirror the composer design`() {
-        assertEquals(5, DiaryMoods.OPTIONS.size)
-        assertTrue(DiaryMoods.OPTIONS.map { it.label }.containsAll(listOf("Happy", "Calm", "Sad", "Stressed", "Excited")))
+    fun `the eight moods mirror the composer design`() {
+        assertEquals(8, DiaryMoods.OPTIONS.size)
+        assertTrue(
+            DiaryMoods.OPTIONS.map { it.label }
+                .containsAll(listOf("Happy", "Calm", "Tired", "Sad", "Anxious", "Stressed", "Angry", "Excited"))
+        )
+    }
+
+    @Test
+    fun `labels are unique`() {
+        val labels = DiaryMoods.OPTIONS.map { it.label }
+        assertEquals(labels.size, labels.distinct().size)
+    }
+
+    @Test
+    fun `persisted keys are unique`() {
+        val keys = DiaryMoods.OPTIONS.map { it.key }
+        assertEquals(keys.size, keys.distinct().size)
+    }
+
+    /**
+     * The five moods LifeOS shipped before the Daily Memory redesign must keep
+     * their exact persisted keys, or every existing entry loses its mood.
+     */
+    @Test
+    fun `legacy mood keys are still resolvable`() {
+        listOf("😊 Happy", "😌 Calm", "😔 Sad", "😤 Stressed", "🤩 Excited").forEach { key ->
+            assertEquals(key, DiaryMoods.fromStored(key)?.key)
+        }
     }
 
     @Test

@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.repository.DiaryRepository
-import com.lifeos.app.domain.model.DiaryAttachments
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -13,88 +12,112 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 
 /**
  * Diary screen state. Everything flows from `DiaryRepository.observeAll()` —
- * the day list, the date filter and the composer are all Room-backed, no
+ * the list, the day filter and the new/edit editor are all Room-backed, no
  * simulated data.
  *
- * The screen is day-scoped, matching the reference: a header naming the real
- * selected day, a week strip to move between days, and that day's entries
- * listed in time order.
+ * The screen is day-scoped: [selectedDay] always holds a concrete day (today
+ * until the user moves) rather than an "all days" sentinel, because the Diary
+ * is read one day at a time.
  */
 class DiaryViewModel(
-    private val diaryRepository: DiaryRepository
+    private val diaryRepository: DiaryRepository,
+    private val todayEpochDay: () -> Long = { DateTimeUtils.today().toEpochDay() }
 ) : ViewModel() {
 
     val entries: StateFlow<List<DiaryEntity>> = diaryRepository.observeAll()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /**
-     * The day the user is looking at. Seeded from the real current date so the
-     * screen opens on today rather than on a hardcoded day.
-     */
-    private val _selectedDay = MutableStateFlow(DateTimeUtils.today().toEpochDay())
+    private val _selectedDay = MutableStateFlow(todayEpochDay())
     val selectedDay: StateFlow<Long> = _selectedDay
 
-    /** True while the very first database read is still in flight. */
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading: StateFlow<Boolean> = _isLoading
+    /** Epoch days that hold at least one memory — marks those cells in the strip. */
+    val daysWithMemories: StateFlow<Set<Long>> = entries
+        .map { all -> all.mapTo(mutableSetOf()) { it.dateEpochDay } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-    /**
-     * The selected day's entries, newest time first — the day timeline.
-     *
-     * Favourites are surfaced separately so the reference's favourite star can
-     * be rendered without re-querying the database per row.
-     */
-    val dayEntries: StateFlow<List<DiaryEntity>> = combine(entries, _selectedDay) { all, day ->
-        all.filter { it.dateEpochDay == day }
-            .sortedByDescending { it.timeMinutes }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /** Memories on [selectedDay], newest first. */
+    val memoriesForSelectedDay: StateFlow<List<DiaryEntity>> =
+        combine(entries, _selectedDay) { all, day ->
+            all.filter { it.dateEpochDay == day }
+                .sortedByDescending { it.timeMinutes }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Entries flagged as favourites, newest first. */
-    val favorites: StateFlow<List<DiaryEntity>> = entries
-        .map { all -> all.filter { it.isFavorite }.sortedByDescending { it.dateEpochDay * 1440 + it.timeMinutes } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    /** The seven days of the week containing [selectedDay], oldest first. */
-    val weekDays: StateFlow<List<LocalDate>> = _selectedDay
-        .map { epochDay ->
-            val date = DateTimeUtils.epochDayToLocalDate(epochDay)
-            val startOfWeek = date.minusDays((date.dayOfWeek.value - 1).toLong())
-            (0L..6L).map { startOfWeek.plusDays(it) }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    /** Days that actually contain at least one entry, for the strip's dot marker. */
-    val daysWithEntries: StateFlow<Set<Long>> = entries
-        .map { all -> all.map { it.dateEpochDay }.toSet() }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+    private val _showEditor = MutableStateFlow(false)
+    val showEditor: StateFlow<Boolean> = _showEditor
+    private val _editingEntry = MutableStateFlow<DiaryEntity?>(null)
+    val editingEntry: StateFlow<DiaryEntity?> = _editingEntry
 
     private val _entryToDelete = MutableStateFlow<DiaryEntity?>(null)
     val entryToDelete: StateFlow<DiaryEntity?> = _entryToDelete
 
-    init {
-        // One read of the flow is enough to know the database has answered.
-        viewModelScope.launch {
-            entries.collect { _isLoading.value = false }
-        }
+    /**
+     * Selects a day, clamped to the span the strip can actually show: never a
+     * future (there is no tomorrow to journal) and never older than the strip's
+     * history window. Clamping here rather than in the composable means a stale
+     * saved state or any other caller cannot park the screen on a day the strip
+     * is unable to render.
+     */
+    fun selectDay(day: Long) {
+        _selectedDay.value = day.coerceIn(todayEpochDay() - HISTORY_DAYS, todayEpochDay())
     }
 
-    fun selectDay(epochDay: Long) {
-        _selectedDay.value = epochDay
+    fun startNewEntry() {
+        _editingEntry.value = null
+        _showEditor.value = true
     }
 
-    fun requestDelete(entry: DiaryEntity) { _entryToDelete.value = entry }
-    fun dismissDelete() { _entryToDelete.value = null }
+    fun startEdit(entry: DiaryEntity) {
+        _editingEntry.value = entry
+        _showEditor.value = true
+    }
+
+    fun dismissEditor() {
+        _showEditor.value = false
+        _editingEntry.value = null
+    }
+
+    /**
+     * Called once the editor's own view model reports a committed write. Keeps
+     * the day view's "the editor is finished" transition in one place, so the
+     * editor only has to say *that* it saved, not how the screen should react.
+     */
+    fun onEditorSaved() {
+        dismissEditor()
+    }
+
+    fun requestDelete(entry: DiaryEntity) {
+        _entryToDelete.value = entry
+    }
+
+    fun dismissDelete() {
+        _entryToDelete.value = null
+    }
 
     fun deleteEntry(id: String) {
         _entryToDelete.value = null
         viewModelScope.launch { diaryRepository.delete(id) }
     }
 
-    /** Attachments for one entry, decoded from the persisted JSON column. */
-    fun attachmentsOf(entry: DiaryEntity): List<com.lifeos.app.domain.model.DiaryAttachment> =
-        DiaryAttachments.decode(entry.attachmentsJson)
+    /**
+     * Flips a memory's favourite flag. The write is a single Room update, so
+     * the list re-renders from the same `observeAll()` flow the screen already
+     * collects — there is no separate in-memory copy to fall out of sync.
+     */
+    fun toggleFavorite(id: String) {
+        viewModelScope.launch { diaryRepository.toggleFavorite(id) }
+    }
+
+    /**
+     * Strips one attachment from a memory without opening the editor, so the
+     * detail screen's remove affordances do what they look like they do. The
+     * repository no-ops on a path the entry does not hold, and deletes the file
+     * once nothing references it.
+     */
+    fun removeAttachment(id: String, filePath: String) {
+        viewModelScope.launch { diaryRepository.removeAttachment(id, filePath) }
+    }
+
 }

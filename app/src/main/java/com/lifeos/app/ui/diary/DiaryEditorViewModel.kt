@@ -1,14 +1,14 @@
 package com.lifeos.app.ui.diary
 
-import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lifeos.app.core.location.DeviceLocationProvider
+import com.lifeos.app.core.location.LocationProvider
 import com.lifeos.app.core.location.LocationFailure
 import com.lifeos.app.core.location.LocationOutcome
-import com.lifeos.app.core.media.DiaryAudioPlayer
-import com.lifeos.app.core.media.DiaryAudioRecorder
+import com.lifeos.app.core.media.AudioPlayback
+import com.lifeos.app.core.media.PhotoImporter
+import com.lifeos.app.core.media.AudioRecorder
 import com.lifeos.app.core.media.PlaybackState
 import com.lifeos.app.core.media.RecordingState
 import com.lifeos.app.core.util.DateTimeUtils
@@ -45,12 +45,24 @@ data class DiaryEditorState(
     val recording: RecordingState = RecordingState.Idle,
     val playback: PlaybackState = PlaybackState.Idle,
     val isSaving: Boolean = false,
+    /**
+     * True while the row being edited is still being read. Until it arrives the
+     * draft has no id, so a save would insert a duplicate instead of updating.
+     */
+    val isLoading: Boolean = false,
     val savedEntryId: String? = null,
+    /**
+     * Monotonic count of committed writes. A counter rather than a boolean,
+     * because saving the *same* memory twice is two events — keying a one-shot
+     * UI effect on the id would swallow the second one.
+     */
+    val saveCount: Int = 0,
     val errorMessage: String? = null
 ) {
     val wordCount: Int get() = DiaryTextStats.wordCount(content)
     val characterCount: Int get() = DiaryTextStats.characterCount(content)
-    val canSave: Boolean get() = content.isNotBlank() && !isSaving && recording !is RecordingState.Recording
+    val canSave: Boolean get() =
+        content.isNotBlank() && !isSaving && !isLoading && recording !is RecordingState.Recording
     val hasAttachments: Boolean get() = photos.isNotEmpty() || voiceNote != null || place != null
 }
 
@@ -68,11 +80,24 @@ enum class LocationStatus { IDLE, REQUESTING, PERMISSION_DENIED, PERMISSION_PERM
 class DiaryEditorViewModel(
     private val diaryRepository: DiaryRepository,
     private val weatherRepository: WeatherRepository,
-    private val locationProvider: DeviceLocationProvider,
-    private val recorder: DiaryAudioRecorder,
-    private val player: DiaryAudioPlayer,
-    private val appContext: Context
+    private val locationProvider: LocationProvider,
+    private val recorder: AudioRecorder,
+    private val player: AudioPlayback,
+    private val photoImporter: PhotoImporter,
+    /**
+     * The clock, injected so the timestamp rules can be tested on a JVM and so a
+     * minute is read once, when the composer opens, rather than drifting while
+     * the user writes.
+     */
+    private val nowMinutes: () -> Int = DateTimeUtils::nowMinutesOfDay,
+    private val todayEpochDay: () -> Long = { DateTimeUtils.today().toEpochDay() }
 ) : ViewModel() {
+
+    /**
+     * Guards the asynchronous part of [start] against a newer open overtaking
+     * it, so a slow database read cannot land on top of a fresher draft.
+     */
+    private var loadToken = 0L
 
     private val _state = MutableStateFlow(DiaryEditorState())
     val state: StateFlow<DiaryEditorState> = _state.asStateFlow()
@@ -81,23 +106,47 @@ class DiaryEditorViewModel(
     val playbackState: StateFlow<PlaybackState> = player.state
 
     /** Loads an existing entry for editing, or seeds a blank draft for a new one. */
-    fun start(entryId: String?) {
-        if (_state.value.isEditing || _state.value.entryId != null) return
+    /**
+     * Loads the entry being edited, or seeds a blank draft for a new one.
+     *
+     * [defaultDay] is the day currently being read in the list, not necessarily
+     * today: writing while looking at a past day must land in that day, so the
+     * draft is seeded with it rather than with `today()`.
+     *
+     * The minute is captured here, when the editor opens, so a long entry is
+     * filed under the time the user started writing rather than the time they
+     * finished. Editing keeps the entry's original minute, so re-saving can
+     * never move a memory within the day's timeline.
+     */
+    fun start(entryId: String?, defaultDay: Long = todayEpochDay()) {
+        // Deliberately re-seeds rather than early-returning on a non-empty
+        // draft: this view model is reused for the "new memory" key, so opening
+        // the composer a second time must start a *fresh* draft with a freshly
+        // captured minute. Returning early here would file the second memory
+        // under the first one's timestamp. The async load below is guarded by
+        // [loadToken] so a slow read can never overwrite newer input.
+        val token = ++loadToken
+        // The confirmation count belongs to this view model, not to the draft,
+        // so re-seeding a draft must not rewind it. Otherwise a second save of
+        // the same memory would reuse a count the UI has already acknowledged.
+        val committedWrites = _state.value.saveCount
         if (entryId == null) {
             _state.value = DiaryEditorState(
                 isEditing = false,
-                // A new entry defaults to the real current date and time, not a
-                // constant — the user can change both before saving.
-                dateEpochDay = DateTimeUtils.today().toEpochDay(),
-                timeMinutes = DateTimeUtils.nowMinutesOfDay()
+                dateEpochDay = defaultDay,
+                timeMinutes = nowMinutes(),
+                saveCount = committedWrites
             )
             return
         }
+        _state.value = DiaryEditorState(isLoading = true, saveCount = committedWrites)
         viewModelScope.launch {
             val existing = diaryRepository.getById(entryId)
+            if (token != loadToken) return@launch
             if (existing == null) {
                 _state.value = DiaryEditorState(
-                    errorMessage = "That diary entry is no longer available on this device."
+                    errorMessage = "That diary entry is no longer available on this device.",
+                    saveCount = committedWrites
                 )
                 return@launch
             }
@@ -113,7 +162,8 @@ class DiaryEditorViewModel(
                 timeMinutes = existing.timeMinutes,
                 photos = DiaryAttachments.photos(attachments),
                 voiceNote = DiaryAttachments.voiceNote(attachments),
-                place = DiaryAttachments.place(attachments)
+                place = DiaryAttachments.place(attachments),
+                saveCount = committedWrites
             )
             refreshWeather()
         }
@@ -144,7 +194,7 @@ class DiaryEditorViewModel(
      */
     fun attachPhoto(sourceUri: Uri) {
         viewModelScope.launch {
-            val stored = withContext(Dispatchers.IO) { copyIntoPrivateStorage(sourceUri) }
+            val stored = withContext(Dispatchers.IO) { photoImporter.import(sourceUri) }
             if (stored == null) {
                 _state.value = _state.value.copy(errorMessage = "That photo could not be added.")
                 return@launch
@@ -152,18 +202,6 @@ class DiaryEditorViewModel(
             _state.value = _state.value.copy(photos = _state.value.photos + stored)
         }
     }
-
-    private fun copyIntoPrivateStorage(sourceUri: Uri): DiaryAttachment.Photo? = runCatching {
-        val target: File = MediaStorage.newDiaryPhotoFile(appContext)
-        appContext.contentResolver.openInputStream(sourceUri)?.use { input ->
-            target.outputStream().use { output -> input.copyTo(output) }
-        } ?: return null
-        if (target.length() == 0L) {
-            target.delete()
-            return null
-        }
-        DiaryAttachment.Photo(target.absolutePath)
-    }.getOrNull()
 
     fun removePhoto(photo: DiaryAttachment.Photo) {
         MediaStorage.deleteIfExists(photo.filePath)
@@ -335,7 +373,11 @@ class DiaryEditorViewModel(
                     )
                 }
             }.onSuccess { id ->
-                _state.value = _state.value.copy(isSaving = false, savedEntryId = id)
+                _state.value = _state.value.copy(
+                    isSaving = false,
+                    savedEntryId = id,
+                    saveCount = _state.value.saveCount + 1
+                )
             }.onFailure { error ->
                 _state.value = _state.value.copy(
                     isSaving = false,

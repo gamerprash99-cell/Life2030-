@@ -38,10 +38,16 @@ import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -639,3 +645,79 @@ private val PHOTO_TILE_SIZE = 84.dp
 private const val PHOTO_ASPECT_RATIO = 1f
 private val RECORD_DOT_SIZE = 40.dp
 private val META_LABEL_WIDTH = 92.dp
+
+/** Tags with add/remove, persisted in the existing `tagsCsv` column. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun DiaryTagEditor(
+    tags: List<String>,
+    onAdd: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var draft by rememberSaveable { mutableStateOf("") }
+
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Tags",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            if (draft.isNotBlank()) {
+                TextButton(onClick = { onAdd(draft); draft = "" }) {
+                    Text("Add tag", color = DiaryInkViolet)
+                }
+            }
+        }
+
+        if (tags.isNotEmpty()) {
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                tags.forEach { tag ->
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(DiaryLavender.copy(alpha = 0.55f))
+                            .padding(start = 10.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(tag, style = MaterialTheme.typography.labelSmall, color = DiaryInkViolet)
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .clickable { onRemove(tag) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("✕", style = MaterialTheme.typography.labelSmall, color = DiaryInkViolet)
+                        }
+                    }
+                }
+            }
+        }
+
+        TextField(
+            value = draft,
+            onValueChange = { draft = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Add a tag", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium,
+            colors = diaryFieldColors()
+        )
+    }
+}
+
+@Composable
+private fun diaryFieldColors() = TextFieldDefaults.colors(
+    focusedContainerColor = Color.Transparent,
+    unfocusedContainerColor = Color.Transparent,
+    disabledContainerColor = Color.Transparent,
+    focusedIndicatorColor = DiaryInkViolet,
+    unfocusedIndicatorColor = DiaryHairline
+)

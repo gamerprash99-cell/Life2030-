@@ -31,13 +31,13 @@ import kotlin.coroutines.resume
  * Coordinates are used solely to render a place name for that entry and are
  * stored encrypted in the local Room database. They are never transmitted.
  */
-class DeviceLocationProvider(private val context: Context) {
+class DeviceLocationProvider(private val context: Context) : LocationProvider {
 
     private val locationManager: LocationManager? =
         ContextCompat.getSystemService(context, LocationManager::class.java)
 
     /** True when either location permission is currently granted. */
-    fun hasLocationPermission(): Boolean =
+    override fun hasLocationPermission(): Boolean =
         hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ||
             hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
 
@@ -51,7 +51,7 @@ class DeviceLocationProvider(private val context: Context) {
      * enabled, otherwise the network provider, otherwise the last known fix
      * from any provider. Nothing is fabricated when all of them are unavailable.
      */
-    suspend fun currentPlace(): LocationOutcome = withContext(Dispatchers.IO) {
+    override suspend fun currentPlace(): LocationOutcome = withContext(Dispatchers.IO) {
         val manager = locationManager
             ?: return@withContext LocationOutcome.Failure(LocationFailure.NO_PROVIDER)
 

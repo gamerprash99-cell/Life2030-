@@ -24,10 +24,10 @@ import java.io.File
  *  - Every failure path releases the recorder and deletes the partial file, so
  *    a failed take can never leave a corrupt clip referenced by an entry.
  */
-class DiaryAudioRecorder(private val context: Context) {
+class DiaryAudioRecorder(private val context: Context) : AudioRecorder {
 
     private val _state = MutableStateFlow<RecordingState>(RecordingState.Idle)
-    val state: StateFlow<RecordingState> = _state.asStateFlow()
+    override val state: StateFlow<RecordingState> = _state.asStateFlow()
 
     private var recorder: MediaRecorder? = null
     private var targetFile: File? = null
@@ -41,7 +41,7 @@ class DiaryAudioRecorder(private val context: Context) {
      *   storage error). The file is only handed back once the recorder has
      *   genuinely started.
      */
-    fun start(): RecordingState {
+    override fun start(): RecordingState {
         if (_state.value is RecordingState.Recording) return _state.value
 
         val file = MediaStorage.newDiaryAudioFile(context)
@@ -92,7 +92,7 @@ class DiaryAudioRecorder(private val context: Context) {
      * returns the state so a composable can render a real duration and a real
      * input level.
      */
-    fun tick(): RecordingState {
+    override fun tick(): RecordingState {
         val active = _state.value
         if (active !is RecordingState.Recording) return active
         val elapsed = SystemClock.elapsedRealtime() - startedAtElapsedRealtime
@@ -108,7 +108,7 @@ class DiaryAudioRecorder(private val context: Context) {
      * A take shorter than [MIN_DURATION_MILLIS] is treated as an accidental tap
      * and discarded (file deleted) rather than persisted as an unplayable clip.
      */
-    fun stop(): RecordingState {
+    override fun stop(): RecordingState {
         val active = recorder
         val file = targetFile
         val elapsed = SystemClock.elapsedRealtime() - startedAtElapsedRealtime
@@ -147,7 +147,7 @@ class DiaryAudioRecorder(private val context: Context) {
     }
 
     /** Abandons an in-progress take and removes the partial file. */
-    fun cancel() {
+    override fun cancel() {
         recorder?.let { active ->
             runCatching { active.stop() }
             runCatching { active.release() }
@@ -159,7 +159,7 @@ class DiaryAudioRecorder(private val context: Context) {
     }
 
     /** True while the mic is actually open, so the composable can gate the ticker. */
-    fun isRecording(): Boolean = _state.value is RecordingState.Recording
+    override fun isRecording(): Boolean = _state.value is RecordingState.Recording
 
     private companion object {
         const val AUDIO_BIT_RATE = 96_000

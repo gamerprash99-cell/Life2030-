@@ -29,13 +29,25 @@ state — no sample entries, no generated weather, no network.
   the row first so a favourite toggled elsewhere is never clobbered. `delete`
   removes the entry's photos and audio too, so no orphans are left behind.
 
-### Composer (`ui/diary/DiaryEditorScreen.kt`, `DiaryEditorViewModel.kt`)
-- The bottom sheet was **deleted** and replaced by a full-screen composer
-  (`Screen.DiaryEditor`, optional `entryId` argument, so "new" and "edit" are
-  one destination). Saving pops the composer and pushes the saved entry's
-  detail, so Back returns to the day list rather than a stale draft.
+### Composer (`ui/diary/DiaryEditor.kt`, `DiaryEditorViewModel.kt`)
+- The bottom sheet was **deleted** and replaced by a full-screen composer. It is
+  **not a navigation route**: there is no `Screen.DiaryEditor`. Both the day
+  list and the detail screen own the composer as an overlay (`showEditor`), so
+  Back closes a draft in place and never leaves a half-written memory on the
+  navigation stack.
+- `DiaryEditorViewModel` owns the draft, the captured minute, and the write, and
+  reports commits through a monotonic `saveCount` rather than a boolean — saving
+  the *same* memory twice is two events, and keying a one-shot UI effect on the
+  id would swallow the second. The list screen shows the "Saved" confirmation and
+  closes the composer; the detail screen closes it and leaves the updated entry
+  in place.
 - Title, body with a live character counter, 5-mood picker, tag editor, and a
   date/time picker. Saving requires a non-blank body.
+- **Save cannot race the load.** Opening an existing memory reads the row
+  asynchronously, and until it lands the draft has no id — so `canSave` is false
+  while `isLoading` is true. Without that gate, a fast typist could save before
+  the read completed and *insert a duplicate* instead of updating. A monotonic
+  `loadToken` likewise drops a stale read that a newer open has overtaken.
 - **Photos** — Android Photo Picker (`PickVisualMedia`), so no storage or
   media permission is needed. Each pick is copied into app-private storage so
   the attachment survives the source being deleted.
@@ -107,11 +119,196 @@ state — no sample entries, no generated weather, no network.
 
 ---
 
+## 2026-09-26 — Diary date strip, honest timestamps, startup fix (branch `feature/diary-date-strip-and-startup`)
+
+Three problems, one pass. The Diary gains a real date picker, diary timestamps stop
+lying, and the multi-second cold start gets an actual root cause. Room stays v4 with
+its three migrations untouched, navigation is unchanged, and the app stays offline.
+
+### 1. The date strip replaces the ticks and chevrons
+
+The 2026-09-25 redesign gave day navigation seven ambiguous dots — a filled tick
+meant either "selected" or "has memories" depending only on its size — plus two
+chevrons, and gave the `displayLarge` day numeral more visual weight than the
+memories themselves. Both are gone.
+
+- `ui/diary/DiaryDateStrip.kt` *(new)* — a `LazyRow` of weekday-over-numeral cells
+  that keeps the selected day centred. Everything is **derived, not hard-coded**: a
+  cell is exactly one `VISIBLE_DATES`(=5)th of the measured width, so five dates fit
+  a small phone, a large phone and a landscape window with no magic dp value, and it
+  re-derives on configuration change instead of caching a stale pixel width.
+- **Bounded by construction.** The range is `today-365 .. today` — 366 fixed cells,
+  only ~5 ever realised, and no unbounded or ever-growing list. There is no tomorrow
+  to journal, so the upper bound is `today` itself. `dayStripRange()` is a pure
+  function precisely so the bound is unit-testable.
+- **Centred flings** via `rememberSnapFlingBehavior(state, SnapPosition.Center)` from
+  the `snapping` API already present in the resolved compose-foundation 1.7.5. No new
+  dependency and no reaching into `LazyRow` internals. (There is deliberately no
+  manual fling hook: the built-in provider is the version-correct path.)
+- **One haptic per real day change**, keyed on the *selected* value rather than the
+  tap or the drag. A tap that also re-centres the strip therefore cannot double-fire,
+  and holding a finger down produces nothing. The day-swap is likewise driven by the
+  index the strip has *settled* on, not by intermediate scroll positions.
+- The "which days have memories" signal the ticks carried is preserved as a small
+  dot under the numeral — now unambiguous, because selection is a tinted pill.
+- `ui/diary/DiaryDayHeader.kt` — back + `+ Memory` row, then a compact hierarchy:
+  `TODAY` eyebrow over `26 September · Saturday`. The strip is full-bleed so a
+  centred cell is genuinely centred; the label above keeps its screen padding.
+- `DiaryDayHeader`'s `canGoForward` / `onPrevious` / `onNext` parameters and
+  `DiaryViewModel.shiftDay()` are **removed** — the strip is now the only day-navigation
+  control, so they were dead weight. `selectDay()` clamps to the same range, in the
+  ViewModel rather than the composable, so no caller can park the screen on a day the
+  strip cannot render.
+
+### 2. Timestamps stop lying
+
+`DiaryViewModel.saveEntry` called `DateTimeUtils.nowMinutesOfDay()` **at save time**.
+Open the composer at 8:04, write for twenty minutes, save, and the memory was filed
+at 8:24 — the time silently moved, and there was no way to see it before committing.
+
+- The minute is now captured in `startNewEntry()` / `startEdit()` and reused on save.
+  `startEdit` captures the entry's *existing* `timeMinutes`, so re-saving an edited
+  memory can never move it in the day's timeline.
+- `timeMinutes` is captured once when the composer **opens** (from an injected
+  clock, so the rule is testable on a JVM) and is rendered in `DiaryEditor` under
+  the date
+  with a small clock glyph (`Written at 8:04 AM` when editing), so the value that will
+  be stored is visible before the save, and it does not drift while the user types.
+- No schema change: `DiaryEntity.timeMinutes` and `createdAt` already existed.
+  `DiaryDetailScreen` passes the stored `timeMinutes` through; it only ever edits.
+
+### 3. Startup: the actual root cause
+
+- **`ServiceLocator` was forcing SQLCipher open on the main thread.** Every member was
+  an eager `val`, and each one dereferences `database` — directly, or through a
+  repository that already holds a DAO — so the first assignment in
+  `LifeOSApplication.onCreate()` called `AppDatabase.getInstance()` before `setContent`:
+  native library load, Keystore load + AES/GCM unwrap, SharedPreferences read and the
+  Room build. All members are now `by lazy`, which also means a feature nobody opens
+  never pays for its repository.
+- **The warm-up query was reading a whole table.** `AppDatabase.warmUpOpen()` used
+  `habitDao().getAllForBackup()`, deserialising every habit row on the startup path —
+  waste that grew with the user's data, paid for while the splash was still up. It is
+  now `openHelper.writableDatabase.query("SELECT 1")`, which reaches the same code path
+  at constant cost, inside `withContext(Dispatchers.IO)` so the blocking open can never
+  land on the main thread regardless of caller.
+- **`MainActivity` composed the app behind the splash.** It drew a background-coloured
+  `Surface` over `LifeOSNavHost()` while the database was still opening — but
+  *composing* the nav host builds Home's ViewModel, whose repository chain is exactly
+  what forces `AppDatabase.getInstance()`. The overlay would have quietly put the
+  SQLCipher open straight back on the main thread. The content is now genuinely gated
+  on `DatabaseInit.Ready`; the native splash covers the wait, so nothing is lost.
+- **`core/util/StartupTrace.kt` *(new)*** — `android.os.Trace` only, so the framework
+  compiles it to a no-op unless a Perfetto/systrace session is attached: production
+  cost is one boolean check per call site and nothing reaches logcat. Sections:
+  `lifeos:Application.onCreate`, `lifeos:di.build`, `lifeos:db.open` (async),
+  `lifeos:db.passphrase`, `lifeos:MainActivity.setContent`, `lifeos:home.firstFrame`.
+  Supported from API 29, where `Trace.isEnabled()` was added; below that every entry
+  point collapses to a bare call of the wrapped block.
+- No logging, no `INTERNET` permission, no new runtime dependency.
+
+### Animation
+Restrained and system-setting-aware throughout (Compose animation coroutines already
+honour "Remove animations", so no duration-scale plumbing was needed). The strip's
+selected pill and numeral use non-bouncy springs; the mood label cross-fades over
+160/110ms instead of snapping, since it changes on every tap and an instant swap
+reads as a flicker exactly when the user is looking for confirmation;
+`Modifier.fadeInAsContent()` (new, in `DiaryMotion.kt`) fades the empty state's open
+spine in with no translation, because the state is already vertically centred and a
+slide would read as the layout moving.
+
+### Tests
+New `DayStripRangeTest` (8 cases) pins the strip's bounds: ends on today, starts
+exactly one window back, ascending and contiguous, no repeats, never a future day,
+honours a narrower window, and asserts the year-long bound on purpose.
+New `DiaryViewModelTest` (13 cases) covers the open-time-vs-save-time distinction,
+per-entry stamps, edit preservation of both `timeMinutes` and `createdAt`, editor
+minute lifecycle, past-day filing, the day clamps, day-scoped content and
+`daysWithMemories`. The ViewModel gained two defaulted clock seams
+(`nowMinutes`, `todayEpochDay`) purely so these are deterministic; production call
+sites are unchanged. `kotlinx-coroutines-test:1.9.0` was added **test-only**,
+version-matched to the existing `kotlinx-coroutines-android` so no second coroutines
+is pulled in.
+
+### Verification (offline, no network)
+`/opt/gradle-8.9/bin/gradle --offline :app:testDebugUnitTest :app:assembleDebug
+:app:assembleDebugAndroidTest :app:lintDebug` → **BUILD SUCCESSFUL**;
+**132 unit tests, 0 failures/errors** (up from 111); lint **0 errors**, and every
+remaining warning is pre-existing in files this change does not touch. Also
+confirmed by diff review: no `Log.`/`println`/TODO, no secrets, no `INTERNET`
+permission, and no change under `data/db/` migrations, `schemas/`, `ui/navigation/`,
+`androidTest/` or the manifest.
+
+### Not verified here
+No emulator, device or AVD is available in this sandbox, so there are **no measured
+before/after cold-start timings** — the trace sections above are the instrumentation
+that makes that measurement possible on real hardware, not a substitute for it. The
+UI has likewise not been viewed on a screen. Both remain open.
+
+## 2026-09-25 — Diary redesigned as *Daily Memory* (branch `feat/diary-daily-memory-redesign`)
+
+The Diary stops being a list of paper cards with a date strip and becomes an
+editorial memory timeline you read one day at a time. UI layer only — the Room
+schema (v4), entities, DAOs, migrations, repositories, navigation routes, DI
+and Gradle dependencies are all untouched, and the app stays fully offline.
+
+### Files
+- `ui/diary/DiaryScreen.kt` — rewritten around `DiaryDayHeader` +
+  `MemoryTimeline`; inline `+ Memory`; day-scoped `YOUR STORY STARTS HERE`
+  empty state; `BackHandler` layered so back closes the editor, then the screen.
+- `ui/diary/DiaryDayHeader.kt` *(new)* — back, prev/next chevrons, day
+  eyebrow, `1 January · Tuesday` headline and a memory-position tick row.
+- `ui/diary/MemoryTimeline.kt` *(new)* — `MemoryMoment`: 44dp time gutter,
+  1dp spine with tapered first/last ends, mood dot, uppercase mood, journal
+  text at 28sp leading.
+- `ui/diary/DiaryEditor.kt` *(new)* — full-screen composer replacing
+  `DiaryEditorSheet.kt` (deleted): mood-first, 8 moods, saving-aware action.
+- `ui/diary/DiaryEmptyState.kt`, `MoodSelector.kt`, `MemoryDeleteDialog.kt`,
+  `DiaryMotion.kt` *(new)*.
+- `ui/diary/DiaryDetailScreen.kt` — route + ViewModel kept; adopts the same
+  spine/mood/leading so a memory opened alone still reads as part of its day.
+- `ui/diary/DiaryMoods.kt` — data-driven, 8 moods; `ui/theme/Color.kt` —
+  mood/neutral tokens for the new palette.
+
+### Deliberately not a Timeline clone
+Timeline uses a 2px spine with 30dp paper badges and 24dp-radius cards. Diary
+uses a 1dp spine, **no cards**, mood dots and type as the loudest element — the
+two surfaces stay visibly different.
+
+### Mood storage — additive, no migration
+Mood is a `TEXT` column, so new moods need no schema work. Angry / Anxious /
+Tired are added; the five original keys are preserved byte-for-byte and
+`fromStored` still resolves them, so existing entries keep their mood.
+`DiaryMoodsTest` now asserts all 8, plus unique labels/keys and legacy-key
+compatibility.
+
+### Bug fixed
+`DiaryViewModel.saveEntry` stamped every new entry with `today()`, so writing
+while reading a past day saved to today. It now writes to `selectedDay`. Added
+an in-flight `saving` guard (reset in a `finally`, so a failed write cannot
+wedge the composer) and a `shiftDay` guard refusing to move past today.
+
+### Verification (offline, no network)
+`/home/gradle-8.9/bin/gradle --no-daemon testDebugUnitTest assembleDebug lintDebug`
+→ **BUILD SUCCESSFUL**; 111 unit tests, 0 failures/errors; lint 0 errors and 0
+diary-related issues. Also confirmed: no secrets/logging/network in `ui/diary/`,
+`INTERNET` permission still absent, and no diff under `data/`, `core/`,
+`ui/navigation/`, `ui/components/`, `androidTest/` or `schemas/`.
+
+### Docs corrected (pre-existing drift, unrelated to this change)
+- Diary feature row + UI/UX section described removed Notes/Capture/Search/AI
+  directories and a non-existent `core/intelligence/DiaryConnections.kt`.
+- Bottom bar documented as four destinations including Insights; it is three
+  (Home/Tasks/Habits), locked by `BottomNavItemsTest`.
+- Two "Room v2" references should read v4.
+- Not fixed (out of scope, still stale): README's Capture/Timeline/Expenses
+  sections and the `docs/` historical entries.
+
 ## 2026-09-24 — Timeline & Diary visual pass from Stitch (branch `feat/stitch-timeline-diary`)
 
 Follows the "LifeOS Timeline Overview" + "LifeOS Diary / Journal" Stitch
 reference screens. Visual layer only — no navigation architecture, Room schema
-(v2), repository or use-case changes; the app remains fully offline-first.
+(v4), repository or use-case changes; the app remains fully offline-first.
 
 ### Timeline (`ui/timeline/TimelineScreen.kt`)
 - Header replaced with a centered dated headline and back/previous/next
@@ -988,3 +1185,23 @@ gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existin
 ### Remaining
 - On-device: overlay back-stack behaviour, the permission dialog lifecycle, and a real notification firing at the set time (no emulator/device in this sandbox — verified via compile + 99 JVM tests + lint + code reasoning).
  
+### 2026-09-26 — Diary UI v2 complete implementation
+
+- **Empty day (`ui/diary/DiaryEmptyState.kt`)** now uses an editorial empty state with a local Compose Canvas journal illustration, clearer story-start hierarchy, and a direct capture action. No remote image or network asset.
+- **Composer (`ui/diary/DiaryEditor.kt`)** remains a full-screen writing surface but is now keyboard-first: the text field requests focus when the editor opens, the software keyboard is shown, and the existing IME/navigation inset union keeps the save row above the keyboard without double padding. Character count now handles singular/plural text cleanly.
+- **Save feedback (`DiaryViewModel.kt` + `DiaryScreen.kt`)** now emits a monotonic confirmation event only after a successful local repository write and renders a short `Memory saved` fade confirmation after the editor closes.
+- **Saved detail / timeline / date strip / mood selector** continue using the same editorial language, selected-day Room flow, mood markers, delete confirmation and bounded date navigation; no alternate data path was introduced.
+- **Testing**: added a JVM test for the save-confirmation event and blank-save rejection. Existing DiaryViewModel and DayStripRange coverage remains in place.
+- **Database/security**: no Room schema or migration change, no new permission, no network/API, no external AI, no telemetry and no dependency change.
+- **Verification status**: GitHub branch source was updated successfully. No Android emulator/device or GitHub Actions workflow run is available for this branch in the connected environment, and local clone/build is unavailable because outbound GitHub DNS/network access is unavailable here. No build pass is claimed.
+
+
+### 2026-09-26 — Diary UI reference alignment pass
+
+- Applied the approved screen direction to the responsive Diary surface on `feature/diary-ui-v3-screen-references` without introducing phone-specific coordinates.
+- The main `+` action is anchored to the measured content box with shared LifeOS safe-content spacing; it is not positioned by absolute x/y coordinates.
+- Diary remains day-first and starts from `DateTimeUtils.today()` through `DiaryViewModel`, with the selected day and existing one-year history bounds preserved.
+- Diary data remains Room-backed through `DiaryRepository`; unified Timeline remains connected through `BuildTimelineUseCase`, which includes Diary entries in its day aggregation.
+- Existing editor focus/keyboard/inset behavior, timestamp capture, save guard, mood selection, detail/edit/delete routes and offline-first constraints remain in place.
+- Scope guard: reference-only affordances are not backed by fabricated data. Photos, weather, location, voice, tags, favorites and share/copy are only surfaced when an existing local data/feature path supports them; no fake values or network service were introduced.
+- Verification: branch source inspected after changes. No Android device/emulator or CI run is available in the connected environment, so build/device success is not claimed.

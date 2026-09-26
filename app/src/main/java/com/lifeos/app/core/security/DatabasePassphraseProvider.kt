@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import com.lifeos.app.core.util.StartupTrace
 import java.security.KeyStore
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -84,6 +85,10 @@ object DatabasePassphraseProvider {
      *   cannot be recovered. Callers must NOT catch this to create a new key.
      */
     fun getOrCreate(context: Context): ByteArray {
+        return StartupTrace.section("lifeos:db.passphrase") { getOrCreateInternal(context) }
+    }
+
+    private fun getOrCreateInternal(context: Context): ByteArray {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val storedEnc = prefs.getString(PREFS_ENC_PASSPHRASE, null)
         val storedIv = prefs.getString(PREFS_IV, null)

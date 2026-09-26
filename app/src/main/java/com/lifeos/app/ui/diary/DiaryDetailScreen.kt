@@ -4,39 +4,48 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lifeos.app.core.media.DiaryAudioPlayer
+import com.lifeos.app.core.media.DevicePhotoImporter
+import com.lifeos.app.core.media.DiaryAudioRecorder
+import com.lifeos.app.core.media.RecordingState
+import com.lifeos.app.data.repository.WeatherRepository
+import com.lifeos.app.domain.model.DiaryAttachment
+import com.lifeos.app.domain.model.DiaryAttachments
+import com.lifeos.app.domain.model.DiaryTextStats
+import com.lifeos.app.domain.model.DiaryWeather
+import java.io.File
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material.icons.filled.TextFields
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,31 +54,23 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
-import com.lifeos.app.core.media.DiaryAudioPlayer
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.repository.DiaryRepository
-import com.lifeos.app.data.repository.WeatherRepository
-import com.lifeos.app.domain.model.DiaryAttachment
-import com.lifeos.app.domain.model.DiaryAttachments
-import com.lifeos.app.domain.model.DiaryTextStats
-import com.lifeos.app.domain.model.DiaryWeather
+import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
-import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -77,13 +78,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.io.File
 
-/**
- * Detail state for a single entry. The entry itself is observed straight from
- * Room, so a change made in the composer (or a favourite toggled here) is
- * reflected without any manual cache.
- */
+/** Full-page view of one diary entry. */
 class DiaryDetailViewModel(
     private val entryId: String,
     private val diaryRepository: DiaryRepository,
@@ -92,333 +88,376 @@ class DiaryDetailViewModel(
 
     val entry: StateFlow<DiaryEntity?> = diaryRepository.observeAll()
         .map { all -> all.firstOrNull { it.id == entryId } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private val _showEditor = MutableStateFlow(false)
+    val showEditor: StateFlow<Boolean> = _showEditor
+
+    fun startEdit() { _showEditor.value = true }
+
+    fun dismissEditor() { _showEditor.value = false }
+
+    fun delete(id: String) = viewModelScope.launch { diaryRepository.delete(id) }
+
+    /** Flips the favourite flag; the list re-renders from the same Room flow. */
+    fun toggleFavorite() = viewModelScope.launch { diaryRepository.toggleFavorite(entryId) }
+
+    /**
+     * Removes one attachment in place, so the detail screen's remove
+     * affordances do what they look like they do. The repository no-ops on a
+     * path this entry does not hold and deletes the file once unreferenced.
+     */
+    fun removeAttachment(filePath: String) =
+        viewModelScope.launch { diaryRepository.removeAttachment(entryId, filePath) }
 
     private val _weather = MutableStateFlow<DiaryWeather>(
         DiaryWeather.Unavailable(DiaryWeather.UnavailableReason.NO_LOCATION)
     )
-    val weather: StateFlow<DiaryWeather> = _weather
-
-    private val _isDeleting = MutableStateFlow(false)
-    val isDeleting: StateFlow<Boolean> = _isDeleting
-
-    /** Loads the weather for whatever place the entry carries. */
-    fun refreshWeather() {
-        viewModelScope.launch {
-            val place = entry.value?.let { DiaryAttachments.place(DiaryAttachments.decode(it.attachmentsJson)) }
-            _weather.value = weatherRepository.weatherFor(place)
-        }
-    }
-
-    fun toggleFavorite() {
-        viewModelScope.launch { diaryRepository.toggleFavorite(entryId) }
-    }
 
     /**
-     * Removes a photo or voice note from this entry in place. [filePath] is the
-     * attachment the user actually tapped, so a stale UI cannot remove a
-     * different one; the repository no-ops on an unknown path.
+     * Weather for wherever this entry was written. Resolved from the entry's own
+     * stored place, so it is a real reading of a real place or an honest
+     * "unavailable" — this build has no permitted weather source.
      */
-    fun removeAttachment(filePath: String) {
-        viewModelScope.launch { diaryRepository.removeAttachment(entryId, filePath) }
-    }
+    val weather: StateFlow<DiaryWeather> = _weather
 
-    /** Returns true once the row is really gone from the database. */
-    fun delete(onDeleted: () -> Unit) {
+    fun refreshWeather() {
         viewModelScope.launch {
-            _isDeleting.value = true
-            diaryRepository.delete(entryId)
-            _isDeleting.value = false
-            onDeleted()
+            val stored = entry.value ?: return@launch
+            val place = DiaryAttachments.place(DiaryAttachments.decode(stored.attachmentsJson))
+            _weather.value = weatherRepository.weatherFor(place)
         }
     }
 }
 
 /**
- * Full-page view of one diary entry: its photos, place, weather, tags and the
- * real derived metadata (date, time, word count), plus the Share / Copy /
- * Delete / Favourite actions.
+ * One memory, opened full page. Shares the timeline's editorial language — same
+ * spine, same mood marker, same leading — so arriving here from the Diary list
+ * or from the Timeline feels like the same surface seen closer.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DiaryDetailScreen(
-    entryId: String,
-    onBack: () -> Unit,
-    onEdit: (String) -> Unit
-) {
-    val context = LocalContext.current
+fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
     val locator = LocalServiceLocator.current
-    val player = remember { DiaryAudioPlayer() }
-
     val viewModel: DiaryDetailViewModel = viewModel(
         key = "diary-detail-$entryId",
         factory = LambdaViewModelFactory {
             DiaryDetailViewModel(entryId, locator.diaryRepository, locator.weatherRepository)
         }
     )
-
     val entry by viewModel.entry.collectAsState()
-    val weather by viewModel.weather.collectAsState()
-    val isDeleting by viewModel.isDeleting.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    val showEditor by viewModel.showEditor.collectAsState()
     var confirmDelete by remember { mutableStateOf(false) }
 
-    BackHandler(onBack = onBack)
-
-    // Leaving composition must not leave an audio decoder open.
-    androidx.compose.runtime.DisposableEffect(Unit) {
-        onDispose { player.release() }
-    }
-
-    val current = entry
-    if (current == null) {
-        if (!isDeleting) {
-            // The row is gone (deleted here, or by a restore) — leave rather
-            // than render an empty shell.
-            LaunchedEffect(Unit) { onBack() }
+    // Editing here uses the same real composer as the day view, so an edit made
+    // from the detail page can add a photo or a voice note too.
+    val editorViewModel: DiaryEditorViewModel = viewModel(
+        key = "diary-detail-editor-$entryId",
+        factory = LambdaViewModelFactory {
+            DiaryEditorViewModel(
+                diaryRepository = locator.diaryRepository,
+                weatherRepository = locator.weatherRepository,
+                locationProvider = locator.deviceLocationProvider,
+                recorder = DiaryAudioRecorder(locator.appContext),
+                player = DiaryAudioPlayer(),
+                photoImporter = DevicePhotoImporter(locator.appContext)
+            )
         }
-        return
+    )
+    val editorState by editorViewModel.state.collectAsStateWithLifecycle()
+
+    // Playback of the *saved* voice note: a player owned by this screen, released
+    // with it, so leaving the page cannot leave a decoder running.
+    val player = remember { DiaryAudioPlayer() }
+    val playback by player.state.collectAsStateWithLifecycle()
+    DisposableEffect(Unit) { onDispose { player.release() } }
+
+    val weather by viewModel.weather.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    BackHandler(enabled = showEditor, onBack = viewModel::dismissEditor)
+    BackHandler(enabled = !showEditor, onBack = onBack)
+
+    val wasVisible = remember { mutableStateOf(false) }
+    LaunchedEffect(entry) {
+        if (entry == null) {
+            if (wasVisible.value) onBack()
+        } else wasVisible.value = true
     }
 
-    LaunchedEffect(current.id, current.attachmentsJson) { viewModel.refreshWeather() }
+    LaunchedEffect(entry?.attachmentsJson) { viewModel.refreshWeather() }
 
-    val attachments = remember(current.id, current.attachmentsJson) {
-        DiaryAttachments.decode(current.attachmentsJson)
+    LaunchedEffect(showEditor, entryId) {
+        if (showEditor) editorViewModel.start(entryId)
     }
-    val photos = remember(attachments) { DiaryAttachments.photos(attachments) }
-    val voiceNote = remember(attachments) { DiaryAttachments.voiceNote(attachments) }
-    val tags = remember(current.id, current.tagsCsv) { splitTags(current.tagsCsv) }
-    val playback by player.state.collectAsState()
 
-    Box(Modifier.fillMaxWidth()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(
-                start = LifeOSSpacing.screenPadding,
-                end = LifeOSSpacing.screenPadding,
-                top = 8.dp,
-                bottom = LifeOSSpacing.sectionSpacing
-            ),
-            verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
-        ) {
-            item(key = "head") {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    // Close the composer once the write is actually committed. Without this the
+    // overlay stays open after a successful save, and the save button remains
+    // live, so one edit could be written again and again.
+    LaunchedEffect(editorState.saveCount) {
+        if (editorState.saveCount > 0) {
+            editorViewModel.cancelRecording()
+            viewModel.dismissEditor()
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        entry?.let { current ->
+            val date = DateTimeUtils.epochDayToLocalDate(current.dateEpochDay)
+            val hasMood = !current.mood.isNullOrBlank()
+
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = LifeOSSpacing.fabContentClearance)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = DiaryInkViolet
+                        )
+                    }
+                    IconButton(onClick = viewModel::toggleFavorite, modifier = Modifier.size(44.dp)) {
+                        Icon(
+                            if (current.isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder,
+                            contentDescription = if (current.isFavorite) {
+                                "Remove from favourites"
+                            } else {
+                                "Mark as favourite"
+                            },
+                            tint = if (current.isFavorite) DiaryInkViolet else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Box(Modifier.weight(1f))
+                    TextButton(onClick = viewModel::startEdit) {
+                        Text("Edit", color = DiaryInkViolet)
+                    }
+                }
+
+                Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding)) {
+                    EditorEyebrow(dayEpochDay = current.dateEpochDay, isEditing = false)
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(current.dateEpochDay)),
-                        style = MaterialTheme.typography.labelMedium,
+                        DateTimeUtils.formatFullDate(date),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        DateTimeUtils.formatMinutes(current.timeMinutes),
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            DateTimeUtils.formatDayOfWeek(current.dateEpochDay.let {
-                                DateTimeUtils.epochDayToLocalDate(it)
-                            }).lowercase().replaceFirstChar { it.uppercase() },
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton48(
-                            onClick = viewModel::toggleFavorite,
-                            description = if (current.isFavorite) "Remove from favourites" else "Mark as favourite"
-                        ) {
-                            Icon(
-                                imageVector = if (current.isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder,
-                                contentDescription = null,
-                                tint = if (current.isFavorite) DiaryInkViolet else MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                // Same gutter + spine as the timeline, so the memory keeps its
+                // place in the day even when read on its own.
+                Row(Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding)) {
+                    Box(Modifier.width(14.dp), contentAlignment = Alignment.TopCenter) {
+                        if (hasMood) MoodDot(moodKey = current.mood) else {
+                            Box(
+                                Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(DiaryHairline)
                             )
                         }
                     }
-                    EntryMoodPill(entry = current)
+                    Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                        if (hasMood) {
+                            Text(
+                                DiaryMoods.displayLabel(current.mood).uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = DiaryMoods.colorOf(current.mood),
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.2.sp
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        Text(
+                            current.content,
+                            style = MaterialTheme.typography.bodyLarge,
+                            lineHeight = 28.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        val tags = remember(current.id, current.tagsCsv) {
+                            current.tagsCsv.split(',').map { it.trim() }.filter { it.isNotBlank() }.take(6)
+                        }
+                        if (tags.isNotEmpty()) {
+                            Spacer(Modifier.height(14.dp))
+                            Text(
+                                tags.joinToString("  ·  "),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
-            }
 
-            current.title?.takeIf { it.isNotBlank() }?.let { title ->
-                item(key = "title") {
-                    Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                // Everything below is decoded from the entry's own
+                // `attachmentsJson`, so what is shown is what was actually saved.
+                val attachments = remember(current.id, current.attachmentsJson) {
+                    DiaryAttachments.decode(current.attachmentsJson)
                 }
-            }
+                val photos = remember(attachments) { DiaryAttachments.photos(attachments) }
+                val voiceNote = remember(attachments) { DiaryAttachments.voiceNote(attachments) }
+                val place = remember(attachments) { DiaryAttachments.place(attachments) }
 
-            item(key = "body") {
-                Text(
-                    current.content,
-                    style = MaterialTheme.typography.bodyLarge,
-                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.35f
-                )
-            }
-
-            if (photos.isNotEmpty()) {
-                item(key = "photos") {
+                if (photos.isNotEmpty()) {
+                    Spacer(Modifier.height(18.dp))
                     DiaryPhotoStrip(
                         photos = photos,
-                        onAdd = { onEdit(current.id) },
-                        onRemove = { photo -> viewModel.removeAttachment(photo.filePath) }
+                        onAdd = viewModel::startEdit,
+                        onRemove = { photo -> viewModel.removeAttachment(photo.filePath) },
+                        modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding)
                     )
                 }
-            }
 
-            if (voiceNote != null) {
-                item(key = "voice") {
+                if (voiceNote != null) {
+                    Spacer(Modifier.height(18.dp))
                     DiaryVoiceNoteRow(
                         voiceNote = voiceNote,
-                        recording = com.lifeos.app.core.media.RecordingState.Idle,
+                        recording = RecordingState.Idle,
                         playback = playback,
                         onStartRecording = {},
                         onStopRecording = {},
                         onCancelRecording = {},
-                        onTogglePlayback = {
-                            if (playback is com.lifeos.app.core.media.PlaybackState.MissingFile) {
-                                scope.launch { snackbarHostState.showSnackbar("That voice note is no longer on this device.") }
-                            } else {
-                                player.toggle(voiceNote.filePath)
-                            }
-                        },
+                        onTogglePlayback = { player.toggle(voiceNote.filePath) },
                         onRemove = {
-                            // Stop playback first, otherwise we would be holding
-                            // a decoder open for a file we are about to delete.
                             player.stop()
                             viewModel.removeAttachment(voiceNote.filePath)
-                        }
+                        },
+                        modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding)
                     )
                 }
-            }
 
-            if (tags.isNotEmpty()) {
-                item(key = "tags") {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        DiarySectionLabel("Tags")
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            tags.forEach { tag -> ThemeKeywordChip(tag) }
+                // Nothing to say until there is a place, or a real reading for one.
+                val hasWeather = weather !is DiaryWeather.Unavailable
+                if (place != null || hasWeather) {
+                    Spacer(Modifier.height(18.dp))
+                    Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding)) {
+                        if (place != null) {
+                            DiaryMetaRow(
+                                icon = {
+                                    Icon(
+                                        Icons.Filled.LocationOn,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                label = "Location",
+                                value = place.placeName.takeIf { it.isNotBlank() }
+                                    ?: String.format(
+                                        java.util.Locale.getDefault(),
+                                        "%.4f, %.4f",
+                                        place.latitude,
+                                        place.longitude
+                                    )
+                            )
+                            Spacer(Modifier.height(8.dp))
                         }
+                        DiaryWeatherRow(weather = weather)
                     }
                 }
-            }
 
-            item(key = "context") {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    DiarySectionLabel("Context")
-                    val place = DiaryAttachments.place(attachments)
-                    if (place != null) {
-                        DiaryMetaRow(
-                            icon = { Icon(Icons.Filled.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                            label = "Location",
-                            value = place.placeName.takeIf { it.isNotBlank() } ?: formatPlaceCoordinates(place)
-                        )
-                    }
-                    DiaryWeatherRow(weather = weather)
-                }
-            }
+                // Word count is derived from the stored body every time it is
+                // shown, so it can never drift from what was actually written.
+                Spacer(Modifier.height(18.dp))
+                Text(
+                    "${DiaryTextStats.wordCount(current.content)} words",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding)
+                )
 
-            item(key = "meta") {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    DiarySectionLabel("Details")
-                    DiaryMetaRow(
-                        icon = { Icon(Icons.Filled.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                        label = "Date",
-                        value = DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(current.dateEpochDay))
-                    )
-                    DiaryMetaRow(
-                        icon = { Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                        label = "Time",
-                        value = DateTimeUtils.formatMinutes(current.timeMinutes)
-                    )
-                    DiaryMetaRow(
-                        icon = { Icon(Icons.Filled.TextFields, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                        label = "Word count",
-                        // Derived from the stored body, so it can never drift.
-                        value = "${DiaryTextStats.wordCount(current.content)} words"
-                    )
-                }
-            }
-
-            item(key = "actions") {
-                Row(
-                    modifier = Modifier
+                Spacer(Modifier.height(24.dp))
+                Box(
+                    Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        .padding(horizontal = LifeOSSpacing.screenPadding)
+                        .height(1.dp)
+                        .background(DiaryHairline)
+                )
+                Spacer(Modifier.height(4.dp))
+
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.compactPadding),
+                    horizontalArrangement = Arrangement.Start
                 ) {
-                    DetailAction(Icons.Filled.Share, "Share", onClick = { shareEntry(context, current, photos) })
-                    DetailAction(Icons.Filled.ContentCopy, "Copy", onClick = {
+                    TextButton(onClick = {
+                        shareEntry(context, current, photos)
+                    }) {
+                        Text("Share", color = DiaryInkViolet)
+                    }
+                    TextButton(onClick = {
                         copyEntry(context, current)
-                        scope.launch { snackbarHostState.showSnackbar("Entry copied") }
-                    })
-                    DetailAction(
-                        Icons.Filled.Edit,
-                        "Edit",
-                        onClick = { onEdit(current.id) }
-                    )
-                    DetailAction(
-                        Icons.Filled.Delete,
-                        "Delete",
-                        tint = MaterialTheme.colorScheme.error,
-                        onClick = { confirmDelete = true }
-                    )
+                        scope.launch { snackbarHostState.showSnackbar("Memory copied") }
+                    }) {
+                        Text("Copy", color = DiaryInkViolet)
+                    }
+                    TextButton(onClick = { confirmDelete = true }) {
+                        Text("Delete memory", color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }
 
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp)
-        )
-
-        if (isDeleting) {
-            Box(
-                modifier = Modifier.fillMaxWidth().background(DiaryLavender.copy(alpha = 0.4f)),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = DiaryInkViolet)
+        DiaryEditorOverlay(visible = showEditor) {
+            entry?.let { current ->
+                DiaryEditor(
+                    dayEpochDay = current.dateEpochDay,
+                    editing = current,
+                    // This screen only ever edits an existing memory, so the time
+                    // shown is the stored one and the edit keeps it.
+                    timeMinutes = editorState.timeMinutes,
+                    content = editorState.content,
+                    onContentChange = editorViewModel::onContentChange,
+                    mood = editorState.mood,
+                    onMoodChange = editorViewModel::onMoodChange,
+                    saving = editorState.isSaving,
+                    onDismiss = {
+                        editorViewModel.cancelRecording()
+                        viewModel.dismissEditor()
+                    },
+                    onSave = editorViewModel::save,
+                    onDelete = { editorViewModel.cancelRecording(); viewModel.dismissEditor(); confirmDelete = true },
+                    attachments = { DiaryEditorAttachments(editorViewModel) }
+                )
             }
         }
     }
 
-    if (confirmDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete this entry?") },
-            text = { Text("This permanently removes the entry and its photos and audio from this device.") },
-            confirmButton = {
-                TextButton(onClick = {
+    entry?.let { current ->
+        if (confirmDelete) {
+            MemoryDeleteDialog(
+                dayEpochDay = current.dateEpochDay,
+                timeMinutes = current.timeMinutes,
+                onConfirm = {
                     confirmDelete = false
-                    viewModel.delete(onBack)
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
-        )
-    }
-}
-
-@Composable
-private fun DetailAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .width(ACTION_COLUMN_WIDTH)
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = tint)
+                    viewModel.delete(entryId)
+                    onBack()
+                },
+                onDismiss = { confirmDelete = false }
+            )
+        }
     }
 }
 
 /**
- * Shares the entry through the system chooser. The text is plain diary content
- * the user explicitly chose to share; photos are handed over as single-purpose
- * FileProvider URIs with a one-shot read grant, so no storage permission is
- * involved and no other app gets a lasting path.
+ * Shares the memory through the system chooser. The text is content the user
+ * explicitly chose to share; a photo is handed over as a single-purpose
+ * FileProvider URI with a one-shot read grant, so no storage permission is
+ * involved and no other app receives a lasting path.
  */
 private fun shareEntry(context: Context, entry: DiaryEntity, photos: List<DiaryAttachment.Photo>) {
     val text = buildString {
@@ -445,25 +484,16 @@ private fun shareEntry(context: Context, entry: DiaryEntity, photos: List<DiaryA
         }
     }
     context.startActivity(
-        Intent.createChooser(intent, "Share entry").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        Intent.createChooser(intent, "Share memory").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     )
 }
 
-/** Copies the entry body (plus title) to the system clipboard, on-device. */
+/** Copies the memory to the system clipboard. Entirely on-device. */
 private fun copyEntry(context: Context, entry: DiaryEntity) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
     val text = buildString {
         entry.title?.takeIf { it.isNotBlank() }?.let { appendLine(it) }
         append(entry.content)
     }
-    clipboard.setPrimaryClip(ClipData.newPlainText("Diary entry", text))
+    clipboard.setPrimaryClip(ClipData.newPlainText("Diary memory", text))
 }
-
-private fun formatPlaceCoordinates(place: DiaryAttachment.Place): String =
-    String.format(java.util.Locale.getDefault(), "%.4f, %.4f", place.latitude, place.longitude)
-
-private fun splitTags(csv: String): List<String> = csv.split(',')
-    .map { it.trim() }
-    .filter { it.isNotBlank() }
-
-private val ACTION_COLUMN_WIDTH = 64.dp
