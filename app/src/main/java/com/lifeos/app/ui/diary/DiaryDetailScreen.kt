@@ -55,6 +55,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 /** Full-page view of one diary entry. */
 class DiaryDetailViewModel(
@@ -114,7 +116,7 @@ class DiaryDetailViewModel(
                 val current = entry.value ?: return@launch
                 // updateEntry copies the stored row, so the id, day and time the
                 // memory was written at are preserved.
-                diaryRepository.updateEntry(current.id, current.title, content, mood, _editorTags.value, Json.encodeToString(editorAttachments()), _editorTimeMinutes.value)
+                diaryRepository.updateEntry(current.id, current.title, content, mood, _editorTags.value, Json.encodeToString(ListSerializer(String.serializer()), editorAttachments()), _editorTimeMinutes.value)
                 _showEditor.value = false
             } finally {
                 _saving.value = false
