@@ -112,6 +112,11 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
     )
     val entry by viewModel.entry.collectAsState()
     val showEditor by viewModel.showEditor.collectAsState()
+    val editorPhotoUris by viewModel.editorPhotoUris.collectAsState()
+    val editorTags by viewModel.editorTags.collectAsState()
+    val editorAudioUri by viewModel.editorAudioUri.collectAsState()
+    val editorLocation by viewModel.editorLocation.collectAsState()
+    val editorWeather by viewModel.editorWeather.collectAsState()
     val saving by viewModel.saving.collectAsState()
     var confirmDelete by remember { mutableStateOf(false) }
 
@@ -245,9 +250,21 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                     // This screen only ever edits an existing memory, so the time
                     // shown is the stored one and the edit keeps it.
                     timeMinutes = current.timeMinutes,
+                    photoUris = editorPhotoUris,
+                    tags = editorTags,
+                    audioUri = editorAudioUri,
+                    location = editorLocation,
+                    weather = editorWeather,
                     saving = saving,
                     onDismiss = viewModel::dismissEditor,
                     onSave = viewModel::save,
+                    onTimeChange = viewModel::updateEditorTime,
+                    onPhotosChange = viewModel::setEditorPhotos,
+                    onRemovePhoto = viewModel::removeEditorPhoto,
+                    onTagsChange = viewModel::setEditorTags,
+                    onAudioChange = viewModel::setEditorAudio,
+                    onLocationChange = viewModel::setEditorLocation,
+                    onWeatherChange = viewModel::setEditorWeather,
                     onDelete = { viewModel.dismissEditor(); confirmDelete = true }
                 )
             }
