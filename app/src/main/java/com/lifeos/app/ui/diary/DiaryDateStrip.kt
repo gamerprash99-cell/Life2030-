@@ -53,11 +53,9 @@ import com.lifeos.app.ui.theme.DiaryLavender
 
 /**
  * How many dates the strip shows at once. Every other dimension is *derived* from
- * this number instead of being hard-coded: a cell is exactly one
- * `[VISIBLE_DATES]`th of the available width, so five dates fit a small phone, a
- * large phone and a landscape window alike with no magic dp value anywhere.
+ * this number instead of being hard-coded: the visible-date count determines cell width from the measured window, so seven dates match the reference on normal phone widths while five remain available on very narrow windows with no magic dp value anywhere.
  */
-internal const val VISIBLE_DATES = 5
+private const val DEFAULT_VISIBLE_DATES = 7
 
 /**
  * How far back the strip reaches. Bounded on purpose: there is no tomorrow to
@@ -137,7 +135,8 @@ fun DiaryDateStrip(
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         // With a leading/trailing pad of half a cell, index 0 sits dead centre.
-        val cellWidth: Dp = maxWidth / VISIBLE_DATES
+        val visibleDates = if (maxWidth < 340.dp) 5 else DEFAULT_VISIBLE_DATES
+        val cellWidth: Dp = maxWidth / visibleDates
         val edgePadding = (maxWidth - cellWidth) / 2f
 
         LazyRow(
