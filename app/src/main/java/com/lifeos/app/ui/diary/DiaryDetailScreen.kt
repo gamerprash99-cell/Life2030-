@@ -68,6 +68,8 @@ class DiaryDetailViewModel(
 
     private val _showEditor = MutableStateFlow(false)
     val showEditor: StateFlow<Boolean> = _showEditor
+    private val _editorTimeMinutes = MutableStateFlow<Int?>(null)
+    val editorTimeMinutes: StateFlow<Int?> = _editorTimeMinutes
     private val _editorPhotoUris = MutableStateFlow<List<String>>(emptyList())
     val editorPhotoUris: StateFlow<List<String>> = _editorPhotoUris
     private val _editorTags = MutableStateFlow<List<String>>(emptyList())
@@ -85,6 +87,7 @@ class DiaryDetailViewModel(
     fun startEdit() {
         val current = entry.value ?: return
         val attachments = decode(current.attachmentsJson)
+        _editorTimeMinutes.value = current.timeMinutes
         _editorPhotoUris.value = attachments.filterNot { it.startsWith("audio:") || it.startsWith("meta:") }
         _editorAudioUri.value = attachments.firstOrNull { it.startsWith("audio:") }?.removePrefix("audio:")
         _editorLocation.value = attachments.firstOrNull { it.startsWith("meta:location=") }?.removePrefix("meta:location=")
@@ -95,7 +98,7 @@ class DiaryDetailViewModel(
 
     fun dismissEditor() { _showEditor.value = false }
 
-    fun updateEditorTime(minutes: Int) = Unit
+    fun updateEditorTime(minutes: Int) { _editorTimeMinutes.value = minutes.coerceIn(0, 1439) }
     fun setEditorPhotos(value: List<String>) { _editorPhotoUris.value = value.distinct().take(12) }
     fun removeEditorPhoto(value: String) { _editorPhotoUris.value = _editorPhotoUris.value.filterNot { it == value } }
     fun setEditorTags(value: List<String>) { _editorTags.value = value.map { it.trim() }.filter { it.isNotBlank() }.distinct().take(8) }
@@ -111,7 +114,7 @@ class DiaryDetailViewModel(
                 val current = entry.value ?: return@launch
                 // updateEntry copies the stored row, so the id, day and time the
                 // memory was written at are preserved.
-                diaryRepository.updateEntry(current.id, current.title, content, mood, _editorTags.value, Json.encodeToString(editorAttachments()))
+                diaryRepository.updateEntry(current.id, current.title, content, mood, _editorTags.value, Json.encodeToString(editorAttachments()), _editorTimeMinutes.value)
                 _showEditor.value = false
             } finally {
                 _saving.value = false
@@ -147,6 +150,7 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
     )
     val entry by viewModel.entry.collectAsState()
     val showEditor by viewModel.showEditor.collectAsState()
+    val editorTimeMinutes by viewModel.editorTimeMinutes.collectAsState()
     val editorPhotoUris by viewModel.editorPhotoUris.collectAsState()
     val editorTags by viewModel.editorTags.collectAsState()
     val editorAudioUri by viewModel.editorAudioUri.collectAsState()
@@ -284,7 +288,7 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                     editing = current,
                     // This screen only ever edits an existing memory, so the time
                     // shown is the stored one and the edit keeps it.
-                    timeMinutes = current.timeMinutes,
+                    timeMinutes = editorTimeMinutes,
                     photoUris = editorPhotoUris,
                     tags = editorTags,
                     audioUri = editorAudioUri,
