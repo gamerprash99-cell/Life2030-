@@ -27,3 +27,7 @@
 - Source changes are on `feature/diary-ui-v2-final-complete`.
 - Existing DiaryViewModelTest and DayStripRangeTest remain part of the project; one save-confirmation test was added.
 - Android build/emulator verification is not claimed because no Android runner is available and outbound GitHub DNS/network access is unavailable in this environment.
+
+## Reference alignment pass — 2026-09-26
+
+This branch applies the approved Diary reference direction while keeping the implementation responsive and architecture-safe. UI-only reference elements are not allowed to invent data; each interactive surface must be mapped to an existing local feature or implemented end-to-end before being exposed.
