@@ -57,13 +57,17 @@ Full inventory of every implemented feature, with exact file paths.
 
 ## 5. Diary
 
-**Purpose**: Private journal with mood tagging and an optional AI-drafting assist.
+**Purpose**: Private journal read one day at a time — an editorial ("Daily
+Memory") memory timeline with mood tagging, photo, voice-note and place
+attachments.
 
-- **User flow**: `ui/diary/DiaryScreen.kt` → "+" → write freely, pick a mood, OR tap "Turn into a diary entry with AI" to have the AI turn rough notes into a polished entry (saved as an unreviewed AI draft)
-- **Database**: `data/db/entities/DiaryEntity.kt` — `aiGenerated` and `isReviewed` fields implement the "AI drafts must be approved" rule
-- **Repository**: `data/repository/DiaryRepository.kt` (`approveAiDraft()`)
-- **AI**: `AiRepository.draftDiaryEntry()`
-- **Status**: Implemented — AI drafts show an "AI draft — needs review" label with an Approve button until confirmed
+- **User flow**: `ui/diary/DiaryScreen.kt` → date strip selects a day → "+ Memory" opens the full-screen composer (`ui/diary/DiaryEditor.kt` in an overlay, *not* a navigation route) → write, pick one of 8 moods, optionally attach photos / a voice note / a place → Save → the composer closes and a confirmation names the stored day and minute, offering *View memory* or *Add another memory* (which files into the day being read, not into today).
+- **Reading**: `ui/diary/MemoryTimeline.kt` renders the day's memories newest-first on a hairline spine with a mood marker per memory; `ui/diary/DiaryDateStrip.kt` is a horizontally snapping, centre-keeping strip bounded to the last 365 days and refusing any future day, with a haptic per settled day change; `ui/diary/DiaryEmptyState.kt` is the `YOUR STORY STARTS HERE` state; `ui/diary/DiaryDetailScreen.kt` is the full-page read view, and `ui/diary/MemoryDeleteDialog.kt` the delete confirmation.
+- **Media**: photos are copied into app-private storage (`core/util/MediaStorage.kt`) and referenced by URI; voice notes are real `MediaRecorder` takes (`core/media/DiaryAudioRecorder.kt`) played back by `core/media/DiaryAudioPlayer.kt`. A running take displays live elapsed time and amplitude (`DiaryVoiceNoteRow`) and blocks Save.
+- **Database**: `data/db/entities/DiaryEntity.kt`; mood, `timeMinutes`, and `attachmentsJson` are stored on the row, so the timeline order and the attached media both survive a process restart.
+- **Repository**: `data/repository/DiaryRepository.kt` — the save/confirm/dismiss rules and the selected-day logic live in `ui/diary/DiaryEditorViewModel.kt` (draft + write) and `ui/diary/DiaryViewModel.kt` (day selection + day list), so the ViewModels are testable without Compose.
+- **Status**: Implemented
+- **Vestigial**: the `aiGenerated` / `isReviewed` columns still exist in the schema (v5) and `DiaryRepository.insert` can set them, but **no code path produces an AI draft** — `AiRepository.draftDiaryEntry()` and `DiaryRepository.approveAiDraft()` do not exist in the tree, and the Diary UI shows no AI-draft label or Approve button. An earlier version of this document described that flow as a shipped feature; it is not. The columns are inert, pinned by `AppDatabaseSchemaTest`, and are not a user-visible behaviour.
 
 ## 6. Timeline
 

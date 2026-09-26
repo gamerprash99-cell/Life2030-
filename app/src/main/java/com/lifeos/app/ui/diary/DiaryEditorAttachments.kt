@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,7 +25,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lifeos.app.core.media.RecordingState
 import com.lifeos.app.core.util.PermissionManager
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /**
  * Everything that hangs off a diary entry, rendered inside the editor: the
@@ -84,6 +88,20 @@ fun DiaryEditorAttachments(
     // Leaving the editor must not leave a recorder or a decoder running.
     DisposableEffect(Unit) {
         onDispose { viewModel.cancelRecording() }
+    }
+
+    // The recorder measures its own elapsed time and level from the platform
+    // clock, so the row's timer and level dot only advance if something polls it.
+    // Keyed on whether a take is actually running, so the loop starts with the
+    // take and is cancelled the moment it stops, and `while (isActive)` means it
+    // is torn down with the composition even if a stop is missed.
+    val isRecording = state.recording is RecordingState.Recording
+    LaunchedEffect(isRecording) {
+        if (!isRecording) return@LaunchedEffect
+        while (isActive) {
+            viewModel.tickRecording()
+            delay(RECORDING_TICK_MILLIS)
+        }
     }
 
     Column(
@@ -183,3 +201,11 @@ private fun Context.findActivity(): Activity? {
     }
     return null
 }
+
+/**
+ * How often the live recording clock is read while a take runs. 100ms keeps the
+ * `m:ss` display moving without a visible jump, and the level dot smooth rather
+ * than strobing; `MediaRecorder.maxAmplitude` is a cheap read, so the cost is
+ * not worth dropping lower.
+ */
+private const val RECORDING_TICK_MILLIS = 100L

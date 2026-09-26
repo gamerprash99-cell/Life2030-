@@ -3,6 +3,84 @@
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).
 ---
 
+## 2026-09-26 — Diary audit follow-up (branch `feat/stitch-timeline-diary`)
+
+A read-through of the merged Diary against the Stitch reference screens turned up
+three defects and one missing design, all now fixed. No schema change, no new
+dependency, no network, no permission change.
+
+### 1. The voice-note timer never moved
+`AudioRecorder.tick()` carries the contract "advance the elapsed-time reading.
+Driven by the UI while recording", and `DiaryEditorViewModel.tickRecording()`
+existed to call it — but nothing did. `DiaryVoiceNoteRow` reads
+`elapsedMillis` and `amplitude` from `state.recording`, and that field was only
+written by `start()` (0 ms, amplitude 0) and by `stop()`. A take therefore
+displayed `0:00 Recording…` and a motionless level dot for its entire length: the
+UI was presenting a live measurement it never received.
+
+`DiaryEditorAttachments` now polls while a take runs. The effect is keyed on
+`state.recording is RecordingState.Recording`, so the loop begins with the take
+and is cancelled the moment it ends; `while (isActive)` tears it down with the
+composition even if a stop is missed. Poll interval is 100 ms — fast enough that
+`m:ss` does not visibly jump and the level dot smooths rather than strobes, and
+`MediaRecorder.maxAmplitude` is cheap enough to read at that rate.
+
+### 2. The save confirmation could not do what the design asks of it
+The Stitch `saved_confirmation.html` screen is built around two actions: *View
+memory* and *Add another memory*. The implementation was a 1.4 s auto-dismissing
+toast, which structurally cannot offer either.
+
+It is now a scrim plus a paper card carrying the two full-width pill actions. The
+card's copy is derived from the stored row, not from the save event, so:
+
+- a back-dated memory confirms the day it was actually filed under;
+- an edit confirms the minute it kept, not the time the save happened.
+
+"Add another memory" calls `startNewEntry()`, which re-seeds the draft from the
+selected day — writing a second memory from a past day keeps it in that day.
+
+### 3. Confirmation state moved into the ViewModel
+It was a local `var showSaved` in `DiaryScreen`, which is exactly the kind of
+state that cannot be tested. `DiaryViewModel` now holds `savedEntryId` and
+derives `savedEntry` by resolving that id against the existing Room flow. Only
+the id is stored, so the sheet cannot present a stale copy of a row that has since
+changed. `selectDay`, `startNewEntry` and `startEdit` retire it; Back and a
+scrim tap dismiss it. Ten new JVM cases cover the sheet's lifecycle and the
+recording poll.
+
+### 4. Dead code, one item of which was also wrong
+Removed, after confirming repo-wide that nothing referenced them:
+`EntryMoodPill`, `DiaryMoodChip` and `ThemeKeywordChip` (superseded by
+`MoodSelector`'s hairline glyph row and by quiet inline tags), and
+`DiaryEditorViewModel.recordingState` / `playbackState`.
+
+`DiaryEditorViewModel.startAnother()` is deleted too, and it was the interesting
+one: unused, and hard-coded `today()` + `nowMinutesOfDay()`, so had the
+confirmation called it, "add another memory" would have filed the new memory
+under today while the user sat reading a past day. `startNewEntry()` already
+does the right thing.
+
+### 5. Housekeeping
+`DiaryDetailScreen.kt` imported `LocationOn` and `Star` twice each.
+
+### Verification
+Run offline against the Gradle 8.9 install at `/opt/gradle-8.9/bin/gradle`
+(the repository has no `gradlew` checked in):
+
+- `:app:compileDebugKotlin` — pass
+- `:app:testDebugUnitTest` — **157 tests, 0 failures** (was 147)
+- `:app:lintDebug` — 0 errors; 8 pre-existing issues, none in `ui/diary`
+- `:app:assembleDebug` — pass (42.5 MB debug APK)
+- `:app:assembleDebugAndroidTest` — pass
+
+**Still not verified:** this sandbox has no emulator, device or AVD. The
+confirmation sheet and the recording poll have not been viewed on a screen, and
+the v4→v5 migration test still has not run against a real SQLCipher file. The
+recording fix is pinned at the ViewModel contract by unit tests, not by watching
+a take run.
+
+---
+
 ## 2026-09-26 — Diary rebuilt on real data (branch `feat/stitch-timeline-diary`)
 
 Turns the Diary from a visual mock-up into a working feature. Every attachment

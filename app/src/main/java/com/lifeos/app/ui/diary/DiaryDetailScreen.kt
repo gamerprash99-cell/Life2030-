@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.DisposableEffect

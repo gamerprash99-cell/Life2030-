@@ -2,6 +2,30 @@
 
 ---
 
+### Issue #0 — Diary UI changes and the recording poll have never been seen on a screen
+
+- **Severity**: 🟡 Medium (verification gap, not a known defect)
+- **Description**: the 2026-09-26 Diary audit follow-up (post-save confirmation
+  sheet, live voice-note timer) is verified by JVM unit tests, `lintDebug` and
+  `assembleDebug`/`assembleDebugAndroidTest` only. The build environment has no
+  emulator, device or AVD, so nothing in that change has been exercised on real
+  hardware or an emulator.
+- **What is therefore unverified**: that the confirmation sheet animates in and
+  out cleanly, that its scrim/back handling dismisses as intended on a real
+  back gesture, that its two actions navigate correctly, and that a live
+  `MediaRecorder` take actually advances the on-screen timer and level
+  indicator — the last is pinned at the `DiaryEditorViewModel` contract, not by
+  watching a take run.
+- **To close**: run `assembleDebug` on a device or AVD, record a short voice
+  note, and confirm the timer/level advance in step with the audio, then confirm
+  the sheet appears after a save and that both actions do the right thing. The
+  v4→v5 SQLCipher migration test (`AppDatabaseMigrationTest`) is also still
+  unrun against a real encrypted file and should be exercised in the same pass.
+- **Related**: Issue #1 below (no Gradle wrapper) means these runs must invoke
+  `/opt/gradle-8.9/bin/gradle` rather than `./gradlew`.
+
+---
+
 ### Issue #1 — Missing Gradle wrapper scripts
 
 - **Severity**: 🟠 High (blocks command-line builds)

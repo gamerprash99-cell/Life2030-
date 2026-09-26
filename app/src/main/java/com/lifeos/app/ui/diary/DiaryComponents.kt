@@ -60,7 +60,6 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
-import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.core.media.PlaybackState
 import com.lifeos.app.core.media.RecordingFailure
 import com.lifeos.app.core.media.RecordingState
@@ -490,77 +489,8 @@ fun DiaryWeatherRow(
     }
 }
 
-/**
- * The mood pill, tinted from the *stored* mood string only. Returns without
- * emitting anything when the entry has no mood, so an un-mooded entry simply
- * shows no pill rather than a placeholder one.
- */
+/** A labelled metadata line, e.g. "Date 26 September 2026". */
 @Composable
-fun EntryMoodPill(entry: DiaryEntity) {
-    val mood = DiaryMoods.fromStored(entry.mood)
-    val label = mood?.let { "${it.emoji} ${it.label}" } ?: DiaryMoods.displayLabel(entry.mood)
-    if (label.isEmpty()) return
-    val color = mood?.let { DiaryMoods.colorOf(it.key) } ?: DiaryInkViolet
-    val pastel = mood?.let { DiaryMoods.backgroundOf(it.key) } ?: color.copy(alpha = 0.14f)
-    Text(
-        label,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.SemiBold,
-        color = color,
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(pastel)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    )
-}
-
-/** A selectable mood pill for the composer, using the persisted mood keys. */
-@Composable
-fun DiaryMoodChip(
-    option: DiaryMood,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val color = DiaryMoods.colorOf(option.key)
-    val container = if (selected) DiaryMoods.backgroundOf(option.key) else Color.Transparent
-    val borderColor = if (selected) color.copy(alpha = 0.55f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.14f)
-    val labelColor = if (selected) color else MaterialTheme.colorScheme.onSurfaceVariant
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(container)
-            .border(1.dp, borderColor, RoundedCornerShape(50))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 9.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Text(option.emoji, style = MaterialTheme.typography.bodyMedium)
-        Text(
-            option.label,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = labelColor
-        )
-    }
-}
-
-/** A tag chip, e.g. "Gratitude". */
-@Composable
-fun ThemeKeywordChip(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.labelSmall,
-        color = DiaryInkViolet,
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(DiaryLavender.copy(alpha = 0.5f))
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    )
-}
-
-/** A labelled metadata line, e.g. "Date 26 September 2026". */@Composable
 fun DiaryMetaRow(
     icon: @Composable () -> Unit,
     label: String,

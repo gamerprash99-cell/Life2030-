@@ -31,6 +31,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
@@ -354,11 +355,168 @@ class DiaryViewModelTest {
             vm.startNewEntry()
             assertEquals(true, vm.showEditor.value)
 
-            vm.onEditorSaved()
+            vm.onEditorSaved("a")
 
             assertFalse(vm.showEditor.value)
             assertNull(vm.editingEntry.value)
         }
+
+    // ---- the post-save confirmation ----------------------------------------
+
+    @Test
+    fun `a committed write is confirmed with the entry it produced`() = runTest(dispatcher) {
+        dao.seed(entry("a", timeMinutes = 8 * 60 + 2))
+        val vm = viewModel()
+
+        vm.startNewEntry()
+        vm.onEditorSaved("a")
+
+        assertEquals("a", vm.savedEntryId.value)
+        // A WhileSubscribed flow, so read it through `first` rather than `.value`.
+        val confirmed = vm.savedEntry.first { it != null }!!
+        assertEquals("a", confirmed.id)
+    }
+
+    @Test
+    fun `the confirmation names the real stored minute, not the minute of the save`() =
+        runTest(dispatcher) {
+            // The row carries the minute it was originally filed under. An edit
+            // re-saves without moving it, and the sheet must report that minute
+            // rather than whatever the clock says now.
+            dao.seed(entry("a", timeMinutes = 7 * 60 + 30))
+            val vm = viewModel()
+
+            clockMinutes = 21 * 60
+            vm.onEditorSaved("a")
+
+            assertEquals(7 * 60 + 30, vm.savedEntry.first { it != null }!!.timeMinutes)
+        }
+
+    @Test
+    fun `a commit that produced no id does not show an empty confirmation`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+
+            vm.startNewEntry()
+            vm.onEditorSaved(null)
+
+            assertNull(vm.savedEntryId.value)
+            // Nothing to name, so the sheet must stay hidden: the screen gates it
+            // on a resolvable entry, and an id-less commit leaves nothing to
+            // resolve.
+            assertNull(vm.savedEntry.first())
+        }
+
+    @Test
+    fun `dismissing the confirmation retires it`() = runTest(dispatcher) {
+        dao.seed(entry("a"))
+        val vm = viewModel()
+
+        vm.onEditorSaved("a")
+        assertEquals("a", vm.savedEntryId.value)
+
+        vm.dismissSavedConfirmation()
+
+        assertNull(vm.savedEntryId.value)
+    }
+
+    @Test
+    fun `moving to another day retires the confirmation`() = runTest(dispatcher) {
+        dao.seed(entry("a", day = today), entry("b", day = today - 1))
+        val vm = viewModel()
+
+        vm.onEditorSaved("a")
+        vm.selectDay(today - 1)
+
+        assertNull(vm.savedEntryId.value)
+    }
+
+    @Test
+    fun `add another memory retires the confirmation and reopens the composer empty`() =
+        runTest(dispatcher) {
+            dao.seed(entry("a"))
+            val vm = viewModel()
+            vm.onEditorSaved("a")
+
+            // What the sheet's second action calls.
+            vm.startNewEntry()
+
+            assertNull(vm.savedEntryId.value)
+            assertEquals(true, vm.showEditor.value)
+            // A second memory must be a new draft, never the one just written.
+            assertNull(vm.editingEntry.value)
+        }
+
+    @Test
+    fun `a second save of the same memory confirms again`() = runTest(dispatcher) {
+        dao.seed(entry("a"))
+        val vm = viewModel()
+
+        vm.onEditorSaved("a")
+        vm.dismissSavedConfirmation()
+        vm.onEditorSaved("a")
+
+        assertEquals("a", vm.savedEntryId.value)
+    }
+
+    // ---- voice note --------------------------------------------------------
+
+    @Test
+    fun `a running recording's live duration and level reach the state the row renders`() =
+        runTest(dispatcher) {
+            // The composer's timer and level dot are rendered from
+            // `state.recording`, which the UI advances only by calling
+            // tickRecording(). That call was never made, so a take used to sit on
+            // the 0:00 / zero-amplitude reading `start()` wrote for its whole
+            // length. This pins the contract the poll depends on.
+            val recorder = FakeRecorder()
+            val vm = DiaryEditorViewModel(
+                diaryRepository = DiaryRepository(dao),
+                weatherRepository = FakeWeatherRepository(),
+                locationProvider = FakeLocationProvider(),
+                recorder = recorder,
+                player = FakePlayback(),
+                photoImporter = FakePhotoImporter(),
+                nowMinutes = { clockMinutes },
+                todayEpochDay = { today }
+            )
+            vm.start(null, today)
+            advanceUntilIdle()
+
+            vm.startRecording()
+            val atStart = vm.state.value.recording
+            assertTrue("expected a running take, was $atStart", atStart is RecordingState.Recording)
+            assertEquals(0L, (atStart as RecordingState.Recording).elapsedMillis)
+
+            recorder.elapsedMillis = 4_500L
+            recorder.amplitude = 9_000
+            vm.tickRecording()
+
+            val live = vm.state.value.recording as RecordingState.Recording
+            assertEquals(4_500L, live.elapsedMillis)
+            assertEquals(9_000, live.amplitude)
+        }
+
+    @Test
+    fun `ticking with no take running reports idle rather than inventing a recording`() =
+        runTest(dispatcher) {
+            val vm = editor()
+
+            vm.tickRecording()
+
+            assertEquals(RecordingState.Idle, vm.state.value.recording)
+        }
+
+    @Test
+    fun `a memory cannot be saved while a take is still running`() = runTest(dispatcher) {
+        val vm = editor()
+        vm.onContentChange("words with a take still open")
+
+        vm.startRecording()
+        vm.tickRecording()
+
+        assertFalse("a running take must block the save", vm.state.value.canSave)
+    }
 }
 
 /**
@@ -400,11 +558,36 @@ private class FakeRecorder : AudioRecorder {
     private val _state = MutableStateFlow<RecordingState>(RecordingState.Idle)
     override val state: StateFlow<RecordingState> = _state
 
-    override fun start(): RecordingState = _state.value
-    override fun tick(): RecordingState = _state.value
-    override fun stop(): RecordingState = _state.value
+    /**
+     * The wall clock a fake recording runs on. Advanced explicitly by the test
+     * so the elapsed reading is a value the test chose, not one that depended on
+     * how long the test took to run.
+     */
+    var elapsedMillis = 0L
+    var amplitude = 0
+
+    override fun start(): RecordingState {
+        elapsedMillis = 0L
+        _state.value = RecordingState.Recording(elapsedMillis = 0L, amplitude = 0)
+        return _state.value
+    }
+
+    override fun tick(): RecordingState {
+        val active = _state.value
+        if (active !is RecordingState.Recording) return active
+        _state.value = RecordingState.Recording(elapsedMillis = elapsedMillis, amplitude = amplitude)
+        return _state.value
+    }
+
+    override fun stop(): RecordingState {
+        val filePath = "/private/fake-take.m4a"
+        _state.value = RecordingState.Finished(filePath, elapsedMillis)
+        return _state.value
+    }
+
     override fun cancel() { _state.value = RecordingState.Idle }
-    override fun isRecording(): Boolean = false
+
+    override fun isRecording(): Boolean = _state.value is RecordingState.Recording
 }
 
 private class FakePlayback : AudioPlayback {

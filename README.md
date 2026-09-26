@@ -110,7 +110,7 @@ is no third-party MVI/Redux framework.
 | **Home** | Today dashboard: greeting/date, Daily Momentum progress, quick actions, Today's Priorities, habits streak, Recent Activity, LifeOS Intelligence, Capture entry. `ui/home/HomeScreen.kt`, `HomeViewModel.kt`, `domain/usecase/GetHomeSummaryUseCase.kt` |
 | **Tasks** | Priorities, due date/time, category, description, repeat rules, reminders, overdue handling. `ui/tasks/TasksScreen.kt` |
 | **Habits** | Daily/custom schedules, goal counts, streaks, 12-week heatmap. `ui/habits/HabitsScreen.kt`, `HabitDetailScreen.kt` |
-| **Diary** | **Daily Memory**: an editorial memory timeline read one day at a time — a day masthead with prev/next stepping and memory-position ticks, a hairline spine carrying each memory's mood, large leading journal type, an inline `+ Memory` action and a `YOUR STORY STARTS HERE` empty state. Full-screen composer (8 moods) and a full-page detail view reusing the same language. Fully offline and Room-backed; no network calls. `ui/diary/` |
+| **Diary** | **Daily Memory**: an editorial memory timeline read one day at a time — a day masthead over a horizontally snapping, centre-keeping date strip (haptic per settled day change, bounded to the last 365 days, no future day), a hairline spine carrying each memory's mood, large leading journal type, an inline `+ Memory` action and a `YOUR STORY STARTS HERE` empty state. Full-screen composer (8 moods) with real photo, voice-note and place attachments and an honest weather-unavailable state; a post-save confirmation naming the stored day and minute with *View memory* / *Add another memory*; and a full-page detail view reusing the same language. Fully offline and Room-backed; no network calls. `ui/diary/` |
 | **Notes** | Block-based rich text, pin/favorite/archive/trash, folder chips, local AI actions. `ui/notes/` |
 | **Expenses** | Monthly spend, daily average, fixed budget, remaining, recent transactions, add-expense sheet with categories. `ui/expenses/ExpensesScreen.kt` |
 | **Timeline** | Day-by-day merge of notes/tasks/habits/expenses/diary/captures. `ui/timeline/TimelineScreen.kt`, `BuildTimelineUseCase.kt` |
@@ -380,9 +380,11 @@ See [`docs/21_FILE_STRUCTURE.md`](./docs/21_FILE_STRUCTURE.md) for per-file note
   Capture are Home overlay destinations, not tabs.
 - Home dashboard with animated Daily Momentum and live repository-backed data.
 - Diary (**Daily Memory**): a paper/ink-violet editorial timeline scoped to one
-  day — masthead with previous/next day stepping and memory ticks, a 1dp spine
-  with mood markers, mood-first full-screen composer (8 moods) and a full-page
-  detail view. No cards, no date strip, no FAB. All offline, Room-backed.
+  day — a day masthead over a centre-keeping date strip, a 1dp spine with mood
+  markers, mood-first full-screen composer (8 moods) and a full-page detail view.
+  A save closes the composer and raises a confirmation that names the day and
+  minute actually stored, offering to read the memory back or start another on
+  the same day. No cards, no FAB. All offline, Room-backed.
 - Timeline: a dated daily journal with a hairline spine, paper node badges and
   time-stamped cards fed by the read-only aggregation over tasks, habits,
   expenses and diary entries.

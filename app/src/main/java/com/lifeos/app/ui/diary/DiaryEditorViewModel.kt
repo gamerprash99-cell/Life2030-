@@ -102,10 +102,6 @@ class DiaryEditorViewModel(
     private val _state = MutableStateFlow(DiaryEditorState())
     val state: StateFlow<DiaryEditorState> = _state.asStateFlow()
 
-    val recordingState: StateFlow<RecordingState> = recorder.state
-    val playbackState: StateFlow<PlaybackState> = player.state
-
-    /** Loads an existing entry for editing, or seeds a blank draft for a new one. */
     /**
      * Loads the entry being edited, or seeds a blank draft for a new one.
      *
@@ -385,14 +381,6 @@ class DiaryEditorViewModel(
                 )
             }
         }
-    }
-
-    /** Clears the draft for a second entry without leaving the composer. */
-    fun startAnother() {
-        _state.value = DiaryEditorState(
-            dateEpochDay = DateTimeUtils.today().toEpochDay(),
-            timeMinutes = DateTimeUtils.nowMinutesOfDay()
-        )
     }
 
     fun dismissError() { _state.value = _state.value.copy(errorMessage = null) }
