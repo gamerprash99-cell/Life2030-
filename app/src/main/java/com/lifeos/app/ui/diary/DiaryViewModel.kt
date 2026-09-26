@@ -186,7 +186,8 @@ class DiaryViewModel(
                 if (editing != null) {
                     diaryRepository.updateEntry(
                         editing.id, editing.title, content, mood, _editorTags.value,
-                        Json.encodeToString(editorAttachments())
+                        Json.encodeToString(editorAttachments()),
+                        timeMinutes = capturedTimeMinutes
                     )
                 } else {
                     diaryRepository.createEntry(
