@@ -56,3 +56,12 @@ development session, since this repo has no prior commit log).
 Encrypted-database key safety, app lock, profile, search, dates/timeline,
 habits, tasks, home dashboard, media capture hardening. See
 `docs/17_CHANGELOG.md`.
+## [Unreleased] — 2026-09-26 — Diary UI v2 complete implementation
+
+- Redesigned the Diary empty state with a local Compose illustration and clearer editorial capture hierarchy.
+- Made the full-screen Diary composer keyboard-first with explicit focus/keyboard opening and retained the existing keyboard/navigation inset union.
+- Added singular/plural character count presentation.
+- Added a post-save `Memory saved` confirmation driven by successful local Room write state.
+- Added unit coverage for the save-confirmation event and blank-save rejection.
+- Preserved Room v4, existing navigation, Repository/ViewModel boundaries, mood vocabulary, date-strip bounds, delete flow and offline-first/privacy-first behavior.
+- Build/device verification remains pending because no Android runner or outbound GitHub network is available in this environment.
