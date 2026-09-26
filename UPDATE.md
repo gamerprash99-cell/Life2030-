@@ -1,3 +1,13 @@
+
+## 2026-09-26 — Diary Phase 1 reference screen
+
+- **Screen 1 / empty Diary:** aligned the empty-day surface to the supplied reference: back + calendar controls, serif Today/date masthead, seven visible dates on normal phone widths, selected-day pill/dot state, large local journal illustration, "Your story starts here" hierarchy, and a single bottom-right purple capture FAB.
+- **Working interactions:** the calendar control now opens a bounded Material date picker for the existing one-year Diary history; selecting a valid day updates the existing DiaryViewModel selection. The FAB still opens the existing Room-backed Diary editor.
+- **Responsive:** date-cell width is derived from measured window width; very narrow windows fall back to five visible dates. Empty-state illustration size derives from available width/height and is clamped to safe bounds. No phone-specific x/y coordinates were introduced.
+- **Preserved:** Room schema, DiaryRepository/DAO path, navigation, editor overlay, delete/save behavior, offline-first design and existing populated-day timeline are unchanged.
+- **No new data/network dependency:** no schema migration, cloud/API call, telemetry, external asset or permission was added.
+- **Verification:** source changes committed on feature/diary-phase1-reference. Android build/device execution is not available through the connected GitHub environment, so no fresh build pass is claimed.
+
 # LifeOS — UPDATE
 
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).
