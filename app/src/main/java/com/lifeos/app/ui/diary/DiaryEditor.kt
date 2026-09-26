@@ -241,7 +241,7 @@ fun DiaryEditor(
                         onValueChange = { if (it.length <= 1000) content = it },
                         modifier = Modifier.fillMaxWidth().height(220.dp)
                             .verticalScroll(rememberScrollState())
-                            .then(Modifier),
+                            .focusRequester(focusRequester),
                         textStyle = TextStyle(
                             fontFamily = FontFamily.Serif,
                             fontSize = 18.sp,
