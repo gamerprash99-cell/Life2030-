@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,9 +28,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.min
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.LifeOSSpacing
 
@@ -55,63 +60,65 @@ fun DiaryEmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
-                .size(300.dp)
+                .fillMaxWidth()
                 .clip(CircleShape)
                 .clickable(onClick = onCreate),
             contentAlignment = Alignment.Center
         ) {
-            EmptyDiaryIllustration(
-                modifier = Modifier.fillMaxSize()
-            )
+            val illustrationSize = min(
+                maxWidth * 0.88f,
+                maxHeight * 0.62f
+            ).coerceIn(230.dp, 430.dp)
+
+            Box(Modifier.size(illustrationSize)) {
+                EmptyDiaryIllustration(Modifier.fillMaxSize())
+            }
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(6.dp))
 
         Text(
-            text = "YOUR STORY STARTS HERE",
-            style = MaterialTheme.typography.labelSmall,
+            text = "Your story starts here",
+            style = TextStyle(
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                fontSize = 25.sp,
+                lineHeight = 31.sp,
+                letterSpacing = (-0.1).sp
+            ),
             color = DiaryInkViolet,
-            letterSpacing = 2.2.sp,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        Text(
-            text = "Nothing recorded on $dayLabel.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
 
         Spacer(Modifier.height(8.dp))
 
         Text(
-            text = "Tap + Memory to capture your day ✨",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+            text = "Nothing recorded on $dayLabel.",
+            style = TextStyle(
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                lineHeight = 22.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
 
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(7.dp))
 
-        // Keep the action inline with the editorial page instead of introducing
-        // another floating button that competes with the top-right + Memory.
-        Box(
-            modifier = Modifier
-                .clip(MaterialTheme.shapes.small)
-                .clickable(onClick = onCreate)
-                .background(DiaryInkViolet.copy(alpha = 0.06f))
-                .padding(horizontal = 18.dp, vertical = 11.dp)
-        ) {
-            Text(
-                text = "Start a memory",
-                style = MaterialTheme.typography.labelLarge,
-                color = DiaryInkViolet
-            )
-        }
+        Text(
+            text = "Tap the + button to capture your day ✨",
+            style = TextStyle(
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Normal,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f),
+            textAlign = TextAlign.Center
+        )
     }
 }
 
