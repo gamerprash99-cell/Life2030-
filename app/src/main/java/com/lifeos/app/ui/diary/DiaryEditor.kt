@@ -1,6 +1,8 @@
 package com.lifeos.app.ui.diary
 
+import android.Manifest
 import android.app.TimePickerDialog
+import android.media.MediaRecorder
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -60,6 +62,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -82,6 +85,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.lifeos.app.core.util.DateTimeUtils
+import com.lifeos.app.core.util.rememberPermissionState
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
@@ -100,6 +104,7 @@ fun DiaryEditor(
     timeMinutes: Int?,
     photoUris: List<String> = emptyList(),
     tags: List<String> = emptyList(),
+    audioUri: String? = null,
     saving: Boolean,
     onDismiss: () -> Unit,
     onSave: (content: String, mood: String?) -> Unit,
@@ -107,7 +112,8 @@ fun DiaryEditor(
     onTimeChange: (Int) -> Unit = {},
     onPhotosChange: (List<String>) -> Unit = {},
     onRemovePhoto: (String) -> Unit = {},
-    onTagsChange: (List<String>) -> Unit = {}
+    onTagsChange: (List<String>) -> Unit = {},
+    onAudioChange: (String?) -> Unit = {}
 ) {
     val isEditing = editing != null
     var content by rememberSaveable(editing?.id) { mutableStateOf(editing?.content.orEmpty()) }
@@ -117,6 +123,57 @@ fun DiaryEditor(
     val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
+    val audioPermission = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
+    var recording by remember { mutableStateOf(false) }
+    var pendingRecord by remember { mutableStateOf(false) }
+    var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
+    var recordingFile by remember { mutableStateOf<File?>(null) }
+
+    fun startRecording() {
+        if (!audioPermission.isGranted || recording) return
+        val dir = File(context.filesDir, "diary/audio").apply { mkdirs() }
+        val file = File(dir, "memory_" + System.currentTimeMillis() + ".m4a")
+        runCatching {
+            MediaRecorder().apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setOutputFile(file.absolutePath)
+                prepare()
+                start()
+            }.also { recorder = it }
+            recordingFile = file
+            recording = true
+        }.onFailure { error ->
+            recorder?.release()
+            recorder = null
+            file.delete()
+            throw error
+        }
+    }
+
+    fun stopRecording(save: Boolean) {
+        val currentRecorder = recorder
+        val file = recordingFile
+        recorder = null
+        recording = false
+        recordingFile = null
+        runCatching { currentRecorder?.stop() }
+        currentRecorder?.release()
+        if (save && file?.exists() == true) onAudioChange(Uri.fromFile(file).toString())
+        else file?.delete()
+    }
+
+    LaunchedEffect(audioPermission.isGranted, pendingRecord) {
+        if (audioPermission.isGranted && pendingRecord) {
+            pendingRecord = false
+            startRecording()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { stopRecording(save = false) }
+    }
 
     val imagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
@@ -153,7 +210,10 @@ fun DiaryEditor(
         keyboardController?.show()
     }
 
-    BackHandler(onBack = onDismiss)
+    BackHandler(onBack = {
+        if (recording) stopRecording(save = false)
+        onDismiss()
+    })
 
     val bottomInsets = WindowInsets.navigationBars.union(WindowInsets.ime)
     val canSave = content.isNotBlank() && !saving
@@ -303,7 +363,23 @@ fun DiaryEditor(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SoftAction("◉  Add voice") { }
+                SoftAction(
+                    when {
+                        recording -> "■  Stop recording"
+                        audioUri != null -> "◉  Voice note added"
+                        else -> "◉  Add voice"
+                    }
+                ) {
+                    when {
+                        recording -> stopRecording(save = true)
+                        audioUri != null -> onAudioChange(null)
+                        audioPermission.isGranted -> startRecording()
+                        else -> {
+                            pendingRecord = true
+                            audioPermission.request()
+                        }
+                    }
+                }
                 Spacer(Modifier.weight(1f))
                 FilledSaveAction(enabled = canSave) { onSave(content, mood) }
             }
