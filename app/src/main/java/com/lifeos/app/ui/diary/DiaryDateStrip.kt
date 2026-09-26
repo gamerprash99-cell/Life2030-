@@ -60,12 +60,13 @@ import com.lifeos.app.ui.theme.DiaryLavender
 internal const val VISIBLE_DATES = 5
 
 /**
- * How far back the strip reaches. Bounded on purpose: there is no tomorrow to
- * journal, so the range runs from `today - HISTORY_DAYS` up to `today` and stops.
- * That is a fixed, modest [LazyRow] — only the ~5 realised cells are ever
- * composed, and no unbounded or ever-growing list is ever built.
+ * The strip keeps a bounded history and also exposes upcoming dates. Future
+ * dates are real selectable calendar days; an empty future day simply has no
+ * memories yet. The range is bounded in both directions so the LazyRow can
+ * never grow without limit.
  */
 internal const val HISTORY_DAYS = 365L
+internal const val FUTURE_DAYS = 365L
 
 /**
  * The horizontal date strip that replaces the old pagination ticks.
@@ -170,8 +171,11 @@ fun DiaryDateStrip(
  * part that must never become unbounded, and that is exactly what is asserted
  * in the unit tests.
  */
-internal fun dayStripRange(today: Long, historyDays: Long = HISTORY_DAYS): List<Long> =
-    ((today - historyDays)..today).toList()
+internal fun dayStripRange(
+    today: Long,
+    historyDays: Long = HISTORY_DAYS,
+    futureDays: Long = FUTURE_DAYS
+): List<Long> = ((today - historyDays)..(today + futureDays)).toList()
 
 /** One date in the strip: weekday abbreviation above the day numeral. */
 @Composable
