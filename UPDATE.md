@@ -1089,3 +1089,10 @@ gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existin
 - Existing editor focus/keyboard/inset behavior, timestamp capture, save guard, mood selection, detail/edit/delete routes and offline-first constraints remain in place.
 - Scope guard: reference-only affordances are not backed by fabricated data. Photos, weather, location, voice, tags, favorites and share/copy are only surfaced when an existing local data/feature path supports them; no fake values or network service were introduced.
 - Verification: branch source inspected after changes. No Android device/emulator or CI run is available in the connected environment, so build/device success is not claimed.
+
+
+### Follow-up — future date navigation
+- Diary date strip now includes upcoming calendar dates as well as historical dates.
+- Upcoming dates are selectable and remain empty until a local Diary memory is recorded for that day.
+- Selection is bounded in the ViewModel and date strip to prevent unbounded calendar scrolling.
+- New memories use the currently selected calendar day, so writing on an upcoming selected day is persisted to that selected date rather than silently reverting to Today.
