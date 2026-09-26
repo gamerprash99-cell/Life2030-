@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 /**
  * Diary screen state. Everything flows from `DiaryRepository.observeAll()` —
@@ -186,7 +188,7 @@ class DiaryViewModel(
                 if (editing != null) {
                     diaryRepository.updateEntry(
                         editing.id, editing.title, content, mood, _editorTags.value,
-                        Json.encodeToString(editorAttachments()),
+                        Json.encodeToString(ListSerializer(String.serializer()), editorAttachments()),
                         timeMinutes = capturedTimeMinutes
                     )
                 } else {
