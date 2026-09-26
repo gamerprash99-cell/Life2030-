@@ -63,6 +63,7 @@ fun DiaryScreen(
     val editorTimeMinutes by viewModel.editorTimeMinutes.collectAsState()
     val editorPhotoUris by viewModel.editorPhotoUris.collectAsState()
     val editorTags by viewModel.editorTags.collectAsState()
+    val editorAudioUri by viewModel.editorAudioUri.collectAsState()
     val saving by viewModel.saving.collectAsState()
     val saveConfirmation by viewModel.saveConfirmation.collectAsState()
     var showSaved by remember { mutableStateOf(false) }
@@ -164,6 +165,7 @@ fun DiaryScreen(
                     timeMinutes = editorTimeMinutes,
                     photoUris = editorPhotoUris,
                     tags = editorTags,
+                    audioUri = editorAudioUri,
                     saving = saving,
                     onDismiss = viewModel::dismissEditor,
                     onSave = viewModel::saveEntry,
@@ -171,6 +173,7 @@ fun DiaryScreen(
                     onPhotosChange = viewModel::setEditorPhotos,
                     onRemovePhoto = viewModel::removeEditorPhoto,
                     onTagsChange = viewModel::setEditorTags,
+                    onAudioChange = viewModel::setEditorAudio,
                     onDelete = {
                         editingEntry?.let(viewModel::requestDelete)
                         viewModel.dismissEditor()
