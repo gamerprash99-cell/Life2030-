@@ -1069,3 +1069,9 @@ gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existin
 ### Remaining
 - On-device: overlay back-stack behaviour, the permission dialog lifecycle, and a real notification firing at the set time (no emulator/device in this sandbox — verified via compile + 99 JVM tests + lint + code reasoning).
  
+
+## 2026-09-26 — Diary UI v2 reference pass
+
+- Refined the full-screen Diary composer writing surface in `ui/diary/DiaryEditor.kt` to make the empty writing state calmer and more intentional: headline-style placeholder copy plus a quieter supporting prompt, while preserving the existing Room/ViewModel flow, keyboard-safe insets, mood selector, captured timestamp, save guard and Back behavior.
+- No Room schema, navigation, repositories, permissions, network, AI, or dependency changes.
+- Verification pending: UI screenshot/emulator validation is still required because the connected GitHub environment does not expose an Android emulator/device runner.
