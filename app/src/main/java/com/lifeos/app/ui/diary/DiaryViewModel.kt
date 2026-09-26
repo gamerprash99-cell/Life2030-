@@ -168,7 +168,7 @@ class DiaryViewModel(
                 if (editing != null) {
                     diaryRepository.updateEntry(
                         editing.id, editing.title, content, mood, _editorTags.value,
-                        Json.encodeToString(_editorPhotoUris.value + _editorAudioUri.value?.let { "audio:" + it }.orEmpty().takeIf { it.isNotBlank() }.let { if (it == null) emptyList() else listOf(it) })
+                        Json.encodeToString(editorAttachments())
                     )
                 } else {
                     diaryRepository.createEntry(
@@ -215,6 +215,11 @@ class DiaryViewModel(
     private fun splitTags(csv: String): List<String> = csv.split(',')
         .map { it.trim() }
         .filter { it.isNotBlank() }
+
+    private fun editorAttachments(): List<String> = buildList {
+        addAll(_editorPhotoUris.value)
+        _editorAudioUri.value?.takeIf { it.isNotBlank() }?.let { add("audio:" + it) }
+    }
 
     private fun decodeStringList(json: String): List<String> = runCatching {
         Json.decodeFromString<List<String>>(json)
