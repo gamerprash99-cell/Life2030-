@@ -1,3 +1,13 @@
+## 2026-09-26 — Diary Phase 2 completion pass
+
+- Added **point-of-use location capture** to the Memory Editor. The editor requests coarse location only when the user taps the location action, then reads the device's current/last-known Android location locally. Coordinates are stored inside the existing Diary `attachmentsJson`; no location is sent to a remote service.
+- Added **offline-safe weather capture**. Because LifeOS must not upload location/diary data to a cloud weather API, the weather action now opens a local condition/temperature field (for example `Sunny • 28°C`) and persists exactly what the user records. No fake automatic weather value is generated.
+- Added edit-path preservation for location/weather/photos/audio/tags in `DiaryDetailScreen.kt` and its ViewModel.
+- Added `ACCESS_COARSE_LOCATION` + `ACCESS_FINE_LOCATION` to the manifest; permission remains point-of-use.
+- Fixed new-entry attachment persistence so photos + voice + local metadata all use the same existing `attachmentsJson` path.
+- Created PR #25 so the existing GitHub Actions Android CI runs against the Phase 2 branch. Run **182** is currently executing; build success is not claimed until the workflow completes.
+- Device verification is still a separate boundary: CI currently builds/tests APKs but does not provide a physical Android device or emulator for screenshot/touch/permission smoke testing.
+
 ## 2026-09-26 — Diary Phase 2: New Memory Editor
 
 - **Reference screen:** rebuilt `ui/diary/DiaryEditor.kt` around the supplied editor reference: close action, lavender Save memory pill, TODAY/date masthead, moon decoration, editable time pill, 8-mood selector, rounded writing card with 1000-character limit, media toolbar, optional photo/tag strips, Add voice affordance, and bottom Save memory action.
