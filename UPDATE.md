@@ -1069,18 +1069,3 @@ gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existin
 ### Remaining
 - On-device: overlay back-stack behaviour, the permission dialog lifecycle, and a real notification firing at the set time (no emulator/device in this sandbox — verified via compile + 99 JVM tests + lint + code reasoning).
  
-
-## 2026-09-26 — Diary UI v2 reference pass
-
-- Refined the full-screen Diary composer writing surface in `ui/diary/DiaryEditor.kt` to make the empty writing state calmer and more intentional: headline-style placeholder copy plus a quieter supporting prompt, while preserving the existing Room/ViewModel flow, keyboard-safe insets, mood selector, captured timestamp, save guard and Back behavior.
-- No Room schema, navigation, repositories, permissions, network, AI, or dependency changes.
-- Verification pending: UI screenshot/emulator validation is still required because the connected GitHub environment does not expose an Android emulator/device runner.
-
-
-### Screen 1 — Diary Empty State
-
-- Reworked `ui/diary/DiaryEmptyState.kt` into the first visual pass from the new Diary direction.
-- Added a fully local Compose Canvas illustration (open journal, moon, stars and sprout) so the released app needs no remote image or network asset.
-- Added clearer hierarchy: "YOUR STORY STARTS HERE" → selected-day message → "Tap + Memory to capture your day" → secondary "Start a memory" action.
-- Preserved the existing day selection, `+ Memory` action, ViewModel, Room repository, navigation and bottom navigation architecture.
-- Verification: source change committed to `feature/diary-ui-v2`; Android emulator/device rendering and Gradle verification are pending in an environment with an Android runner.
