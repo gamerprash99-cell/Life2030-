@@ -1,8 +1,13 @@
 package com.lifeos.app.ui.diary
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -74,18 +79,19 @@ fun MoodSelector(
         // Reserve the row whether or not a mood is chosen so the writing
         // surface below never shifts as the user picks.
         Box(Modifier.fillMaxWidth().height(20.dp), contentAlignment = Alignment.Center) {
-            if (selected != null) {
+            // Cross-faded rather than swapped: the label changes on every tap,
+            // and an instant replacement reads as a flicker at the exact moment
+            // the user is looking for confirmation.
+            AnimatedContent(
+                targetState = selected,
+                transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(110)) },
+                label = "moodLabel"
+            ) { chosen ->
                 Text(
-                    selected.label,
+                    chosen?.label ?: "How did the day feel?",
                     style = MaterialTheme.typography.labelMedium,
-                    color = selected.accent,
-                    textAlign = TextAlign.Center
-                )
-            } else {
-                Text(
-                    "How did the day feel?",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = chosen?.accent
+                        ?: MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center
                 )
             }

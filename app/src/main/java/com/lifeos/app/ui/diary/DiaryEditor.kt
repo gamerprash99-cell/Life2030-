@@ -19,10 +19,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -30,6 +33,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
@@ -71,6 +75,7 @@ import com.lifeos.app.ui.theme.LifeOSSpacing
 fun DiaryEditor(
     dayEpochDay: Long,
     editing: DiaryEntity?,
+    timeMinutes: Int?,
     saving: Boolean,
     onDismiss: () -> Unit,
     onSave: (content: String, mood: String?) -> Unit,
@@ -86,6 +91,12 @@ fun DiaryEditor(
 
     val canSave = content.isNotBlank() && !saving
 
+    // Bottom inset = whichever of the keyboard / navigation bar is taller.
+    // Taking the union is what stops the old `systemBars` + `imePadding` pair
+    // from padding the navigation bar twice once the keyboard is up.
+    val bottomInsets = WindowInsets.navigationBars.union(WindowInsets.ime)
+    val topInsets = WindowInsets.safeDrawing.exclude(bottomInsets)
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -93,10 +104,10 @@ fun DiaryEditor(
         Column(
             Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.systemBars)
                 // Keeps the save row above the keyboard; the text area above it
                 // shrinks, so nothing is ever covered.
-                .imePadding()
+                .windowInsetsPadding(topInsets)
+                .windowInsetsPadding(bottomInsets)
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp),
@@ -128,6 +139,32 @@ fun DiaryEditor(
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+
+                // The exact minute this memory will be filed under, shown before
+                // the save rather than discovered after it. It is captured when
+                // the editor opens, so it does not shift while the user writes.
+                timeMinutes?.let { minute ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.Schedule,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            if (isEditing) {
+                                "Written at ${DateTimeUtils.formatMinutes(minute)}"
+                            } else {
+                                DateTimeUtils.formatMinutes(minute)
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
 
                 MoodSelector(
                     selectedKey = mood,

@@ -242,6 +242,9 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                 DiaryEditor(
                     dayEpochDay = current.dateEpochDay,
                     editing = current,
+                    // This screen only ever edits an existing memory, so the time
+                    // shown is the stored one and the edit keeps it.
+                    timeMinutes = current.timeMinutes,
                     saving = saving,
                     onDismiss = viewModel::dismissEditor,
                     onSave = viewModel::save,
