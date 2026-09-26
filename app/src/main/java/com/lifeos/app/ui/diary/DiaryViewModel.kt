@@ -80,6 +80,8 @@ class DiaryViewModel(
     private val _editorPhotoUris = MutableStateFlow<List<String>>(emptyList())
     val editorPhotoUris: StateFlow<List<String>> = _editorPhotoUris
     private val _editorTags = MutableStateFlow<List<String>>(emptyList())
+    private val _editorAudioUri = MutableStateFlow<String?>(null)
+    val editorAudioUri: StateFlow<String?> = _editorAudioUri
     val editorTags: StateFlow<List<String>> = _editorTags
     val editorTimeMinutes: StateFlow<Int?> = _editorTimeMinutes
 
@@ -100,6 +102,7 @@ class DiaryViewModel(
         _editorTimeMinutes.value = capturedTimeMinutes
         _editorPhotoUris.value = emptyList()
         _editorTags.value = emptyList()
+        _editorAudioUri.value = null
         _showEditor.value = true
     }
 
@@ -109,6 +112,9 @@ class DiaryViewModel(
         capturedTimeMinutes = entry.timeMinutes
         _editorTimeMinutes.value = entry.timeMinutes
         _editorPhotoUris.value = decodeStringList(entry.attachmentsJson)
+        val attachments = decodeStringList(entry.attachmentsJson)
+        _editorPhotoUris.value = attachments.filterNot { it.startsWith("audio:") }
+        _editorAudioUri.value = attachments.firstOrNull { it.startsWith("audio:") }?.removePrefix("audio:")
         _editorTags.value = splitTags(entry.tagsCsv)
         _showEditor.value = true
     }
@@ -120,6 +126,7 @@ class DiaryViewModel(
         _editorTimeMinutes.value = null
         _editorPhotoUris.value = emptyList()
         _editorTags.value = emptyList()
+        _editorAudioUri.value = null
     }
 
     /**
@@ -144,6 +151,10 @@ class DiaryViewModel(
         _editorPhotoUris.value = _editorPhotoUris.value.filterNot { it == uri }
     }
 
+    fun setEditorAudio(uri: String?) {
+        _editorAudioUri.value = uri
+    }
+
     fun setEditorTags(tags: List<String>) {
         _editorTags.value = tags.map { it.trim() }.filter { it.isNotBlank() }.distinct().take(8)
     }
@@ -157,7 +168,7 @@ class DiaryViewModel(
                 if (editing != null) {
                     diaryRepository.updateEntry(
                         editing.id, editing.title, content, mood, _editorTags.value,
-                        Json.encodeToString(_editorPhotoUris.value)
+                        Json.encodeToString(_editorPhotoUris.value + _editorAudioUri.value?.let { "audio:" + it }.orEmpty().takeIf { it.isNotBlank() }.let { if (it == null) emptyList() else listOf(it) })
                     )
                 } else {
                     diaryRepository.createEntry(
