@@ -58,6 +58,10 @@ class DiaryViewModel(
     private val _saving = MutableStateFlow(false)
     val saving: StateFlow<Boolean> = _saving
 
+    /** Emits a one-shot UI confirmation after a successful local save. */
+    private val _saveConfirmation = MutableStateFlow(0)
+    val saveConfirmation: StateFlow<Int> = _saveConfirmation
+
     /**
      * The wall-clock minute this entry is stamped with, decided the moment the
      * editor opens rather than the moment it is saved.
@@ -136,6 +140,7 @@ class DiaryViewModel(
                     )
                 }
                 dismissEditor()
+                _saveConfirmation.value += 1
             } finally {
                 // Never leave the save action stuck disabled if the write throws.
                 _saving.value = false
