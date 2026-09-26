@@ -62,3 +62,11 @@ habits, tasks, home dashboard, media capture hardening. See
 - Diary composer writing surface refined in `ui/diary/DiaryEditor.kt`: calmer headline placeholder and supporting guidance while retaining the existing full-screen, keyboard-safe editor architecture and local Room-backed save flow.
 - No schema, navigation, repository, permission, network, AI, or dependency changes.
 - UI/device validation remains pending because no Android emulator/device runner is available through the connected repository workflow.
+
+
+## [Unreleased] — 2026-09-26 Diary UI v2 complete flow
+
+- Completed the Diary visual flow across empty, compose, filled, save-confirmation, detail and multi-memory states while preserving the existing Room/ViewModel/Repository architecture.
+- Added a short local `Memory saved` confirmation after successful writes.
+- Added `docs/diary-ui-v2.md` with the screen-by-screen behavior and privacy/architecture constraints.
+- Device/emulator rendering is not claimed as verified in the connected workflow.
