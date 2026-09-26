@@ -56,3 +56,9 @@ development session, since this repo has no prior commit log).
 Encrypted-database key safety, app lock, profile, search, dates/timeline,
 habits, tasks, home dashboard, media capture hardening. See
 `docs/17_CHANGELOG.md`.
+
+## [Unreleased] — 2026-09-26 (branch `feature/diary-ui-v2`)
+
+- Diary composer writing surface refined in `ui/diary/DiaryEditor.kt`: calmer headline placeholder and supporting guidance while retaining the existing full-screen, keyboard-safe editor architecture and local Room-backed save flow.
+- No schema, navigation, repository, permission, network, AI, or dependency changes.
+- UI/device validation remains pending because no Android emulator/device runner is available through the connected repository workflow.
