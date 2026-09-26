@@ -42,7 +42,8 @@ class DiaryRepository(private val dao: DiaryDao) {
         content: String,
         mood: String?,
         tags: List<String>,
-        attachmentsJson: String? = null
+        attachmentsJson: String? = null,
+        timeMinutes: Int? = null
     ) {
         val existing = dao.getById(id) ?: return
         dao.upsert(
@@ -51,6 +52,7 @@ class DiaryRepository(private val dao: DiaryDao) {
                 content = content,
                 mood = mood,
                 tagsCsv = tags.joinToString(","),
+                timeMinutes = timeMinutes ?: existing.timeMinutes,
                 attachmentsJson = attachmentsJson ?: existing.attachmentsJson,
                 updatedAt = System.currentTimeMillis()
             )
