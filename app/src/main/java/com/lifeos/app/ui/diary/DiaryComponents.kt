@@ -1,71 +1,43 @@
 package com.lifeos.app.ui.diary
-
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.WbSunny
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import androidx.compose.ui.platform.LocalContext
-import com.lifeos.app.core.media.PlaybackState
-import com.lifeos.app.core.media.RecordingFailure
-import com.lifeos.app.core.media.RecordingState
-import com.lifeos.app.core.media.formatAudioDuration
 import com.lifeos.app.domain.model.DiaryAttachment
-import com.lifeos.app.domain.model.DiaryWeather
 import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
@@ -75,23 +47,8 @@ import com.lifeos.app.ui.theme.DiaryTagInk
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import java.io.File
 
-/**
- * The reusable pieces of the Diary visual language, shared by the day list,
- * the composer and the entry detail so all three stay identical (and so no
- * screen grows a private one-off style).
- *
- * Every value these render comes from the database or from a real device API.
- * Nothing is hardcoded for appearance: an absent photo, place or reading
- * renders an explicit unavailable state instead of a stand-in.
- */
-
-/** A hairline-bordered paper card — the surface every Diary panel sits on. */
 @Composable
-fun DiaryPanel(
-    modifier: Modifier = Modifier,
-    cornerRadius: Int = 24,
-    content: @Composable () -> Unit
-) {
+fun DiaryPanel(modifier: Modifier = Modifier, cornerRadius: Int = 24, content: @Composable () -> Unit) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius.dp))
@@ -102,106 +59,47 @@ fun DiaryPanel(
     )
 }
 
-/** Section label such as "Photos", "Tags" or "Location". */
 @Composable
-fun DiarySectionLabel(
-    text: String,
-    modifier: Modifier = Modifier,
-    trailing: @Composable (() -> Unit)? = null
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
-        )
+fun DiarySectionLabel(text: String, modifier: Modifier = Modifier, trailing: @Composable (() -> Unit)? = null) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(text, style = MaterialTheme.typography.titleSmall, color = DiaryInkViolet, modifier = Modifier.weight(1f))
         trailing?.invoke()
     }
 }
 
-/**
- * Photo strip. Each tile uses `ContentScale.Crop` inside a fixed
- * [PHOTO_ASPECT_RATIO] box, so an arbitrary source aspect ratio is cropped
- * rather than stretched, and the tile never depends on the device width.
- */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun DiaryPhotoStrip(
-    photos: List<DiaryAttachment.Photo>,
-    onAdd: () -> Unit,
-    onRemove: (DiaryAttachment.Photo) -> Unit,
-    modifier: Modifier = Modifier,
-    addLabel: String = "Add photo"
-) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        DiarySectionLabel(
-            text = if (photos.isEmpty()) "Photos" else "Photos (${photos.size})"
-        )
+fun DiaryPhotoStrip(photos: List<DiaryAttachment.Photo>, onAdd: () -> Unit, onRemove: (DiaryAttachment.Photo) -> Unit, modifier: Modifier = Modifier, addLabel: String = "Add more photos") {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        DiarySectionLabel("Photos", trailing = {
+            if (photos.isNotEmpty()) Text(photos.size.toString(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        })
         FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            maxItemsInEachRow = 4
         ) {
-            photos.forEach { photo ->
-                DiaryPhotoTile(filePath = photo.filePath, onRemove = { onRemove(photo) })
-            }
-            AddTile(label = addLabel, onClick = onAdd)
+            photos.forEach { photo -> DiaryPhotoTile(photo, onRemove) }
+            AddTile(addLabel, onAdd)
         }
     }
 }
 
 @Composable
-private fun DiaryPhotoTile(filePath: String, onRemove: () -> Unit) {
+private fun DiaryPhotoTile(photo: DiaryAttachment.Photo, onRemove: (DiaryAttachment.Photo) -> Unit) {
     val context = LocalContext.current
-    val exists = remember(filePath) { File(filePath).exists() }
-    Box(
-        modifier = Modifier
-            .size(PHOTO_TILE_SIZE)
-            .clip(RoundedCornerShape(16.dp))
-            .background(DiaryLavender.copy(alpha = 0.35f))
-    ) {
-        if (exists) {
-            AsyncImage(
-                model = ImageRequest.Builder(context).data(File(filePath)).build(),
-                contentDescription = "Diary photo",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().aspectRatio(PHOTO_ASPECT_RATIO)
-            )
-        } else {
-            // The file was removed outside the app. Say so instead of showing a
-            // broken or placeholder image.
-            MissingMediaLabel(Modifier.fillMaxWidth().aspectRatio(PHOTO_ASPECT_RATIO), "Photo unavailable")
-        }
-        // The visible chip is 24dp, but the *touch* target is the full 48dp
-        // minimum: a 24dp target is half the accessible size and, on a photo
-        // the user is trying to clean up, easy to miss and easy to hit the
-        // wrong tile with. The circle is nested and corner-aligned inside the
-        // larger target so the drawn size and position are unchanged.
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .size(48.dp)
-                .clickable(onClick = onRemove),
-            contentAlignment = Alignment.TopEnd
-        ) {
-            Box(
-                modifier = Modifier
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(DiaryInkViolet.copy(alpha = 0.55f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Remove photo",
-                    tint = Color.White,
-                    modifier = Modifier.size(14.dp)
-                )
+    val exists = remember(photo.filePath) { File(photo.filePath).exists() }
+    Box(Modifier.size(92.dp).clip(RoundedCornerShape(16.dp)).background(DiaryLavender.copy(alpha = 0.3f))) {
+        if (exists) AsyncImage(
+            model = ImageRequest.Builder(context).data(File(photo.filePath)).build(),
+            contentDescription = "Diary photo",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth()
+        ) else MissingMediaLabel(Modifier.fillMaxWidth(), "Photo unavailable")
+        Box(Modifier.align(Alignment.TopEnd).size(48.dp).clickable { onRemove(photo) }, contentAlignment = Alignment.TopEnd) {
+            Box(Modifier.padding(5.dp).size(24.dp).clip(CircleShape).background(DiaryInkViolet.copy(alpha = 0.62f)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Close, contentDescription = "Remove photo", tint = Color.White, modifier = Modifier.size(14.dp))
             }
         }
     }
@@ -210,457 +108,70 @@ private fun DiaryPhotoTile(filePath: String, onRemove: () -> Unit) {
 @Composable
 private fun AddTile(label: String, onClick: () -> Unit) {
     Column(
-        modifier = Modifier
-            .size(PHOTO_TILE_SIZE)
-            .clip(RoundedCornerShape(16.dp))
-            .background(DiaryLavender.copy(alpha = 0.28f))
+        Modifier.size(92.dp).clip(RoundedCornerShape(16.dp))
+            .border(BorderStroke(1.dp, DiaryActionViolet.copy(alpha = 0.35f)), RoundedCornerShape(16.dp))
+            .background(DiaryLavender.copy(alpha = 0.16f))
             .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Filled.AddAPhoto, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(22.dp))
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = DiaryActionViolet,
-            modifier = Modifier.padding(top = 4.dp)
-        )
+        Icon(Icons.Filled.AddAPhoto, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(24.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = DiaryActionViolet, modifier = Modifier.padding(top = 5.dp), maxLines = 2)
     }
 }
 
-/** Voice-note row: record / stop / play with the real measured duration. */
 @Composable
-fun DiaryVoiceNoteRow(
-    voiceNote: DiaryAttachment.VoiceNote?,
-    recording: RecordingState,
-    playback: PlaybackState,
-    onStartRecording: () -> Unit,
-    onStopRecording: () -> Unit,
-    onCancelRecording: () -> Unit,
-    onTogglePlayback: () -> Unit,
-    onRemove: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val isRecording = recording is RecordingState.Recording
-    // The live level is a real amplitude reading, animated only for smoothness.
-    val level = (recording as? RecordingState.Recording)?.amplitude ?: 0
-    val levelAlpha by animateFloatAsState(
-        targetValue = if (isRecording) (level.coerceIn(0, 20_000) / 20_000f).coerceAtLeast(0.15f) else 0f,
-        animationSpec = tween(durationMillis = 120),
-        label = "micLevel"
-    )
-
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        DiarySectionLabel(text = "Voice note")
-
-        when {
-            isRecording -> {
-                val active = recording as RecordingState.Recording
-                DiaryPanel(cornerRadius = 18) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(RECORD_DOT_SIZE)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.error.copy(alpha = levelAlpha.coerceAtLeast(0.35f))),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.Mic, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        }
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                formatAudioDuration(active.elapsedMillis),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text("Recording…", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        IconButton48(onClick = onCancelRecording, description = "Cancel recording") {
-                            Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        IconButton48(onClick = onStopRecording, description = "Stop recording") {
-                            Icon(Icons.Filled.Stop, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                }
-            }
-
-            voiceNote != null -> {
-                val exists = remember(voiceNote.filePath) { File(voiceNote.filePath).exists() }
-                DiaryPanel(cornerRadius = 18) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        IconButton48(
-                            onClick = { if (exists) onTogglePlayback() },
-                            enabled = exists,
-                            description = if (playback is PlaybackState.Playing) "Pause voice note" else "Play voice note"
-                        ) {
-                            Icon(
-                                imageVector = if (playback is PlaybackState.Playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                contentDescription = null,
-                                tint = if (exists) DiaryInkViolet else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                            )
-                        }
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                formatAudioDuration(voiceNote.durationMillis),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                when {
-                                    !exists -> "Audio file unavailable"
-                                    playback is PlaybackState.MissingFile -> "Audio file unavailable"
-                                    playback is PlaybackState.Failed -> "Playback failed"
-                                    playback is PlaybackState.Playing -> "Playing"
-                                    else -> "Tap play to listen"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton48(onClick = onRemove, description = "Remove voice note") {
-                            Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                }
-            }
-
-            else -> {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(DiaryLavender.copy(alpha = 0.22f))
-                        .clickable(onClick = onStartRecording)
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
-                    Text("Add voice note", style = MaterialTheme.typography.labelLarge, color = DiaryActionViolet)
-                }
-            }
-        }
-
-        // A real failure (mic busy, take too short) is explained, never hidden.
-        AnimatedVisibility(
-            visible = recording is RecordingState.Failure,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            val reason = (recording as RecordingState.Failure).reason
-            Text(
-                when (reason) {
-                    RecordingFailure.TOO_SHORT -> "That take was too short to save."
-                    else -> "Recording failed. Please try again."
-                },
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-    }
-}
-
-/**
- * Location row. Shows the resolved place name when the geocoder produced one,
- * the raw coordinates when it did not, and an explicit action (or honest
- * reason) otherwise. Never a hardcoded city.
- */
-@Composable
-fun DiaryLocationRow(
-    place: DiaryAttachment.Place?,
-    status: LocationStatus,
-    onAdd: () -> Unit,
-    onClear: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        DiarySectionLabel(text = "Location")
-        when (status) {
-            LocationStatus.REQUESTING -> DiaryPanel(cornerRadius = 18) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    Text("Finding your location…", style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-
-            else -> if (place != null) {
-                DiaryPanel(cornerRadius = 18) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                place.placeName.takeIf { it.isNotBlank() } ?: formatCoordinates(place),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            // Accuracy is the real reported accuracy, when present.
-                            place.accuracyMeters?.let {
-                                Text(
-                                    "±${it.toInt()} m",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        IconButton48(onClick = onClear, description = "Remove location") {
-                            Icon(Icons.Filled.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(DiaryLavender.copy(alpha = 0.22f))
-                            .clickable(onClick = onAdd)
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
-                        Text(
-                            when (status) {
-                                LocationStatus.PERMISSION_DENIED -> "Allow location to attach a place"
-                                LocationStatus.PERMISSION_PERMANENTLY_DENIED -> "Enable location in Settings"
-                                else -> "Add current location"
-                            },
-                            style = MaterialTheme.typography.labelLarge,
-                            color = DiaryActionViolet
-                        )
-                    }
-                    if (status == LocationStatus.PERMISSION_PERMANENTLY_DENIED) {
-                        Text(
-                            "Location permission was permanently denied. Open Settings to grant it.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Weather row.
- *
- * Renders a real reading only when one exists. In a stock offline-first build
- * there is no permitted weather source, so this shows an honest unavailable
- * state — it never invents a temperature, an icon or a condition.
- */
-@Composable
-fun DiaryWeatherRow(
-    weather: DiaryWeather,
-    modifier: Modifier = Modifier
-) {
-    val (label, tint) = when (weather) {
-        is DiaryWeather.Available -> {
-            val rounded = Math.round(weather.temperatureCelsius)
-            "${rounded}°C · ${weather.condition}" to MaterialTheme.colorScheme.tertiary
-        }
-        is DiaryWeather.Unavailable -> when (weather.reason) {
-            DiaryWeather.UnavailableReason.NO_LOCATION ->
-                "Add a location to show weather" to MaterialTheme.colorScheme.onSurfaceVariant
-            DiaryWeather.UnavailableReason.PERMISSION_DENIED ->
-                "Location permission needed for weather" to MaterialTheme.colorScheme.onSurfaceVariant
-            DiaryWeather.UnavailableReason.PERMISSION_PERMANENTLY_DENIED ->
-                "Enable location in Settings for weather" to MaterialTheme.colorScheme.onSurfaceVariant
-            DiaryWeather.UnavailableReason.LOCATION_UNAVAILABLE ->
-                "Weather unavailable — no location fix" to MaterialTheme.colorScheme.onSurfaceVariant
-            DiaryWeather.UnavailableReason.NO_SOURCE_OFFLINE_ONLY ->
-                "Weather unavailable — LifeOS works offline" to MaterialTheme.colorScheme.onSurfaceVariant
-        }
-    }
-    val iconTint by animateColorAsState(tint, label = "weatherTint")
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Icon(
-            Icons.Filled.WbSunny,
-            contentDescription = null,
-            tint = iconTint.copy(alpha = if (weather is DiaryWeather.Available) 1f else 0.45f),
-            modifier = Modifier.size(18.dp)
-        )
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = iconTint
-        )
-    }
-}
-
-/** A labelled metadata line, e.g. "Date 26 September 2026". */
-@Composable
-fun DiaryMetaRow(
-    icon: @Composable () -> Unit,
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
+fun DiaryMetaRow(icon: @Composable () -> Unit, label: String, value: String, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         icon()
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(META_LABEL_WIDTH)
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
-        )
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.labelMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
     }
 }
 
-/** Shown when a referenced media file is gone. */
 @Composable
 fun MissingMediaLabel(modifier: Modifier = Modifier, text: String) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 6.dp)
-        )
+    Box(modifier, contentAlignment = Alignment.Center) {
+        Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp))
     }
 }
 
-/**
- * Renders real coordinates to 4 decimal places (~11 m), which is the useful
- * precision for a journal entry and avoids implying survey-grade accuracy the
- * device did not provide. Used only when no geocoder backend resolved a place
- * name — it is the honest fallback, not a substitute for a real lookup.
- */
-private fun formatCoordinates(place: DiaryAttachment.Place): String =
-    String.format(
-        java.util.Locale.getDefault(),
-        "%.4f, %.4f",
-        place.latitude,
-        place.longitude
-    )
+private fun formatCoordinates(place: DiaryAttachment.Place): String = String.format(java.util.Locale.getDefault(), "%.4f, %.4f", place.latitude, place.longitude)
 
-/**
- * A square, comfortably tappable icon button used across the Diary rows.
- *
- * [description] is applied as a real accessibility content description so
- * TalkBack announces the action rather than an unlabelled icon.
- */
 @Composable
-fun IconButton48(
-    onClick: () -> Unit,
-    description: String,
-    enabled: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(LifeOSSpacing.minTouchTarget)
-            .clip(CircleShape)
-            .clickable(enabled = enabled, onClick = onClick)
-            .semantics { this.contentDescription = description },
-        contentAlignment = Alignment.Center
-    ) {
-        content()
-    }
-}
-
-/** Fixed layout constants so tiles stay square at any screen size or font scale. */
-private val PHOTO_TILE_SIZE = 84.dp
-private const val PHOTO_ASPECT_RATIO = 1f
-private val RECORD_DOT_SIZE = 40.dp
-private val META_LABEL_WIDTH = 92.dp
-
-/** Tags with add/remove, persisted in the existing `tagsCsv` column. */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-@Composable
-fun DiaryTagEditor(
-    tags: List<String>,
-    onAdd: (String) -> Unit,
-    onRemove: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun DiaryTagEditor(tags: List<String>, onAdd: (String) -> Unit, onRemove: (String) -> Unit, modifier: Modifier = Modifier) {
     var draft by rememberSaveable { mutableStateOf("") }
-
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "Tags",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
-            )
-            if (draft.isNotBlank()) {
-                TextButton(onClick = { onAdd(draft); draft = "" }) {
-                    Text("Add tag", color = DiaryActionViolet)
-                }
+    var showDialog by rememberSaveable { mutableStateOf(false) }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        DiarySectionLabel("Tags", trailing = {
+            Box(Modifier.clip(CircleShape).border(1.dp, DiaryActionViolet.copy(alpha = 0.35f), CircleShape).clickable { showDialog = true }.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Text("+ Add tag", style = MaterialTheme.typography.labelMedium, color = DiaryActionViolet)
             }
-        }
-
+        })
         if (tags.isNotEmpty()) {
-            androidx.compose.foundation.layout.FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 tags.forEach { tag ->
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(DiaryLavender.copy(alpha = 0.55f))
-                            .padding(start = 10.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(tag, style = MaterialTheme.typography.labelSmall, color = DiaryTagInk)
-                        Box(
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clip(CircleShape)
-                                .clickable { onRemove(tag) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("✕", style = MaterialTheme.typography.labelSmall, color = DiaryActionViolet)
-                        }
+                    Row(Modifier.clip(CircleShape).background(DiaryLavender.copy(alpha = 0.64f)).padding(start = 11.dp, end = 4.dp, top = 7.dp, bottom = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(tag, style = MaterialTheme.typography.labelMedium, color = DiaryTagInk)
+                        Box(Modifier.size(36.dp).clickable { onRemove(tag) }, contentAlignment = Alignment.Center) { Text("×", style = MaterialTheme.typography.titleSmall, color = DiaryActionViolet) }
                     }
                 }
             }
-        }
-
-        TextField(
-            value = draft,
-            onValueChange = { draft = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Add a tag", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodyMedium,
-            colors = diaryFieldColors()
+        } else Text("No tags yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false; draft = "" },
+            title = { Text("Add tag") },
+            text = {
+                TextField(
+                    value = draft, onValueChange = { value -> draft = value.take(40) }, singleLine = true, placeholder = { Text("e.g. Gratitude") },
+                    colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent, focusedIndicatorColor = DiaryActionViolet, unfocusedIndicatorColor = DiaryHairline)
+                )
+            },
+            confirmButton = {
+                TextButton(enabled = draft.isNotBlank(), onClick = { onAdd(draft); draft = ""; showDialog = false }) { Text("Add", color = DiaryActionViolet) }
+            },
+            dismissButton = { TextButton(onClick = { showDialog = false; draft = "" }) { Text("Cancel") } }
         )
     }
 }
-
-@Composable
-private fun diaryFieldColors() = TextFieldDefaults.colors(
-    focusedContainerColor = Color.Transparent,
-    unfocusedContainerColor = Color.Transparent,
-    disabledContainerColor = Color.Transparent,
-    focusedIndicatorColor = DiaryInkViolet,
-    unfocusedIndicatorColor = DiaryHairline
-)
