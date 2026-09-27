@@ -27,6 +27,7 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lifeos.app.core.media.RecordingState
 import com.lifeos.app.core.util.PermissionManager
+import com.lifeos.app.domain.model.DiaryWeather
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -120,6 +121,15 @@ fun DiaryEditorAttachments(
             onRemove = viewModel::removePhoto
         )
 
+        // Tags sit directly under the photos rather than below the voice note and
+        // the place: both annotate the same draft, and the reference order reads
+        // "what it is, then what it is about", then how it was captured.
+        DiaryTagEditor(
+            tags = state.tags,
+            onAdd = viewModel::addTag,
+            onRemove = viewModel::removeTag
+        )
+
         DiaryVoiceNoteRow(
             voiceNote = state.voiceNote,
             recording = state.recording,
@@ -157,13 +167,14 @@ fun DiaryEditorAttachments(
             onClear = viewModel::clearLocation
         )
 
-        DiaryWeatherRow(weather = state.weather)
-
-        DiaryTagEditor(
-            tags = state.tags,
-            onAdd = viewModel::addTag,
-            onRemove = viewModel::removeTag
-        )
+        // Only when there is a reading. This build has no permitted weather
+        // source, so the row's own honest answer is "unavailable" — and printing
+        // that on every new memory reserved a permanent line of noise under the
+        // place for something that does not exist. The state itself is unchanged
+        // and still renders everywhere else it is shown.
+        if (state.weather is DiaryWeather.Available) {
+            DiaryWeatherRow(weather = state.weather)
+        }
 
         state.errorMessage?.let { message ->
             InlineErrorText(message)

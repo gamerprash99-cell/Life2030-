@@ -20,12 +20,13 @@ import com.lifeos.app.ui.theme.DiaryMoodTired
 import com.lifeos.app.ui.theme.DiaryMoodTiredPastel
 
 /**
- * One selectable mood. [key] is the exact string persisted in
+ * One mood. [key] is the exact string persisted in
  * `diary_entries.mood`, [accent] is the saturated colour used for the marker
  * ring and label, and [halo] is the pastel wash behind the marker.
  *
  * Emoji and label travel together on purpose: mood is never communicated by
- * colour alone (see the accessibility notes on [MoodSelector]).
+ * colour alone (see [StoredMoodChip], the only place a mood is rendered now
+ * that the composer no longer offers a picker).
  */
 data class DiaryMood(
     val key: String,
