@@ -28,14 +28,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.WbSunny
@@ -236,9 +236,9 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
 
                 Spacer(Modifier.height(14.dp))
                 DiaryPanel(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), cornerRadius = 22) {
-                    DiaryMetaRow({ Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp)) }, "Date", DateTimeUtils.formatFullDate(date))
+                    DiaryMetaRow({ Icon(Icons.Filled.DateRange, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp)) }, "Date", DateTimeUtils.formatFullDate(date))
                     Spacer(Modifier.height(14.dp))
-                    DiaryMetaRow({ Icon(Icons.Filled.Schedule, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp)) }, "Time", DateTimeUtils.formatMinutes(current.timeMinutes))
+                    DiaryMetaRow({ Icon(Icons.Filled.AccessTime, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp)) }, "Time", DateTimeUtils.formatMinutes(current.timeMinutes))
                     Spacer(Modifier.height(14.dp))
                     DiaryMetaRow({ Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp)) }, "Word count", "${DiaryTextStats.wordCount(current.content)} words")
                 }
