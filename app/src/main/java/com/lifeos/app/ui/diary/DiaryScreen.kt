@@ -99,8 +99,6 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
             timeMinutes = editorState.timeMinutes,
             content = editorState.content,
             onContentChange = editorViewModel::onContentChange,
-            mood = editorState.mood,
-            onMoodChange = editorViewModel::onMoodChange,
             onDateChange = editorViewModel::onDateChange,
             onTimeChange = editorViewModel::onTimeChange,
             canSave = editorState.canSave,
