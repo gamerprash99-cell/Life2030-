@@ -6,9 +6,32 @@ import com.lifeos.app.data.db.dao.DiaryDao
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.domain.model.DiaryAttachment
 import com.lifeos.app.domain.model.DiaryAttachments
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 
-class DiaryRepository(private val dao: DiaryDao) {
+/**
+ * The Diary's persistence boundary: rows live in Room, their photos and voice
+ * notes live as files in app-private storage.
+ *
+ * Every write here reads a row, decodes its attachment list, touches the
+ * filesystem and writes the row back. Room moves *its own* suspend calls onto
+ * its query executor, but the Kotlin in between — the JSON decode, the encode,
+ * and especially `MediaStorage.deleteIfExists`, which is a blocking
+ * `File.delete()` — would otherwise run on whatever thread called in. Every
+ * caller is a `viewModelScope` (Main), so without the switch below a single
+ * "remove this photo" tap would unlink a file on the UI thread. Doing it here
+ * rather than at each call site fixes every caller at once and keeps the
+ * threading contract with the layer that owns the storage.
+ *
+ * [io] is injectable so tests can drive the storage work on a test scheduler
+ * instead of racing a real thread pool; production always uses [Dispatchers.IO].
+ */
+class DiaryRepository(
+    private val dao: DiaryDao,
+    private val io: CoroutineDispatcher = Dispatchers.IO
+) {
 
     fun observeAll(): Flow<List<DiaryEntity>> = dao.observeAll()
     fun observeForDay(epochDay: Long): Flow<List<DiaryEntity>> = dao.observeForDay(epochDay)
@@ -35,16 +58,18 @@ class DiaryRepository(private val dao: DiaryDao) {
     ): String {
         val id = IdGenerator.newId()
         val now = System.currentTimeMillis()
-        dao.upsert(
-            DiaryEntity(
-                id = id, title = title, content = content, mood = mood, tagsCsv = tags.joinToString(","),
-                dateEpochDay = dateEpochDay, timeMinutes = timeMinutes, aiGenerated = aiGenerated,
-                isReviewed = !aiGenerated, // Rule #8: AI drafts start unreviewed until the user confirms
-                attachmentsJson = DiaryAttachments.encode(attachments),
-                isFavorite = false,
-                createdAt = now, updatedAt = now
+        withContext(io) {
+            dao.upsert(
+                DiaryEntity(
+                    id = id, title = title, content = content, mood = mood, tagsCsv = tags.joinToString(","),
+                    dateEpochDay = dateEpochDay, timeMinutes = timeMinutes, aiGenerated = aiGenerated,
+                    isReviewed = !aiGenerated, // Rule #8: AI drafts start unreviewed until the user confirms
+                    attachmentsJson = DiaryAttachments.encode(attachments),
+                    isFavorite = false,
+                    createdAt = now, updatedAt = now
+                )
             )
-        )
+        }
         return id
     }
 
@@ -65,24 +90,26 @@ class DiaryRepository(private val dao: DiaryDao) {
         timeMinutes: Int? = null,
         attachments: List<DiaryAttachment>? = null
     ) {
-        val existing = dao.getById(id) ?: return
-        val previous = DiaryAttachments.decode(existing.attachmentsJson)
-        val nextJson = attachments?.let { DiaryAttachments.encode(it) } ?: existing.attachmentsJson
+        withContext(io) {
+            val existing = dao.getById(id) ?: return@withContext
+            val previous = DiaryAttachments.decode(existing.attachmentsJson)
+            val nextJson = attachments?.let { DiaryAttachments.encode(it) } ?: existing.attachmentsJson
 
-        if (attachments != null) deleteOrphanedMedia(previous, attachments)
+            if (attachments != null) deleteOrphanedMedia(previous, attachments)
 
-        dao.upsert(
-            existing.copy(
-                title = title,
-                content = content,
-                mood = mood,
-                tagsCsv = tags.joinToString(","),
-                dateEpochDay = dateEpochDay ?: existing.dateEpochDay,
-                timeMinutes = timeMinutes ?: existing.timeMinutes,
-                attachmentsJson = nextJson,
-                updatedAt = System.currentTimeMillis()
+            dao.upsert(
+                existing.copy(
+                    title = title,
+                    content = content,
+                    mood = mood,
+                    tagsCsv = tags.joinToString(","),
+                    dateEpochDay = dateEpochDay ?: existing.dateEpochDay,
+                    timeMinutes = timeMinutes ?: existing.timeMinutes,
+                    attachmentsJson = nextJson,
+                    updatedAt = System.currentTimeMillis()
+                )
             )
-        )
+        }
     }
 
     /** Flips the favourite flag, returning the value actually persisted. */
@@ -103,7 +130,7 @@ class DiaryRepository(private val dao: DiaryDao) {
      * audio are user data the user explicitly asked to remove, so nothing is
      * left behind on disk.
      */
-    suspend fun delete(id: String) {
+    suspend fun delete(id: String) = withContext(io) {
         dao.getById(id)?.let { existing ->
             DiaryAttachments.decode(existing.attachmentsJson).forEach { attachment ->
                 when (attachment) {
@@ -149,14 +176,14 @@ class DiaryRepository(private val dao: DiaryDao) {
      * A no-op when the entry is gone or the path is not one of its attachments,
      * so a stale tap can never clobber the row.
      */
-    suspend fun removeAttachment(id: String, filePath: String) {
-        val existing = dao.getById(id) ?: return
+    suspend fun removeAttachment(id: String, filePath: String) = withContext(io) {
+        val existing = dao.getById(id) ?: return@withContext
         val current = DiaryAttachments.decode(existing.attachmentsJson)
         val next = current.filterNot { attachment ->
             (attachment is DiaryAttachment.Photo && attachment.filePath == filePath) ||
                 (attachment is DiaryAttachment.VoiceNote && attachment.filePath == filePath)
         }
-        if (next.size == current.size) return
+        if (next.size == current.size) return@withContext
         deleteOrphanedMedia(current, next)
         dao.upsert(
             existing.copy(
@@ -167,5 +194,7 @@ class DiaryRepository(private val dao: DiaryDao) {
     }
 
     suspend fun getAllForBackup(): List<DiaryEntity> = dao.getAllForBackup()
-    suspend fun restoreFromBackup(entries: List<DiaryEntity>) = entries.forEach { dao.upsert(it) }
+    suspend fun restoreFromBackup(entries: List<DiaryEntity>) = withContext(io) {
+        entries.forEach { dao.upsert(it) }
+    }
 }

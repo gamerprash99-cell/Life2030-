@@ -7,6 +7,7 @@ import android.content.Intent
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
@@ -36,6 +37,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -68,15 +70,18 @@ import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.repository.DiaryRepository
+import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.LifeOSSpacing
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Full-page view of one diary entry. */
 class DiaryDetailViewModel(
@@ -96,7 +101,21 @@ class DiaryDetailViewModel(
 
     fun dismissEditor() { _showEditor.value = false }
 
-    fun delete(id: String) = viewModelScope.launch { diaryRepository.delete(id) }
+    /**
+     * Deletes the entry the user asked to delete.
+     *
+     * The screen pops this destination the instant Delete is confirmed, which
+     * clears the back-stack entry and therefore this ViewModel — and with it
+     * `viewModelScope`. A plain `viewModelScope.launch { delete() }` is
+     * therefore *racing* its own cancellation: on a slow, encrypted commit the
+     * scope can be cancelled before the row goes, and the memory silently
+     * reappears on the timeline after the user was told it was deleted.
+     * `NonCancellable` closes the window — the request to delete is honoured
+     * once the user has made it.
+     */
+    fun delete(id: String) = viewModelScope.launch {
+        withContext(NonCancellable) { diaryRepository.delete(id) }
+    }
 
     /** Flips the favourite flag; the list re-renders from the same Room flow. */
     fun toggleFavorite() = viewModelScope.launch { diaryRepository.toggleFavorite(entryId) }
@@ -201,7 +220,15 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    // `enableEdgeToEdge()` in `MainActivity` plus a bottom-bar-only Scaffold
+    // means this page inherits no top inset, so the back / favourite / Edit row
+    // would sit under the status bar. The day view and the composer already
+    // apply their own; this is the detail page doing the same.
+    Box(
+        Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) {
         entry?.let { current ->
             val date = DateTimeUtils.epochDayToLocalDate(current.dateEpochDay)
             val hasMood = !current.mood.isNullOrBlank()
@@ -236,7 +263,7 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                     }
                     Box(Modifier.weight(1f))
                     TextButton(onClick = viewModel::startEdit) {
-                        Text("Edit", color = DiaryInkViolet)
+                        Text("Edit", color = DiaryActionViolet)
                     }
                 }
 
@@ -312,15 +339,20 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                 val voiceNote = remember(attachments) { DiaryAttachments.voiceNote(attachments) }
                 val place = remember(attachments) { DiaryAttachments.place(attachments) }
 
-                if (photos.isNotEmpty()) {
-                    Spacer(Modifier.height(18.dp))
-                    DiaryPhotoStrip(
-                        photos = photos,
-                        onAdd = viewModel::startEdit,
-                        onRemove = { photo -> viewModel.removeAttachment(photo.filePath) },
-                        modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding)
-                    )
-                }
+                // Rendered unconditionally, *not* only when `photos` is
+                // non-empty. The strip carries the "add" tile, so gating it on
+                // having photos removed the only way to add one: a memory
+                // written without photos could never get any from its own
+                // detail page, and the affordance the design calls for was
+                // simply absent rather than present-and-empty. A memory with no
+                // photos now shows the add tile on its own.
+                Spacer(Modifier.height(18.dp))
+                DiaryPhotoStrip(
+                    photos = photos,
+                    onAdd = viewModel::startEdit,
+                    onRemove = { photo -> viewModel.removeAttachment(photo.filePath) },
+                    modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding)
+                )
 
                 if (voiceNote != null) {
                     Spacer(Modifier.height(18.dp))
@@ -396,13 +428,13 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                     TextButton(onClick = {
                         shareEntry(context, current, photos)
                     }) {
-                        Text("Share", color = DiaryInkViolet)
+                        Text("Share", color = DiaryActionViolet)
                     }
                     TextButton(onClick = {
                         copyEntry(context, current)
                         scope.launch { snackbarHostState.showSnackbar("Memory copied") }
                     }) {
-                        Text("Copy", color = DiaryInkViolet)
+                        Text("Copy", color = DiaryActionViolet)
                     }
                     TextButton(onClick = { confirmDelete = true }) {
                         Text("Delete memory", color = MaterialTheme.colorScheme.error)
@@ -423,7 +455,7 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                     onContentChange = editorViewModel::onContentChange,
                     mood = editorState.mood,
                     onMoodChange = editorViewModel::onMoodChange,
-                    saving = editorState.isSaving,
+                    canSave = editorState.canSave,
                     onDismiss = {
                         editorViewModel.cancelRecording()
                         viewModel.dismissEditor()
@@ -434,6 +466,24 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                 )
             }
         }
+
+        // The `SnackbarHostState` above is only a *channel*; without a host
+        // nothing ever draws it, so `showSnackbar` resolved into the void and
+        // Copy — the one action here with no visible effect of its own — left
+        // the user with no idea whether it had done anything. This is what
+        // actually renders the confirmation.
+        //
+        // No `navigationBarsPadding()` here on purpose: this page sits inside
+        // the app's `NavHost`, which the bottom-bar `Scaffold` has *already*
+        // inset above a bar that consumes the nav-bar inset itself. Adding it
+        // again would push the confirmation twice as far up as intended.
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = LifeOSSpacing.screenPadding)
+                .padding(bottom = 16.dp)
+        )
     }
 
     entry?.let { current ->

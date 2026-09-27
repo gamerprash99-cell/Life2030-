@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextAlign
@@ -60,20 +61,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
+import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
-import com.lifeos.app.ui.theme.DiaryLavender
+import com.lifeos.app.ui.theme.DiarySaveDisabled
 import com.lifeos.app.ui.theme.LifeOSSpacing
 
 /**
  * The writing surface: a full-page editorial sheet, not a bottom sheet and not
- * a form. It is presented over the whole screen (it intentionally covers the
- * bottom bar) so the only things competing with the words are the day, the
- * mood, and the save action.
+ * a form, so the only things competing with the words are the day, the mood, and
+ * the save action.
+ *
+ * It fills the whole of its own surface, which — because the app's `NavHost`
+ * already sits inside the bottom-bar `Scaffold` — is the diary's content area
+ * *above* the navigation bar, not the entire physical screen. The bottom bar
+ * stays visible underneath; the editor consumes the navigation-bar and IME
+ * insets itself so the save action is never left under the keyboard.
  *
  * Nothing is written until [onSave] fires — the editor itself never touches the
- * database, and [saving] disables the action so a double tap cannot create a
- * duplicate entry.
+ * database, and [canSave] (which the caller takes from the editor state) is the
+ * one authority on whether the action is live, so a double tap cannot create a
+ * duplicate entry and the button is never shown enabled while saving would be
+ * refused.
  *
  * The words and the mood are *owned by the caller* ([content] / [onContentChange]
  * and [mood] / [onMoodChange]) rather than held in local state, because the real
@@ -95,7 +104,19 @@ fun DiaryEditor(
     onContentChange: (String) -> Unit,
     mood: String?,
     onMoodChange: (String?) -> Unit,
-    saving: Boolean,
+    /**
+     * Whether Save is genuinely available right now, taken straight from
+     * `DiaryEditorState.canSave`.
+     *
+     * The editor used to re-derive this locally as `content.isNotBlank() &&
+     * !saving`, which was a *weaker* rule than the ViewModel's. Two of the
+     * ViewModel's own guards were missing from the button: the row still
+     * loading, and a take still recording. In both cases the pill rendered
+     * fully enabled and tapping it hit an early `return` in `save()` — a live
+     * control that silently does nothing, which is worse than one that is
+     * honestly disabled. The single source of truth is now the state property.
+     */
+    canSave: Boolean,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
@@ -114,8 +135,6 @@ fun DiaryEditor(
     }
 
     BackHandler(onBack = onDismiss)
-
-    val canSave = content.isNotBlank() && !saving
 
     // Bottom inset = whichever of the keyboard / navigation bar is taller.
     // Taking the union is what stops the old `systemBars` + `imePadding` pair
@@ -274,7 +293,7 @@ fun SaveMemoryAction(
     Box(
         modifier = modifier
             .clip(CircleShape)
-            .background(if (enabled) DiaryLavender else DiaryHairline.copy(alpha = 0.5f))
+            .background(if (enabled) DiaryActionViolet else DiarySaveDisabled)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 13.dp),
         contentAlignment = Alignment.Center
@@ -282,7 +301,10 @@ fun SaveMemoryAction(
         Text(
             if (enabled) "Save memory →" else "Save memory",
             style = MaterialTheme.typography.labelLarge,
-            color = DiaryInkViolet.copy(alpha = if (enabled) 1f else 0.4f),
+            // White on the action violet; the disabled state is a muted ink on
+            // the pale disabled pill, so "you can't save yet" never looks like
+            // the live button.
+            color = if (enabled) Color.White else DiaryInkViolet.copy(alpha = 0.4f),
             textAlign = TextAlign.Center
         )
     }

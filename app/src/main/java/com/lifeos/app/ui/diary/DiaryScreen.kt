@@ -13,12 +13,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -33,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,6 +48,7 @@ import com.lifeos.app.core.media.DiaryAudioRecorder
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
+import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.DiaryPaperCard
@@ -120,7 +124,17 @@ fun DiaryScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            Column(Modifier.fillMaxSize()) {
+            // `MainActivity` calls `enableEdgeToEdge()`, and the only Scaffold
+            // in this hierarchy is the app's bottom-bar one, so `padding` carries
+            // a bottom inset and *no* top inset. Without the status-bar padding
+            // below the header's back button and the date line render underneath
+            // the clock. `DiaryEditorOverlay` already consumes the insets for
+            // the composer; this is the same treatment for the day view.
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+            ) {
                 DiaryDayHeader(
                     selectedDay = selectedDay,
                     daysWithMemories = daysWithMemories,
@@ -172,8 +186,11 @@ fun DiaryScreen(
             // by the shared safe-content clearance. No phone-specific coordinates.
             FloatingActionButton(
                 onClick = viewModel::startNewEntry,
-                containerColor = DiaryInkViolet,
-                contentColor = MaterialTheme.colorScheme.background,
+                // The app's single most pressable thing, so it wears the single
+                // action colour (Stitch `#6C47EB` with a white glyph) rather
+                // than the heading ink.
+                containerColor = DiaryActionViolet,
+                contentColor = Color.White,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(
@@ -181,7 +198,11 @@ fun DiaryScreen(
                         bottom = LifeOSSpacing.fabContentClearance
                     )
             ) {
-                Text("+", style = MaterialTheme.typography.headlineSmall)
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = "Write a new memory",
+                    modifier = Modifier.size(26.dp)
+                )
             }
 
             DiaryEditorOverlay(visible = showEditor) {
@@ -194,7 +215,7 @@ fun DiaryScreen(
                     onContentChange = editorViewModel::onContentChange,
                     mood = editorState.mood,
                     onMoodChange = editorViewModel::onMoodChange,
-                    saving = editorState.isSaving,
+                    canSave = editorState.canSave,
                     onDismiss = {
                         editorViewModel.cancelRecording()
                         viewModel.dismissEditor()
@@ -260,14 +281,18 @@ private fun MemoryStreamFooter(count: Int, onCreate: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         Box(
             Modifier
-                .clip(MaterialTheme.shapes.small)
+                // Stitch's primary action: a full pill in the action violet with
+                // a white label. This was a bare violet word with no container,
+                // so it read as a label rather than something to press.
+                .clip(CircleShape)
+                .background(DiaryActionViolet)
                 .clickable(onClick = onCreate)
-                .padding(horizontal = 18.dp, vertical = 12.dp)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
             Text(
                 "+ Memory",
                 style = MaterialTheme.typography.labelLarge,
-                color = DiaryInkViolet,
+                color = Color.White,
                 textAlign = TextAlign.Center
             )
         }
@@ -332,7 +357,7 @@ private fun MemorySavedSheet(
                 Icon(
                     Icons.Filled.Check,
                     contentDescription = null,
-                    tint = DiaryInkViolet,
+                    tint = DiaryActionViolet,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -388,14 +413,14 @@ private fun MemorySheetAction(
             .fillMaxWidth()
             .height(58.dp)
             .clip(CircleShape)
-            .background(if (primary) DiaryInkViolet else DiaryLavender.copy(alpha = 0.5f))
+            .background(if (primary) DiaryActionViolet else DiaryLavender.copy(alpha = 0.5f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
-            color = if (primary) MaterialTheme.colorScheme.background else DiaryInkViolet,
+            color = if (primary) Color.White else DiaryInkViolet,
             textAlign = TextAlign.Center
         )
     }

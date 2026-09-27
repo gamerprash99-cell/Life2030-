@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lifeos.app.core.util.DateTimeUtils
+import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.LifeOSSpacing
@@ -132,9 +133,14 @@ private fun MoodMark(
                 .size(34.dp)
                 .scale(scale)
                 .clip(CircleShape)
+                // Stitch's selected state: a soft lavender-violet halo behind
+                // the face with a 2px `#6C47EB` accent ring on top. The ring was
+                // 1.5dp in the mood's own colour, which read as a hairline at
+                // phone density and made "which one is selected" the weakest
+                // signal in the picker.
                 .background(if (selected) mood.halo else DiaryHairline.copy(alpha = 0.34f))
                 .then(
-                    if (selected) Modifier.border(1.5.dp, mood.accent, CircleShape)
+                    if (selected) Modifier.border(2.dp, DiaryActionViolet, CircleShape)
                     else Modifier
                 ),
             contentAlignment = Alignment.Center

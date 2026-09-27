@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lifeos.app.core.util.DateTimeUtils
+import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiaryLavender
 
@@ -204,7 +205,7 @@ private fun DiaryDateCell(
     )
     val numeralColor by animateColorAsState(
         targetValue = when {
-            isSelected -> DiaryInkViolet
+            isSelected -> DiaryActionViolet
             isToday -> DiaryInkViolet.copy(alpha = 0.66f)
             else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
         },
@@ -269,7 +270,7 @@ private fun DiaryDateCell(
                     .clip(CircleShape)
                     .background(
                         if (isSelected) {
-                            DiaryInkViolet
+                            DiaryActionViolet
                         } else {
                             DiaryInkViolet.copy(alpha = 0.38f)
                         }
