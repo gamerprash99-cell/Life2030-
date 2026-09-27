@@ -112,7 +112,7 @@ class DiaryViewModelTest {
             photoImporter = FakePhotoImporter(),
             nowMinutes = { clockMinutes },
             todayEpochDay = { today }
-        ).also { createdViewModels += it }.apply { start(entryId, defaultDay) }
+        ).also { createdScopes += it.viewModelScope }.apply { start(entryId, defaultDay) }
 
     private suspend fun TestScope.editor(
         entryId: String? = null,
@@ -126,7 +126,7 @@ class DiaryViewModelTest {
         photoImporter = FakePhotoImporter(),
         nowMinutes = { clockMinutes },
         todayEpochDay = { today }
-    ).also { createdViewModels += it }.apply {
+    ).also { createdScopes += it.viewModelScope }.apply {
         start(entryId, defaultDay)
         // Let the row load land, so what the test types into is the real draft.
         advanceUntilIdle()
