@@ -105,7 +105,8 @@ fun MemoryMoment(
                 )
             }
 
-            Spacer(Modifier.height(2.dp))
+            // The action row is 48dp tall on its own, so a spacer in front of it
+            // only opened a gap between the memory and its own controls.
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 MemoryAction(label = "Edit", onClick = onEdit)
                 MemoryAction(label = "Delete", onClick = onDelete, isDestructive = true)

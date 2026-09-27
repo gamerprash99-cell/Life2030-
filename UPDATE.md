@@ -3,6 +3,140 @@
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).
 ---
 
+## 2026-09-27 — Diary spacing, keyboard behaviour, and the mood picker (branch `fix/diary-editor-spacing-mood-removal`)
+
+A layout correction to the Diary, driven by the recorded screen-by-screen review
+of New Memory. Presentation only: no schema change, no migration, no new
+dependency, no permission or manifest change, no network. Room stays at v5 and
+`diary_entries.mood` is untouched — every mood string already in the database
+still resolves and still renders.
+
+### 1. The editor was not content-driven, and that was the whole problem
+
+`DiaryEditor` gave the text field `Modifier.weight(1f)` inside a `fillMaxSize`
+column. The field therefore claimed *every* spare dp on the page and scrolled
+itself internally, while the page around it did not scroll at all. One modifier
+produced three of the reported symptoms:
+
+- an empty New Memory rendered as a cavern between the header and the sections
+  below it;
+- the photos / tags / voice note / place were pinned to the bottom of the
+  screen, metres from the words they annotate;
+- a long entry scrolled inside the field instead of the page, so the sections
+  below were unreachable.
+
+The field is now `heightIn(min = …)` inside a single `verticalScroll` column: a
+floor for an untouched page, then exactly as tall as what was written. The one
+value left is `EDITOR_MIN_HEIGHT` (132 dp), and it is a minimum, not a height.
+
+### 2. Opening the keyboard squashed the form instead of scrolling it
+
+The editor wrapped itself in `windowInsetsPadding(navigationBars.union(ime))`
+around a page that never scrolled. When the IME came up, the whole form
+compressed into the strip above the keyboard, and the sections underneath were
+simply gone.
+
+It is now one `imePadding()` on the single scroll container. The keyboard takes
+its height out of the scrollable area, the top bar stays put, the focused field
+is brought into view by Compose (foundation 1.7 brings a text field inside a
+scrollable container into view on focus), and everything below stays reachable
+by scrolling. Closing it returns the layout with no residual gap.
+
+The navigation-bar half of that union was a second, quieter bug: the app's
+bottom bar already consumes the system navigation inset and has already lifted
+the Diary above itself, so padding for it again in the editor added an empty
+band under the form. The editor now owns exactly two insets — status bar at the
+top, keyboard at the bottom.
+
+### 3. The mood / emoji picker is gone from the composer
+
+`MoodSelector` and its per-glyph `MoodMark` are deleted; the file is renamed to
+`DiaryMoodDisplay.kt` and keeps only what still *displays* a mood — `MoodDot`
+(the timeline spine and the entry detail) and a new read-only `StoredMoodChip`,
+which shows the mood of a memory that already has one. Nothing in that file can
+write a mood: the composer takes `mood` and renders it.
+
+Nothing else moved. `DiaryEntity.mood`, `DiaryMoods`, the persisted keys and
+`DiaryEditorViewModel.onMoodChange` are all as they were, so historical data is
+backward-compatible and the existing `DiaryMoodsTest` cases — which assert that
+the five pre-redesign keys still resolve — still pass unchanged.
+
+### 4. The create button was floating a third of the way up the page
+
+The Diary's `FloatingActionButton` was a `Box` child with `align(BottomEnd)` and
+a 96 dp bottom pad, *on top of* the `Scaffold` inner padding that already
+carried a bottom inset. Two insets stacked, so the button sat well clear of the
+bottom of the content instead of being anchored to it.
+
+It is now `Scaffold(floatingActionButton = …)`, so the layout anchors it. The
+list keeps `fabContentClearance` as its bottom *content* padding — that is the
+one thing that legitimately needs to sit over content, because the list has to be
+able to scroll its last entry clear of the button.
+
+### 5. Vertical rhythm: five steps collapsed into one
+
+The editor measured its rhythm as an 18 dp spacer, a 10 dp `spacedBy`, a 4 dp
+spacer, a 2 dp spacer and a 10/10 padded row. It is now a single
+`Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)` on the page column, with
+the existing `LifeOSSpacing` tokens — no new spacing system. On the timeline, the
+gap between the date strip and the first entry dropped from 20 dp to 12 dp, and
+the 2 dp spacer in front of a row that is already 48 dp tall is gone.
+
+### 6. Editor header
+
+The editor had a dismiss icon and a Delete button and no title, with Save
+stranded in a bottom row. It is now a compact `Scaffold` top bar: dismiss on the
+left, `New Memory` / `Edit Memory` centred, Delete (editing only) and
+**Save changes** on the right. The save pill's label no longer swaps between
+states, which resized it on every keystroke that changed `canSave`.
+
+The title is weighted rather than centred between two fixed halves on purpose:
+at a large font scale on a small screen the Delete label and the save pill are
+wider than half the row, and a fixed share would have clipped the save action.
+The title absorbs the difference and ellipsizes instead.
+
+### 7. Section order, and a row that was only ever noise
+
+The editor's sections ran photos → voice note → location → weather → tags. They
+now run photos → tags → voice note → location, matching the reference.
+
+The weather row is now drawn only when there is a real reading. This build has no
+permitted weather source, so the row's own answer was always
+"Weather unavailable — LifeOS works offline", printed under the place on every
+single new memory. `DiaryWeatherRow` itself is unchanged and still renders that
+honest state everywhere else it is used, including the entry detail.
+
+### Verification
+
+Run in this order, offline, from the repo root:
+
+| Command | Result |
+| --- | --- |
+| `:app:compileDebugKotlin` | BUILD SUCCESSFUL |
+| `:app:testDebugUnitTest` | BUILD SUCCESSFUL — 173 tests, 0 failures, 0 skipped, 18 classes |
+| `:app:assembleDebug` | BUILD SUCCESSFUL — `app/build/outputs/apk/debug/app-debug.apk` |
+| `:app:lintDebug` | BUILD SUCCESSFUL — 8 issues, all pre-existing, none in `ui/diary` |
+
+No instrumentation test was run: this machine has no emulator, no attached
+device, and no display (`adb` lists nothing, `screencap` fails, and
+`pm install` refuses both `/data/local/tmp` and `/sdcard` for this uid), so
+`AppDatabaseMigrationTest` and any on-device check of the new layout could not be
+executed here. Nothing in this change touches the schema, so the migration test
+is not expected to be affected — but that is an expectation, not a result.
+
+### Remaining, unverified
+
+- The states in the review (timeline with one / many entries, New Memory empty /
+  with text / with photos / tags / a voice note / a place, edit, long text, no
+  photos, many photos, large font scale, gesture and 3-button navigation, keyboard
+  open and closed) were reasoned about from the layout code and the Compose
+  inset contract, not looked at. They need one pass on a real device.
+- At very large font scales on a 320 dp screen the top bar's title will
+  ellipsize. The actions are laid out first and the title absorbs the remainder,
+  so nothing clips or overlaps, but the title is the first thing to give.
+
+---
+
 ## 2026-09-26 — Diary audit follow-up (branch `feat/stitch-timeline-diary`)
 
 A read-through of the merged Diary against the Stitch reference screens turned up
@@ -507,7 +641,9 @@ On-device checks still recommended (no emulator here): an actual alarm firing
 in Doze, lock-screen FSI/heads-up, per-type snooze, reboot/time-zone re-arm.
 
 ---
+
 ---
+
 
 ## 2026-09-23 — Exact-alarm permission flow (SCHEDULE_EXACT_ALARM), shared & permission-safe scheduler
 

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -118,7 +119,36 @@ fun DiaryScreen(
         onBack = viewModel::dismissSavedConfirmation
     )
 
-    Scaffold { padding ->
+    Scaffold(
+        // The single create affordance, anchored by the Scaffold itself to the
+        // lower-right of the content area. It used to be a `Box` child with
+        // `align(BottomEnd)` plus a 96dp bottom pad on top of the Scaffold's own
+        // inner padding, which stacked two insets and left the button floating a
+        // third of the way up the page.
+        //
+        // `contentWindowInsets` is zeroed on purpose: this screen is composed
+        // inside the app's bottom-bar `Scaffold`, which has already lifted the
+        // day view above the bar and the bar has consumed the system navigation
+        // inset itself. Adding it again would lift the button off the bottom of
+        // the content a second time — exactly the gap this removes.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        floatingActionButton = {
+            // The app's single most pressable thing, so it wears the single
+            // action colour (Stitch `#6C47EB` with a white glyph) rather than
+            // the heading ink.
+            FloatingActionButton(
+                onClick = viewModel::startNewEntry,
+                containerColor = DiaryActionViolet,
+                contentColor = Color.White
+            ) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = "Write a new memory",
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+        }
+    ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -126,10 +156,11 @@ fun DiaryScreen(
         ) {
             // `MainActivity` calls `enableEdgeToEdge()`, and the only Scaffold
             // in this hierarchy is the app's bottom-bar one, so `padding` carries
-            // a bottom inset and *no* top inset. Without the status-bar padding
-            // below the header's back button and the date line render underneath
-            // the clock. `DiaryEditorOverlay` already consumes the insets for
-            // the composer; this is the same treatment for the day view.
+            // a bottom inset and *no* top inset — the inner Scaffold above
+            // contributes none. Without the status-bar padding below the header's
+            // back button and the date line render underneath the clock.
+            // `DiaryEditorOverlay` already consumes the insets for the composer;
+            // this is the same treatment for the day view.
             Column(
                 Modifier
                     .fillMaxSize()
@@ -157,7 +188,13 @@ fun DiaryScreen(
                         contentPadding = PaddingValues(
                             start = LifeOSSpacing.screenPadding,
                             end = LifeOSSpacing.screenPadding,
-                            top = LifeOSSpacing.sectionSpacing,
+                            // The header already closes with a small gap of its
+                            // own; the old 20dp on top of it opened a visible
+                            // band between the date strip and the first entry.
+                            top = LifeOSSpacing.cardSpacing,
+                            // Kept: the list has to be able to scroll its last
+                            // card clear of the button, which is the one thing
+                            // that legitimately sits over the content.
                             bottom = LifeOSSpacing.fabContentClearance
                         )
                     ) {
@@ -182,29 +219,6 @@ fun DiaryScreen(
                 }
             }
 
-            // Anchored to the measured content box, then inset from the bottom
-            // by the shared safe-content clearance. No phone-specific coordinates.
-            FloatingActionButton(
-                onClick = viewModel::startNewEntry,
-                // The app's single most pressable thing, so it wears the single
-                // action colour (Stitch `#6C47EB` with a white glyph) rather
-                // than the heading ink.
-                containerColor = DiaryActionViolet,
-                contentColor = Color.White,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(
-                        end = LifeOSSpacing.screenPadding,
-                        bottom = LifeOSSpacing.fabContentClearance
-                    )
-            ) {
-                Icon(
-                    Icons.Filled.Add,
-                    contentDescription = "Write a new memory",
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-
             DiaryEditorOverlay(visible = showEditor) {
                 DiaryEditor(
                     dayEpochDay = editorState.dateEpochDay.takeIf { editorState.entryId != null }
@@ -214,7 +228,6 @@ fun DiaryScreen(
                     content = editorState.content,
                     onContentChange = editorViewModel::onContentChange,
                     mood = editorState.mood,
-                    onMoodChange = editorViewModel::onMoodChange,
                     canSave = editorState.canSave,
                     onDismiss = {
                         editorViewModel.cancelRecording()

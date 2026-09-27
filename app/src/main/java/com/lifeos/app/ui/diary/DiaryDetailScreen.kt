@@ -454,7 +454,6 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                     content = editorState.content,
                     onContentChange = editorViewModel::onContentChange,
                     mood = editorState.mood,
-                    onMoodChange = editorViewModel::onMoodChange,
                     canSave = editorState.canSave,
                     onDismiss = {
                         editorViewModel.cancelRecording()
