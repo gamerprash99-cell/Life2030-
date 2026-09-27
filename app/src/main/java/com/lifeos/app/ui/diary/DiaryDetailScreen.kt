@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -245,10 +244,10 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
 
                 Spacer(Modifier.height(18.dp))
                 Row(Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    DetailAction("Share", Icons.Filled.Share, DiaryActionViolet) { shareEntry(context, current, photos) }
-                    DetailAction("Copy", Icons.Filled.ContentCopy, DiaryActionViolet) { copyEntry(context, current); kotlinx.coroutines.MainScope().launch { snackbarHostState.showSnackbar("Memory copied") } }
-                    DetailAction("Delete", Icons.Filled.Delete, MaterialTheme.colorScheme.error) { confirmDelete = true }
-                    DetailAction("Favorite", if (current.isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder, DiaryActionViolet) { viewModel.toggleFavorite() }
+                    DetailAction(Modifier.weight(1f), "Share", Icons.Filled.Share, DiaryActionViolet) { shareEntry(context, current, photos) }
+                    DetailAction(Modifier.weight(1f), "Copy", Icons.Filled.ContentCopy, DiaryActionViolet) { copyEntry(context, current); kotlinx.coroutines.MainScope().launch { snackbarHostState.showSnackbar("Memory copied") } }
+                    DetailAction(Modifier.weight(1f), "Delete", Icons.Filled.Delete, MaterialTheme.colorScheme.error) { confirmDelete = true }
+                    DetailAction(Modifier.weight(1f), "Favorite", if (current.isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder, DiaryActionViolet) { viewModel.toggleFavorite() }
                 }
                 Spacer(Modifier.height(18.dp))
             }
@@ -290,8 +289,8 @@ private fun DetailAddPhotoTile(onClick: () -> Unit) {
 }
 
 @Composable
-private fun DetailAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, onClick: () -> Unit) {
-    Column(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(DiaryPaperCard).border(1.dp, DiaryHairline, RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+private fun DetailAction(modifier: Modifier, label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, onClick: () -> Unit) {
+    Column(modifier.clip(RoundedCornerShape(18.dp)).background(DiaryPaperCard).border(1.dp, DiaryHairline, RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
         Spacer(Modifier.height(7.dp))
         Text(label, style = MaterialTheme.typography.labelSmall, color = tint)
