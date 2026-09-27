@@ -1498,3 +1498,19 @@ A real device/emulator pass is still required to visually compare the four suppl
 - Source diff was re-read after each targeted update.
 - The connected GitHub environment does not provide the local Android checkout/Gradle runtime, emulator/device, or AVD. Therefore no new compile/test/lint/device-pass result is claimed for this UI change.
 - Previously recorded Diary verification in UPDATE.md is historical and is not presented as verification of these latest commits.
+
+
+## 2026-09-27 — Diary reference spacing + create action correction
+
+- Removed the nested Diary `Scaffold`/duplicate system inset path that was adding a second top inset inside the already inset `LifeOSNavHost`; this removes the large hardcoded-looking blank band above the Diary header.
+- Empty Diary state no longer treats the large illustration/halo as a create-memory tap target. A persistent lower-right violet `+` FAB now creates a memory on both empty and populated days, matching the supplied reference interaction.
+- Reduced the timeline list's initial top padding and centralized Diary editor spacing values in `LifeOSSpacing`.
+- Editor now uses the parent destination's existing safe area and only adds IME padding when the keyboard is present. The writing field uses `BringIntoViewRequester` so focusing the memory field scrolls it into view instead of leaving excessive whitespace or hiding the input behind the keyboard.
+- Reduced the empty-editor writing surface minimum height from 150dp to the new shared 132dp Diary token while preserving the 1000-character limit and all existing Room/ViewModel/attachment behavior.
+- No Room schema/migration, navigation route, permission, network, AI, telemetry or dependency changes.
+
+### Verification
+
+- Branch source was re-read after the changes and compared against `main`.
+- GitHub comparison: 4 source files changed; no database/navigation files changed.
+- No Android Gradle runtime, emulator/device or CI execution is available through the connected GitHub environment, so compile/test/lint/device success is not claimed for this pass.
