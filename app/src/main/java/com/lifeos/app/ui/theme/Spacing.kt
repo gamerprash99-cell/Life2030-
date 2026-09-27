@@ -10,4 +10,9 @@ object LifeOSSpacing {
     val extendedFabContentClearance = 112.dp
     val fabContentClearance = 96.dp
     val minTouchTarget = 48.dp
+
+    // Diary-specific rhythm tokens keep the reference spacing tunable in one place.
+    val diaryHeaderVertical = 4.dp
+    val diaryEditorSection = 10.dp
+    val diaryEditorTextMinHeight = 132.dp
 }
