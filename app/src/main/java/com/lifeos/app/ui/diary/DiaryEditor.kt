@@ -45,8 +45,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -86,14 +84,11 @@ fun DiaryEditor(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
-    val bringIntoViewRequester = remember { BringIntoViewRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(editing?.id) {
         focusRequester.requestFocus()
         keyboardController?.show()
-        kotlinx.coroutines.delay(220)
-        bringIntoViewRequester.bringIntoView()
     }
     BackHandler(onBack = onDismiss)
 
@@ -145,8 +140,7 @@ fun DiaryEditor(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = LifeOSSpacing.diaryEditorTextMinHeight)
-                            .focusRequester(focusRequester)
-                            .bringIntoViewRequester(bringIntoViewRequester),
+                            .focusRequester(focusRequester),
                         textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp),
                         cursorBrush = SolidColor(DiaryActionViolet),
                         decorationBox = { inner ->
