@@ -255,7 +255,7 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
 
         DiaryEditorOverlay(visible = showEditor) {
             entry?.let { current -> DiaryEditor(
-                dayEpochDay = current.dateEpochDay, editing = current, timeMinutes = editorState.timeMinutes, content = editorState.content, onContentChange = editorViewModel::onContentChange, mood = editorState.mood, onMoodChange = editorViewModel::onMoodChange, onDateChange = editorViewModel::onDateChange, onTimeChange = editorViewModel::onTimeChange, canSave = editorState.canSave, onDismiss = { editorViewModel.cancelRecording(); viewModel.dismissEditor() }, onSave = editorViewModel::save, onDelete = { editorViewModel.cancelRecording(); viewModel.dismissEditor(); confirmDelete = true }, attachments = { DiaryEditorAttachments(editorViewModel) }) }
+                dayEpochDay = current.dateEpochDay, editing = current, timeMinutes = editorState.timeMinutes, content = editorState.content, onContentChange = editorViewModel::onContentChange, onDateChange = editorViewModel::onDateChange, onTimeChange = editorViewModel::onTimeChange, canSave = editorState.canSave, onDismiss = { editorViewModel.cancelRecording(); viewModel.dismissEditor() }, onSave = editorViewModel::save, onDelete = { editorViewModel.cancelRecording(); viewModel.dismissEditor(); confirmDelete = true }, attachments = { DiaryEditorAttachments(editorViewModel) }) }
         }
 
         SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = LifeOSSpacing.screenPadding).padding(bottom = 12.dp))
