@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,7 +24,6 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -108,52 +106,77 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
             attachments = { DiaryEditorAttachments(editorViewModel) }
         )
     } else {
-        Scaffold { padding ->
-            Column(Modifier.fillMaxSize().padding(padding).statusBarsPadding()) {
-                DiaryDayHeader(
-                    selectedDay = selectedDay,
-                    daysWithMemories = daysWithMemories,
-                    onBack = onBack,
-                    onCreate = viewModel::startNewEntry,
-                    onSelectDay = viewModel::selectDay
-                )
-                if (memories.isEmpty()) {
+        // LifeOSNavHost already applies the system/bottom-bar insets to this
+        // destination. A nested Scaffold here used to apply another top inset,
+        // producing the large empty band above the Diary header.
+        Column(Modifier.fillMaxSize()) {
+            DiaryDayHeader(
+                selectedDay = selectedDay,
+                daysWithMemories = daysWithMemories,
+                onBack = onBack,
+                onCreate = viewModel::startNewEntry,
+                onSelectDay = viewModel::selectDay
+            )
+            if (memories.isEmpty()) {
+                Box(Modifier.weight(1f).fillMaxWidth()) {
                     DiaryEmptyState(
                         dayLabel = DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(selectedDay)),
                         onCreate = viewModel::startNewEntry,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxSize()
                     )
-                } else {
-                    Box(Modifier.weight(1f)) {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                start = LifeOSSpacing.screenPadding,
+                    FloatingActionButton(
+                        onClick = viewModel::startNewEntry,
+                        containerColor = DiaryActionViolet,
+                        contentColor = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(
                                 end = LifeOSSpacing.screenPadding,
-                                top = 12.dp,
-                                bottom = LifeOSSpacing.fabContentClearance + 12.dp
+                                bottom = LifeOSSpacing.fabContentClearance
                             )
-                        ) {
-                            itemsIndexed(memories, key = { _, entry -> entry.id }) { index, entry ->
-                                MemoryMoment(
-                                    entry = entry,
-                                    isFirst = index == 0,
-                                    isLast = index == memories.lastIndex,
-                                    onOpen = { onOpenEntry(entry.id) },
-                                    onEdit = { viewModel.startEdit(entry) },
-                                    onDelete = { viewModel.requestDelete(entry) },
-                                    modifier = Modifier.revealAsMemory(index)
-                                )
-                            }
+                    ) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = "Write a new memory",
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+            } else {
+                Box(Modifier.weight(1f)) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = LifeOSSpacing.screenPadding,
+                            end = LifeOSSpacing.screenPadding,
+                            top = 8.dp,
+                            bottom = LifeOSSpacing.fabContentClearance + 12.dp
+                        )
+                    ) {
+                        itemsIndexed(memories, key = { _, entry -> entry.id }) { index, entry ->
+                            MemoryMoment(
+                                entry = entry,
+                                isFirst = index == 0,
+                                isLast = index == memories.lastIndex,
+                                onOpen = { onOpenEntry(entry.id) },
+                                onEdit = { viewModel.startEdit(entry) },
+                                onDelete = { viewModel.requestDelete(entry) },
+                                modifier = Modifier.revealAsMemory(index)
+                            )
                         }
-                        FloatingActionButton(
-                            onClick = viewModel::startNewEntry,
-                            containerColor = DiaryActionViolet,
-                            contentColor = Color.White,
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(end = LifeOSSpacing.screenPadding, bottom = LifeOSSpacing.fabContentClearance)
-                        ) {
-                            Icon(Icons.Filled.Add, contentDescription = "Write a new memory", modifier = Modifier.size(28.dp))
-                        }
+                    }
+                    FloatingActionButton(
+                        onClick = viewModel::startNewEntry,
+                        containerColor = DiaryActionViolet,
+                        contentColor = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(
+                                end = LifeOSSpacing.screenPadding,
+                                bottom = LifeOSSpacing.fabContentClearance
+                            )
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = "Write a new memory", modifier = Modifier.size(28.dp))
                     }
                 }
             }
