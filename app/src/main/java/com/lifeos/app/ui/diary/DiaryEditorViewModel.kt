@@ -28,6 +28,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Everything the composer renders. All fields are real user input or real device data. */
+private const val MAX_MEMORY_CHARACTERS = 1000
+
 data class DiaryEditorState(
     val entryId: String? = null,
     val isEditing: Boolean = false,
@@ -166,7 +168,9 @@ class DiaryEditorViewModel(
     }
 
     fun onTitleChange(value: String) { _state.value = _state.value.copy(title = value, errorMessage = null) }
-    fun onContentChange(value: String) { _state.value = _state.value.copy(content = value, errorMessage = null) }
+    fun onContentChange(value: String) {
+        _state.value = _state.value.copy(content = value.take(MAX_MEMORY_CHARACTERS), errorMessage = null)
+    }
     fun onMoodChange(value: String?) { _state.value = _state.value.copy(mood = value) }
     fun onDateChange(epochDay: Long) { _state.value = _state.value.copy(dateEpochDay = epochDay) }
     fun onTimeChange(minutes: Int) { _state.value = _state.value.copy(timeMinutes = minutes.coerceIn(0, 1439)) }
@@ -200,8 +204,8 @@ class DiaryEditorViewModel(
     }
 
     fun removePhoto(photo: DiaryAttachment.Photo) {
-        MediaStorage.deleteIfExists(photo.filePath)
         _state.value = _state.value.copy(photos = _state.value.photos.filterNot { it.filePath == photo.filePath })
+        viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(photo.filePath) }
     }
 
     // ---- location -------------------------------------------------------
@@ -283,7 +287,8 @@ class DiaryEditorViewModel(
             is RecordingState.Finished -> {
                 // A finished take replaces any previous voice note on this entry,
                 // and the old file is reclaimed rather than orphaned.
-                _state.value.voiceNote?.let { MediaStorage.deleteIfExists(it.filePath) }
+                val previousVoicePath = _state.value.voiceNote?.filePath
+                if (previousVoicePath != null) viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(previousVoicePath) }
                 _state.value = _state.value.copy(
                     voiceNote = DiaryAttachment.VoiceNote(result.filePath, result.durationMillis),
                     recording = result,
@@ -321,8 +326,9 @@ class DiaryEditorViewModel(
 
     fun removeVoiceNote() {
         player.stop()
-        _state.value.voiceNote?.let { MediaStorage.deleteIfExists(it.filePath) }
+        val path = _state.value.voiceNote?.filePath
         _state.value = _state.value.copy(voiceNote = null, playback = PlaybackState.Idle)
+        if (path != null) viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(path) }
     }
 
     // ---- persistence ----------------------------------------------------

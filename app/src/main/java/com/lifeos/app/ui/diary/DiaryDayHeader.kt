@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,34 +21,41 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lifeos.app.core.util.DateTimeUtils
+import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryInkViolet
+import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import java.time.LocalDate
 
 /**
- * The masthead of a day: a compact eyebrow and date line, with the date strip
- * directly beneath as the single day-navigation control.
+ * Diary masthead matching the supplied reference:
+ * TODAY → large date → calendar / overflow, followed by the five-day strip.
  *
- * The old layout gave a `displayLarge` numeral the most visual weight on the
- * page — more than the memories themselves — and then hid navigation in a row of
- * seven ambiguous ticks. The day is now *chosen* from the strip, so the header's
- * only job is to name the day currently being read; the strip owns where you can
- * go, and the day's own words stay the loudest thing on screen.
+ * Date actions intentionally stay presentation-only because the existing
+ * day-selection callback is the single navigation mechanism. The calendar and
+ * overflow affordances therefore expose the existing create/day actions without
+ * introducing a second navigation stack.
  */
 @Composable
 fun DiaryDayHeader(
@@ -59,70 +67,106 @@ fun DiaryDayHeader(
     modifier: Modifier = Modifier
 ) {
     val date = remember(selectedDay) { DateTimeUtils.epochDayToLocalDate(selectedDay) }
+    var showMenu by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 4.dp)
+            .padding(top = 8.dp)
     ) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(start = LifeOSSpacing.screenPadding, end = LifeOSSpacing.screenPadding),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = LifeOSSpacing.screenPadding),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = DiaryInkViolet
-                )
+            Column(Modifier.weight(1f)) {
+                AnimatedContent(
+                    targetState = date,
+                    transitionSpec = {
+                        val forward = targetState > initialState
+                        val offset = if (forward) 1 else -1
+                        (
+                            slideInHorizontally(
+                                tween(260, easing = FastOutSlowInEasing)
+                            ) { width -> offset * width / 6 } + fadeIn(tween(220))
+                            ) togetherWith (
+                            slideOutHorizontally(tween(200)) { width -> -offset * width / 6 } +
+                                fadeOut(tween(160))
+                            )
+                    },
+                    label = "diaryHeaderDate"
+                ) { day ->
+                    Column {
+                        Text(
+                            dayEyebrow(day).uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = DiaryInkViolet.copy(alpha = 0.55f),
+                            letterSpacing = 2.0.sp
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                DateTimeUtils.formatFullDate(day),
+                                style = MaterialTheme.typography.headlineMedium.copy(
+                                    fontFamily = FontFamily.Serif,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = (-0.35).sp
+                                ),
+                                color = DiaryInkViolet,
+                                maxLines = 1
+                            )
+                            Icon(
+                                Icons.Filled.KeyboardArrowDown,
+                                contentDescription = "Choose date",
+                                tint = DiaryActionViolet,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
             }
-            CreateMemoryAction(onClick = onCreate)
-        }
 
-        Spacer(Modifier.height(2.dp))
-
-        // Direction is taken from the previously shown day so stepping back
-        // slides content left and stepping forward slides it right.
-        AnimatedContent(
-            targetState = date,
-            transitionSpec = {
-                val forward = targetState > initialState
-                val offset = if (forward) 1 else -1
-                (
-                    slideInHorizontally(tween(280, easing = FastOutSlowInEasing)) { width -> offset * width / 6 } +
-                        fadeIn(tween(280))
-                    ) togetherWith (
-                    slideOutHorizontally(tween(220)) { width -> -offset * width / 6 } +
-                        fadeOut(tween(180))
-                    )
-            },
-            label = "diaryDayHeader"
-        ) { day ->
-            Column(
-                modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding)
+            HeaderIconButton(
+                icon = Icons.Filled.CalendarMonth,
+                description = "Create memory",
+                onClick = onCreate
+            )
+            Spacer(Modifier.size(8.dp))
+            HeaderIconButton(
+                icon = Icons.Filled.MoreVert,
+                description = "Diary options",
+                onClick = { showMenu = true }
+            )
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
             ) {
-                Text(
-                    dayEyebrow(day).uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = DiaryInkViolet.copy(alpha = 0.45f),
-                    letterSpacing = 1.8.sp
+                DropdownMenuItem(
+                    text = { Text("Write a memory") },
+                    onClick = {
+                        showMenu = false
+                        onCreate()
+                    }
                 )
-                Text(
-                    dayHeaderDateLine(day),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = DiaryInkViolet,
-                    fontWeight = FontWeight.SemiBold
+                DropdownMenuItem(
+                    text = { Text("Today") },
+                    onClick = {
+                        showMenu = false
+                        onSelectDay(DateTimeUtils.today().toEpochDay())
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Back") },
+                    onClick = {
+                        showMenu = false
+                        onBack()
+                    }
                 )
             }
         }
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(14.dp))
 
-        // Full-bleed so a centred cell is genuinely centred on the screen; the
-        // label above keeps its own screen padding.
         DiaryDateStrip(
             selectedDay = selectedDay,
             daysWithMemories = daysWithMemories,
@@ -131,7 +175,29 @@ fun DiaryDayHeader(
     }
 }
 
-/** "Today" / "Yesterday" / weekday name, so the user never has to do date maths. */
+@Composable
+private fun HeaderIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(DiaryLavender.copy(alpha = 0.34f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = DiaryActionViolet,
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
 private fun dayEyebrow(day: LocalDate): String {
     val today = DateTimeUtils.today()
     return when (java.time.temporal.ChronoUnit.DAYS.between(day, today)) {
@@ -141,19 +207,13 @@ private fun dayEyebrow(day: LocalDate): String {
     }
 }
 
-/** "26 September · Saturday" — the day named once, plainly, under the eyebrow. */
-private fun dayHeaderDateLine(day: LocalDate): String =
-    "${day.dayOfMonth} ${day.month.name.lowercase().replaceFirstChar { it.uppercase() }} · " +
-        DateTimeUtils.formatDayOfWeek(day).lowercase().replaceFirstChar { it.uppercase() }
-
-/** The Diary's create affordance: an inline text + glyph action, not a floating button. */
+/** Kept for existing callers and legacy previews. */
 @Composable
 fun CreateMemoryAction(onClick: () -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
     Text(
         text = if (compact) "Memory" else "+ Memory",
         style = MaterialTheme.typography.labelLarge,
-        color = DiaryInkViolet,
-        textAlign = TextAlign.Center,
+        color = DiaryActionViolet,
         modifier = modifier
             .clip(MaterialTheme.shapes.small)
             .clickable(onClick = onClick)

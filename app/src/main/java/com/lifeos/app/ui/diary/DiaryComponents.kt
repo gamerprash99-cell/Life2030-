@@ -11,11 +11,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,7 +26,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -35,31 +36,32 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import androidx.compose.ui.platform.LocalContext
 import com.lifeos.app.core.media.PlaybackState
 import com.lifeos.app.core.media.RecordingFailure
 import com.lifeos.app.core.media.RecordingState
@@ -75,22 +77,12 @@ import com.lifeos.app.ui.theme.DiaryTagInk
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import java.io.File
 
-/**
- * The reusable pieces of the Diary visual language, shared by the day list,
- * the composer and the entry detail so all three stay identical (and so no
- * screen grows a private one-off style).
- *
- * Every value these render comes from the database or from a real device API.
- * Nothing is hardcoded for appearance: an absent photo, place or reading
- * renders an explicit unavailable state instead of a stand-in.
- */
 
-/** A hairline-bordered paper card — the surface every Diary panel sits on. */
 @Composable
 fun DiaryPanel(
     modifier: Modifier = Modifier,
     cornerRadius: Int = 24,
-    content: @Composable () -> Unit
+    content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
         modifier = modifier
@@ -98,37 +90,28 @@ fun DiaryPanel(
             .background(DiaryPaperCard)
             .border(1.dp, DiaryHairline, RoundedCornerShape(cornerRadius.dp))
             .padding(LifeOSSpacing.compactPadding),
-        content = { content() }
+        content = content
     )
 }
 
-/** Section label such as "Photos", "Tags" or "Location". */
 @Composable
 fun DiarySectionLabel(
     text: String,
     modifier: Modifier = Modifier,
     trailing: @Composable (() -> Unit)? = null
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             text,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = DiaryInkViolet,
             modifier = Modifier.weight(1f)
         )
         trailing?.invoke()
     }
 }
 
-/**
- * Photo strip. Each tile uses `ContentScale.Crop` inside a fixed
- * [PHOTO_ASPECT_RATIO] box, so an arbitrary source aspect ratio is cropped
- * rather than stretched, and the tile never depends on the device width.
- */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DiaryPhotoStrip(
@@ -136,94 +119,149 @@ fun DiaryPhotoStrip(
     onAdd: () -> Unit,
     onRemove: (DiaryAttachment.Photo) -> Unit,
     modifier: Modifier = Modifier,
-    addLabel: String = "Add photo"
+    addLabel: String = "Add more photos"
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         DiarySectionLabel(
-            text = if (photos.isEmpty()) "Photos" else "Photos (${photos.size})"
+            "Photos",
+            trailing = {
+                if (photos.isNotEmpty()) Text(
+                    photos.size.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            maxItemsInEachRow = 4
         ) {
-            photos.forEach { photo ->
-                DiaryPhotoTile(filePath = photo.filePath, onRemove = { onRemove(photo) })
-            }
-            AddTile(label = addLabel, onClick = onAdd)
+            photos.forEach { photo -> DiaryReferencePhotoTile(photo, onRemove) }
+            DiaryReferenceAddTile(addLabel, onAdd)
         }
     }
 }
 
 @Composable
-private fun DiaryPhotoTile(filePath: String, onRemove: () -> Unit) {
+private fun DiaryReferencePhotoTile(photo: DiaryAttachment.Photo, onRemove: (DiaryAttachment.Photo) -> Unit) {
     val context = LocalContext.current
-    val exists = remember(filePath) { File(filePath).exists() }
+    val exists = remember(photo.filePath) { File(photo.filePath).exists() }
     Box(
-        modifier = Modifier
-            .size(PHOTO_TILE_SIZE)
+        Modifier
+            .size(92.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(DiaryLavender.copy(alpha = 0.35f))
+            .background(DiaryLavender.copy(alpha = 0.3f))
     ) {
         if (exists) {
             AsyncImage(
-                model = ImageRequest.Builder(context).data(File(filePath)).build(),
+                model = ImageRequest.Builder(context).data(File(photo.filePath)).build(),
                 contentDescription = "Diary photo",
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().aspectRatio(PHOTO_ASPECT_RATIO)
+                modifier = Modifier.fillMaxSize()
             )
         } else {
-            // The file was removed outside the app. Say so instead of showing a
-            // broken or placeholder image.
-            MissingMediaLabel(Modifier.fillMaxWidth().aspectRatio(PHOTO_ASPECT_RATIO), "Photo unavailable")
+            MissingMediaLabel(Modifier.fillMaxSize(), "Photo unavailable")
         }
-        // The visible chip is 24dp, but the *touch* target is the full 48dp
-        // minimum: a 24dp target is half the accessible size and, on a photo
-        // the user is trying to clean up, easy to miss and easy to hit the
-        // wrong tile with. The circle is nested and corner-aligned inside the
-        // larger target so the drawn size and position are unchanged.
         Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .size(48.dp)
-                .clickable(onClick = onRemove),
+            Modifier.align(Alignment.TopEnd).size(48.dp).clickable { onRemove(photo) },
             contentAlignment = Alignment.TopEnd
         ) {
             Box(
-                modifier = Modifier
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(DiaryInkViolet.copy(alpha = 0.55f)),
+                Modifier.padding(5.dp).size(24.dp).clip(CircleShape).background(DiaryInkViolet.copy(alpha = 0.62f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Remove photo",
-                    tint = Color.White,
-                    modifier = Modifier.size(14.dp)
-                )
+                Icon(Icons.Filled.Close, contentDescription = "Remove photo", tint = Color.White, modifier = Modifier.size(14.dp))
             }
         }
     }
 }
 
 @Composable
-private fun AddTile(label: String, onClick: () -> Unit) {
+private fun DiaryReferenceAddTile(label: String, onClick: () -> Unit) {
     Column(
-        modifier = Modifier
-            .size(PHOTO_TILE_SIZE)
+        Modifier
+            .size(92.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(DiaryLavender.copy(alpha = 0.28f))
+            .border(1.dp, DiaryActionViolet.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+            .background(DiaryLavender.copy(alpha = 0.16f))
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Filled.AddAPhoto, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(22.dp))
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = DiaryActionViolet,
-            modifier = Modifier.padding(top = 4.dp)
+        Icon(Icons.Filled.AddAPhoto, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(24.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = DiaryActionViolet, modifier = Modifier.padding(top = 5.dp), maxLines = 2)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun DiaryTagEditor(
+    tags: List<String>,
+    onAdd: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var draft by rememberSaveable { mutableStateOf("") }
+    var showDialog by rememberSaveable { mutableStateOf(false) }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        DiarySectionLabel("Tags", trailing = {
+            Box(
+                Modifier.clip(CircleShape)
+                    .border(1.dp, DiaryActionViolet.copy(alpha = 0.35f), CircleShape)
+                    .clickable { showDialog = true }
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text("+ Add tag", style = MaterialTheme.typography.labelMedium, color = DiaryActionViolet)
+            }
+        })
+        if (tags.isNotEmpty()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                tags.forEach { tag ->
+                    Row(
+                        Modifier.clip(CircleShape)
+                            .background(DiaryLavender.copy(alpha = 0.64f))
+                            .padding(start = 11.dp, end = 4.dp, top = 7.dp, bottom = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(tag, style = MaterialTheme.typography.labelMedium, color = DiaryTagInk)
+                        Box(Modifier.size(36.dp).clickable { onRemove(tag) }, contentAlignment = Alignment.Center) {
+                            Text("×", style = MaterialTheme.typography.titleSmall, color = DiaryActionViolet)
+                        }
+                    }
+                }
+            }
+        } else {
+            Text("No tags yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false; draft = "" },
+            title = { Text("Add tag") },
+            text = {
+                TextField(
+                    value = draft,
+                    onValueChange = { draft = it.take(40) },
+                    singleLine = true,
+                    placeholder = { Text("e.g. Gratitude") },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = DiaryActionViolet,
+                        unfocusedIndicatorColor = DiaryHairline
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = draft.isNotBlank(),
+                    onClick = { onAdd(draft); draft = ""; showDialog = false }
+                ) { Text("Add", color = DiaryActionViolet) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false; draft = "" }) { Text("Cancel") }
+            }
         )
     }
 }
@@ -592,71 +630,7 @@ private val META_LABEL_WIDTH = 92.dp
 /** Tags with add/remove, persisted in the existing `tagsCsv` column. */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun DiaryTagEditor(
-    tags: List<String>,
-    onAdd: (String) -> Unit,
-    onRemove: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var draft by rememberSaveable { mutableStateOf("") }
 
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "Tags",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
-            )
-            if (draft.isNotBlank()) {
-                TextButton(onClick = { onAdd(draft); draft = "" }) {
-                    Text("Add tag", color = DiaryActionViolet)
-                }
-            }
-        }
-
-        if (tags.isNotEmpty()) {
-            androidx.compose.foundation.layout.FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                tags.forEach { tag ->
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(DiaryLavender.copy(alpha = 0.55f))
-                            .padding(start = 10.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(tag, style = MaterialTheme.typography.labelSmall, color = DiaryTagInk)
-                        Box(
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clip(CircleShape)
-                                .clickable { onRemove(tag) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("✕", style = MaterialTheme.typography.labelSmall, color = DiaryActionViolet)
-                        }
-                    }
-                }
-            }
-        }
-
-        TextField(
-            value = draft,
-            onValueChange = { draft = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Add a tag", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodyMedium,
-            colors = diaryFieldColors()
-        )
-    }
-}
-
-@Composable
 private fun diaryFieldColors() = TextFieldDefaults.colors(
     focusedContainerColor = Color.Transparent,
     unfocusedContainerColor = Color.Transparent,

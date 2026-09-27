@@ -1,16 +1,12 @@
 package com.lifeos.app.ui.diary
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,7 +15,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -29,16 +24,18 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,14 +45,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,35 +65,11 @@ import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiarySaveDisabled
 import com.lifeos.app.ui.theme.LifeOSSpacing
+import java.time.LocalDate
+import java.time.LocalTime
 
-/**
- * The writing surface: a full-page editorial sheet, not a bottom sheet and not
- * a form, so the only things competing with the words are the day, the mood, and
- * the save action.
- *
- * It fills the whole of its own surface, which — because the app's `NavHost`
- * already sits inside the bottom-bar `Scaffold` — is the diary's content area
- * *above* the navigation bar, not the entire physical screen. The bottom bar
- * stays visible underneath; the editor consumes the navigation-bar and IME
- * insets itself so the save action is never left under the keyboard.
- *
- * Nothing is written until [onSave] fires — the editor itself never touches the
- * database, and [canSave] (which the caller takes from the editor state) is the
- * one authority on whether the action is live, so a double tap cannot create a
- * duplicate entry and the button is never shown enabled while saving would be
- * refused.
- *
- * The words and the mood are *owned by the caller* ([content] / [onContentChange]
- * and [mood] / [onMoodChange]) rather than held in local state, because the real
- * draft also has to carry photos, a voice note and a place — all of which live
- * in one editor view model. Keeping the text here too would split the draft in
- * half and let the attachments and the words disagree.
- *
- * [attachments] is the seam for everything that hangs off an entry: photos, the
- * voice note, the place and the weather. It is a slot rather than a fixed set of
- * parameters so this composable stays the presentation layer and the editor
- * screen decides what those affordances do.
- */
+private const val MAX_MEMORY_CHARACTERS = 1000
+
 @Composable
 fun DiaryEditor(
     dayEpochDay: Long,
@@ -104,18 +79,8 @@ fun DiaryEditor(
     onContentChange: (String) -> Unit,
     mood: String?,
     onMoodChange: (String?) -> Unit,
-    /**
-     * Whether Save is genuinely available right now, taken straight from
-     * `DiaryEditorState.canSave`.
-     *
-     * The editor used to re-derive this locally as `content.isNotBlank() &&
-     * !saving`, which was a *weaker* rule than the ViewModel's. Two of the
-     * ViewModel's own guards were missing from the button: the row still
-     * loading, and a take still recording. In both cases the pill rendered
-     * fully enabled and tapping it hit an early `return` in `save()` — a live
-     * control that silently does nothing, which is worse than one that is
-     * honestly disabled. The single source of truth is now the state property.
-     */
+    onDateChange: (Long) -> Unit,
+    onTimeChange: (Int) -> Unit,
     canSave: Boolean,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
@@ -123,202 +88,210 @@ fun DiaryEditor(
     attachments: @Composable () -> Unit = {}
 ) {
     val isEditing = editing != null
-
-    val focusRequester = remember { FocusRequester() }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val bottomInsets = WindowInsets.navigationBars.union(WindowInsets.ime)
+    val topInsets = WindowInsets.safeDrawing.exclude(bottomInsets)
 
-    // Diary is a writing surface: once the editor opens, the cursor is ready and
-    // the keyboard follows, removing the extra tap before the first thought.
     LaunchedEffect(editing?.id) {
         focusRequester.requestFocus()
         keyboardController?.show()
     }
-
     BackHandler(onBack = onDismiss)
 
-    // Bottom inset = whichever of the keyboard / navigation bar is taller.
-    // Taking the union is what stops the old `systemBars` + `imePadding` pair
-    // from padding the navigation bar twice once the keyboard is up.
-    val bottomInsets = WindowInsets.navigationBars.union(WindowInsets.ime)
-    val topInsets = WindowInsets.safeDrawing.exclude(bottomInsets)
-
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
-            Modifier
-                .fillMaxSize()
-                // Keeps the save row above the keyboard; the text area above it
-                // shrinks, so nothing is ever covered.
-                .windowInsetsPadding(topInsets)
-                .windowInsetsPadding(bottomInsets)
+            Modifier.fillMaxSize().windowInsetsPadding(topInsets).windowInsetsPadding(bottomInsets)
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp),
+                Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                    Icon(
-                        Icons.Filled.Close,
-                        contentDescription = if (isEditing) "Close editor" else "Discard",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = DiaryInkViolet)
                 }
-                Box(Modifier.weight(1f))
-                if (isEditing) {
-                    TextButton(onClick = onDelete) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
-                    }
-                }
+                Text(
+                    if (isEditing) "Edit Memory" else "New Memory",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontFamily = FontFamily.Serif),
+                    fontWeight = FontWeight.Bold,
+                    color = DiaryInkViolet,
+                    modifier = Modifier.weight(1f)
+                )
+                SaveChangesAction(enabled = canSave, onClick = onSave)
             }
 
             Column(
-                Modifier.padding(horizontal = LifeOSSpacing.screenPadding),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).weight(1f).padding(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                EditorEyebrow(dayEpochDay = dayEpochDay, isEditing = isEditing)
-
-                Text(
-                    DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(dayEpochDay)),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                DateTimeSelector(
+                    dateEpochDay = dayEpochDay,
+                    timeMinutes = timeMinutes,
+                    onDateClick = { showDatePicker = true },
+                    onTimeClick = { showTimePicker = true }
                 )
 
-                // The exact minute this memory will be filed under, shown before
-                // the save rather than discovered after it. It is captured when
-                // the editor opens, so it does not shift while the user writes.
-                timeMinutes?.let { minute ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.Schedule,
-                            contentDescription = null,
-                            modifier = Modifier.size(13.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            if (isEditing) {
-                                "Written at ${DateTimeUtils.formatMinutes(minute)}"
-                            } else {
-                                DateTimeUtils.formatMinutes(minute)
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Mood", style = MaterialTheme.typography.titleMedium, color = DiaryInkViolet, fontWeight = FontWeight.SemiBold)
+                    MoodSelector(
+                        selectedKey = mood,
+                        onSelect = { key -> onMoodChange(if (mood == key) null else key) },
+                    )
                 }
 
-                MoodSelector(
-                    selectedKey = mood,
-                    onSelect = { key -> onMoodChange(if (mood == key) null else key) },
-                    modifier = Modifier.padding(top = 6.dp)
-                )
-
-                Spacer(Modifier.height(4.dp))
-                Box(Modifier.fillMaxWidth().height(1.dp).background(DiaryHairline))
-            }
-
-            Spacer(Modifier.height(18.dp))
-
-            // Borderless field: the page's whitespace is the container.
-            BasicTextField(
-                value = content,
-                onValueChange = onContentChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .focusRequester(focusRequester)
-                    .padding(horizontal = LifeOSSpacing.screenPadding),
-                textStyle = LocalTextStyle.current.merge(
-                    MaterialTheme.typography.bodyLarge.copy(lineHeight = 28.sp)
-                ),
-                cursorBrush = SolidColor(DiaryInkViolet),
-                decorationBox = { innerTextField ->
-                    Box {
-                        if (content.isEmpty()) {
-                            Text(
-                                "Write whatever is on your mind…",
-                                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 28.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-                            )
+                DiaryPanel(
+                    modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding),
+                    cornerRadius = 22
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Your memory", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet)
+                        Spacer(Modifier.weight(1f))
+                        Text(content.length.toString() + "/" + MAX_MEMORY_CHARACTERS, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    BasicTextField(
+                        value = content,
+                        onValueChange = { value -> onContentChange(value.take(MAX_MEMORY_CHARACTERS)) },
+                        modifier = Modifier.fillMaxWidth().height(210.dp).verticalScroll(rememberScrollState()).focusRequester(focusRequester),
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp),
+                        cursorBrush = SolidColor(DiaryActionViolet),
+                        decorationBox = { inner ->
+                            Box {
+                                if (content.isEmpty()) Text("Write whatever is on your mind…", style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
+                                inner()
+                            }
                         }
-                        innerTextField()
-                    }
+                    )
                 }
-            )
 
-            attachments()
-
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        start = LifeOSSpacing.screenPadding,
-                        end = LifeOSSpacing.screenPadding,
-                        top = 10.dp,
-                        bottom = 10.dp
-                    ),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    when (val count = content.trim().length) {
-                        0 -> "0 characters"
-                        1 -> "1 character"
-                        else -> "${count} characters"
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Box(Modifier.weight(1f))
-                SaveMemoryAction(enabled = canSave, onClick = onSave)
+                attachments()
             }
         }
     }
-}
 
-/**
- * "Save memory →" as a tinted inline action rather than a full-width filled
- * button, so it reads as part of the page instead of a form submit.
- */
-@Composable
-fun SaveMemoryAction(
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(if (enabled) DiaryActionViolet else DiarySaveDisabled)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 13.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            if (enabled) "Save memory →" else "Save memory",
-            style = MaterialTheme.typography.labelLarge,
-            // White on the action violet; the disabled state is a muted ink on
-            // the pale disabled pill, so "you can't save yet" never looks like
-            // the live button.
-            color = if (enabled) Color.White else DiaryInkViolet.copy(alpha = 0.4f),
-            textAlign = TextAlign.Center
+    if (showDatePicker) {
+        SimpleDiaryDatePicker(
+            initial = DateTimeUtils.epochDayToLocalDate(dayEpochDay),
+            onDismiss = { showDatePicker = false },
+            onConfirm = { selected ->
+                onDateChange(selected.toEpochDay())
+                showDatePicker = false
+            }
+        )
+    }
+    if (showTimePicker) {
+        SimpleDiaryTimePicker(
+            initial = DateTimeUtils.minutesToLocalTime(timeMinutes ?: DateTimeUtils.nowMinutesOfDay()),
+            onDismiss = { showTimePicker = false },
+            onConfirm = { selected ->
+                onTimeChange(selected.hour * 60 + selected.minute)
+                showTimePicker = false
+            }
         )
     }
 }
 
-/** Fades the whole editor in and out of the day view. */
 @Composable
-fun DiaryEditorOverlay(
-    visible: Boolean,
-    content: @Composable () -> Unit
-) {
-    AnimatedVisibility(
+private fun DateTimeSelector(dateEpochDay: Long, timeMinutes: Int?, onDateClick: () -> Unit, onTimeClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding),
+        shape = RoundedCornerShape(20.dp),
+        color = DiaryActionViolet.copy(alpha = 0.04f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, DiaryHairline)
+    ) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.foundation.layout.Column(Modifier.weight(1f).clickable(onClick = onDateClick)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.size(10.dp))
+                    Text("Date", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text(DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(dateEpochDay)), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet, modifier = Modifier.padding(start = 30.dp, top = 3.dp))
+            }
+            Box(Modifier.width(1.dp).height(50.dp).background(DiaryHairline))
+            androidx.compose.foundation.layout.Column(Modifier.weight(0.88f).clickable(onClick = onTimeClick).padding(start = 14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Schedule, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.size(10.dp))
+                    Text("Time", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text(DateTimeUtils.formatMinutes(timeMinutes ?: 0), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet, modifier = Modifier.padding(start = 30.dp, top = 3.dp))
+            }
+            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(22.dp))
+        }
+    }
+}
+
+@Composable
+private fun SaveChangesAction(enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.clip(CircleShape).background(if (enabled) DiaryActionViolet else DiarySaveDisabled).clickable(enabled = enabled, onClick = onClick).padding(horizontal = 15.dp, vertical = 11.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Save changes", style = MaterialTheme.typography.labelLarge, color = if (enabled) Color.White else DiaryInkViolet.copy(alpha = 0.42f))
+    }
+}
+
+@Composable
+private fun SimpleDiaryDatePicker(initial: LocalDate, onDismiss: () -> Unit, onConfirm: (LocalDate) -> Unit) {
+    var selected by remember(initial) { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Choose date") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Selected: ${DateTimeUtils.formatFullDate(selected)}")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { selected = selected.minusDays(1) }) { Text("− 1 day") }
+                    Button(onClick = { selected = selected.plusDays(1) }) { Text("+ 1 day") }
+                }
+                Text("Use the five-day strip to jump quickly between recent diary days.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(selected) }) { Text("Use date", color = DiaryActionViolet) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+private fun SimpleDiaryTimePicker(initial: LocalTime, onDismiss: () -> Unit, onConfirm: (LocalTime) -> Unit) {
+    var hour by remember(initial) { mutableStateOf(initial.hour) }
+    var minute by remember(initial) { mutableStateOf(initial.minute - initial.minute % 5) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Choose time") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(DateTimeUtils.formatMinutes(hour * 60 + minute), style = MaterialTheme.typography.headlineSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { hour = (hour - 1 + 24) % 24 }) { Text("Hour −") }
+                    Button(onClick = { hour = (hour + 1) % 24 }) { Text("Hour +") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { minute = (minute - 5 + 60) % 60 }) { Text("− 5 min") }
+                    Button(onClick = { minute = (minute + 5) % 60 }) { Text("+ 5 min") }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(LocalTime.of(hour, minute)) }) { Text("Use time", color = DiaryActionViolet) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun SaveMemoryAction(enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(Modifier.fillMaxWidth().clip(CircleShape).background(if (enabled) DiaryActionViolet else DiarySaveDisabled).clickable(enabled = enabled, onClick = onClick).padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
+        Text(if (enabled) "Save memory →" else "Save memory", style = MaterialTheme.typography.labelLarge, color = if (enabled) Color.White else DiaryInkViolet.copy(alpha = 0.4f))
+    }
+}
+
+@Composable
+fun DiaryEditorOverlay(visible: Boolean, content: @Composable () -> Unit) {
+    androidx.compose.animation.AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(220)) + slideInVertically(tween(300, easing = FastOutSlowInEasing)) { it / 14 },
-        exit = fadeOut(tween(160)) + slideOutVertically(tween(200)) { it / 20 }
+        enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) + androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(300)) { it / 14 },
+        exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(160)) + androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(200)) { it / 20 }
     ) { content() }
 }
