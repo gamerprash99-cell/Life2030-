@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -86,7 +85,6 @@ import java.io.File
  */
 
 /** A hairline-bordered paper card — the surface every Diary panel sits on. */
-@Composable
 @Composable
 fun DiaryPanel(
     modifier: Modifier = Modifier,
