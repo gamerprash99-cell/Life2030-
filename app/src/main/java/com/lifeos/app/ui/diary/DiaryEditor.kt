@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -77,8 +78,6 @@ fun DiaryEditor(
     timeMinutes: Int?,
     content: String,
     onContentChange: (String) -> Unit,
-    mood: String?,
-    onMoodChange: (String?) -> Unit,
     onDateChange: (Long) -> Unit,
     onTimeChange: (Int) -> Unit,
     canSave: Boolean,
@@ -123,8 +122,8 @@ fun DiaryEditor(
             }
 
             Column(
-                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).weight(1f).padding(bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).weight(1f).padding(bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 DateTimeSelector(
                     dateEpochDay = dayEpochDay,
@@ -132,14 +131,6 @@ fun DiaryEditor(
                     onDateClick = { showDatePicker = true },
                     onTimeClick = { showTimePicker = true }
                 )
-
-                Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Mood", style = MaterialTheme.typography.titleMedium, color = DiaryInkViolet, fontWeight = FontWeight.SemiBold)
-                    MoodSelector(
-                        selectedKey = mood,
-                        onSelect = { key -> onMoodChange(if (mood == key) null else key) },
-                    )
-                }
 
                 DiaryPanel(
                     modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding),
@@ -154,7 +145,7 @@ fun DiaryEditor(
                     BasicTextField(
                         value = content,
                         onValueChange = { value -> onContentChange(value.take(MAX_MEMORY_CHARACTERS)) },
-                        modifier = Modifier.fillMaxWidth().height(210.dp).verticalScroll(rememberScrollState()).focusRequester(focusRequester),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp).focusRequester(focusRequester),
                         textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp),
                         cursorBrush = SolidColor(DiaryActionViolet),
                         decorationBox = { inner ->
@@ -201,7 +192,7 @@ private fun DateTimeSelector(dateEpochDay: Long, timeMinutes: Int?, onDateClick:
         color = DiaryActionViolet.copy(alpha = 0.04f),
         border = androidx.compose.foundation.BorderStroke(1.dp, DiaryHairline)
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.foundation.layout.Column(Modifier.weight(1f).clickable(onClick = onDateClick)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
@@ -210,7 +201,7 @@ private fun DateTimeSelector(dateEpochDay: Long, timeMinutes: Int?, onDateClick:
                 }
                 Text(DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(dateEpochDay)), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet, modifier = Modifier.padding(start = 30.dp, top = 3.dp))
             }
-            Box(Modifier.width(1.dp).height(50.dp).background(DiaryHairline))
+            Box(Modifier.width(1.dp).height(44.dp).background(DiaryHairline))
             androidx.compose.foundation.layout.Column(Modifier.weight(0.88f).clickable(onClick = onTimeClick).padding(start = 14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Schedule, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
