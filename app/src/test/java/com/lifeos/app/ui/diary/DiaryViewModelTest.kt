@@ -25,6 +25,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -62,7 +63,7 @@ class DiaryViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var dao: FakeDiaryDao
     /** ViewModels own Main-scope jobs; clear every test instance so one test cannot leak into the next. */
-    private val createdViewModels = mutableListOf<androidx.lifecycle.ViewModel>()
+    private val createdScopes = mutableListOf<kotlinx.coroutines.CoroutineScope>()
 
     /** The wall clock, moved explicitly by the test rather than by wall time. */
     private var clockMinutes = 8 * 60 + 4
@@ -75,8 +76,8 @@ class DiaryViewModelTest {
 
     @After
     fun tearDown() {
-        createdViewModels.asReversed().forEach { it.clear() }
-        createdViewModels.clear()
+        createdScopes.forEach { it.coroutineContext.cancelChildren() }
+        createdScopes.clear()
         Dispatchers.resetMain()
     }
 
@@ -92,7 +93,7 @@ class DiaryViewModelTest {
     private fun viewModel() = DiaryViewModel(
         diaryRepository = diaryRepository(),
         todayEpochDay = { today }
-    ).also { createdViewModels += it }
+    ).also { createdScopes += it.viewModelScope }
 
     /**
      * The composer. The platform collaborators are fakes, which is only possible
