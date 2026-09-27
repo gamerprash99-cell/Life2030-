@@ -191,7 +191,7 @@ private fun MemorySavedSheet(entry: DiaryEntity, onViewMemory: () -> Unit, onAdd
         contentAlignment = Alignment.Center
     ) {
         Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(DiaryPaperCard).clickable(indication = null, onClick = {}).padding(horizontal = 24.dp, vertical = 26.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(DiaryPaperCard).clickable(onClick = {}).padding(horizontal = 24.dp, vertical = 26.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             SavedNotebookIllustration()
