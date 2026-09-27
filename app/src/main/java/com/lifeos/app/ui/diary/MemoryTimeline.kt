@@ -72,21 +72,21 @@ fun MemoryMoment(
                 style = MaterialTheme.typography.labelMedium,
                 color = DiaryInkViolet.copy(alpha = 0.68f),
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 12.dp, end = 10.dp)
+                modifier = Modifier.padding(top = 8.dp, end = 8.dp)
             )
         }
 
         MemorySpine(entry.mood.takeIf { hasMood }, isFirst, isLast)
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(6.dp))
 
-        Column(Modifier.weight(1f).padding(bottom = 14.dp)) {
+        Column(Modifier.weight(1f).padding(bottom = 8.dp)) {
             Box(
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
                     .background(DiaryPaperCard)
                     .border(1.dp, DiaryHairline.copy(alpha = 0.72f), RoundedCornerShape(24.dp))
                     .clickable(onClick = onOpen)
-                    .padding(horizontal = 18.dp, vertical = 17.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Column(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -113,18 +113,18 @@ fun MemoryMoment(
                         }
                     }
 
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(8.dp))
                     Text(entry.content, style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 26.sp), color = MaterialTheme.colorScheme.onSurface)
 
                     val visiblePhotos = photos.take(3)
                     if (visiblePhotos.isNotEmpty()) {
-                        Spacer(Modifier.height(14.dp))
+                        Spacer(Modifier.height(10.dp))
                         MemoryPhotoPreviewRow(visiblePhotos, (photos.size - visiblePhotos.size).coerceAtLeast(0))
                     }
 
                     val tags = remember(entry.id, entry.tagsCsv) { entryTags(entry) }
                     if (tags.isNotEmpty()) {
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             tags.forEach { tag ->
                                 Box(Modifier.clip(CircleShape).background(DiaryLavender.copy(alpha = 0.58f)).padding(horizontal = 9.dp, vertical = 5.dp)) {
@@ -145,7 +145,7 @@ private fun MemoryPhotoPreviewRow(photos: List<DiaryAttachment.Photo>, additiona
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         photos.forEach { photo ->
             val exists = remember(photo.filePath) { java.io.File(photo.filePath).exists() }
-            Box(Modifier.size(76.dp).clip(RoundedCornerShape(14.dp)).background(DiaryLavender.copy(alpha = 0.28f))) {
+            Box(Modifier.size(72.dp).clip(RoundedCornerShape(14.dp)).background(DiaryLavender.copy(alpha = 0.28f))) {
                 if (exists) {
                     AsyncImage(
                         model = ImageRequest.Builder(context).data(java.io.File(photo.filePath)).build(),
@@ -160,7 +160,7 @@ private fun MemoryPhotoPreviewRow(photos: List<DiaryAttachment.Photo>, additiona
         }
         if (additionalCount > 0) {
             Box(
-                Modifier.size(76.dp).clip(RoundedCornerShape(14.dp)).background(DiaryLavender.copy(alpha = 0.42f)).border(1.dp, DiaryActionViolet.copy(alpha = 0.18f), RoundedCornerShape(14.dp)),
+                Modifier.size(72.dp).clip(RoundedCornerShape(14.dp)).background(DiaryLavender.copy(alpha = 0.42f)).border(1.dp, DiaryActionViolet.copy(alpha = 0.18f), RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text("+" + additionalCount, style = MaterialTheme.typography.titleMedium, color = DiaryActionViolet, fontWeight = FontWeight.Bold)
@@ -172,10 +172,10 @@ private fun MemoryPhotoPreviewRow(photos: List<DiaryAttachment.Photo>, additiona
 @Composable
 private fun MemorySpine(moodKey: String?, isFirst: Boolean, isLast: Boolean) {
     Column(Modifier.width(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.width(1.dp).height(if (isFirst) 8.dp else 14.dp).background(DiaryHairline))
+        Box(Modifier.width(1.dp).height(if (isFirst) 4.dp else 8.dp).background(DiaryHairline))
         if (moodKey != null) MoodDot(moodKey, diameter = 16)
         else Box(Modifier.size(7.dp).background(DiaryHairline, CircleShape))
-        Box(Modifier.width(1.dp).height(if (isLast) 12.dp else 22.dp).background(DiaryHairline))
+        Box(Modifier.width(1.dp).height(if (isLast) 6.dp else 12.dp).background(DiaryHairline))
     }
 }
 
