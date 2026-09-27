@@ -5,7 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,10 +19,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,6 +48,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.BringIntoViewRequester
+import androidx.compose.ui.layout.bringIntoViewRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -90,22 +89,23 @@ fun DiaryEditor(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val bottomInsets = WindowInsets.navigationBars.union(WindowInsets.ime)
-    val topInsets = WindowInsets.safeDrawing.exclude(bottomInsets)
 
     LaunchedEffect(editing?.id) {
         focusRequester.requestFocus()
         keyboardController?.show()
+        kotlinx.coroutines.delay(220)
+        bringIntoViewRequester.bringIntoView()
     }
     BackHandler(onBack = onDismiss)
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
-            Modifier.fillMaxSize().windowInsetsPadding(topInsets).windowInsetsPadding(bottomInsets)
+            Modifier.fillMaxSize().imePadding()
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding, vertical = 6.dp),
+                Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.diaryHeaderVertical),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
@@ -123,7 +123,7 @@ fun DiaryEditor(
 
             Column(
                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).weight(1f).padding(bottom = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.diaryEditorSection)
             ) {
                 DateTimeSelector(
                     dateEpochDay = dayEpochDay,
@@ -145,7 +145,11 @@ fun DiaryEditor(
                     BasicTextField(
                         value = content,
                         onValueChange = { value -> onContentChange(value.take(MAX_MEMORY_CHARACTERS)) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp).focusRequester(focusRequester),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = LifeOSSpacing.diaryEditorTextMinHeight)
+                            .focusRequester(focusRequester)
+                            .bringIntoViewRequester(bringIntoViewRequester),
                         textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp),
                         cursorBrush = SolidColor(DiaryActionViolet),
                         decorationBox = { inner ->
