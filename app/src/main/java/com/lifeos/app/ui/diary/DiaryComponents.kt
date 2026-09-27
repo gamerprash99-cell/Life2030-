@@ -87,6 +87,7 @@ import java.io.File
 
 /** A hairline-bordered paper card — the surface every Diary panel sits on. */
 @Composable
+@Composable
 fun DiaryPanel(
     modifier: Modifier = Modifier,
     cornerRadius: Int = 24,
@@ -129,6 +130,8 @@ fun DiarySectionLabel(
  * [PHOTO_ASPECT_RATIO] box, so an arbitrary source aspect ratio is cropped
  * rather than stretched, and the tile never depends on the device width.
  */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DiaryPhotoStrip(
@@ -357,93 +360,7 @@ private fun AddTile(label: String, onClick: () -> Unit) {
 @Composable
 /** A labelled metadata line, e.g. "Date 26 September 2026". */
 @Composable
-fun DiaryMetaRow(
-    icon: @Composable () -> Unit,
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        icon()
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(META_LABEL_WIDTH)
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
 
-/** Shown when a referenced media file is gone. */
-@Composable
-fun MissingMediaLabel(modifier: Modifier = Modifier, text: String) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 6.dp)
-        )
-    }
-}
-
-/**
- * Renders real coordinates to 4 decimal places (~11 m), which is the useful
- * precision for a journal entry and avoids implying survey-grade accuracy the
- * device did not provide. Used only when no geocoder backend resolved a place
- * name — it is the honest fallback, not a substitute for a real lookup.
- */
-private fun formatCoordinates(place: DiaryAttachment.Place): String =
-    String.format(
-        java.util.Locale.getDefault(),
-        "%.4f, %.4f",
-        place.latitude,
-        place.longitude
-    )
-
-/**
- * A square, comfortably tappable icon button used across the Diary rows.
- *
- * [description] is applied as a real accessibility content description so
- * TalkBack announces the action rather than an unlabelled icon.
- */
-@Composable
-fun IconButton48(
-    onClick: () -> Unit,
-    description: String,
-    enabled: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(LifeOSSpacing.minTouchTarget)
-            .clip(CircleShape)
-            .clickable(enabled = enabled, onClick = onClick)
-            .semantics { this.contentDescription = description },
-        contentAlignment = Alignment.Center
-    ) {
-        content()
-    }
-}
-
-/** Fixed layout constants so tiles stay square at any screen size or font scale. */
-private val PHOTO_TILE_SIZE = 84.dp
-private const val PHOTO_ASPECT_RATIO = 1f
-private val RECORD_DOT_SIZE = 40.dp
-private val META_LABEL_WIDTH = 92.dp
-
-/** Tags with add/remove, persisted in the existing `tagsCsv` column. */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun DiaryTagEditor(
     tags: List<String>,
@@ -508,16 +425,6 @@ fun DiaryTagEditor(
         )
     }
 }
-
-@Composable
-private fun diaryFieldColors() = TextFieldDefaults.colors(
-    focusedContainerColor = Color.Transparent,
-    unfocusedContainerColor = Color.Transparent,
-    disabledContainerColor = Color.Transparent,
-    focusedIndicatorColor = DiaryInkViolet,
-    unfocusedIndicatorColor = DiaryHairline
-)
-
 @Composable
 fun DiaryVoiceNoteRow(
     voiceNote: DiaryAttachment.VoiceNote?,
@@ -797,3 +704,166 @@ fun IconButton48(
         content()
     }
 }
+
+/** A labelled metadata line, e.g. "Date 26 September 2026". */
+@Composable
+fun DiaryMetaRow(
+    icon: @Composable () -> Unit,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        icon()
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(META_LABEL_WIDTH)
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+/** Shown when a referenced media file is gone. */
+@Composable
+fun MissingMediaLabel(modifier: Modifier = Modifier, text: String) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 6.dp)
+        )
+    }
+}
+
+/**
+ * Renders real coordinates to 4 decimal places (~11 m), which is the useful
+ * precision for a journal entry and avoids implying survey-grade accuracy the
+ * device did not provide. Used only when no geocoder backend resolved a place
+ * name — it is the honest fallback, not a substitute for a real lookup.
+ */
+private fun formatCoordinates(place: DiaryAttachment.Place): String =
+    String.format(
+        java.util.Locale.getDefault(),
+        "%.4f, %.4f",
+        place.latitude,
+        place.longitude
+    )
+
+/**
+ * A square, comfortably tappable icon button used across the Diary rows.
+ *
+ * [description] is applied as a real accessibility content description so
+ * TalkBack announces the action rather than an unlabelled icon.
+ */
+@Composable
+fun IconButton48(
+    onClick: () -> Unit,
+    description: String,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(LifeOSSpacing.minTouchTarget)
+            .clip(CircleShape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics { this.contentDescription = description },
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+/** Fixed layout constants so tiles stay square at any screen size or font scale. */
+private val PHOTO_TILE_SIZE = 84.dp
+private const val PHOTO_ASPECT_RATIO = 1f
+private val RECORD_DOT_SIZE = 40.dp
+private val META_LABEL_WIDTH = 92.dp
+
+/** Tags with add/remove, persisted in the existing `tagsCsv` column. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun DiaryTagEditor(
+    tags: List<String>,
+    onAdd: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var draft by rememberSaveable { mutableStateOf("") }
+
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Tags",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            if (draft.isNotBlank()) {
+                TextButton(onClick = { onAdd(draft); draft = "" }) {
+                    Text("Add tag", color = DiaryActionViolet)
+                }
+            }
+        }
+
+        if (tags.isNotEmpty()) {
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                tags.forEach { tag ->
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(DiaryLavender.copy(alpha = 0.55f))
+                            .padding(start = 10.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(tag, style = MaterialTheme.typography.labelSmall, color = DiaryTagInk)
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .clickable { onRemove(tag) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("✕", style = MaterialTheme.typography.labelSmall, color = DiaryActionViolet)
+                        }
+                    }
+                }
+            }
+        }
+
+        TextField(
+            value = draft,
+            onValueChange = { draft = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Add a tag", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium,
+            colors = diaryFieldColors()
+        )
+    }
+}
+
+@Composable
+private fun diaryFieldColors() = TextFieldDefaults.colors(
+    focusedContainerColor = Color.Transparent,
+    unfocusedContainerColor = Color.Transparent,
+    disabledContainerColor = Color.Transparent,
+    focusedIndicatorColor = DiaryInkViolet,
+    unfocusedIndicatorColor = DiaryHairline
+)
