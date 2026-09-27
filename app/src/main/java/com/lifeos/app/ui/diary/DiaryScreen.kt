@@ -121,7 +121,6 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     DiaryEmptyState(
                         dayLabel = DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(selectedDay)),
-                        onCreate = viewModel::startNewEntry,
                         modifier = Modifier.fillMaxSize()
                     )
                     FloatingActionButton(
