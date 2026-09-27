@@ -27,6 +27,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.test.runTest
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
