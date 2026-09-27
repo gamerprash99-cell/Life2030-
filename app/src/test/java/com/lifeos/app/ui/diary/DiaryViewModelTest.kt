@@ -61,6 +61,8 @@ class DiaryViewModelTest {
      */
     private val dispatcher = StandardTestDispatcher()
     private lateinit var dao: FakeDiaryDao
+    /** ViewModels own Main-scope jobs; clear every test instance so one test cannot leak into the next. */
+    private val createdViewModels = mutableListOf<androidx.lifecycle.ViewModel>()
 
     /** The wall clock, moved explicitly by the test rather than by wall time. */
     private var clockMinutes = 8 * 60 + 4
@@ -73,6 +75,8 @@ class DiaryViewModelTest {
 
     @After
     fun tearDown() {
+        createdViewModels.asReversed().forEach { it.clear() }
+        createdViewModels.clear()
         Dispatchers.resetMain()
     }
 
@@ -88,7 +92,7 @@ class DiaryViewModelTest {
     private fun viewModel() = DiaryViewModel(
         diaryRepository = diaryRepository(),
         todayEpochDay = { today }
-    )
+    ).also { createdViewModels += it }
 
     /**
      * The composer. The platform collaborators are fakes, which is only possible
@@ -97,16 +101,17 @@ class DiaryViewModelTest {
      * implementations.
      */
     /** An editor whose load has deliberately not been allowed to land yet. */
-    private fun rawEditor(entryId: String? = null, defaultDay: Long = today) = DiaryEditorViewModel(
-        diaryRepository = diaryRepository(),
-        weatherRepository = FakeWeatherRepository(),
-        locationProvider = FakeLocationProvider(),
-        recorder = FakeRecorder(),
-        player = FakePlayback(),
-        photoImporter = FakePhotoImporter(),
-        nowMinutes = { clockMinutes },
-        todayEpochDay = { today }
-    ).apply { start(entryId, defaultDay) }
+    private fun rawEditor(entryId: String? = null, defaultDay: Long = today) =
+        DiaryEditorViewModel(
+            diaryRepository = diaryRepository(),
+            weatherRepository = FakeWeatherRepository(),
+            locationProvider = FakeLocationProvider(),
+            recorder = FakeRecorder(),
+            player = FakePlayback(),
+            photoImporter = FakePhotoImporter(),
+            nowMinutes = { clockMinutes },
+            todayEpochDay = { today }
+        ).also { createdViewModels += it }.apply { start(entryId, defaultDay) }
 
     private suspend fun TestScope.editor(
         entryId: String? = null,
@@ -120,7 +125,7 @@ class DiaryViewModelTest {
         photoImporter = FakePhotoImporter(),
         nowMinutes = { clockMinutes },
         todayEpochDay = { today }
-    ).apply {
+    ).also { createdViewModels += it }.apply {
         start(entryId, defaultDay)
         // Let the row load land, so what the test types into is the real draft.
         advanceUntilIdle()
