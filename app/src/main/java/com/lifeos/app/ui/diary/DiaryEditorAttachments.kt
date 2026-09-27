@@ -86,7 +86,7 @@ fun DiaryEditorAttachments(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = com.lifeos.app.ui.theme.LifeOSSpacing.screenPadding),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         DiaryPhotoStrip(
             photos = state.photos,
