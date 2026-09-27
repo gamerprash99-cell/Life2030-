@@ -24,17 +24,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lifeos.app.core.util.DateTimeUtils
@@ -45,11 +49,13 @@ import com.lifeos.app.ui.theme.LifeOSSpacing
 import java.time.LocalDate
 
 /**
- * Diary masthead matching the supplied day reference:
+ * Diary masthead matching the supplied reference:
  * TODAY → large date → calendar / overflow, followed by the five-day strip.
  *
- * Navigation remains the existing day-selection callback; this component is
- * presentation only and does not introduce a second navigation stack.
+ * Date actions intentionally stay presentation-only because the existing
+ * day-selection callback is the single navigation mechanism. The calendar and
+ * overflow affordances therefore expose the existing create/day actions without
+ * introducing a second navigation stack.
  */
 @Composable
 fun DiaryDayHeader(
@@ -61,6 +67,7 @@ fun DiaryDayHeader(
     modifier: Modifier = Modifier
 ) {
     val date = remember(selectedDay) { DateTimeUtils.epochDayToLocalDate(selectedDay) }
+    var showMenu by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -112,9 +119,7 @@ fun DiaryDayHeader(
                                 Icons.Filled.KeyboardArrowDown,
                                 contentDescription = "Choose date",
                                 tint = DiaryActionViolet,
-                                modifier = Modifier
-                                    .padding(start = 2.dp)
-                                    .size(24.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
@@ -122,18 +127,42 @@ fun DiaryDayHeader(
             }
 
             HeaderIconButton(
-                icon = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
-                description = "Choose date",
-                onClick = onCreate,
-                filled = false
+                icon = Icons.Filled.CalendarMonth,
+                description = "Create memory",
+                onClick = onCreate
             )
             Spacer(Modifier.size(8.dp))
             HeaderIconButton(
-                icon = { Icon(Icons.Filled.MoreVert, contentDescription = null) },
+                icon = Icons.Filled.MoreVert,
                 description = "Diary options",
-                onClick = onCreate,
-                filled = false
+                onClick = { showMenu = true }
             )
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Write a memory") },
+                    onClick = {
+                        showMenu = false
+                        onCreate()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Today") },
+                    onClick = {
+                        showMenu = false
+                        onSelectDay(DateTimeUtils.today().toEpochDay())
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Back") },
+                    onClick = {
+                        showMenu = false
+                        onBack()
+                    }
+                )
+            }
         }
 
         Spacer(Modifier.height(14.dp))
@@ -146,29 +175,24 @@ fun DiaryDayHeader(
     }
 }
 
-/**
- * Small 48dp target with a soft lavender container, visually echoing the
- * reference's calendar and overflow buttons while keeping the tap target safe.
- */
 @Composable
 private fun HeaderIconButton(
-    icon: @Composable () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     description: String,
-    onClick: () -> Unit,
-    filled: Boolean
+    onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .size(48.dp)
             .clip(CircleShape)
-            .background(if (filled) DiaryActionViolet else DiaryLavender.copy(alpha = 0.34f))
+            .background(DiaryLavender.copy(alpha = 0.34f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        androidx.compose.material3.Icon(
-            imageVector = if (description == "Choose date") Icons.Filled.CalendarMonth else Icons.Filled.MoreVert,
+        Icon(
+            imageVector = icon,
             contentDescription = description,
-            tint = if (filled) MaterialTheme.colorScheme.onPrimary else DiaryActionViolet,
+            tint = DiaryActionViolet,
             modifier = Modifier.size(22.dp)
         )
     }
@@ -183,16 +207,13 @@ private fun dayEyebrow(day: LocalDate): String {
     }
 }
 
-/** Five compact dates remain the existing bounded, centred day navigation. */
+/** Kept for existing callers and legacy previews. */
 @Composable
 fun CreateMemoryAction(onClick: () -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
-    // Kept for existing callers; the new masthead uses the reference's icon
-    // actions directly.
     Text(
         text = if (compact) "Memory" else "+ Memory",
         style = MaterialTheme.typography.labelLarge,
         color = DiaryActionViolet,
-        textAlign = TextAlign.Center,
         modifier = modifier
             .clip(MaterialTheme.shapes.small)
             .clickable(onClick = onClick)
