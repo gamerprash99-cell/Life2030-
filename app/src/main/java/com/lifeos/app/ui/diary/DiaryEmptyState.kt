@@ -40,7 +40,6 @@ import com.lifeos.app.ui.theme.LifeOSSpacing
 @Composable
 fun DiaryEmptyState(
     dayLabel: String,
-    onCreate: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
