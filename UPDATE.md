@@ -1482,3 +1482,19 @@ The connected environment does not provide the local Android project checkout/Gr
 ### Remaining
 
 A real device/emulator pass is still required to visually compare the four supplied references at phone density and to verify the keyboard/inset behavior, Photo Picker round-trip, tag dialog, audio, detail actions and overflow affordances after these UI changes.
+
+
+### 2026-09-27 — Diary compact spacing + Mood UI removal
+
+- Scoped UI-only correction for the supplied Diary/video references. The Day header, timeline cards, editor, attachment stack and detail editor were tightened without replacing the existing navigation, ViewModels, repository, Room model or media/location flows.
+- New/Edit Memory: removed the interactive Mood heading and emoji selector from the composer and reflowed the remaining content upward. The existing DiaryEntity.mood field and stored historical mood data remain untouched; saved mood pills/markers outside the composer are preserved.
+- Spacing: reduced oversized editor section gaps, tightened the Date/Time surface, changed the memory editor from a fixed 210dp height to a content-driven heightIn(min = 150dp), tightened Photos/Tags/Voice/Location rhythm, and reduced timeline card/spine spacing. Existing inset + vertical-scroll keyboard handling remains in place.
+- Timeline: reduced the gap before/inside memory cards while preserving the existing FAB anchored to the lower-right content area via the existing non-coordinate-based layout.
+- Database/security/offline: no Room schema/migration change, no new permission, no network/API, no external AI, no telemetry, and no dependency change.
+- Files changed: ui/diary/DiaryEditor.kt, ui/diary/DiaryScreen.kt, ui/diary/DiaryDetailScreen.kt, ui/diary/DiaryEditorAttachments.kt, ui/diary/MemoryTimeline.kt.
+
+### Verification
+
+- Source diff was re-read after each targeted update.
+- The connected GitHub environment does not provide the local Android checkout/Gradle runtime, emulator/device, or AVD. Therefore no new compile/test/lint/device-pass result is claimed for this UI change.
+- Previously recorded Diary verification in UPDATE.md is historical and is not presented as verification of these latest commits.
