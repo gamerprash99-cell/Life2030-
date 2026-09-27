@@ -1283,3 +1283,144 @@ gradle :app:lintDebug            -> BUILD SUCCESSFUL (0 errors; only pre-existin
 - Existing editor focus/keyboard/inset behavior, timestamp capture, save guard, mood selection, detail/edit/delete routes and offline-first constraints remain in place.
 - Scope guard: reference-only affordances are not backed by fabricated data. Photos, weather, location, voice, tags, favorites and share/copy are only surfaced when an existing local data/feature path supports them; no fake values or network service were introduced.
 - Verification: branch source inspected after changes. No Android device/emulator or CI run is available in the connected environment, so build/device success is not claimed.
+
+## 2026-09-27 — Diary × Stitch alignment: functional repairs and colour system (branch `feat/stitch-timeline-diary`)
+
+Full gap analysis and root causes: `STITCH_AUDIT.md`. That file is separate from
+`AUDIT_REPORT.md`, which is a whole-codebase audit taken on an older branch and
+still describes the database as v1 (it is now v5); it is left untouched.
+
+### Functional repairs
+
+- **Storage work moved off the UI thread** (`data/repository/DiaryRepository.kt`).
+  `delete`, `updateEntry`, `removeAttachment`, `createEntry` and `restoreFromBackup`
+  each decoded the attachment JSON and called `MediaStorage.deleteIfExists` — a
+  blocking `File.delete()` — on whatever thread called in. Every caller is a
+  `viewModelScope`, so removing one photo unlinked a file on the main thread. The
+  repository now owns a `withContext(io)` around that work; `io` is injectable
+  (`Dispatchers.IO` in production) so tests drive it on a test scheduler.
+- **Delete no longer races the screen that requested it** (`ui/diary/DiaryDetailScreen.kt`).
+  Confirming a delete calls `viewModel.delete(id)` and then `onBack()` on the very
+  next line; popping clears the back-stack entry, which clears the ViewModelStore
+  entry, which cancels `viewModelScope` — the delete was competing with its own
+  cancellation and lost whenever the encrypted commit was slower than the
+  transition. Wrapped in `withContext(NonCancellable)`. Deliberately *not* applied
+  to `DiaryEditorViewModel.save()`: the composer's ViewModel outlives the overlay,
+  so there is no race there.
+- **Copy now confirms itself** (`ui/diary/DiaryDetailScreen.kt`). A
+  `SnackbarHostState` was created and `showSnackbar("Memory copied")` called, but
+  no `SnackbarHost` was ever composed, so the confirmation was drawn nowhere. The
+  host is now rendered at the bottom of the page.
+- **Add-photo is reachable on a memory with no photos** (`ui/diary/DiaryDetailScreen.kt`).
+  The photo strip carries the "add" tile but was gated on `photos.isNotEmpty()`,
+  so a memory written without photos could never get one from its own detail page.
+  The strip is now rendered unconditionally and shows the add tile on its own.
+- **The Save button is no longer enabled when saving would be refused**
+  (`ui/diary/DiaryEditor.kt`). The composable re-derived `canSave` locally as
+  `content.isNotBlank() && !saving`, omitting the ViewModel's `isLoading` and
+  "a take is still recording" guards — the pill looked live and the tap did
+  nothing. The parameter is now `canSave`, taken from `DiaryEditorState.canSave`.
+- **Status-bar insets applied to both diary roots** (`DiaryScreen.kt`,
+  `DiaryDetailScreen.kt`). `MainActivity` uses `enableEdgeToEdge()` and the only
+  `Scaffold` is the bottom-bar one, so the day view and detail page received no
+  top inset and their back buttons and date lines rendered under the clock. Now
+  matching what `DiaryEditorOverlay` and `ProfileScreen` already did.
+- **Photo remove target enlarged to 48dp** (`ui/diary/DiaryComponents.kt`). The
+  visible chip is unchanged at 24dp and corner-aligned; the clickable area is now
+  the full accessible minimum.
+- **Corrected a false comment**: `DiaryEditorOverlay` claimed it "intentionally
+  covers the bottom bar". It does not — the `NavHost` is already inset by the
+  outer `Scaffold`. The comment now describes the real arrangement.
+
+### Visual / Stitch alignment
+
+- **Split the colour that was doing two jobs** (`ui/theme/Color.kt`). `DiaryInkViolet`
+  was both the heading ink and the colour of every pressable control, so the FAB
+  and the primary actions were near-black and read as disabled. Stitch's primary
+  `#6C47EB` is now `DiaryActionViolet` and is used for anything pressable;
+  `DiaryInkViolet` is retuned to Stitch's heading indigo `#211A44` and used only
+  for text and the timeline spine. The rule is legible from hue alone: pressable
+  is violet, readable is ink. Added `DiaryActionVioletPressed`, `DiaryActionVioletSoft`
+  and `DiaryTagInk` (`#493D7B`).
+- FAB is a white `Icons.Filled.Add` on the action violet (was a `Text("+")` glyph
+  on near-black); "+ Memory" and the saved-sheet primary action gain Stitch's
+  full-pill treatment; the Save pill is white-on-violet with the pale disabled
+  pill; the selected-mood ring is Stitch's 2dp `#6C47EB`; tag chips use
+  `#493D7B` on lavender; the detail Edit/Share/Copy actions and the add-photo,
+  add-voice, add-location and add-tag affordances are action violet.
+
+### Scope held
+
+- No Room schema change and no migration: the database is still v5 and
+  `DiaryEntity` is untouched. Media continues to serialise into the existing
+  `attachmentsJson` column.
+- No new permission, no network/API, no external AI, no telemetry, no dependency
+  change, no WebView, and no Stitch HTML/CSS copied into the app.
+- `AndroidManifest.xml`, `build.gradle.kts` and the Room entities are byte-identical
+  to `HEAD`.
+- Deliberately not changed, and why, is recorded in `STITCH_AUDIT.md` §3:
+  `LifeOSSpacing.screenPadding` stays at 24dp (shared by every screen; Stitch asks
+  for 20dp), the timeline keeps its established cardless editorial layout, and
+  `DiaryEntity.title` stays nullable because the design has no title field.
+
+### Testing
+
+- `app/src/test/java/com/lifeos/app/data/repository/DiaryRepositoryTest.kt` (new, 9 tests).
+  Real files in a temp directory, not a mocked `MediaStorage`, because the
+  behaviour is precisely "does the user's photo actually get unlinked". Covers:
+  delete removes the row and its media; delete never touches a sibling entry's
+  media; replacing attachments reclaims what was removed and keeps the rest;
+  in-place removal; a stale tap on an unheld path changes nothing; a media file
+  already gone does not fail the delete; and two tests asserting no storage work
+  happens on the calling thread.
+- `app/src/test/java/com/lifeos/app/ui/diary/DiaryDetailViewModelTest.kt` (new, 4 tests).
+  Drives the delete/pop race directly: the DAO's read is held on a
+  `CompletableDeferred` (a *cancellable* suspension) so the test can prove the
+  write was still in flight when `ViewModelStore.clear()` ran. The other three
+  pin the adjacent actions on the same ViewModel — deleting an already-gone
+  entry, toggling favourite, and removing an attachment the entry does not hold.
+- `app/src/test/java/com/lifeos/app/ui/diary/DiaryViewModelTest.kt` (extended, +3 tests).
+  Pins each guard in `DiaryEditorState.canSave` that the Save button now renders
+  from, since that property is now a promise about what the user sees. The existing
+  construction sites pass the test scheduler to `DiaryRepository`.
+- Both riskiest fixes were confirmed to **fail** with the fix reverted, so they are
+  real regression tests and not tautologies:
+  - reverting `NonCancellable` → `a delete is honoured even though the screen that
+    asked for it was closed mid-flight` fails.
+  - neutralising the IO switch → `deleting an entry does no storage work on the
+    calling thread` and its create counterpart fail.
+
+### Verification
+
+```text
+gradle --offline :app:compileDebugKotlin        -> BUILD SUCCESSFUL in 1m 13s   (0 errors; only pre-existing deprecation warnings)
+gradle --offline :app:testDebugUnitTest --rerun-tasks
+                                                 -> BUILD SUCCESSFUL in 2m 19s
+                                                    173 tests, 0 failures, 0 skipped, 18 suites
+gradle --offline :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --rerun-tasks
+                                                 -> BUILD SUCCESSFUL in 4m 35s
+                                                    app/build/outputs/apk/debug/app-debug.apk (42.3 MB)
+                                                    lint: 8 issues, 0 errors, 0 in the diary — all pre-existing in
+                                                    TasksScreen/strings.xml/AlarmPlaybackService/mipmap/AlarmFullScreenActivity
+```
+
+All three were re-run together with `--rerun-tasks` after a full diff review, so
+these are clean runs and not cached `UP-TO-DATE` results. The diff review caught
+one defect in the new work, since fixed: the `SnackbarHost` initially added
+`navigationBarsPadding()`, which would have double-counted the navigation-bar
+inset — the `NavHost` is already inset above a bottom bar that consumes that
+inset itself. It now uses a fixed 16dp instead. Two unused colour tokens added
+along the way were also removed rather than left as dead code.
+
+### Remaining
+
+- No Android emulator or device is available in this environment, so the on-device
+  walkthrough — editor keyboard/insets, photo picker round-trip, recording, playback,
+  share sheet, the Snackbar, and a visual comparison against the Stitch references
+  at real densities — is **not** claimed. Everything above is verified by compile,
+  173 JVM unit tests, lint and APK assembly. The new tests cover the two data-loss
+  races directly; the remaining visual changes need a device pass before they can be
+  called verified.
+- `STITCH_AUDIT.md` §4 records that the Stitch HTML/CSS itself was not readable
+  (zero-byte downloads, `webfetch` 400). The design-system guidance, theme tokens
+  and screen metadata were readable and are what the visual changes are based on.

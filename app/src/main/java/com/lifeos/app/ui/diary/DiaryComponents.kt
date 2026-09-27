@@ -66,10 +66,12 @@ import com.lifeos.app.core.media.RecordingState
 import com.lifeos.app.core.media.formatAudioDuration
 import com.lifeos.app.domain.model.DiaryAttachment
 import com.lifeos.app.domain.model.DiaryWeather
+import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.DiaryPaperCard
+import com.lifeos.app.ui.theme.DiaryTagInk
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import java.io.File
 
@@ -174,22 +176,33 @@ private fun DiaryPhotoTile(filePath: String, onRemove: () -> Unit) {
             // broken or placeholder image.
             MissingMediaLabel(Modifier.fillMaxWidth().aspectRatio(PHOTO_ASPECT_RATIO), "Photo unavailable")
         }
+        // The visible chip is 24dp, but the *touch* target is the full 48dp
+        // minimum: a 24dp target is half the accessible size and, on a photo
+        // the user is trying to clean up, easy to miss and easy to hit the
+        // wrong tile with. The circle is nested and corner-aligned inside the
+        // larger target so the drawn size and position are unchanged.
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(4.dp)
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(DiaryInkViolet.copy(alpha = 0.55f))
+                .size(48.dp)
                 .clickable(onClick = onRemove),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.TopEnd
         ) {
-            Icon(
-                Icons.Filled.Close,
-                contentDescription = "Remove photo",
-                tint = Color.White,
-                modifier = Modifier.size(14.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .padding(4.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(DiaryInkViolet.copy(alpha = 0.55f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = "Remove photo",
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
         }
     }
 }
@@ -205,11 +218,11 @@ private fun AddTile(label: String, onClick: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Filled.AddAPhoto, contentDescription = null, tint = DiaryInkViolet, modifier = Modifier.size(22.dp))
+        Icon(Icons.Filled.AddAPhoto, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(22.dp))
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
-            color = DiaryInkViolet,
+            color = DiaryActionViolet,
             modifier = Modifier.padding(top = 4.dp)
         )
     }
@@ -329,8 +342,8 @@ fun DiaryVoiceNoteRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = DiaryInkViolet, modifier = Modifier.size(20.dp))
-                    Text("Add voice note", style = MaterialTheme.typography.labelLarge, color = DiaryInkViolet)
+                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
+                    Text("Add voice note", style = MaterialTheme.typography.labelLarge, color = DiaryActionViolet)
                 }
             }
         }
@@ -381,7 +394,7 @@ fun DiaryLocationRow(
             else -> if (place != null) {
                 DiaryPanel(cornerRadius = 18) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = DiaryInkViolet, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
                                 place.placeName.takeIf { it.isNotBlank() } ?: formatCoordinates(place),
@@ -414,7 +427,7 @@ fun DiaryLocationRow(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = DiaryInkViolet, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
                         Text(
                             when (status) {
                                 LocationStatus.PERMISSION_DENIED -> "Allow location to attach a place"
@@ -422,7 +435,7 @@ fun DiaryLocationRow(
                                 else -> "Add current location"
                             },
                             style = MaterialTheme.typography.labelLarge,
-                            color = DiaryInkViolet
+                            color = DiaryActionViolet
                         )
                     }
                     if (status == LocationStatus.PERMISSION_PERMANENTLY_DENIED) {
@@ -598,7 +611,7 @@ fun DiaryTagEditor(
             )
             if (draft.isNotBlank()) {
                 TextButton(onClick = { onAdd(draft); draft = "" }) {
-                    Text("Add tag", color = DiaryInkViolet)
+                    Text("Add tag", color = DiaryActionViolet)
                 }
             }
         }
@@ -616,7 +629,7 @@ fun DiaryTagEditor(
                             .padding(start = 10.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(tag, style = MaterialTheme.typography.labelSmall, color = DiaryInkViolet)
+                        Text(tag, style = MaterialTheme.typography.labelSmall, color = DiaryTagInk)
                         Box(
                             modifier = Modifier
                                 .size(20.dp)
@@ -624,7 +637,7 @@ fun DiaryTagEditor(
                                 .clickable { onRemove(tag) },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("✕", style = MaterialTheme.typography.labelSmall, color = DiaryInkViolet)
+                            Text("✕", style = MaterialTheme.typography.labelSmall, color = DiaryActionViolet)
                         }
                     }
                 }

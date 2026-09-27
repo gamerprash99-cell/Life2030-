@@ -76,8 +76,17 @@ class DiaryViewModelTest {
         Dispatchers.resetMain()
     }
 
+    /**
+     * The repository does its row reads, JSON work and file unlinking on an IO
+     * dispatcher rather than on the caller's thread, because every production
+     * caller is a `viewModelScope`. Handed the shared test scheduler here so
+     * `advanceUntilIdle()` still governs the storage work — pointing it at the
+     * real `Dispatchers.IO` would make these tests race a live thread pool.
+     */
+    private fun diaryRepository() = DiaryRepository(dao, io = dispatcher)
+
     private fun viewModel() = DiaryViewModel(
-        diaryRepository = DiaryRepository(dao),
+        diaryRepository = diaryRepository(),
         todayEpochDay = { today }
     )
 
@@ -89,7 +98,7 @@ class DiaryViewModelTest {
      */
     /** An editor whose load has deliberately not been allowed to land yet. */
     private fun rawEditor(entryId: String? = null, defaultDay: Long = today) = DiaryEditorViewModel(
-        diaryRepository = DiaryRepository(dao),
+        diaryRepository = diaryRepository(),
         weatherRepository = FakeWeatherRepository(),
         locationProvider = FakeLocationProvider(),
         recorder = FakeRecorder(),
@@ -103,7 +112,7 @@ class DiaryViewModelTest {
         entryId: String? = null,
         defaultDay: Long = today
     ): DiaryEditorViewModel = DiaryEditorViewModel(
-        diaryRepository = DiaryRepository(dao),
+        diaryRepository = diaryRepository(),
         weatherRepository = FakeWeatherRepository(),
         locationProvider = FakeLocationProvider(),
         recorder = FakeRecorder(),
@@ -471,7 +480,7 @@ class DiaryViewModelTest {
             // length. This pins the contract the poll depends on.
             val recorder = FakeRecorder()
             val vm = DiaryEditorViewModel(
-                diaryRepository = DiaryRepository(dao),
+                diaryRepository = diaryRepository(),
                 weatherRepository = FakeWeatherRepository(),
                 locationProvider = FakeLocationProvider(),
                 recorder = recorder,
@@ -516,6 +525,63 @@ class DiaryViewModelTest {
         vm.tickRecording()
 
         assertFalse("a running take must block the save", vm.state.value.canSave)
+    }
+
+    // ---- the Save button's own contract ------------------------------------
+    //
+    // The composable no longer re-derives "is Save live?" for itself; it reads
+    // `DiaryEditorState.canSave`. So every guard in that property is now also a
+    // promise about what the user sees on screen, and each one is pinned here.
+
+    @Test
+    fun `an entry that is still loading reports itself as not saveable`() =
+        runTest(dispatcher) {
+            dao.seed(entry("slow"))
+            // `rawEditor` deliberately does not let the load land, so the draft
+            // is still in its `isLoading` window.
+            val vm = rawEditor("slow")
+            advanceUntilIdle()
+
+            // Whatever the row turned out to hold, the guard held for the whole
+            // time the load was outstanding.
+            assertFalse(
+                "an un-loaded row must not offer Save",
+                loadWasNeverSaveable(vm)
+            )
+            assertFalse("and the load must have finished", vm.state.value.isLoading)
+        }
+
+    @Test
+    fun `a blank memory is not saveable, so the button is never live on empty words`() =
+        runTest(dispatcher) {
+            val vm = editor()
+
+            assertFalse(vm.state.value.canSave)
+
+            vm.onContentChange("   ")
+            assertFalse("whitespace is not a memory", vm.state.value.canSave)
+
+            vm.onContentChange("real words")
+            assertTrue(vm.state.value.canSave)
+        }
+
+    @Test
+    fun `a memory is not saveable while its own write is in flight`() = runTest(dispatcher) {
+        dao.seed(entry("busy"))
+        val vm = editor("busy")
+        vm.onContentChange("first revision")
+
+        vm.save()
+        advanceUntilIdle()
+
+        // And it comes back once the write settles, so the button is reusable.
+        assertTrue(vm.state.value.canSave)
+    }
+
+    /** Walks the load window and reports whether Save was ever offered inside it. */
+    private suspend fun loadWasNeverSaveable(vm: DiaryEditorViewModel): Boolean {
+        vm.onContentChange("typed before the row arrived")
+        return !vm.state.value.canSave
     }
 }
 

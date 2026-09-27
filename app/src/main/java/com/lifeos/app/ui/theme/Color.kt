@@ -49,7 +49,27 @@ val DiaryMoodCalm = Color(0xFF10B981)       // sage green
 val DiaryMoodSad = Color(0xFF6366F1)        // dusty hydrangea
 val DiaryMoodStressed = Color(0xFFF43F5E)   // soft terracotta
 val DiaryMoodExcited = Color(0xFF7D5260)    // dried rose plum
-val DiaryInkViolet = Color(0xFF21005D)      // archival ink violet
+
+/**
+ * The Diary's *heading* ink — dark, desaturated indigo reserved for text and
+ * the timeline spine (Stitch "midnight indigo" #211A44). It is deliberately
+ * never used for anything actionable: a tappable control painted in a
+ * near-black heading colour reads as disabled. Actionable controls use
+ * [DiaryActionViolet].
+ */
+val DiaryInkViolet = Color(0xFF211A44)
+
+/**
+ * The Diary's actionable hue (Stitch primary #6C47EB). Every control the user
+ * can press — the composer FAB, the "+ Memory" action, the inline detail
+ * actions, the selected-mood ring — is painted in this violet, so "pressable"
+ * and "read this" are told apart by hue alone.
+ */
+val DiaryActionViolet = Color(0xFF6C47EB)
+
+/** Stitch's tag-chip text, on the pale lavender chip fill. */
+val DiaryTagInk = Color(0xFF493D7B)
+
 val DiaryLavender = Color(0xFFEADDFF)       // pale thistle lavender
 val DiaryPaper = Color(0xFFFDF8FF)          // milk-tinted parchment
 val DiaryPaperCard = Color(0xFFFFFCFF)      // pristine paper leaf
