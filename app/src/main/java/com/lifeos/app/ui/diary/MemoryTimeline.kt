@@ -86,7 +86,7 @@ fun MemoryMoment(
                 .width(18.dp)
                 .fillMaxHeight()
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(0.dp))
 
         Column(Modifier.weight(1f).padding(bottom = 10.dp)) {
             Box(
@@ -190,7 +190,7 @@ private fun MemorySpine(
     ) {
         val nodeCenterY = 18.dp
         val railX = 9.dp
-        val connectorStartX = 8.dp
+        val connectorStartX = 9.dp
         val connectorEndX = 18.dp
         val hairline = DiaryHairline
         Box(
