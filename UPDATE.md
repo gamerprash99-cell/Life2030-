@@ -1514,3 +1514,14 @@ A real device/emulator pass is still required to visually compare the four suppl
 - Branch source was re-read after the changes and compared against `main`.
 - GitHub comparison: 4 source files changed; no database/navigation files changed.
 - No Android Gradle runtime, emulator/device or CI execution is available through the connected GitHub environment, so compile/test/lint/device success is not claimed for this pass.
+
+
+## 2026-09-28 — Diary composer and date-strip UX pass (branch `fix/diary-keyboard-composer-ux-20260928`)
+
+User-facing cleanup based on the supplied Diary screenshots. No Room schema, navigation, permission, network or dependency changes.
+
+- Empty-day FAB moved lower so it no longer sits on top of the story copy while retaining the existing bottom-navigation clearance.
+- Diary masthead/date strip spacing tightened so the five-day strip reads as one clean date control and the selected day has less visual bulk; history bounds and today limit remain unchanged.
+- The composer plan is staged in `docs/superpowers/plans/2026-09-28-diary-composer-keyboard-ux.md` for the remaining keyboard/editor pass: IME-safe resizing/scroll, inline attachment actions and mood-row removal while preserving the persisted mood/attachments contracts.
+
+Verification for this branch is source-level only; no local Android runtime is exposed by the GitHub connector.

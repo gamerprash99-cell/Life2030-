@@ -106,9 +106,6 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
             attachments = { DiaryEditorAttachments(editorViewModel) }
         )
     } else {
-        // LifeOSNavHost already applies the system/bottom-bar insets to this
-        // destination. A nested Scaffold here used to apply another top inset,
-        // producing the large empty band above the Diary header.
         Column(Modifier.fillMaxSize()) {
             DiaryDayHeader(
                 selectedDay = selectedDay,
@@ -131,7 +128,7 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
                             .align(Alignment.BottomEnd)
                             .padding(
                                 end = LifeOSSpacing.screenPadding,
-                                bottom = LifeOSSpacing.fabContentClearance
+                                bottom = LifeOSSpacing.fabContentClearance + 20.dp
                             )
                     ) {
                         Icon(

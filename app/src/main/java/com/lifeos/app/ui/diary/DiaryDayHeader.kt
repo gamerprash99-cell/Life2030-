@@ -48,15 +48,6 @@ import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import java.time.LocalDate
 
-/**
- * Diary masthead matching the supplied reference:
- * TODAY → large date → calendar / overflow, followed by the five-day strip.
- *
- * Date actions intentionally stay presentation-only because the existing
- * day-selection callback is the single navigation mechanism. The calendar and
- * overflow affordances therefore expose the existing create/day actions without
- * introducing a second navigation stack.
- */
 @Composable
 fun DiaryDayHeader(
     selectedDay: Long,
@@ -72,7 +63,7 @@ fun DiaryDayHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 8.dp)
+            .padding(top = 10.dp)
     ) {
         Row(
             Modifier
@@ -80,16 +71,19 @@ fun DiaryDayHeader(
                 .padding(horizontal = LifeOSSpacing.screenPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(Modifier.weight(1f)) {
+            Column(
+                Modifier
+                    .weight(1f)
+                    .padding(end = 12.dp)
+            ) {
                 AnimatedContent(
                     targetState = date,
                     transitionSpec = {
                         val forward = targetState > initialState
                         val offset = if (forward) 1 else -1
                         (
-                            slideInHorizontally(
-                                tween(260, easing = FastOutSlowInEasing)
-                            ) { width -> offset * width / 6 } + fadeIn(tween(220))
+                            slideInHorizontally(tween(260, easing = FastOutSlowInEasing)) { width -> offset * width / 6 } +
+                                fadeIn(tween(220))
                             ) togetherWith (
                             slideOutHorizontally(tween(200)) { width -> -offset * width / 6 } +
                                 fadeOut(tween(160))
@@ -126,46 +120,17 @@ fun DiaryDayHeader(
                 }
             }
 
-            HeaderIconButton(
-                icon = Icons.Filled.CalendarMonth,
-                description = "Create memory",
-                onClick = onCreate
-            )
+            HeaderIconButton(icon = Icons.Filled.CalendarMonth, description = "Create memory", onClick = onCreate)
             Spacer(Modifier.size(8.dp))
-            HeaderIconButton(
-                icon = Icons.Filled.MoreVert,
-                description = "Diary options",
-                onClick = { showMenu = true }
-            )
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Write a memory") },
-                    onClick = {
-                        showMenu = false
-                        onCreate()
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Today") },
-                    onClick = {
-                        showMenu = false
-                        onSelectDay(DateTimeUtils.today().toEpochDay())
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Back") },
-                    onClick = {
-                        showMenu = false
-                        onBack()
-                    }
-                )
+            HeaderIconButton(icon = Icons.Filled.MoreVert, description = "Diary options", onClick = { showMenu = true })
+            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                DropdownMenuItem(text = { Text("Write a memory") }, onClick = { showMenu = false; onCreate() })
+                DropdownMenuItem(text = { Text("Today") }, onClick = { showMenu = false; onSelectDay(DateTimeUtils.today().toEpochDay()) })
+                DropdownMenuItem(text = { Text("Back") }, onClick = { showMenu = false; onBack() })
             }
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(12.dp))
 
         DiaryDateStrip(
             selectedDay = selectedDay,
@@ -189,12 +154,7 @@ private fun HeaderIconButton(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = description,
-            tint = DiaryActionViolet,
-            modifier = Modifier.size(22.dp)
-        )
+        Icon(icon, contentDescription = description, tint = DiaryActionViolet, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -207,16 +167,12 @@ private fun dayEyebrow(day: LocalDate): String {
     }
 }
 
-/** Kept for existing callers and legacy previews. */
 @Composable
 fun CreateMemoryAction(onClick: () -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
     Text(
         text = if (compact) "Memory" else "+ Memory",
         style = MaterialTheme.typography.labelLarge,
         color = DiaryActionViolet,
-        modifier = modifier
-            .clip(MaterialTheme.shapes.small)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp)
+        modifier = modifier.clip(MaterialTheme.shapes.small).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp)
     )
 }
