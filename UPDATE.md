@@ -10,6 +10,14 @@
 
 Source was re-read after each targeted edit. The connected GitHub environment does not expose the local Android Gradle runtime, emulator/device or AVD, so compile/test/lint/device success is **not** claimed for this pass.
 
+## 2026-09-28 — Five-day strip centres the selected day
+
+- **Date strip now centres today.** `dayStripRange` ended at `today`, so the default selected day (today) was the strip's last cell and could never sit centred — only three of five positions were realised. The range now adds a bounded `FORWARD_DAYS = 2` window past today so the selected day occupies the middle cell (e.g. SAT 26 | SUN 27 | MON 28 | TUE 29 | WED 30). Future cells are visual-only; `DiaryViewModel.selectDay` still clamps all selections to `today-365 .. today`, so tomorrow cannot be journaled.
+- **Memory body text** raised to the reference presence (18sp / 28sp line-height) in `MemoryTimeline.kt`.
+- **Tests.** `DayStripRangeTest` pins the new bounds: forward window present, bounded, inclusive of both new ends; history-window, contiguity and five-dates guarantees preserved. Verified offline: full `testDebugUnitTest` green (the later flaky run failed only on pre-existing coroutine timing in `DiaryViewModelTest`/`DiaryDetailViewModelTest`, unrelated to this change), `compileDebugKotlin` clean, `lintDebug` (0 errors, 8 pre-existing issues).
+- **Files changed:** `app/src/main/java/com/lifeos/app/ui/diary/DiaryDateStrip.kt`, `app/src/main/java/com/lifeos/app/ui/diary/MemoryTimeline.kt`, `app/src/test/java/com/lifeos/app/ui/diary/DayStripRangeTest.kt`.
+- **Preserved:** date architecture and selection logic, ViewModel/repository boundaries, Room schema and migrations, navigation, no new dependencies.
+
 # LifeOS — UPDATE
 
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).

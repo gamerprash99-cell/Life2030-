@@ -123,7 +123,7 @@ fun MemoryMoment(
                     }
 
                     Spacer(Modifier.height(8.dp))
-                    Text(entry.content, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 24.sp), color = MaterialTheme.colorScheme.onSurface)
+                    Text(entry.content, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp, lineHeight = 28.sp), color = MaterialTheme.colorScheme.onSurface)
 
                     val visiblePhotos = photos.take(3)
                     if (visiblePhotos.isNotEmpty()) {
