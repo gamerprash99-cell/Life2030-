@@ -50,7 +50,7 @@ import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.DiaryPaperCard
 import com.lifeos.app.ui.theme.DiaryTagInk
 
-/** A rounded memory card from the supplied reference, preserving the existing timeline callbacks. */
+/** Reference-style saved-memory timeline row, preserving the existing timeline callbacks and data contracts. */
 @Composable
 fun MemoryMoment(
     entry: DiaryEntity,

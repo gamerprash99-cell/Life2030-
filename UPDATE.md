@@ -1558,3 +1558,10 @@ Verification for this branch is source-level only; no local Android runtime is e
 
 - GitHub source was re-read after the targeted edit.
 - This connected environment does not expose the local Android Gradle runtime, emulator/device or AVD, so no new compile/test/lint/device result is claimed for this PR.
+
+
+## 2026-09-28 — Diary reference-focused saved timeline v2
+
+- Focused the saved-entry visual redesign in `ui/diary/MemoryTimeline.kt` around the supplied third reference: time gutter, timeline lane/node proportions, tighter card spacing, rounded card geometry and lighter long-form body typography.
+- Kept the existing content-aware continuous spine, dynamic card heights, mood display, real local photo previews, tags, overflow actions and open/edit/delete callbacks.
+- No Diary header, ViewModel, repository, Room/schema, navigation, permission, dependency, network or offline behavior changed in this pass.
