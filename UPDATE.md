@@ -1525,3 +1525,15 @@ User-facing cleanup based on the supplied Diary screenshots. No Room schema, nav
 - The composer plan is staged in `docs/superpowers/plans/2026-09-28-diary-composer-keyboard-ux.md` for the remaining keyboard/editor pass: IME-safe resizing/scroll, inline attachment actions and mood-row removal while preserving the persisted mood/attachments contracts.
 
 Verification for this branch is source-level only; no local Android runtime is exposed by the GitHub connector.
+
+## 2026-09-28 — Diary video UI correction pass (branch `fix/diary-video-ui-20260928`)
+
+- **Editor keyboard behavior:** moved IME padding onto the actual vertically scrolling editor content instead of the fixed editor root. The header remains stable while the writing area and attachments consume the space available above the keyboard, reducing the large blank/covered area seen during typing.
+- **Unwanted location indicator:** the video's small circular indicator was traced to the existing `LocationStatus.REQUESTING` UI. It now uses a subtle static status mark rather than an always-active `CircularProgressIndicator`, while the request state/message remains explicit.
+- **Empty-day FAB clearance:** normalized the bottom clearance so the FAB uses the shared Diary content clearance without an extra arbitrary 12dp offset.
+- **Preserved:** Compose navigation, ViewModels, DiaryRepository/Room contracts, attachments, permissions, offline-first behavior, schema and dependencies are unchanged.
+
+### Verification
+
+- GitHub branch comparison from `main`: 3 source files changed, 0 database/navigation/build dependency files changed.
+- No local Android Gradle runtime, emulator/device or AVD is exposed through the connected GitHub environment. Therefore no compile/test/lint/device pass is claimed for this pass.
