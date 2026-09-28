@@ -51,6 +51,7 @@ import com.lifeos.app.core.util.DateTimeUtils
 
 internal const val VISIBLE_DATES = 5
 internal const val HISTORY_DAYS = 365L
+internal const val FORWARD_DAYS = 2L
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -110,8 +111,8 @@ fun DiaryDateStrip(
     }
 }
 
-internal fun dayStripRange(today: Long, historyDays: Long = HISTORY_DAYS): List<Long> =
-    ((today - historyDays)..today).toList()
+internal fun dayStripRange(today: Long, historyDays: Long = HISTORY_DAYS, forwardDays: Long = FORWARD_DAYS): List<Long> =
+    ((today - historyDays)..(today + forwardDays)).toList()
 
 @Composable
 private fun DiaryDateCell(

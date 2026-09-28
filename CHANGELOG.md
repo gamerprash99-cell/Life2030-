@@ -1,9 +1,10 @@
 
-## [Unreleased] — 2026-09-28 — Diary connected timeline wire
+## [Unreleased] — 2026-09-28 — Five-day strip centres the selected day
 
-- Fixed `MemoryTimeline.kt` so the diary spine is content-aware and continuous across variable-height saved memories.
-- Preserved the existing time column, mood nodes, cards, Room/ViewModel/repository boundaries and navigation; no schema or dependency changes.
-- Verification is delegated to the existing Android CI workflow on the pull request; no device/emulator result is claimed here.
+- **Date strip now centres today.** `dayStripRange` previously ended at `today`, so the selected day (today, by default) was the last cell in the strip and could never sit centred — only three of the five positions were realised. The range now extends a small (`FORWARD_DAYS = 2`) bounded window past today so the selected day occupies the middle cell, matching the reference window (e.g. SAT 26 | SUN 27 | MON 28 | TUE 29 | WED 30). Future cells are visual-only: `DiaryViewModel.selectDay` still clamps every selection to `today-365 .. today`, so tomorrow still cannot be journaled.
+- **Memory body text** bumped to the reference weight/size (18sp on 28sp line-height).
+- **Tests.** `DayStripRangeTest` rewritten to pin the new bounds: the forward window is present, bounded, and inclusive of both new ends; the existing history-window, contiguity and five-dates guarantees are preserved.
+- Preserved the existing date architecture, selection logic, ViewModel/repository boundaries and navigation; no schema or dependency changes.
 
 # Changelog
 
