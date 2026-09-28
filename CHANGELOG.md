@@ -1,3 +1,10 @@
+
+## [Unreleased] — 2026-09-28 — Diary connected timeline wire
+
+- Fixed `MemoryTimeline.kt` so the diary spine is content-aware and continuous across variable-height saved memories.
+- Preserved the existing time column, mood nodes, cards, Room/ViewModel/repository boundaries and navigation; no schema or dependency changes.
+- Verification is delegated to the existing Android CI workflow on the pull request; no device/emulator result is claimed here.
+
 # Changelog
 
 All notable changes are documented here and detailed in
