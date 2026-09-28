@@ -48,6 +48,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -91,11 +93,18 @@ fun DiaryEditor(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val imeVisible = WindowInsets.ime.getBottom(density) > 0
 
     LaunchedEffect(editing?.id) {
         focusRequester.requestFocus()
         keyboardController?.show()
+    }
+
+    LaunchedEffect(imeVisible) {
+        if (imeVisible) bringIntoViewRequester.bringIntoView()
     }
     BackHandler(onBack = onDismiss)
 
@@ -132,13 +141,15 @@ fun DiaryEditor(
                 )
 
                 DiaryPanel(
-                    modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding),
+                    modifier = Modifier
+                        .padding(horizontal = LifeOSSpacing.screenPadding)
+                        .bringIntoViewRequester(bringIntoViewRequester),
                     cornerRadius = 22
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Your memory", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet)
                         Spacer(Modifier.weight(1f))
-                        Text(content.length.toString() + "/" + MAX_MEMORY_CHARACTERS, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant )
+                        Text(content.length.toString() + "/" + MAX_MEMORY_CHARACTERS, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Spacer(Modifier.height(10.dp))
                     BasicTextField(
@@ -146,7 +157,10 @@ fun DiaryEditor(
                         onValueChange = { value -> onContentChange(value.take(MAX_MEMORY_CHARACTERS)) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = LifeOSSpacing.diaryEditorTextMinHeight)
+                            .heightIn(
+                                min = if (imeVisible) 140.dp else LifeOSSpacing.diaryEditorTextMinHeight,
+                                max = if (imeVisible) 190.dp else 360.dp
+                            )
                             .focusRequester(focusRequester),
                         textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp),
                         cursorBrush = SolidColor(DiaryActionViolet),
@@ -158,7 +172,6 @@ fun DiaryEditor(
                         }
                     )
                 }
-
                 attachments()
             }
         }
