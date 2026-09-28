@@ -171,10 +171,7 @@ fun DiaryEditor(
                         onValueChange = { value -> onContentChange(value.take(MAX_MEMORY_CHARACTERS)) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(
-                                min = if (imeVisible) 140.dp else LifeOSSpacing.diaryEditorTextMinHeight,
-                                max = if (imeVisible) 190.dp else 360.dp
-                            )
+                            .weight(1f)
                             .focusRequester(focusRequester),
                         textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp),
                         cursorBrush = SolidColor(DiaryActionViolet),
