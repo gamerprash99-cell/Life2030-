@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -76,7 +77,14 @@ fun MemoryMoment(
             )
         }
 
-        MemorySpine(entry.mood.takeIf { hasMood }, isFirst, isLast)
+        MemorySpine(
+            moodKey = entry.mood.takeIf { hasMood },
+            isFirst = isFirst,
+            isLast = isLast,
+            modifier = Modifier
+                .width(14.dp)
+                .fillMaxHeight()
+        )
         Spacer(Modifier.width(6.dp))
 
         Column(Modifier.weight(1f).padding(bottom = 8.dp)) {
@@ -170,12 +178,50 @@ private fun MemoryPhotoPreviewRow(photos: List<DiaryAttachment.Photo>, additiona
 }
 
 @Composable
-private fun MemorySpine(moodKey: String?, isFirst: Boolean, isLast: Boolean) {
-    Column(Modifier.width(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.width(1.dp).height(if (isFirst) 4.dp else 8.dp).background(DiaryHairline))
-        if (moodKey != null) MoodDot(moodKey, diameter = 16)
-        else Box(Modifier.size(7.dp).background(DiaryHairline, CircleShape))
-        Box(Modifier.width(1.dp).height(if (isLast) 6.dp else 12.dp).background(DiaryHairline))
+private fun MemorySpine(
+    moodKey: String?,
+    isFirst: Boolean,
+    isLast: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val nodeCenterY = 16.dp
+    val hairline = DiaryHairline
+
+    Box(
+        modifier = modifier.drawBehind {
+            val centerX = size.width / 2f
+            val nodeCenter = nodeCenterY.toPx()
+
+            drawLine(
+                color = hairline,
+                strokeWidth = 1.dp.toPx(),
+                start = androidx.compose.ui.geometry.Offset(
+                    x = centerX,
+                    y = if (isFirst) nodeCenter else 0f
+                ),
+                end = androidx.compose.ui.geometry.Offset(
+                    x = centerX,
+                    y = if (isLast) nodeCenter else size.height
+                )
+            )
+        }
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 8.dp)
+        ) {
+            if (moodKey != null) {
+                MoodDot(moodKey, diameter = 16)
+            } else {
+                Box(
+                    Modifier
+                        .size(7.dp)
+                        .background(DiaryHairline, CircleShape)
+                        .align(Alignment.Center)
+                )
+            }
+        }
     }
 }
 
