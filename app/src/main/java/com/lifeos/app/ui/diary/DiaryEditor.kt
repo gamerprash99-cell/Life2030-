@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -92,6 +92,7 @@ fun DiaryEditor(
     var showTimePicker by remember { mutableStateOf(false) }
     val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val scrollState = rememberScrollState()
 
     LaunchedEffect(editing?.id) {
         focusRequester.requestFocus()
@@ -101,7 +102,7 @@ fun DiaryEditor(
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
-            Modifier.fillMaxSize().imePadding()
+            Modifier.fillMaxSize()
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.diaryHeaderVertical),
@@ -121,7 +122,12 @@ fun DiaryEditor(
             }
 
             Column(
-                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).weight(1f).padding(bottom = 8.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(scrollState)
+                    .imePadding()
+                    .padding(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.diaryEditorSection)
             ) {
                 DateTimeSelector(
