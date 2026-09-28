@@ -3,6 +3,13 @@
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).
 ---
 
+## 2026-09-28 — Diary connected timeline wire
+
+- **Timeline rendering fix** (`ui/diary/MemoryTimeline.kt`). Replaced the fixed-height decorative `MemorySpine` with a content-aware timeline lane that fills the full height of each memory row and draws one continuous 1dp hairline through the mood node. The line now naturally spans long text, photo previews and tags instead of stopping after a small fixed segment.
+- **First/middle/last handling:** the first item starts the rail at the node, middle items connect from the previous row through the node to the next row, and the last item terminates at its node. The existing `DiaryEntity`, `DiaryViewModel`, repository, Room schema, navigation and media flows are unchanged.
+- **Spacing:** preserved the existing 58dp time column, 14dp timeline lane and 6dp card gap; only the spine geometry changed so the supplied connected-wire reference is achieved without hardcoded card-height assumptions.
+- **Verification:** source-level review completed. GitHub Actions will run `gradle test assembleDebug assembleRelease --stacktrace` for the pull request. No device/emulator verification is claimed from this environment.
+
 ## 2026-09-26 — Diary audit follow-up (branch `feat/stitch-timeline-diary`)
 
 A read-through of the merged Diary against the Stitch reference screens turned up
