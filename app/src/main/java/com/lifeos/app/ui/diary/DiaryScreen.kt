@@ -146,7 +146,7 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
                             start = LifeOSSpacing.screenPadding,
                             end = LifeOSSpacing.screenPadding,
                             top = 8.dp,
-                            bottom = LifeOSSpacing.fabContentClearance + 12.dp
+                            bottom = LifeOSSpacing.fabContentClearance
                         )
                     ) {
                         itemsIndexed(memories, key = { _, entry -> entry.id }) { index, entry ->
