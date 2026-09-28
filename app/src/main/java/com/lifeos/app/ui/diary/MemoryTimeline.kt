@@ -68,13 +68,13 @@ fun MemoryMoment(
     var showMenu by remember(entry.id) { mutableStateOf(false) }
 
     Row(modifier = modifier.fillMaxWidth()) {
-        Box(Modifier.width(58.dp), contentAlignment = Alignment.TopEnd) {
+        Box(Modifier.width(64.dp), contentAlignment = Alignment.TopEnd) {
             Text(
                 DateTimeUtils.formatMinutes(entry.timeMinutes),
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelLarge,
                 color = DiaryInkViolet.copy(alpha = 0.68f),
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 8.dp, end = 8.dp)
+                modifier = Modifier.padding(top = 9.dp, end = 8.dp)
             )
         }
 
@@ -83,19 +83,19 @@ fun MemoryMoment(
             isFirst = isFirst,
             isLast = isLast,
             modifier = Modifier
-                .width(14.dp)
+                .width(18.dp)
                 .fillMaxHeight()
         )
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(8.dp))
 
-        Column(Modifier.weight(1f).padding(bottom = 8.dp)) {
+        Column(Modifier.weight(1f).padding(bottom = 10.dp)) {
             Box(
                 Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(26.dp))
                     .background(DiaryPaperCard)
-                    .border(1.dp, DiaryHairline.copy(alpha = 0.72f), RoundedCornerShape(24.dp))
+                    .border(1.dp, DiaryHairline.copy(alpha = 0.72f), RoundedCornerShape(26.dp))
                     .clickable(onClick = onOpen)
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .padding(horizontal = 16.dp, vertical = 15.dp)
             ) {
                 Column(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -123,7 +123,7 @@ fun MemoryMoment(
                     }
 
                     Spacer(Modifier.height(8.dp))
-                    Text(entry.content, style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 26.sp), color = MaterialTheme.colorScheme.onSurface)
+                    Text(entry.content, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 24.sp), color = MaterialTheme.colorScheme.onSurface)
 
                     val visiblePhotos = photos.take(3)
                     if (visiblePhotos.isNotEmpty()) {
@@ -185,7 +185,7 @@ private fun MemorySpine(
     isLast: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val nodeCenterY = 16.dp
+    val nodeCenterY = 18.dp
     val hairline = DiaryHairline
 
     Box(
@@ -210,7 +210,7 @@ private fun MemorySpine(
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 8.dp)
+                .padding(top = 10.dp)
         ) {
             if (moodKey != null) {
                 MoodDot(moodKey, diameter = 16)

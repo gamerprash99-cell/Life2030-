@@ -1544,3 +1544,17 @@ Verification for this branch is source-level only; no local Android runtime is e
 
 - GitHub branch comparison from `main`: 3 source files changed, 0 database/navigation/build dependency files changed.
 - No local Android Gradle runtime, emulator/device or AVD is exposed through the connected GitHub environment. Therefore no compile/test/lint/device pass is claimed for this pass.
+
+
+## 2026-09-28 — Diary saved timeline reference UI pass
+
+- Refined `ui/diary/MemoryTimeline.kt` only for the saved-entry presentation: widened the time lane slightly, increased the timeline lane width, tightened the card rhythm, and reduced body typography so long memories read closer to the supplied reference.
+- Kept the content-aware continuous spine introduced in the previous timeline fix; node geometry now follows the same 18dp center used by the rail.
+- Preserved existing mood chips, tags, persisted photo previews, overflow Edit/Delete actions, click-to-open behavior, Room/ViewModel/repository boundaries and dynamic card height.
+- No Room schema/migration, navigation, permission, network/API, external AI, telemetry or dependency changes.
+- No absolute coordinates, fixed card heights or timeline-height assumptions were introduced.
+
+### Verification
+
+- GitHub source was re-read after the targeted edit.
+- This connected environment does not expose the local Android Gradle runtime, emulator/device or AVD, so no new compile/test/lint/device result is claimed for this PR.
