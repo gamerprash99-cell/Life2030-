@@ -146,7 +146,7 @@ private fun DiaryDateCell(
     Box(
         modifier = modifier
             .width(cellWidth)
-            .heightIn(min = 60.dp)
+            .heightIn(min = 72.dp)
             .clip(CircleShape)
             .clickable(role = Role.Tab, onClick = onClick)
             .semantics {
@@ -165,7 +165,7 @@ private fun DiaryDateCell(
                 .padding(horizontal = 5.dp, vertical = 4.dp)
                 .clip(CircleShape)
                 .background(fill)
-                .padding(horizontal = 10.dp, vertical = 5.dp),
+                .padding(horizontal = 11.dp, vertical = 7.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
