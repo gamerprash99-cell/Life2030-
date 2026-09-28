@@ -1525,3 +1525,5 @@ User-facing cleanup based on the supplied Diary screenshots. No Room schema, nav
 - The composer plan is staged in `docs/superpowers/plans/2026-09-28-diary-composer-keyboard-ux.md` for the remaining keyboard/editor pass: IME-safe resizing/scroll, inline attachment actions and mood-row removal while preserving the persisted mood/attachments contracts.
 
 Verification for this branch is source-level only; no local Android runtime is exposed by the GitHub connector.
+
+- 2026-09-28 keyboard follow-up: Diary editor now measures IME visibility from `WindowInsets.ime`, uses `BringIntoViewRequester`, and sizes the memory card from the available editor viewport instead of a fixed text-card height. The writing area fills the keyboard-adjusted card; keyboard-open and keyboard-closed states use the same layout path.
