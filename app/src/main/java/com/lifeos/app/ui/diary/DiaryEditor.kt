@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -61,7 +62,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.asPaddingValues
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.ui.theme.DiaryActionViolet
@@ -129,10 +129,23 @@ fun DiaryEditor(
                 SaveChangesAction(enabled = canSave, onClick = onSave)
             }
 
-            Column(
-                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).weight(1f).padding(bottom = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.diaryEditorSection)
+            BoxWithConstraints(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
             ) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.diaryEditorSection)
+                ) {
+                    val editorHeight = if (imeVisible) {
+                        (maxHeight - 112.dp).coerceAtLeast(220.dp)
+                    } else {
+                        (maxHeight - 112.dp).coerceAtMost(420.dp).coerceAtLeast(300.dp)
+                    }
                 DateTimeSelector(
                     dateEpochDay = dayEpochDay,
                     timeMinutes = timeMinutes,
@@ -143,6 +156,7 @@ fun DiaryEditor(
                 DiaryPanel(
                     modifier = Modifier
                         .padding(horizontal = LifeOSSpacing.screenPadding)
+                        .height(editorHeight)
                         .bringIntoViewRequester(bringIntoViewRequester),
                     cornerRadius = 22
                 ) {
@@ -173,6 +187,7 @@ fun DiaryEditor(
                     )
                 }
                 attachments()
+                }
             }
         }
     }
