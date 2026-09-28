@@ -128,7 +128,7 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
                             .align(Alignment.BottomEnd)
                             .padding(
                                 end = LifeOSSpacing.screenPadding,
-                                bottom = LifeOSSpacing.fabContentClearance + 20.dp
+                                bottom = LifeOSSpacing.fabContentClearance
                             )
                     ) {
                         Icon(
