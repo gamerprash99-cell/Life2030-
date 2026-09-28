@@ -86,7 +86,7 @@ fun MemoryMoment(
                 .width(18.dp)
                 .fillMaxHeight()
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(0.dp))
 
         Column(Modifier.weight(1f).padding(bottom = 10.dp)) {
             Box(
@@ -185,32 +185,32 @@ private fun MemorySpine(
     isLast: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val nodeCenterY = 18.dp
-    val hairline = DiaryHairline
-
     Box(
-        modifier = modifier.drawBehind {
-            val centerX = size.width / 2f
-            val nodeCenter = nodeCenterY.toPx()
-
-            drawLine(
-                color = hairline,
-                strokeWidth = 1.dp.toPx(),
-                start = androidx.compose.ui.geometry.Offset(
-                    x = centerX,
-                    y = if (isFirst) nodeCenter else 0f
-                ),
-                end = androidx.compose.ui.geometry.Offset(
-                    x = centerX,
-                    y = if (isLast) nodeCenter else size.height
-                )
-            )
-        }
+        modifier = modifier.fillMaxHeight()
     ) {
+        val nodeCenterY = 18.dp
+        val railX = 9.dp
+        val connectorStartX = 9.dp
+        val connectorEndX = 18.dp
+        val hairline = DiaryHairline
+        Box(
+            Modifier
+                .matchParentSize()
+                .drawBehind {
+                    val x = railX.toPx()
+                    val center = nodeCenterY.toPx()
+                    drawLine(
+                        color = hairline,
+                        strokeWidth = 1.dp.toPx(),
+                        start = androidx.compose.ui.geometry.Offset(x, if (isFirst) center else 0f),
+                        end = androidx.compose.ui.geometry.Offset(x, if (isLast) center else size.height)
+                    )
+                }
+        )
         Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 10.dp)
+                .align(Alignment.TopStart)
+                .padding(start = 1.dp, top = 10.dp)
         ) {
             if (moodKey != null) {
                 MoodDot(moodKey, diameter = 16)
@@ -219,11 +219,22 @@ private fun MemorySpine(
                     Modifier
                         .size(7.dp)
                         .background(DiaryHairline, CircleShape)
-                        .align(Alignment.Center)
                 )
             }
         }
+        Box(
+            Modifier
+                .matchParentSize()
+                .drawBehind {
+                    val y = nodeCenterY.toPx()
+                    drawLine(
+                        color = hairline,
+                        strokeWidth = 1.dp.toPx(),
+                        start = androidx.compose.ui.geometry.Offset(connectorStartX.toPx(), y),
+                        end = androidx.compose.ui.geometry.Offset(connectorEndX.toPx(), y)
+                    )
+                }
+        )
     }
 }
-
 private fun entryTags(entry: DiaryEntity): List<String> = entry.tagsCsv.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(3)

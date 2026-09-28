@@ -1,3 +1,15 @@
+## 2026-09-28 — Diary three-layout-error correction
+
+- **Five-day date strip:** kept the existing centre-snapping/date-bounds logic and refined the visible cell geometry so the Diary presents a balanced five-position strip with a clearer selected-day pill.
+- **FAB positioning:** removed the extra empty-state-only bottom offset so both empty and populated Diary states use the same shared FAB clearance above the existing bottom navigation/safe area.
+- **Timeline connector:** changed the saved-memory timeline rail so the mood node remains outside the card on the left and a short horizontal hairline connects the node directly to the card's left edge, matching the supplied reference while keeping the vertical rail content-aware.
+- **Preserved:** Diary ViewModel/state, repository/use cases, Room/database schema and migrations, navigation, media, permissions, offline/privacy behavior and dependencies.
+- **Files changed:** `app/src/main/java/com/lifeos/app/ui/diary/DiaryDateStrip.kt`, `app/src/main/java/com/lifeos/app/ui/diary/DiaryScreen.kt`, `app/src/main/java/com/lifeos/app/ui/diary/MemoryTimeline.kt`.
+
+### Verification
+
+Source was re-read after each targeted edit. The connected GitHub environment does not expose the local Android Gradle runtime, emulator/device or AVD, so compile/test/lint/device success is **not** claimed for this pass.
+
 # LifeOS — UPDATE
 
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).
