@@ -1,3 +1,24 @@
+## 2026-09-29 — Diary editor keeps the active text above the keyboard + three in-card action icons (branch `fix/diary-date-strip-center-today`)
+
+Targeted Diary editor UX fix. The Diary screen design, theme, typography, card shapes, spacing, navigation, repositories, ViewModels and Room schema are unchanged — only editor *behaviour* and a three-icon utility row were touched.
+
+- **Root cause of the keyboard problem.** `imePadding()` was applied *inside* the editor's `verticalScroll` container, so the IME inset became trailing padding on the scrolling content instead of shrinking the viewport. The editor viewport therefore stayed full-height behind the keyboard, and because the `BasicTextField` was unbounded it also grew downward with no cursor-reveal viewport of its own. Result: the active line/cursor slid under the keyboard while typing.
+- **Insets fixed (`DiaryEditor.kt`).** `imePadding()` moved to the screen-level `Column`, so header and editor both end above the keyboard; the inner scroll now also uses `imeNestedScroll()` so IME open/close chains with the existing scroll position instead of resetting it.
+- **The editor owns its own scrolling.** The text field is bounded by the card (`weight(1f, fill = false)` + `heightIn(min = diaryEditorTextMinHeight)`) and the card is capped with `heightIn(max = …)` against the *measured* viewport (`BoxWithConstraints`, so it adapts to the keyboard, aspect ratio and font scale — no hardcoded coordinates or magic offsets). `BasicTextField` keeps the cursor inside that viewport, so it auto-reveals the active line on typing, on paste and on tapping mid-text, and it does not fight the user: manual scrolls up are respected and nothing is locked to the bottom. A short entry still renders exactly as before (same `132.dp` minimum text height).
+- **Three small left-side action icons inside the white "Your memory" card** (new `editorActions` slot at the bottom of the existing card, below a `10.dp` gap matching the card's own rhythm): photo, voice note, location. 19dp outlined Material icons on a 38dp `DiaryLavender` circle, 48dp touch target (existing `LifeOSSpacing.minTouchTarget`). The row is a non-weighted child of the card, so it stays pinned to the card while the text scrolls behind it and can never cover text, cursor or the counter. The mic icon carries a subtle `DiaryLavender`/`DiaryActionViolet` active tint while recording.
+- **No new permission architecture.** The three launchers and their rationale/permanent-denial handling already existed in `DiaryEditorAttachments`; they were extracted into `rememberDiaryEditorActionTriggers(viewModel): DiaryEditorActionTriggers` so the in-card icons and the attachment rows below share one launcher per capability. Permissions are still requested only on the matching tap, never on launch. `AndroidManifest.xml`, `build.gradle.kts` and dependencies are untouched.
+- **Camera = photo picker.** The manifest deliberately does **not** declare `CAMERA` (see the comment there: Diary attaches existing photos, so camera access would be an unnecessary permission). The icon therefore opens the existing `ActivityResultContracts.PickVisualMedia` flow (`viewModel.attachPhoto`) with zero permissions. Live camera capture is *not* implemented and was not invented here; adding it would mean declaring `CAMERA` plus a capture flow, which is a product decision outside this task.
+- **Preserved:** existing text/1000-char limit/character counter, cursor and selection, copy/paste, keyboard behaviour, Save changes, date/time, Diary persistence, `DiaryEditorViewModel` state, Room entities/DAOs/migrations, navigation, offline/privacy behaviour.
+- **Scope:** 5 files (+94/−33): `ui/diary/DiaryEditor.kt`, `ui/diary/DiaryEditorAttachments.kt`, `ui/diary/DiaryScreen.kt`, `ui/diary/DiaryDetailScreen.kt`, `UPDATE.md`.
+
+### Verification (offline, local Gradle 8.9)
+
+- `:app:compileDebugKotlin` — BUILD SUCCESSFUL.
+- `:app:assembleDebug` — BUILD SUCCESSFUL.
+- `:app:testDebugUnitTest` — BUILD SUCCESSFUL, 173 tests, 0 failures, 0 errors (incl. `DiaryViewModelTest` 30, `DiaryDetailViewModelTest` 4, `DiaryRepositoryTest` 9).
+- `:app:assembleRelease` — see the table in the change report; R8 + `shrinkResources`.
+- **Not verified here:** the interactive keyboard scenarios (IME open/close, long-entry typing, tap-to-position, font-scale). This environment has no `adb`/emulator/AVD, and the project has no Compose UI-test dependency, so no on-device result is claimed. The layout reasoning is stated above and the four affected call sites are unchanged in behaviour.
+
 ## 2026-09-28 — Diary three-layout-error correction
 
 - **Five-day date strip:** kept the existing centre-snapping/date-bounds logic and refined the visible cell geometry so the Diary presents a balanced five-position strip with a clearer selected-day pill.
