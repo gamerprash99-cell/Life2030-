@@ -35,6 +35,7 @@ import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.media.DiaryAudioPlayer
 import com.lifeos.app.core.media.DiaryAudioRecorder
 import com.lifeos.app.core.media.DevicePhotoImporter
+import com.lifeos.app.core.media.RecordingState
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.ui.theme.DiaryActionViolet
@@ -78,6 +79,9 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
         }
     )
     val editorState by editorViewModel.state.collectAsStateWithLifecycle()
+    // One permission flow per capability, shared by the in-card icon row and
+    // the attachment rows below it.
+    val editorTriggers = rememberDiaryEditorActionTriggers(editorViewModel)
 
     LaunchedEffect(showEditor, editorEntryId) {
         if (showEditor) editorViewModel.start(editorEntryId, defaultDay = selectedDay)
@@ -103,7 +107,15 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
             onDismiss = { editorViewModel.cancelRecording(); viewModel.dismissEditor() },
             onSave = editorViewModel::save,
             onDelete = { editingEntry?.let(viewModel::requestDelete); editorViewModel.cancelRecording(); viewModel.dismissEditor() },
-            attachments = { DiaryEditorAttachments(editorViewModel) }
+            attachments = { DiaryEditorAttachments(editorViewModel, editorTriggers) },
+            editorActions = {
+                DiaryEditorActionBar(
+                    isRecording = editorState.recording is RecordingState.Recording,
+                    onAddPhoto = editorTriggers.addPhoto,
+                    onToggleVoiceNote = editorTriggers.toggleVoiceNote,
+                    onAddLocation = editorTriggers.addLocation
+                )
+            }
         )
     } else {
         Column(Modifier.fillMaxSize()) {

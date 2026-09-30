@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imeNestedScroll
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,9 +29,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -51,15 +50,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.asPaddingValues
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.ui.theme.DiaryActionViolet
@@ -72,6 +67,7 @@ import java.time.LocalTime
 
 private const val MAX_MEMORY_CHARACTERS = 1000
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun DiaryEditor(
     dayEpochDay: Long,
@@ -85,7 +81,8 @@ fun DiaryEditor(
     onDismiss: () -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
-    attachments: @Composable () -> Unit = {}
+    attachments: @Composable () -> Unit = {},
+    editorActions: @Composable () -> Unit = {}
 ) {
     val isEditing = editing != null
     var showDatePicker by remember { mutableStateOf(false) }
@@ -101,8 +98,13 @@ fun DiaryEditor(
     BackHandler(onBack = onDismiss)
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        // The IME inset is consumed by the *screen* container, not by the
+        // scrolling content. That is what guarantees the editor viewport ends
+        // above the keyboard instead of being covered by it.
         Column(
-            Modifier.fillMaxSize()
+            Modifier
+                .fillMaxSize()
+                .imePadding()
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.diaryHeaderVertical),
@@ -121,51 +123,69 @@ fun DiaryEditor(
                 SaveChangesAction(enabled = canSave, onClick = onSave)
             }
 
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(scrollState)
-                    .imePadding()
-                    .padding(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.diaryEditorSection)
-            ) {
-                DateTimeSelector(
-                    dateEpochDay = dayEpochDay,
-                    timeMinutes = timeMinutes,
-                    onDateClick = { showDatePicker = true },
-                    onTimeClick = { showTimePicker = true }
-                )
-
-                DiaryPanel(
-                    modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding),
-                    cornerRadius = 22
+            // A bounded viewport: its max height is whatever the header and the
+            // keyboard leave behind, so the memory card below can be capped
+            // against real measured space instead of a hardcoded number.
+            BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+                val editorViewportHeight = maxHeight
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .imeNestedScroll()
+                        .verticalScroll(scrollState)
+                        .padding(bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.diaryEditorSection)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Your memory", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet)
-                        Spacer(Modifier.weight(1f))
-                        Text(content.length.toString() + "/" + MAX_MEMORY_CHARACTERS, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant )
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    BasicTextField(
-                        value = content,
-                        onValueChange = { value -> onContentChange(value.take(MAX_MEMORY_CHARACTERS)) },
+                    DateTimeSelector(
+                        dateEpochDay = dayEpochDay,
+                        timeMinutes = timeMinutes,
+                        onDateClick = { showDatePicker = true },
+                        onTimeClick = { showTimePicker = true }
+                    )
+
+                    DiaryPanel(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = LifeOSSpacing.diaryEditorTextMinHeight)
-                            .focusRequester(focusRequester),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp),
-                        cursorBrush = SolidColor(DiaryActionViolet),
-                        decorationBox = { inner ->
-                            Box {
-                                if (content.isEmpty()) Text("Write whatever is on your mind…", style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
-                                inner()
-                            }
+                            .padding(horizontal = LifeOSSpacing.screenPadding)
+                            // The card is never taller than the visible area,
+                            // which is what bounds the text field below it.
+                            .heightIn(max = editorViewportHeight),
+                        cornerRadius = 22
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Your memory", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet)
+                            Spacer(Modifier.weight(1f))
+                            Text(content.length.toString() + "/" + MAX_MEMORY_CHARACTERS, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant )
                         }
-                    )
-                }
+                        Spacer(Modifier.height(10.dp))
+                        // fill = false lets a short entry stay short, while a
+                        // long one grows to the card's cap and then scrolls on
+                        // its own. BasicTextField keeps the cursor inside that
+                        // scroll viewport, so the active line is never hidden
+                        // behind the keyboard and the card itself never jumps.
+                        BasicTextField(
+                            value = content,
+                            onValueChange = { value -> onContentChange(value.take(MAX_MEMORY_CHARACTERS)) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .heightIn(min = LifeOSSpacing.diaryEditorTextMinHeight)
+                                .focusRequester(focusRequester),
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp),
+                            cursorBrush = SolidColor(DiaryActionViolet),
+                            decorationBox = { inner ->
+                                Box {
+                                    if (content.isEmpty()) Text("Write whatever is on your mind…", style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
+                                    inner()
+                                }
+                            }
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        editorActions()
+                    }
 
-                attachments()
+                    attachments()
+                }
             }
         }
     }
