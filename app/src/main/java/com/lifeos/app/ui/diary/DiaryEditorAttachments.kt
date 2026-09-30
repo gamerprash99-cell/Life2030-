@@ -49,9 +49,9 @@ import kotlinx.coroutines.isActive
 
 /**
  * The three editor actions (photo, voice note, location) and the permission
- * plumbing they need. They live in one place so the icon row inside the memory
- * card and the attachment rows below it drive the *same* launchers — there is
- * exactly one permission flow per capability, and no permission is ever
+ * plumbing they need. They live in one place so the icon row pinned at the foot
+ * of the memory card and the media rows inside it drive the *same* launchers —
+ * there is exactly one permission flow per capability, and no permission is ever
  * requested before the user taps the matching action.
  */
 class DiaryEditorActionTriggers(
@@ -126,8 +126,9 @@ fun rememberDiaryEditorActionTriggers(viewModel: DiaryEditorViewModel): DiaryEdi
 
 /**
  * The compact utility row that lives at the bottom of the white "Your memory"
- * card. It stays pinned to the card while the diary text scrolls behind it, so
- * the icons can never cover the text, the cursor, or the character counter.
+ * card. It is pinned below the card's scroll viewport, so it stays put while the
+ * diary text and its media scroll behind it and the icons can never cover the
+ * text, the cursor, or the character counter.
  */
 @Composable
 fun DiaryEditorActionBar(
@@ -189,9 +190,15 @@ private fun EditorActionIcon(
 }
 
 /**
- * All media/location/tag attachments remain driven by the same editor ViewModel.
- * The action triggers are supplied by the caller so the in-card icon row and
- * these rows share one permission flow.
+ * The memory's own media: photos, tags, the voice note, the place and the
+ * weather. Rendered by [DiaryEditor] *inside* the white memory card, in the same
+ * scroll viewport as the text, so the media belongs to the writing surface
+ * instead of sitting in a separate attachment panel outside it.
+ *
+ * The add affordances are handed to the card's own three action icons
+ * (`showAddAction = false` below), which drive the very same
+ * [DiaryEditorActionTriggers] — so there is exactly one permission flow and
+ * exactly one control per capability, and nothing is requested before a tap.
  */
 @Composable
 fun DiaryEditorAttachments(
@@ -215,15 +222,14 @@ fun DiaryEditorAttachments(
     }
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = com.lifeos.app.ui.theme.LifeOSSpacing.screenPadding),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         DiaryPhotoStrip(
             photos = state.photos,
             onAdd = { triggers.addPhoto() },
-            onRemove = viewModel::removePhoto
+            onRemove = viewModel::removePhoto,
+            showAddAction = false
         )
 
         DiaryTagEditor(
@@ -240,14 +246,16 @@ fun DiaryEditorAttachments(
             onStopRecording = viewModel::stopRecording,
             onCancelRecording = viewModel::cancelRecording,
             onTogglePlayback = viewModel::togglePlayback,
-            onRemove = viewModel::removeVoiceNote
+            onRemove = viewModel::removeVoiceNote,
+            showAddAction = false
         )
 
         DiaryLocationRow(
             place = state.place,
             status = state.locationStatus,
             onAdd = { triggers.addLocation() },
-            onClear = viewModel::clearLocation
+            onClear = viewModel::clearLocation,
+            showAddAction = false
         )
 
         DiaryWeatherRow(weather = state.weather)
