@@ -1,12 +1,10 @@
 package com.lifeos.app.ui.diary
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,7 +25,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -46,13 +43,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lifeos.app.core.util.DateTimeUtils
@@ -87,9 +85,12 @@ fun DiaryEditor(
     val isEditing = editing != null
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val scrollState = rememberScrollState()
+    // One scroll state for the whole writing surface. Keeping it here (rather
+    // than on an inner field) is what makes the caret come back into view and
+    // the position survive the keyboard opening and closing.
+    val contentScroll = rememberScrollState()
 
     LaunchedEffect(editing?.id) {
         focusRequester.requestFocus()
@@ -98,9 +99,15 @@ fun DiaryEditor(
     BackHandler(onBack = onDismiss)
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        // The IME inset is consumed by the *screen* container, not by the
-        // scrolling content. That is what guarantees the editor viewport ends
-        // above the keyboard instead of being covered by it.
+        // ONE writing surface, top to bottom: header, thin date/time strip, then
+        // the white card that takes every remaining pixel.
+        //
+        // The IME inset is consumed here, once, at the root — and the navigation
+        // bar is not part of this budget (see LifeOSNavHost), so this padding is
+        // the only thing between the card and the keyboard. Nothing here is a
+        // hardcoded height: the card's size is whatever the header, the strip and
+        // the keyboard leave, so it shrinks with the IME and grows back when the
+        // keyboard closes.
         Column(
             Modifier
                 .fillMaxSize()
@@ -123,52 +130,49 @@ fun DiaryEditor(
                 SaveChangesAction(enabled = canSave, onClick = onSave)
             }
 
-            // A bounded viewport: its max height is whatever the header and the
-            // keyboard leave behind, so the memory card below can be capped
-            // against real measured space instead of a hardcoded number.
-            BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
-                val editorViewportHeight = maxHeight
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .imeNestedScroll()
-                        .verticalScroll(scrollState)
-                        .padding(bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.diaryEditorSection)
-                ) {
-                    DateTimeSelector(
-                        dateEpochDay = dayEpochDay,
-                        timeMinutes = timeMinutes,
-                        onDateClick = { showDatePicker = true },
-                        onTimeClick = { showTimePicker = true }
-                    )
+            DateTimeStrip(
+                dateEpochDay = dayEpochDay,
+                timeMinutes = timeMinutes,
+                onDateClick = { showDatePicker = true },
+                onTimeClick = { showTimePicker = true }
+            )
 
-                    DiaryPanel(
-                        modifier = Modifier
+            DiaryPanel(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = LifeOSSpacing.screenPadding),
+                cornerRadius = 22
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Your memory", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet)
+                    Spacer(Modifier.weight(1f))
+                    Text(content.length.toString() + "/" + MAX_MEMORY_CHARACTERS, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant )
+                }
+                Spacer(Modifier.height(10.dp))
+                // The card's single scroll viewport. The text and the media that
+                // belongs to it are one content flow, so a photo, a voice note or
+                // a place is part of the memory and can never end up outside it.
+                // `imeNestedScroll` keeps this viewport glued to the keyboard
+                // while the IME animates, and BasicTextField brings its own caret
+                // into view inside it, so the active line is never behind the
+                // keyboard.
+                Box(Modifier.fillMaxWidth().weight(1f)) {
+                    Column(
+                        Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = LifeOSSpacing.screenPadding)
-                            // The card is never taller than the visible area,
-                            // which is what bounds the text field below it.
-                            .heightIn(max = editorViewportHeight),
-                        cornerRadius = 22
+                            .imeNestedScroll()
+                            .verticalScroll(contentScroll),
+                        verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.diaryEditorSection)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Your memory", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet)
-                            Spacer(Modifier.weight(1f))
-                            Text(content.length.toString() + "/" + MAX_MEMORY_CHARACTERS, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant )
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        // fill = false lets a short entry stay short, while a
-                        // long one grows to the card's cap and then scrolls on
-                        // its own. BasicTextField keeps the cursor inside that
-                        // scroll viewport, so the active line is never hidden
-                        // behind the keyboard and the card itself never jumps.
+                        // The field sizes to its own text, so a short entry stays
+                        // short and a long one grows to its full height and then
+                        // scrolls on the card's viewport.
                         BasicTextField(
                             value = content,
                             onValueChange = { value -> onContentChange(value.take(MAX_MEMORY_CHARACTERS)) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f, fill = false)
                                 .heightIn(min = LifeOSSpacing.diaryEditorTextMinHeight)
                                 .focusRequester(focusRequester),
                             textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp),
@@ -180,12 +184,14 @@ fun DiaryEditor(
                                 }
                             }
                         )
-                        Spacer(Modifier.height(10.dp))
-                        editorActions()
+                        attachments()
                     }
-
-                    attachments()
                 }
+                Spacer(Modifier.height(8.dp))
+                // Pinned at the foot of the card: the actions stay reachable for
+                // a long entry, and can never cover the text, the caret or the
+                // character counter.
+                editorActions()
             }
         }
     }
@@ -212,33 +218,64 @@ fun DiaryEditor(
     }
 }
 
+/**
+ * The date and the time as a single compact strip: date on the left, time on the
+ * right, roughly a third of the height of the stacked two-column card it replaces.
+ *
+ * Both halves stay independently tappable and open exactly the pickers they
+ * always did — only the presentation changed. The values keep their existing
+ * typography and violet accents, and the date ellipsises rather than wrapping so
+ * a long day string can never push the time off the strip at a large font scale.
+ */
 @Composable
-private fun DateTimeSelector(dateEpochDay: Long, timeMinutes: Int?, onDateClick: () -> Unit, onTimeClick: () -> Unit) {
+private fun DateTimeStrip(dateEpochDay: Long, timeMinutes: Int?, onDateClick: () -> Unit, onTimeClick: () -> Unit) {
     Surface(
         modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         color = DiaryActionViolet.copy(alpha = 0.04f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DiaryHairline)
+        border = BorderStroke(1.dp, DiaryHairline)
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            androidx.compose.foundation.layout.Column(Modifier.weight(1f).clickable(onClick = onDateClick)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.size(10.dp))
-                    Text("Date", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text(DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(dateEpochDay)), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet, modifier = Modifier.padding(start = 30.dp, top = 3.dp))
+        Row(
+            Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                Modifier
+                    .weight(1f)
+                    .clip(CircleShape)
+                    .clickable(onClick = onDateClick)
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(dateEpochDay)),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = DiaryInkViolet,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            Box(Modifier.width(1.dp).height(44.dp).background(DiaryHairline))
-            androidx.compose.foundation.layout.Column(Modifier.weight(0.88f).clickable(onClick = onTimeClick).padding(start = 14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Schedule, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.size(10.dp))
-                    Text("Time", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text(DateTimeUtils.formatMinutes(timeMinutes ?: 0), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet, modifier = Modifier.padding(start = 30.dp, top = 3.dp))
+            Spacer(Modifier.size(10.dp))
+            Row(
+                Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onTimeClick)
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Schedule, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    DateTimeUtils.formatMinutes(timeMinutes ?: 0),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = DiaryInkViolet,
+                    maxLines = 1
+                )
             }
-            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(22.dp))
         }
     }
 }

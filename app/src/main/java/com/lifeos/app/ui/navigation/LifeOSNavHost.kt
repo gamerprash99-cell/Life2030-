@@ -1,12 +1,17 @@
 package com.lifeos.app.ui.navigation
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
@@ -33,18 +38,44 @@ import com.lifeos.app.ui.timeline.TimelineScreen
  * graph so they stack naturally on top of the active tab and Android's system
  * Back dismisses them one level at a time. See [ROOT_TABS_GRAPH].
  */
+// Local opt-in, not the propagating marker: `isImeVisible` is read in this file
+// only, and callers (MainActivity) must not be forced to opt in as well.
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun LifeOSNavHost() {
     val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+
+    // The Diary composer is the app's only full-screen text surface and it
+    // consumes the IME inset itself. While the keyboard is up the bottom bar is
+    // hidden behind it yet still reserves its own height in the Scaffold's
+    // padding — and the composer's `imePadding()` then lifts the content by that
+    // same height a second time. That double count is the blank band the height
+    // of the navigation bar between the editor and the keyboard.
+    //
+    // So on exactly the two composer routes the bar is not composed while the
+    // IME is visible, and the content is given no bottom padding to double
+    // count. With the keyboard closed — and on every other destination — the
+    // bar and the padding are exactly what they were before.
+    val route = backStackEntry?.destination?.route
+    val composerOwnsWindow = (route == Screen.Diary.route || route == Screen.DiaryDetail.route) &&
+        WindowInsets.isImeVisible
 
     Scaffold(
-        bottomBar = { LifeOSBottomBar(navController) }
+        bottomBar = { if (!composerOwnsWindow) LifeOSBottomBar(navController) }
     ) { padding ->
         NavHost(
             navController = navController,
             startDestination = ROOT_TABS_GRAPH,
-            modifier = Modifier.padding(padding)
+            modifier = Modifier.padding(
+                top = padding.calculateTopPadding(),
+                // Set explicitly rather than trusting the Scaffold's fallback:
+                // when the bar is absent the Scaffold would otherwise hand back
+                // its content-window-inset bottom, which is still a gap the
+                // composer must not inherit.
+                bottom = if (composerOwnsWindow) 0.dp else padding.calculateBottomPadding()
+            )
         ) {
             navigation(startDestination = Screen.Home.route, route = ROOT_TABS_GRAPH) {
                 composable(Screen.Home.route) {

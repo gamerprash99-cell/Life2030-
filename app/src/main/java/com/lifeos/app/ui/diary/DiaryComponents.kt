@@ -118,8 +118,16 @@ fun DiaryPhotoStrip(
     onAdd: () -> Unit,
     onRemove: (DiaryAttachment.Photo) -> Unit,
     modifier: Modifier = Modifier,
-    addLabel: String = "Add more photos"
+    addLabel: String = "Add more photos",
+    /**
+     * `false` where another control on the same surface already adds a photo
+     * (the composer pins its camera icon at the foot of the memory card): the
+     * add tile is dropped and an empty strip collapses to nothing, so the
+     * capability is never offered twice. Defaults to `true` everywhere else.
+     */
+    showAddAction: Boolean = true
 ) {
+    if (photos.isEmpty() && !showAddAction) return
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         DiarySectionLabel(
             "Photos",
@@ -137,7 +145,7 @@ fun DiaryPhotoStrip(
             maxItemsInEachRow = 4
         ) {
             photos.forEach { photo -> DiaryReferencePhotoTile(photo, onRemove) }
-            DiaryReferenceAddTile(addLabel, onAdd)
+            if (showAddAction) DiaryReferenceAddTile(addLabel, onAdd)
         }
     }
 }
@@ -276,9 +284,19 @@ fun DiaryVoiceNoteRow(
     onCancelRecording: () -> Unit,
     onTogglePlayback: () -> Unit,
     onRemove: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * `false` where another control on the same surface already starts a
+     * recording (the composer's pinned microphone icon): the idle "Add voice
+     * note" button is dropped and a row with no take and nothing in progress
+     * collapses to nothing. Defaults to `true` everywhere else.
+     */
+    showAddAction: Boolean = true
 ) {
     val isRecording = recording is RecordingState.Recording
+    // Nothing worth printing while idle with no take — the composer's mic icon
+    // is the record control there. A real failure is still explained.
+    if (!showAddAction && !isRecording && voiceNote == null && recording !is RecordingState.Failure) return
     // The live level is a real amplitude reading, animated only for smoothness.
     val level = (recording as? RecordingState.Recording)?.amplitude ?: 0
     val levelAlpha by animateFloatAsState(
@@ -368,7 +386,7 @@ fun DiaryVoiceNoteRow(
                 }
             }
 
-            else -> {
+            else -> if (showAddAction) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -416,8 +434,17 @@ fun DiaryLocationRow(
     status: LocationStatus,
     onAdd: () -> Unit,
     onClear: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * `false` where another control on the same surface already attaches a place
+     * (the composer's pinned location icon): the idle "Add current location"
+     * button is dropped and an idle row with no place collapses to nothing. A
+     * denied permission is still explained, because that is guidance rather than
+     * a second way to add. Defaults to `true` everywhere else.
+     */
+    showAddAction: Boolean = true
 ) {
+    if (!showAddAction && place == null && status == LocationStatus.IDLE) return
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         DiarySectionLabel(text = "Location")
         when (status) {
