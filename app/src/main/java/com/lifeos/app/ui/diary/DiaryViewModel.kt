@@ -133,23 +133,4 @@ class DiaryViewModel(
         viewModelScope.launch { diaryRepository.delete(id) }
     }
 
-    /**
-     * Flips a memory's favourite flag. The write is a single Room update, so
-     * the list re-renders from the same `observeAll()` flow the screen already
-     * collects — there is no separate in-memory copy to fall out of sync.
-     */
-    fun toggleFavorite(id: String) {
-        viewModelScope.launch { diaryRepository.toggleFavorite(id) }
-    }
-
-    /**
-     * Strips one attachment from a memory without opening the editor, so the
-     * detail screen's remove affordances do what they look like they do. The
-     * repository no-ops on a path the entry does not hold, and deletes the file
-     * once nothing references it.
-     */
-    fun removeAttachment(id: String, filePath: String) {
-        viewModelScope.launch { diaryRepository.removeAttachment(id, filePath) }
-    }
-
 }

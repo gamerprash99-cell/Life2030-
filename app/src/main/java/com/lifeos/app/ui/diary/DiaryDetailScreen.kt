@@ -53,6 +53,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -112,7 +113,9 @@ class DiaryDetailViewModel(
     private val diaryRepository: DiaryRepository,
     private val weatherRepository: WeatherRepository
 ) : ViewModel() {
-    val entry: StateFlow<DiaryEntity?> = diaryRepository.observeAll().map { all -> all.firstOrNull { it.id == entryId } }
+    // Load just this entry (single-row Room flow) instead of streaming the
+    // entire diary_entries table and filtering in memory.
+    val entry: StateFlow<DiaryEntity?> = diaryRepository.observeById(entryId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     private val _showEditor = MutableStateFlow(false)
     val showEditor: StateFlow<Boolean> = _showEditor
@@ -151,6 +154,7 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
     DisposableEffect(Unit) { onDispose { player.release() } }
     val weather by viewModel.weather.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showMore by remember { mutableStateOf(false) }
     BackHandler(enabled = showEditor, onBack = viewModel::dismissEditor)
@@ -248,7 +252,7 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                 Spacer(Modifier.height(18.dp))
                 Row(Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     DetailAction(Modifier.weight(1f), "Share", Icons.Filled.Share, DiaryActionViolet) { shareEntry(context, current, photos) }
-                    DetailAction(Modifier.weight(1f), "Copy", Icons.Filled.ContentCopy, DiaryActionViolet) { copyEntry(context, current); kotlinx.coroutines.MainScope().launch { snackbarHostState.showSnackbar("Memory copied") } }
+                    DetailAction(Modifier.weight(1f), "Copy", Icons.Filled.ContentCopy, DiaryActionViolet) { copyEntry(context, current); scope.launch { snackbarHostState.showSnackbar("Memory copied") } }
                     DetailAction(Modifier.weight(1f), "Delete", Icons.Filled.Delete, MaterialTheme.colorScheme.error) { confirmDelete = true }
                     DetailAction(Modifier.weight(1f), "Favorite", if (current.isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder, DiaryActionViolet) { viewModel.toggleFavorite() }
                 }
@@ -258,7 +262,7 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
 
         DiaryEditorOverlay(visible = showEditor) {
             entry?.let { current -> DiaryEditor(
-                dayEpochDay = current.dateEpochDay, editing = current, timeMinutes = editorState.timeMinutes, content = editorState.content, onContentChange = editorViewModel::onContentChange, onDateChange = editorViewModel::onDateChange, onTimeChange = editorViewModel::onTimeChange, canSave = editorState.canSave, onDismiss = { editorViewModel.cancelRecording(); viewModel.dismissEditor() }, onSave = editorViewModel::save, onDelete = { editorViewModel.cancelRecording(); viewModel.dismissEditor(); confirmDelete = true }, attachments = { DiaryEditorAttachments(editorViewModel, editorTriggers) }, editorActions = { DiaryEditorActionBar(isRecording = editorState.recording is RecordingState.Recording, onAddPhoto = editorTriggers.addPhoto, onToggleVoiceNote = editorTriggers.toggleVoiceNote, onAddLocation = editorTriggers.addLocation) }) }
+                dayEpochDay = current.dateEpochDay, editing = current, timeMinutes = editorState.timeMinutes, content = editorState.content, onContentChange = editorViewModel::onContentChange, onDateChange = editorViewModel::onDateChange, onTimeChange = editorViewModel::onTimeChange, canSave = editorState.canSave, onDismiss = { editorViewModel.cancelRecording(); viewModel.dismissEditor() }, onSave = editorViewModel::save, onDelete = { editorViewModel.cancelRecording(); viewModel.dismissEditor(); confirmDelete = true }, attachments = { DiaryEditorAttachments(editorViewModel, editorTriggers) }, editorActions = { DiaryEditorActionBar(isRecording = editorState.recording is RecordingState.Recording, onAddPhoto = editorTriggers.addPhoto, onToggleVoiceNote = editorTriggers.toggleVoiceNote, onAddLocation = editorTriggers.addLocation, locationStatus = editorState.locationStatus) }) }
         }
 
         SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = LifeOSSpacing.screenPadding).padding(bottom = 12.dp))

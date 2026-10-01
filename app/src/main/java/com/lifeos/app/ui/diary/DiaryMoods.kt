@@ -25,7 +25,7 @@ import com.lifeos.app.ui.theme.DiaryMoodTiredPastel
  * ring and label, and [halo] is the pastel wash behind the marker.
  *
  * Emoji and label travel together on purpose: mood is never communicated by
- * colour alone (see the accessibility notes on [MoodSelector]).
+ * colour alone (see the accessibility notes on [MoodDot]).
  */
 data class DiaryMood(
     val key: String,

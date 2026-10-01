@@ -32,6 +32,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -318,6 +319,50 @@ class DiaryViewModelTest {
         assertEquals(0, dao.saved.size)
     }
 
+    // ---- the 1000-character limit -----------------------------------------
+
+    @Test
+    fun `a draft may be typed up to the limit`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("x".repeat(1000))
+
+        assertEquals(1000, vm.state.value.content.length)
+        assertTrue(vm.state.value.canSave)
+    }
+
+    @Test
+    fun `typing past the limit is cut at the limit, not rejected`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("x".repeat(1200))
+
+        assertEquals(1000, vm.state.value.content.length)
+    }
+
+    @Test
+    fun `the limit counts characters of a long mixed draft`() = runTest(dispatcher) {
+        val vm = editor()
+
+        val draft = buildString { repeat(120) { append("a long thought, and then some more. ") } }
+        vm.onContentChange(draft)
+        val stored = draft.take(1000)
+        assertEquals(1000, stored.length)
+        assertEquals(stored, vm.state.value.content)
+    }
+
+    @Test
+    fun `saving a full-length draft stores the whole entry`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("y".repeat(1000))
+        vm.save()
+        advanceUntilIdle()
+
+        assertEquals(1, dao.saved.size)
+        assertEquals(1000, dao.saved.single().content.length)
+    }
+
     @Test
     fun `a rejected blank save emits no confirmation event`() = runTest(dispatcher) {
         val vm = editor()
@@ -585,10 +630,204 @@ class DiaryViewModelTest {
         assertTrue(vm.state.value.canSave)
     }
 
+    /**
+     * The composer with a configurable location provider, for the state-machine
+     * tests. The platform collaborators stay fakes, which is only possible
+     * because the view model depends on the `LocationProvider` interface rather
+     * than on the Android implementation.
+     */
+    private suspend fun TestScope.editorWithLocation(
+        outcome: LocationOutcome = LocationOutcome.Failure(LocationFailure.NO_FIX),
+        hasPermission: Boolean = true
+    ): DiaryEditorViewModel = DiaryEditorViewModel(
+        diaryRepository = diaryRepository(),
+        weatherRepository = FakeWeatherRepository(),
+        locationProvider = FakeLocationProvider(outcome, hasPermission),
+        recorder = FakeRecorder(),
+        player = FakePlayback(),
+        photoImporter = FakePhotoImporter(),
+        nowMinutes = { clockMinutes },
+        todayEpochDay = { today }
+    ).also { createdScopes += it.viewModelScope }.apply {
+        start(null, today)
+        advanceUntilIdle()
+    }
+
     /** Walks the load window and reports whether Save was ever offered inside it. */
     private suspend fun loadWasNeverSaveable(vm: DiaryEditorViewModel): Boolean {
         vm.onContentChange("typed before the row arrived")
         return !vm.state.value.canSave
+    }
+
+    // ---- location state --------------------------------------------------
+    //
+    // The Phase 4 bug: location being switched off in the OS produced the same
+    // state as "nothing has been requested yet", and the row responded by
+    // offering a tappable "Add current location" that could not work. These
+    // tests pin the mapping that fixed it.
+
+    @Test
+    fun `location starts idle, with the normal add action available`() = runTest(dispatcher) {
+        val vm = editor()
+
+        assertEquals(LocationStatus.IDLE, vm.state.value.locationStatus)
+        assertNull(vm.state.value.place)
+    }
+
+    @Test
+    fun `a refused permission reports a permission problem, not a generic failure`() = runTest(dispatcher) {
+        val vm = editorWithLocation(hasPermission = false)
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        assertEquals(LocationStatus.PERMISSION_DENIED, vm.state.value.locationStatus)
+    }
+
+    @Test
+    fun `a permanently refused permission is distinguished from a plain denial`() = runTest(dispatcher) {
+        val vm = editorWithLocation(hasPermission = false)
+
+        vm.attachLocation(isPermanentlyDenied = true)
+        advanceUntilIdle()
+
+        // These need different destinations: one can still prompt, the other
+        // has to go to Settings because the prompt is now a silent no-op.
+        assertEquals(LocationStatus.PERMISSION_PERMANENTLY_DENIED, vm.state.value.locationStatus)
+    }
+
+    @Test
+    fun `location switched off in the system is its own state, not a generic failure`() = runTest(dispatcher) {
+        val vm = editorWithLocation(outcome = LocationOutcome.Failure(LocationFailure.PROVIDERS_DISABLED))
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        assertEquals(LocationStatus.SERVICE_DISABLED, vm.state.value.locationStatus)
+        // The whole point: this state must not read as an ordinary idle add.
+        assertTrue(locationRowOffer(vm.state.value.locationStatus).action != LocationRowAction.REQUEST)
+    }
+
+    @Test
+    fun `a device with no location service is reported honestly`() = runTest(dispatcher) {
+        val vm = editorWithLocation(outcome = LocationOutcome.Failure(LocationFailure.NO_PROVIDER))
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        assertEquals(LocationStatus.NO_PROVIDER, vm.state.value.locationStatus)
+        assertEquals(LocationRowAction.NONE, locationRowOffer(vm.state.value.locationStatus).action)
+    }
+
+    @Test
+    fun `a missing fix is retryable rather than an error`() = runTest(dispatcher) {
+        val vm = editorWithLocation(outcome = LocationOutcome.Failure(LocationFailure.NO_FIX))
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        assertEquals(LocationStatus.NO_FIX, vm.state.value.locationStatus)
+        assertEquals(LocationRowTone.NEUTRAL, locationRowOffer(vm.state.value.locationStatus).tone)
+    }
+
+    @Test
+    fun `a location failure is explained by the row, not by the shared error slot`() = runTest(dispatcher) {
+        val vm = editorWithLocation(outcome = LocationOutcome.Failure(LocationFailure.PROVIDERS_DISABLED))
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        // `errorMessage` is shared with photo, voice, save and load errors and
+        // renders at the foot of the whole attachments column — which is how a
+        // location problem used to be explained hundreds of dp below the control
+        // that caused it, in red, and then erased by the next keystroke.
+        assertNull(vm.state.value.errorMessage)
+        assertNotNull(locationRowOffer(vm.state.value.locationStatus).detail)
+    }
+
+    @Test
+    fun `typing does not erase a blocked location state`() = runTest(dispatcher) {
+        val vm = editorWithLocation(outcome = LocationOutcome.Failure(LocationFailure.PROVIDERS_DISABLED))
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        vm.onContentChange("still blocked, and the row must still say so")
+
+        // The reason lives in the location state, not in the shared error slot,
+        // so a keystroke cannot silently wipe the explanation.
+        assertEquals(LocationStatus.SERVICE_DISABLED, vm.state.value.locationStatus)
+    }
+
+    @Test
+    fun `a successful fix attaches the place and returns to idle`() = runTest(dispatcher) {
+        val vm = editorWithLocation(
+            outcome = LocationOutcome.Success(
+                place = DiaryAttachment.Place(latitude = 51.5, longitude = -0.12, placeName = "", accuracyMeters = 12f),
+                placeName = "Somewhere"
+            )
+        )
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        assertEquals("Somewhere", vm.state.value.place?.placeName)
+        assertEquals(LocationStatus.IDLE, vm.state.value.locationStatus)
+    }
+
+    @Test
+    fun `clearing a place returns the row to the idle add action`() = runTest(dispatcher) {
+        val vm = editorWithLocation(
+            outcome = LocationOutcome.Success(
+                place = DiaryAttachment.Place(latitude = 51.5, longitude = -0.12, placeName = "Somewhere"),
+                placeName = "Somewhere"
+            )
+        )
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        vm.clearLocation()
+
+        assertNull(vm.state.value.place)
+        assertEquals(LocationStatus.IDLE, vm.state.value.locationStatus)
+        assertEquals(LocationRowAction.REQUEST, locationRowOffer(vm.state.value.locationStatus).action)
+    }
+
+    @Test
+    fun `attaching a place does not disturb a long draft`() = runTest(dispatcher) {
+        val vm = editorWithLocation(
+            outcome = LocationOutcome.Success(
+                place = DiaryAttachment.Place(latitude = 51.5, longitude = -0.12, placeName = "Somewhere"),
+                placeName = "Somewhere"
+            )
+        )
+        val long = "a".repeat(1000)
+        vm.onContentChange(long)
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        // A location round trip is async; it must not truncate or reorder text.
+        assertEquals(long, vm.state.value.content)
+        assertEquals(1000, vm.state.value.content.length)
+    }
+
+    @Test
+    fun `a memory with a place still saves`() = runTest(dispatcher) {
+        val vm = editorWithLocation(
+            outcome = LocationOutcome.Success(
+                place = DiaryAttachment.Place(latitude = 51.5, longitude = -0.12, placeName = "Somewhere"),
+                placeName = "Somewhere"
+            )
+        )
+        vm.onContentChange("a memory worth placing")
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        vm.save()
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.canSave)
+        assertNull(vm.state.value.errorMessage)
     }
 }
 
@@ -619,6 +858,9 @@ private class FakeDiaryDao : DiaryDao {
 
     override fun observeForDay(epochDay: Long): Flow<List<DiaryEntity>> =
         state.map { all -> all.filter { it.dateEpochDay == epochDay } }
+
+    override fun observeById(id: String): Flow<DiaryEntity?> =
+        state.map { all -> all.firstOrNull { it.id == id } }
 
     override suspend fun getById(id: String): DiaryEntity? = state.value.firstOrNull { it.id == id }
 
@@ -673,9 +915,10 @@ private class FakePlayback : AudioPlayback {
 }
 
 private class FakeLocationProvider(
-    private val outcome: LocationOutcome = LocationOutcome.Failure(LocationFailure.NO_FIX)
+    private val outcome: LocationOutcome = LocationOutcome.Failure(LocationFailure.NO_FIX),
+    private val granted: Boolean = true
 ) : LocationProvider {
-    override fun hasLocationPermission(): Boolean = true
+    override fun hasLocationPermission(): Boolean = granted
     override suspend fun currentPlace(): LocationOutcome = outcome
 }
 

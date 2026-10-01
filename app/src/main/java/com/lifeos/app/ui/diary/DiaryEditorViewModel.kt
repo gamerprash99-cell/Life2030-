@@ -17,7 +17,6 @@ import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.data.repository.WeatherRepository
 import com.lifeos.app.domain.model.DiaryAttachment
 import com.lifeos.app.domain.model.DiaryAttachments
-import com.lifeos.app.domain.model.DiaryTextStats
 import com.lifeos.app.domain.model.DiaryWeather
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,15 +60,50 @@ data class DiaryEditorState(
     val saveCount: Int = 0,
     val errorMessage: String? = null
 ) {
-    val wordCount: Int get() = DiaryTextStats.wordCount(content)
-    val characterCount: Int get() = DiaryTextStats.characterCount(content)
     val canSave: Boolean get() =
         content.isNotBlank() && !isSaving && !isLoading && recording !is RecordingState.Recording
-    val hasAttachments: Boolean get() = photos.isNotEmpty() || voiceNote != null || place != null
 }
 
-/** Where the "Add location" flow currently is. */
-enum class LocationStatus { IDLE, REQUESTING, PERMISSION_DENIED, PERMISSION_PERMANENTLY_DENIED, FAILED }
+/**
+ * Where the "Add location" flow currently is.
+ *
+ * The three added values are the *whole point* of this type. Before, every
+ * reason a fix can fail that was not a permission problem collapsed into
+ * [FAILED], and the row had no way to tell them apart — so "location is
+ * switched off in the OS" rendered as an ordinary tappable "Add current
+ * location", an action that cannot succeed until the user leaves the app. Each
+ * distinct cause is now a distinct state, and [FAILED] is only ever the
+ * genuinely unexpected case.
+ *
+ * Note what is deliberately *not* here: there is no `ATTACHED`. A place is
+ * attached when `place != null`, and adding a second way to say that would give
+ * the state two sources of truth and risk the attached rendering.
+ */
+enum class LocationStatus {
+    /** Nothing attempted yet, or cleared. The normal action is available. */
+    IDLE,
+
+    /** A fix is in flight. */
+    REQUESTING,
+
+    /** Runtime permission refused, but the OS will still show the prompt. */
+    PERMISSION_DENIED,
+
+    /** Refused permanently; the OS prompt is now a silent no-op. */
+    PERMISSION_PERMANENTLY_DENIED,
+
+    /** Permission is fine, but location is switched off for the whole device. */
+    SERVICE_DISABLED,
+
+    /** The device exposes no location service at all. */
+    NO_PROVIDER,
+
+    /** Permission fine, service on, but no fix yet. Transient; worth retrying. */
+    NO_FIX,
+
+    /** Unexpected. The only state treated as an error rather than a state. */
+    FAILED
+}
 
 /**
  * Drives the full-screen diary composer.
@@ -235,13 +269,21 @@ class DiaryEditorViewModel(
                     refreshWeather()
                 }
                 is LocationOutcome.Failure -> {
-                    val status = when (outcome.reason) {
-                        LocationFailure.PERMISSION_DENIED -> LocationStatus.PERMISSION_DENIED
-                        else -> LocationStatus.FAILED
-                    }
+                    // One state per cause. Collapsing these into FAILED is what
+                    // made "Add current location" appear while location was
+                    // switched off: the row could not tell the reasons apart,
+                    // so it fell through to its ordinary action.
+                    //
+                    // The reason is NOT copied into `errorMessage` any more.
+                    // That field is shared with photo, voice, save and load
+                    // errors and is rendered once at the foot of the whole
+                    // attachments column — so a location problem was explained
+                    // hundreds of dp below the control that caused it, in red,
+                    // and vanished on the next keystroke. The reason now lives
+                    // in `locationStatus` and is explained by the row that owns
+                    // it, where it cannot be confused with an unrelated error.
                     _state.value = _state.value.copy(
-                        locationStatus = status,
-                        errorMessage = locationErrorFor(outcome.reason)
+                        locationStatus = locationStatusFor(outcome.reason)
                     )
                 }
             }
@@ -261,11 +303,15 @@ class DiaryEditorViewModel(
         _state.value = _state.value.copy(weather = weather)
     }
 
-    private fun locationErrorFor(reason: LocationFailure): String = when (reason) {
-        LocationFailure.PERMISSION_DENIED -> "Location permission is needed to attach a place."
-        LocationFailure.NO_PROVIDER -> "This device has no location service available."
-        LocationFailure.PROVIDERS_DISABLED -> "Location is turned off. Enable it in system settings to attach a place."
-        LocationFailure.NO_FIX -> "No location fix was available yet. Try again in a moment."
+    private fun locationStatusFor(reason: LocationFailure): LocationStatus = when (reason) {
+        LocationFailure.PERMISSION_DENIED -> LocationStatus.PERMISSION_DENIED
+        LocationFailure.PROVIDERS_DISABLED -> LocationStatus.SERVICE_DISABLED
+        LocationFailure.NO_PROVIDER -> LocationStatus.NO_PROVIDER
+        // A missing fix is not a distinct kind of problem — it is the normal
+        // answer from a device that has just been woken up indoors — so it
+        // shares the generic "could not attach" presentation while keeping its
+        // own state for the retry affordance.
+        LocationFailure.NO_FIX -> LocationStatus.NO_FIX
     }
 
     // ---- audio ----------------------------------------------------------
