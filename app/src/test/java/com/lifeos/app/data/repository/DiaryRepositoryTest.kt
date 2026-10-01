@@ -254,6 +254,9 @@ class DiaryRepositoryTest {
         override fun observeForDay(epochDay: Long): Flow<List<DiaryEntity>> =
             state.map { all -> all.filter { it.dateEpochDay == epochDay } }
 
+        override fun observeById(id: String): Flow<DiaryEntity?> =
+            state.map { all -> all.firstOrNull { it.id == id } }
+
         override suspend fun getById(id: String): DiaryEntity? {
             record()
             return state.value.firstOrNull { it.id == id }
