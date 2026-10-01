@@ -167,12 +167,3 @@ private fun dayEyebrow(day: LocalDate): String {
     }
 }
 
-@Composable
-fun CreateMemoryAction(onClick: () -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
-    Text(
-        text = if (compact) "Memory" else "+ Memory",
-        style = MaterialTheme.typography.labelLarge,
-        color = DiaryActionViolet,
-        modifier = modifier.clip(MaterialTheme.shapes.small).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp)
-    )
-}

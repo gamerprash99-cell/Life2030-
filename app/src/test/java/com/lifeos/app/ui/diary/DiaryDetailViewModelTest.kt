@@ -205,6 +205,9 @@ class DiaryDetailViewModelTest {
          * `CancellationException` — which is precisely what lets this test
          * observe the cancellation race instead of merely asserting on it.
          */
+        override fun observeById(id: String): Flow<DiaryEntity?> =
+            state.map { all -> all.firstOrNull { it.id == id } }
+
         override suspend fun getById(id: String): DiaryEntity? {
             val answer = state.value.firstOrNull { it.id == id }
             gate?.await()

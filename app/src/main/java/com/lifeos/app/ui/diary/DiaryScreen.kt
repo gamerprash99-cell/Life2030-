@@ -113,7 +113,8 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
                     isRecording = editorState.recording is RecordingState.Recording,
                     onAddPhoto = editorTriggers.addPhoto,
                     onToggleVoiceNote = editorTriggers.toggleVoiceNote,
-                    onAddLocation = editorTriggers.addLocation
+                    onAddLocation = editorTriggers.addLocation,
+                    locationStatus = editorState.locationStatus
                 )
             }
         )

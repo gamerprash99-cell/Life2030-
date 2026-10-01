@@ -35,6 +35,7 @@ class DiaryRepository(
 
     fun observeAll(): Flow<List<DiaryEntity>> = dao.observeAll()
     fun observeForDay(epochDay: Long): Flow<List<DiaryEntity>> = dao.observeForDay(epochDay)
+    fun observeById(id: String): Flow<DiaryEntity?> = dao.observeById(id)
 
     suspend fun getById(id: String): DiaryEntity? = dao.getById(id)
 

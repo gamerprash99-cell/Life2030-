@@ -24,6 +24,9 @@ interface DiaryDao {
     @Query("SELECT * FROM diary_entries WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): DiaryEntity?
 
+    @Query("SELECT * FROM diary_entries WHERE id = :id LIMIT 1")
+    fun observeById(id: String): Flow<DiaryEntity?>
+
     @Query("SELECT * FROM diary_entries")
     suspend fun getAllForBackup(): List<DiaryEntity>
 }

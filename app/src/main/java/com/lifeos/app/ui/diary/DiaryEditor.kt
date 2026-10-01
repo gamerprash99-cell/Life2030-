@@ -3,24 +3,35 @@ package com.lifeos.app.ui.diary
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imeNestedScroll
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -28,6 +39,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,25 +58,77 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
+import com.lifeos.app.ui.navigation.ComposerWindowOwner
 import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
+import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.DiarySaveDisabled
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import java.time.LocalDate
 import java.time.LocalTime
 
 private const val MAX_MEMORY_CHARACTERS = 1000
+
+/**
+ * Leading for the composer's text: 1.75x the 16sp body size.
+ *
+ * Only the leading moved. Long entries were reading as a dense block at Phase 1's
+ * 1.69x, and Compose 1.7 offers no true paragraph gap (`ParagraphStyle` carries a
+ * line height, not space between paragraphs), so leading is the one lever that
+ * reaches the density problem without enlarging the type.
+ */
+private val DIARY_EDITOR_LINE_HEIGHT = 28.sp
+
+/**
+ * The writing surface's minimum height, as a function of the viewport's *resting*
+ * height (the height it has with the keyboard closed).
+ *
+ * This is deliberately a pure function of a value that does not change while the
+ * IME animates, so the surface cannot resize as the keyboard opens or closes.
+ * [minimum] is the floor for a cramped window; above that the surface claims
+ * [fill] of the page, and a long memory simply grows past it and scrolls.
+ */
+internal fun writingSurfaceMinHeight(
+    restingViewport: Dp,
+    minimum: Dp = LifeOSSpacing.diaryEditorTextMinHeight,
+    fill: Float = LifeOSSpacing.diaryEditorWritingFill
+): Dp = maxOf(minimum, restingViewport * fill)
+
+/**
+ * Folds a newly measured viewport height into the remembered resting height.
+ *
+ * [latchRestingViewport] only ever grows, so once the viewport has been seen at
+ * its keyboard-closed height the value stops changing: the keyboard's per-frame
+ * animation can then neither re-compose the editor nor re-measure the writing
+ * surface. That is what removed the visible jump, and it is why this is `max`
+ * rather than a plain assignment.
+ */
+internal fun latchRestingViewport(previous: Dp, measured: Dp): Dp = maxOf(previous, measured)
+
+/**
+ * The character counter's label. The 1000-character business rule is unchanged;
+ * only the wording is, because "412 of 1000" is read as a quantity where
+ * "412/1000" was read as a fraction of a fraction.
+ */
+internal fun characterCounterLabel(
+    length: Int,
+    limit: Int = MAX_MEMORY_CHARACTERS
+): String = "$length of $limit"
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -91,41 +156,107 @@ fun DiaryEditor(
     // than on an inner field) is what makes the caret come back into view and
     // the position survive the keyboard opening and closing.
     val contentScroll = rememberScrollState()
+    // The composer is a focused flow: it owns the whole window while it is
+    // composed, so LifeOSNavHost keeps the bottom navigation off and hands this
+    // composable no bottom padding at all.
+    ComposerWindowOwner()
 
     LaunchedEffect(editing?.id) {
         focusRequester.requestFocus()
         keyboardController?.show()
     }
-    BackHandler(onBack = onDismiss)
+
+    // Back is two-stage while the editor is up, and only because the draft is at
+    // risk: the first press closes the keyboard and leaves the editor exactly
+    // where it is, so a long entry cannot be thrown away by a stray Back while
+    // the user is still typing. Only once the keyboard is already hidden does
+    // Back dismiss, which is the behaviour the composer had before the keyboard
+    // was involved at all — the nav stack is untouched either way, because
+    // dismissal is still the same `onDismiss` the two call sites already pass.
+    //
+    // Both handlers are registered and mutually exclusive rather than relying on
+    // the IME's own Back handling: this app has `enableOnBackInvokedCallback`,
+    // so which layer consumes the press is a platform detail. Deciding here makes
+    // the behaviour the same on every API level.
+    val imeVisible = WindowInsets.isImeVisible
+    BackHandler(enabled = imeVisible) {
+        // Falling back to dismissal if the controller is ever null matters: the
+        // alternative is a Back press that consumes itself and does nothing, and
+        // a Back press that does nothing is indistinguishable from a hung app.
+        val controller = keyboardController
+        if (controller != null) controller.hide() else onDismiss()
+    }
+    BackHandler(enabled = !imeVisible, onBack = onDismiss)
+
+    // Because the Scaffold no longer contributes anything at the bottom, the
+    // composer has to inset itself — and it has to pick the right inset in BOTH
+    // keyboard states. `WindowInsets.ime` is zero while the keyboard is closed
+    // (it is `AndroidWindowInsets(Type.ime())`, not a system-bar union), so a
+    // plain `imePadding()` would leave the writing surface under the navigation
+    // bar once the keyboard closed. Taking the union on the bottom edge keeps the
+    // larger of the two, which is correct for gesture navigation (the keyboard
+    // covers the gesture strip) and for 3-button navigation (the keyboard sits
+    // above the bar), and it is never counted twice because the top edge is left
+    // to the Scaffold.
+    val bottomWindowInsets =
+        WindowInsets.systemBars.only(WindowInsetsSides.Bottom).union(WindowInsets.ime)
+
+    // The viewport's *resting* height: what it measures with the keyboard closed.
+    //
+    // It is latched with `max` (see [latchRestingViewport]) rather than simply
+    // overwritten, so the value stops changing the moment the viewport has been
+    // seen at full height. That is the whole trick behind the smooth keyboard
+    // transition: the writing surface below is sized from a number that the IME's
+    // per-frame animation cannot move, so the surface neither re-composes nor
+    // re-measures while the keyboard slides, and the only thing that changes is
+    // the scroll viewport shrinking — which is the change the user actually made.
+    //
+    // The surface is therefore allowed to be taller than the visible viewport, and
+    // scrolling happens inside it; that is what a writing surface is for. The
+    // remember keys drop the latch on rotation and on a font-scale change, since
+    // both change what "resting" should mean.
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    var restingViewport by remember(configuration.screenHeightDp, configuration.fontScale) {
+        mutableStateOf(0.dp)
+    }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        // ONE writing surface, top to bottom: header, thin date/time strip, then
-        // the white card that takes every remaining pixel.
+        // ONE writing surface, top to bottom: a compact header, the thin
+        // date/time strip, then the white card that takes every remaining pixel.
         //
-        // The IME inset is consumed here, once, at the root — and the navigation
-        // bar is not part of this budget (see LifeOSNavHost), so this padding is
-        // the only thing between the card and the keyboard. Nothing here is a
-        // hardcoded height: the card's size is whatever the header, the strip and
-        // the keyboard leave, so it shrinks with the IME and grows back when the
-        // keyboard closes.
+        // Nothing here is a hardcoded height. The card does shrink with the
+        // keyboard, which is unavoidable — that is the space the keyboard took —
+        // but the writing surface inside it is sized from the latched resting
+        // height, so the text and the surface the user is typing into do not
+        // change size at all while the keyboard moves.
         Column(
             Modifier
                 .fillMaxSize()
-                .imePadding()
+                .windowInsetsPadding(bottomWindowInsets)
         ) {
+            // One 48dp row: back and Save both keep the app's minimum touch
+            // target, and the title is one non-wrapping line between them, so it
+            // can never grow a second row and squeeze the card at a large font
+            // scale — and it can never push Save off the edge.
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.diaryHeaderVertical),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                IconButton(onClick = onDismiss, modifier = Modifier.size(LifeOSSpacing.minTouchTarget)) {
                     Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = DiaryInkViolet)
                 }
                 Text(
                     if (isEditing) "Edit Memory" else "New Memory",
-                    style = MaterialTheme.typography.headlineMedium.copy(fontFamily = FontFamily.Serif),
+                    // titleLarge, not headlineMedium: the writing surface is the
+                    // subject of this screen, the title is not.
+                    style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Serif),
                     fontWeight = FontWeight.Bold,
                     color = DiaryInkViolet,
-                    modifier = Modifier.weight(1f)
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(start = 4.dp)
                 )
                 SaveChangesAction(enabled = canSave, onClick = onSave)
             }
@@ -144,12 +275,12 @@ fun DiaryEditor(
                     .padding(horizontal = LifeOSSpacing.screenPadding),
                 cornerRadius = 22
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Your memory", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = DiaryInkViolet)
-                    Spacer(Modifier.weight(1f))
-                    Text(content.length.toString() + "/" + MAX_MEMORY_CHARACTERS, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant )
-                }
-                Spacer(Modifier.height(10.dp))
+                // The card's own section label. The counter used to sit beside it,
+                // which put a 12sp `onSurfaceVariant` figure ~200dp above the text it
+                // describes; it now lives directly under the writing surface, where
+                // it is read.
+                DiarySectionLabel("Your memory")
+                Spacer(Modifier.height(LifeOSSpacing.diaryEditorSection))
                 // The card's single scroll viewport. The text and the media that
                 // belongs to it are one content flow, so a photo, a voice note or
                 // a place is part of the memory and can never end up outside it.
@@ -157,7 +288,22 @@ fun DiaryEditor(
                 // while the IME animates, and BasicTextField brings its own caret
                 // into view inside it, so the active line is never behind the
                 // keyboard.
-                Box(Modifier.fillMaxWidth().weight(1f)) {
+                //
+                // `onSizeChanged` is used to latch the resting height rather than
+                // measuring on every frame, so the keyboard transition re-lays out
+                // this viewport and nothing else. See [restingViewport] above.
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .onSizeChanged {
+                            restingViewport = latchRestingViewport(
+                                restingViewport,
+                                with(density) { it.height.toDp() }
+                            )
+                        }
+                ) {
+                    val writingMinHeight = writingSurfaceMinHeight(restingViewport)
                     Column(
                         Modifier
                             .fillMaxWidth()
@@ -165,29 +311,86 @@ fun DiaryEditor(
                             .verticalScroll(contentScroll),
                         verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.diaryEditorSection)
                     ) {
-                        // The field sizes to its own text, so a short entry stays
-                        // short and a long one grows to its full height and then
-                        // scrolls on the card's viewport.
-                        BasicTextField(
-                            value = content,
-                            onValueChange = { value -> onContentChange(value.take(MAX_MEMORY_CHARACTERS)) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = LifeOSSpacing.diaryEditorTextMinHeight)
-                                .focusRequester(focusRequester),
-                            textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp),
-                            cursorBrush = SolidColor(DiaryActionViolet),
-                            decorationBox = { inner ->
-                                Box {
-                                    if (content.isEmpty()) Text("Write whatever is on your mind…", style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 27.sp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
-                                    inner()
-                                }
+                        // The writing surface: a rounded, tinted page inside the
+                        // card, so the place you write on is bounded and clearly
+                        // separate from the memory's metadata underneath.
+                        WritingSurface(Modifier.heightIn(min = writingMinHeight)) {
+                            // The field sizes to its own text, so a short entry
+                            // stays short and a long one grows to its full height
+                            // and then scrolls on the card's viewport.
+                            //
+                            // The selection handle and highlight are themed here
+                            // rather than left to the defaults, which are drawn in
+                            // `colorScheme.primary` — a pale lavender that all but
+                            // vanished against this surface's own lavender wash.
+                            // This is the standard CompositionLocal and nothing
+                            // more: selection, the long-press toolbar and every
+                            // accessibility affordance of BasicTextField are
+                            // untouched.
+                            val selectionColors = TextSelectionColors(
+                                handleColor = DiaryActionViolet,
+                                backgroundColor = DiaryLavender.copy(alpha = 0.35f)
+                            )
+                            CompositionLocalProvider(LocalTextSelectionColors provides selectionColors) {
+                                BasicTextField(
+                                    value = content,
+                                    onValueChange = { value -> onContentChange(value.take(MAX_MEMORY_CHARACTERS)) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .focusRequester(focusRequester),
+                                    // 16sp with 1.75x leading. The size is untouched
+                                    // from Phase 1 — the extra leading is what stops
+                                    // a 1000-character memory from reading as a
+                                    // dense block, and it is the only paragraph
+                                    // separation Compose can express here: 1.7's
+                                    // `ParagraphStyle` carries a line height, not a
+                                    // space between paragraphs.
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = DIARY_EDITOR_LINE_HEIGHT),
+                                    cursorBrush = SolidColor(DiaryActionViolet),
+                                    decorationBox = { inner ->
+                                        Box {
+                                            if (content.isEmpty()) Text("Write whatever is on your mind…", style = MaterialTheme.typography.bodyLarge.copy(lineHeight = DIARY_EDITOR_LINE_HEIGHT), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
+                                            inner()
+                                        }
+                                    }
+                                )
                             }
-                        )
+                        }
+                        // The counter sits immediately under the text it counts, and
+                        // before the metadata, so the card reads in the order it is
+                        // actually used: writing, then how much of it there is, then
+                        // what is attached to it.
+                        CharacterCounter(length = content.length)
+                        // A hairline between the writing and everything that
+                        // describes it. Without this the metadata simply
+                        // continued off the bottom of the writing surface, so
+                        // on a long entry the first tag or photo read as part of
+                        // the text. `attachments()` is still one slot with one
+                        // caller-facing signature, so both host screens are
+                        // unchanged, and the 20dp the column's own `spacedBy`
+                        // applies supplies every gap below the line.
+                        //
+                        // There is deliberately no umbrella label here. The slot
+                        // used to sit under a single "Details" heading, but
+                        // every one of its children already names itself, so
+                        // that produced a nested sandwich (Details > Tags /
+                        // Attachments > Photos / Voice note / Location). The slot
+                        // now presents those two labelled groups of its own, so
+                        // the separation this divider draws is stated more
+                        // precisely than one umbrella label could.
+                        HorizontalDivider(color = DiaryHairline)
                         attachments()
                     }
                 }
-                Spacer(Modifier.height(8.dp))
+                // The card footer: the actions are already structurally pinned
+                // (the scrolling viewport above carries `weight(1f)`, so nothing
+                // in it can displace them), and this hairline plus the wider
+                // spacer give that fixed position a visible edge. Without it the
+                // 8dp gap read as one more gap in the scrolling column and the
+                // controls looked like they belonged to the writing surface, at
+                // an arbitrary distance below the last line of a short entry.
+                HorizontalDivider(color = DiaryHairline)
+                Spacer(Modifier.height(16.dp))
                 // Pinned at the foot of the card: the actions stay reachable for
                 // a long entry, and can never cover the text, the caret or the
                 // character counter.
@@ -219,74 +422,162 @@ fun DiaryEditor(
 }
 
 /**
+ * The character counter, directly under the writing surface.
+ *
+ * It was the weakest element in the card — `labelMedium` in `onSurfaceVariant`,
+ * parked in the top-right corner a couple of hundred dp above the text whose
+ * length it reports. It is now `labelLarge` in the Diary ink, so it is actually
+ * legible, and it sits against the right edge of the text it counts. It is still
+ * smaller than the `bodyLarge` it describes, so the text stays the subject.
+ *
+ * The 1000-character rule is untouched: the `take` in the field's `onValueChange`
+ * and the identical guard in `DiaryEditorViewModel` are the only places a limit is
+ * enforced, and both are unchanged. This composable only reports.
+ */
+@Composable
+private fun CharacterCounter(length: Int, limit: Int = MAX_MEMORY_CHARACTERS) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Text(
+            text = characterCounterLabel(length, limit),
+            style = MaterialTheme.typography.labelLarge,
+            color = DiaryInkViolet,
+            maxLines = 1,
+            softWrap = false
+        )
+    }
+}
+
+/**
+ * The writing surface itself: a rounded, faintly tinted page inside the white
+ * memory card.
+ *
+ * The card is near-white on a near-white background, so before this the text sat
+ * directly on the card with nothing around it and the writing area had no
+ * boundary at all. A hairline edge plus a pale lavender wash — both existing
+ * Diary tokens, and the same rounded-surface language the voice/location rows
+ * already use — separates it from the card's own label row above and from the
+ * memory's metadata below. Its edge is flush with those rows' own panels and its
+ * inner padding is the shared `compactPadding`, so everything in the card lines
+ * up on one left edge.
+ */
+@Composable
+private fun WritingSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
+    Box(
+        modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(DiaryLavender.copy(alpha = 0.22f))
+            .border(1.dp, DiaryHairline, shape)
+            .padding(LifeOSSpacing.compactPadding)
+    ) {
+        content()
+    }
+}
+
+/**
  * The date and the time as a single compact strip: date on the left, time on the
  * right, roughly a third of the height of the stacked two-column card it replaces.
  *
- * Both halves stay independently tappable and open exactly the pickers they
- * always did — only the presentation changed. The values keep their existing
- * typography and violet accents, and the date ellipsises rather than wrapping so
- * a long day string can never push the time off the strip at a large font scale.
+ * The date is the primary item (semibold, in the Diary ink); the time is the
+ * secondary one (regular, in the muted colour). Both are stepped down to
+ * `labelLarge`, because `d MMMM yyyy` and `h:mm a` together no longer fit a small
+ * phone at `bodyLarge` — the date was being ellipsised mid-word, which is the
+ * opposite of readable. The strip has no vertical padding of its own: its height
+ * is exactly the minimum touch height of a half, so it stays as short as before
+ * while each half becomes a real target instead of a ~26dp one. Both halves still
+ * open exactly the picker they always did.
  */
 @Composable
 private fun DateTimeStrip(dateEpochDay: Long, timeMinutes: Int?, onDateClick: () -> Unit, onTimeClick: () -> Unit) {
     Surface(
         modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = DiaryActionViolet.copy(alpha = 0.04f),
         border = BorderStroke(1.dp, DiaryHairline)
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 Modifier
                     .weight(1f)
+                    .defaultMinSize(minHeight = LifeOSSpacing.diaryDateStripMinTouch)
                     .clip(CircleShape)
-                    .clickable(onClick = onDateClick)
-                    .padding(vertical = 4.dp),
+                    .clickable(role = Role.Button, onClick = onDateClick)
+                    .padding(horizontal = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.size(8.dp))
+                Spacer(Modifier.size(6.dp))
                 Text(
                     DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(dateEpochDay)),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = DiaryInkViolet,
-                    maxLines = 1,
+                    // Two lines, not one. The full `d MMMM yyyy` is worth
+                    // showing in full, and at a large font scale it stopped
+                    // fitting the strip's weighted width and was cut mid-word
+                    // ("26 Septem…"). It is a sentence of two words plus a
+                    // year, so it wraps cleanly at the spaces instead and
+                    // stays complete and tappable; the strip is above the
+                    // weighted card, so the extra line only ever costs the
+                    // writing surface the height it needs. `Ellipsis` stays
+                    // as the clamp for scales too large even two lines to
+                    // hold. Nothing about the formatter changed.
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Spacer(Modifier.size(10.dp))
+            Spacer(Modifier.size(8.dp))
             Row(
                 Modifier
+                    .defaultMinSize(minHeight = LifeOSSpacing.diaryDateStripMinTouch)
                     .clip(CircleShape)
-                    .clickable(onClick = onTimeClick)
-                    .padding(vertical = 4.dp),
+                    .clickable(role = Role.Button, onClick = onTimeClick)
+                    .padding(horizontal = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(Icons.Filled.Schedule, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.size(8.dp))
+                Spacer(Modifier.size(6.dp))
                 Text(
                     DateTimeUtils.formatMinutes(timeMinutes ?: 0),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = DiaryInkViolet,
-                    maxLines = 1
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }
     }
 }
 
+/**
+ * Save, as a tonal pill rather than a filled block: it is the composer's primary
+ * action but it is still secondary to the writing surface, and a saturated
+ * rectangle in the same band as the top of the editor competed with the text.
+ * `defaultMinSize` keeps it on the app's 48dp minimum touch target, so the row it
+ * shares with the back button and the title is exactly one target tall.
+ */
 @Composable
 private fun SaveChangesAction(enabled: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.clip(CircleShape).background(if (enabled) DiaryActionViolet else DiarySaveDisabled).clickable(enabled = enabled, onClick = onClick).padding(horizontal = 15.dp, vertical = 11.dp),
+        Modifier
+            .defaultMinSize(minHeight = LifeOSSpacing.minTouchTarget)
+            .clip(CircleShape)
+            .background(if (enabled) DiaryLavender.copy(alpha = 0.72f) else DiarySaveDisabled)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text("Save changes", style = MaterialTheme.typography.labelLarge, color = if (enabled) Color.White else DiaryInkViolet.copy(alpha = 0.42f))
+        Text(
+            "Save changes",
+            style = MaterialTheme.typography.labelLarge,
+            color = if (enabled) DiaryInkViolet else DiaryInkViolet.copy(alpha = 0.42f),
+            maxLines = 1,
+            softWrap = false
+        )
     }
 }
 
@@ -334,13 +625,6 @@ private fun SimpleDiaryTimePicker(initial: LocalTime, onDismiss: () -> Unit, onC
         confirmButton = { TextButton(onClick = { onConfirm(LocalTime.of(hour, minute)) }) { Text("Use time", color = DiaryActionViolet) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
-}
-
-@Composable
-fun SaveMemoryAction(enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Box(Modifier.fillMaxWidth().clip(CircleShape).background(if (enabled) DiaryActionViolet else DiarySaveDisabled).clickable(enabled = enabled, onClick = onClick).padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
-        Text(if (enabled) "Save memory →" else "Save memory", style = MaterialTheme.typography.labelLarge, color = if (enabled) Color.White else DiaryInkViolet.copy(alpha = 0.4f))
-    }
 }
 
 @Composable
