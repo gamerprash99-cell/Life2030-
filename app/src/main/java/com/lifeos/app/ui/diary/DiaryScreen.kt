@@ -131,35 +131,37 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     DiaryEmptyState(
                         dayLabel = DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(selectedDay)),
+                        // The FAB is drawn over this box, so the empty state has
+                        // to reserve the band it occupies. It used to fill the box
+                        // and centre itself, which put "YOUR STORY STARTS HERE"
+                        // and the line under it straight into the button's band
+                        // on any phone whose box was not much taller than the
+                        // artwork.
                         modifier = Modifier.fillMaxSize()
                     )
-                    FloatingActionButton(
+                    DiaryFab(
                         onClick = viewModel::startNewEntry,
-                        containerColor = DiaryActionViolet,
-                        contentColor = Color.White,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(
                                 end = LifeOSSpacing.screenPadding,
-                                bottom = LifeOSSpacing.fabContentClearance
+                                bottom = LifeOSSpacing.diaryFabBottomOffset
                             )
-                    ) {
-                        Icon(
-                            Icons.Filled.Add,
-                            contentDescription = "Write a new memory",
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
+                    )
                 }
             } else {
                 Box(Modifier.weight(1f)) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
+                        // The FAB's whole band, not just its bottom offset: with
+                        // only the offset the last item could be scrolled up to
+                        // the button's bottom edge and no further, so the closing
+                        // lines of a long memory stayed underneath it.
                         contentPadding = PaddingValues(
                             start = LifeOSSpacing.screenPadding,
                             end = LifeOSSpacing.screenPadding,
                             top = 8.dp,
-                            bottom = LifeOSSpacing.fabContentClearance
+                            bottom = LifeOSSpacing.diaryFabOccupiedBottom
                         )
                     ) {
                         itemsIndexed(memories, key = { _, entry -> entry.id }) { index, entry ->
@@ -174,19 +176,15 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
                             )
                         }
                     }
-                    FloatingActionButton(
+                    DiaryFab(
                         onClick = viewModel::startNewEntry,
-                        containerColor = DiaryActionViolet,
-                        contentColor = Color.White,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(
                                 end = LifeOSSpacing.screenPadding,
-                                bottom = LifeOSSpacing.fabContentClearance
+                                bottom = LifeOSSpacing.diaryFabBottomOffset
                             )
-                    ) {
-                        Icon(Icons.Filled.Add, contentDescription = "Write a new memory", modifier = Modifier.size(28.dp))
-                    }
+                    )
                 }
             }
         }
@@ -210,6 +208,37 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
             timeMinutes = entry.timeMinutes,
             onConfirm = { viewModel.deleteEntry(entry.id) },
             onDismiss = viewModel::dismissDelete
+        )
+    }
+}
+
+/**
+ * The Diary list's floating action button, in one place.
+ *
+ * It used to be written out twice — once for the empty day, once for a day with
+ * memories — with the same modifier chain copied in both. That is why the two
+ * copies could disagree about how much room they took away from the content:
+ * the button's *offset* was also being used as the scrollable's trailing
+ * clearance, so the button's own height was never added and the last line of a
+ * long memory stayed underneath it.
+ *
+ * The size is pinned to [LifeOSSpacing.diaryFabSize] and the offset to
+ * [LifeOSSpacing.diaryFabBottomOffset] so that the band content reserves
+ * ([LifeOSSpacing.diaryFabOccupiedBottom]) is derived from the button's real
+ * geometry rather than restated next to it.
+ */
+@Composable
+private fun DiaryFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    FloatingActionButton(
+        onClick = onClick,
+        containerColor = DiaryActionViolet,
+        contentColor = Color.White,
+        modifier = modifier.size(LifeOSSpacing.diaryFabSize)
+    ) {
+        Icon(
+            Icons.Filled.Add,
+            contentDescription = "Write a new memory",
+            modifier = Modifier.size(28.dp)
         )
     }
 }

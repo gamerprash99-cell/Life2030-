@@ -4,13 +4,18 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,10 +31,26 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.LifeOSSpacing
+
+/**
+ * The widest the empty state's artwork may be.
+ *
+ * It is a share of the height the FAB does *not* cover, capped at the design's
+ * own size and floored so a short window shrinks the artwork rather than
+ * reducing it to a dot. Expressed as arithmetic rather than as a measured
+ * layout so the rule is decidable on the JVM — see [DiaryLayoutClearanceTest].
+ */
+internal fun emptyStateArtworkMax(
+    availableHeight: Dp,
+    maximum: Dp = LifeOSSpacing.diaryEmptyArtworkMaxSize,
+    fill: Float = LifeOSSpacing.diaryEmptyArtworkFill,
+    minimum: Dp = LifeOSSpacing.diaryEmptyArtworkMinSize
+): Dp = minOf(maximum, availableHeight * fill).coerceAtLeast(minimum)
 
 /**
  * Empty Diary page.
@@ -38,61 +59,91 @@ import com.lifeos.app.ui.theme.LifeOSSpacing
  * journal illustration, a clear emotional invitation, and one obvious action.
  * The illustration is drawn locally with Canvas so the released app needs no
  * remote image, network request, or additional asset dependency.
+ *
+ * It is drawn underneath the FAB, so it reserves [LifeOSSpacing.diaryFabOccupiedBottom]
+ * — the button's *whole* band, not just its offset. Centring the invitation in
+ * the full-height box without that reservation put "YOUR STORY STARTS HERE" and
+ * the line under it inside the button on any phone whose box was not much taller
+ * than the artwork.
+ *
+ * Both halves of that reservation are structural rather than fixed. The artwork
+ * is sized from the width *and* the height actually left over after the band,
+ * between a floor and the design's 300dp, so it shrinks on a small phone instead
+ * of pushing the text out of the box. And the column scrolls, because a large
+ * system font scale still outgrows even that — a reachable last line rather than a
+ * clipped one. `heightIn` sits *inside* `verticalScroll` deliberately:
+ * `verticalScroll` hands its child `minHeight = 0`, so without an explicit floor
+ * the column would size to its content, `Arrangement.Center` would become a
+ * no-op, and the invitation would quietly stop being centred.
  */
 @Composable
 fun DiaryEmptyState(
     dayLabel: String,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .fadeInAsContent()
-            .padding(horizontal = LifeOSSpacing.screenPadding),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // The illustration is visual only. Creating a memory is intentionally
-        // handled by the persistent lower-right FAB, matching the reference
-        // interaction and avoiding an invisible large tap target.
-        Box(
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val band = LifeOSSpacing.diaryFabOccupiedBottom
+        val artworkMax = emptyStateArtworkMax(maxHeight - band)
+
+        Column(
             modifier = Modifier
-                .size(300.dp)
-                .clip(CircleShape),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = maxHeight)
+                .fadeInAsContent()
+                .padding(horizontal = LifeOSSpacing.screenPadding)
+                .padding(bottom = band),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            EmptyDiaryIllustration(
-                modifier = Modifier.fillMaxSize()
+            // The illustration is visual only. Creating a memory is intentionally
+            // handled by the persistent lower-right FAB, matching the reference
+            // interaction and avoiding an invisible large tap target.
+            Box(
+                modifier = Modifier
+                    // The width clamp comes *before* the ratio on purpose: the
+                    // ratio derives the height from whatever width it is given, so
+                    // clamping afterwards would leave the height matching the old,
+                    // larger width.
+                    .widthIn(max = artworkMax)
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                EmptyDiaryIllustration(
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Text(
+                text = "YOUR STORY STARTS HERE",
+                style = MaterialTheme.typography.labelSmall,
+                color = DiaryInkViolet,
+                letterSpacing = 2.2.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            Text(
+                text = "Nothing recorded on $dayLabel.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = "Tap + to capture your day ✨",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+                textAlign = TextAlign.Center
             )
         }
-
-        Spacer(Modifier.height(10.dp))
-
-        Text(
-            text = "YOUR STORY STARTS HERE",
-            style = MaterialTheme.typography.labelSmall,
-            color = DiaryInkViolet,
-            letterSpacing = 2.2.sp,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        Text(
-            text = "Nothing recorded on $dayLabel.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            text = "Tap + to capture your day ✨",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
-            textAlign = TextAlign.Center
-        )
     }
 }
 

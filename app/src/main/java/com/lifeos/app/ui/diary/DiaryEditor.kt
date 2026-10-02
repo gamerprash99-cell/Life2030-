@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -59,9 +60,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
@@ -95,30 +93,25 @@ private const val MAX_MEMORY_CHARACTERS = 1000
 private val DIARY_EDITOR_LINE_HEIGHT = 28.sp
 
 /**
- * The writing surface's minimum height, as a function of the viewport's *resting*
- * height (the height it has with the keyboard closed).
+ * The writing surface's minimum height, as a share of the viewport it is drawn
+ * in — the height the card actually has right now, keyboard up or down.
  *
- * This is deliberately a pure function of a value that does not change while the
- * IME animates, so the surface cannot resize as the keyboard opens or closes.
- * [minimum] is the floor for a cramped window; above that the surface claims
- * [fill] of the page, and a long memory simply grows past it and scrolls.
+ * This has to be the *live* viewport. Deriving it from a remembered,
+ * keyboard-closed height instead makes the surface taller than the box showing
+ * it for as long as the keyboard is up: the card's scroll container then has to
+ * scroll to reveal the surface at all, and because the text is anchored to the
+ * top of that surface it goes off the top of the screen. The editor reads as
+ * empty while the character counter below it still reports the real length.
+ *
+ * [minimum] is the floor for a cramped window, and a short entry. Above that the
+ * surface claims [fill] of the page and a long memory simply grows past it and
+ * scrolls.
  */
 internal fun writingSurfaceMinHeight(
-    restingViewport: Dp,
+    viewport: Dp,
     minimum: Dp = LifeOSSpacing.diaryEditorTextMinHeight,
     fill: Float = LifeOSSpacing.diaryEditorWritingFill
-): Dp = maxOf(minimum, restingViewport * fill)
-
-/**
- * Folds a newly measured viewport height into the remembered resting height.
- *
- * [latchRestingViewport] only ever grows, so once the viewport has been seen at
- * its keyboard-closed height the value stops changing: the keyboard's per-frame
- * animation can then neither re-compose the editor nor re-measure the writing
- * surface. That is what removed the visible jump, and it is why this is `max`
- * rather than a plain assignment.
- */
-internal fun latchRestingViewport(previous: Dp, measured: Dp): Dp = maxOf(previous, measured)
+): Dp = maxOf(minimum, viewport * fill)
 
 /**
  * The character counter's label. The 1000-character business rule is unchanged;
@@ -201,35 +194,14 @@ fun DiaryEditor(
     val bottomWindowInsets =
         WindowInsets.systemBars.only(WindowInsetsSides.Bottom).union(WindowInsets.ime)
 
-    // The viewport's *resting* height: what it measures with the keyboard closed.
-    //
-    // It is latched with `max` (see [latchRestingViewport]) rather than simply
-    // overwritten, so the value stops changing the moment the viewport has been
-    // seen at full height. That is the whole trick behind the smooth keyboard
-    // transition: the writing surface below is sized from a number that the IME's
-    // per-frame animation cannot move, so the surface neither re-composes nor
-    // re-measures while the keyboard slides, and the only thing that changes is
-    // the scroll viewport shrinking — which is the change the user actually made.
-    //
-    // The surface is therefore allowed to be taller than the visible viewport, and
-    // scrolling happens inside it; that is what a writing surface is for. The
-    // remember keys drop the latch on rotation and on a font-scale change, since
-    // both change what "resting" should mean.
-    val configuration = LocalConfiguration.current
-    val density = LocalDensity.current
-    var restingViewport by remember(configuration.screenHeightDp, configuration.fontScale) {
-        mutableStateOf(0.dp)
-    }
-
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         // ONE writing surface, top to bottom: a compact header, the thin
         // date/time strip, then the white card that takes every remaining pixel.
         //
-        // Nothing here is a hardcoded height. The card does shrink with the
-        // keyboard, which is unavoidable — that is the space the keyboard took —
-        // but the writing surface inside it is sized from the latched resting
-        // height, so the text and the surface the user is typing into do not
-        // change size at all while the keyboard moves.
+        // Nothing here is a hardcoded height. The card shrinks with the keyboard,
+        // which is unavoidable — that is the space the keyboard took — and the
+        // writing surface inside it is a share of whatever height the card has
+        // left, so it can never be taller than the box that is showing it.
         Column(
             Modifier
                 .fillMaxSize()
@@ -289,21 +261,21 @@ fun DiaryEditor(
                 // into view inside it, so the active line is never behind the
                 // keyboard.
                 //
-                // `onSizeChanged` is used to latch the resting height rather than
-                // measuring on every frame, so the keyboard transition re-lays out
-                // this viewport and nothing else. See [restingViewport] above.
-                Box(
+                // `BoxWithConstraints` is what supplies the writing surface's
+                // floor: the height this viewport has *right now*, after the IME
+                // inset above has been subtracted. Reading it from the incoming
+                // constraints rather than from a remembered measurement is the
+                // whole fix — a remembered keyboard-closed height made the surface
+                // taller than this viewport, and scrolling a viewport shorter than
+                // its own content pushed the text off the top of the screen. There
+                // is no state here to go stale on rotation or on a font-scale
+                // change either, because constraints report both directly.
+                BoxWithConstraints(
                     Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .onSizeChanged {
-                            restingViewport = latchRestingViewport(
-                                restingViewport,
-                                with(density) { it.height.toDp() }
-                            )
-                        }
                 ) {
-                    val writingMinHeight = writingSurfaceMinHeight(restingViewport)
+                    val writingMinHeight = writingSurfaceMinHeight(maxHeight)
                     Column(
                         Modifier
                             .fillMaxWidth()

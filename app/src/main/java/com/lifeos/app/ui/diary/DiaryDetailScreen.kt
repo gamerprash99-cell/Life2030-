@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -164,14 +163,18 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
     LaunchedEffect(showEditor, entryId) { if (showEditor) editorViewModel.start(entryId) }
     LaunchedEffect(editorState.saveCount) { if (editorState.saveCount > 0) { editorViewModel.cancelRecording(); viewModel.dismissEditor() } }
 
-    Box(Modifier.fillMaxSize().statusBarsPadding()) {
+    // No status-bar inset here: the host Scaffold already folds it into the content
+    // padding this destination is laid out with, so padding it again left a dead
+    // band of one status-bar height above the header — and a second one above the
+    // editor, which is drawn inside this same box.
+    Box(Modifier.fillMaxSize()) {
         entry?.let { current ->
             val date = DateTimeUtils.epochDayToLocalDate(current.dateEpochDay)
             val attachments = remember(current.id, current.attachmentsJson) { DiaryAttachments.decode(current.attachmentsJson) }
             val photos = remember(attachments) { DiaryAttachments.photos(attachments) }
             val voiceNote = remember(attachments) { DiaryAttachments.voiceNote(attachments) }
             val place = remember(attachments) { DiaryAttachments.place(attachments) }
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = LifeOSSpacing.fabContentClearance)) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = LifeOSSpacing.scrollBottomBreathingRoom)) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = DiaryInkViolet) }
                     Box(Modifier.weight(1f))
