@@ -55,14 +55,16 @@ fun DiaryDayHeader(
     onBack: () -> Unit,
     onCreate: () -> Unit,
     onSelectDay: (Long) -> Unit,
-    // Nullable rather than defaulted lambdas that do nothing: the header is
-    // reused by the detail screen's embedded day view, and a "Search" row that
-    // silently closes the menu would be worse than no row at all. Callers that
-    // do not provide a destination get no entry.
+    // `modifier` first among the optional parameters, per Compose convention —
+    // inserting the destinations ahead of it puts it in a non-default position
+    // and trips ModifierParameter lint.
+    modifier: Modifier = Modifier,
+    // Nullable rather than defaulted lambdas that do nothing: a "Search" row
+    // that silently closes the menu would be worse than no row at all. Callers
+    // that do not provide a destination get no entry.
     onOpenSearch: (() -> Unit)? = null,
     onOpenCalendar: (() -> Unit)? = null,
-    onOpenInsights: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    onOpenInsights: (() -> Unit)? = null
 ) {
     val date = remember(selectedDay) { DateTimeUtils.epochDayToLocalDate(selectedDay) }
     var showMenu by remember { mutableStateOf(false) }

@@ -1,6 +1,7 @@
 # LifeOS Diary — Redesign & Local Intelligence Specification
 
-Status: implemented. Branch `fix/diary-date-strip-center-today`.
+Status: implemented and verified on branch `fix/diary-date-strip-center-today`
+(365 tests, 0 failures; `assembleDebug` green).
 
 ## 1. What this change is
 
@@ -131,14 +132,37 @@ of rows is imperceptible and needs no schema change.
 
 | Screen | Route | Contents |
 |---|---|---|
-| Search | `diary/search` | Field, mood filter, relevance-ordered results with match highlighting. |
-| Calendar | `diary/calendar` | Month grid, mood-tinted day dots, selected-day previews, "Write on this day". |
-| Insights | `diary/insights` | Stats band, 7-day mood chart, recurring themes, streaks, reflection prompt. |
+| Search | `diary/search` | Field, mood filter, capped result list. |
+| Calendar | `diary/calendar` | Month grid, mood-tinted day dots, selected-day list. |
+| Insights | `diary/insights` | Streak, stats, mood mix, 7-day mood chart, recurring words, reflection prompt. |
 | Today | `diary` | Existing, plus mood + title in the composer. |
 | Timeline | `timeline` | Existing. Unchanged. |
 
-Entry points from the Diary day header: search and calendar as icon actions,
-insights as a band above the list.
+All three are reached from the Diary day header's existing overflow menu, and
+each owns its own ViewModel scoped to its back-stack entry — so leaving search
+and coming back does not restore the previous query.
+
+Three deviations from the first draft of this document, recorded because the
+draft was wrong rather than the implementation being wrong:
+
+- **No relevance ranking and no match highlighting in search.** SQLite's `LIKE`
+  reports *whether* a row matched, not how well, so a relevance score would be a
+  number invented after the fact. Results are newest-first, which is what
+  someone re-reading their own journal wants. Highlighting is omitted rather than
+  done approximately — a highlight on the wrong span is worse than none.
+- **No "Write on this day" in the calendar.** Selecting a day lists its entries
+  and opens one; pre-selecting the composer is a separate action, and a button
+  that navigates away from a grid the user is reading is worse than a tap on the
+  entry they meant.
+- **The three entry points are menu rows, not icon actions plus a band.** An
+  insights band above the list competes with the memories themselves for the
+  most valuable space on the screen, and three icons crowd a header that already
+  has a back arrow, a date and an overflow.
+
+`diary/search`, `diary/calendar` and `diary/insights` are registered **before**
+`diary/{entryId}` in `Screen.kt`. Nav Compose matches patterns in declaration
+order and `diary/{entryId}` also matches `diary/search`, so the literal routes
+registered afterwards would be swallowed by it.
 
 ## 7. Editor
 
@@ -149,8 +173,12 @@ insights as a band above the list.
 - Both sit inside the existing single scroll viewport, so `imeNestedScroll`,
   the caret-into-view behaviour, and the `BasicTextField` selection theming are
   untouched and still apply to the new fields.
-- The 1000-character limit still applies to the body only. Title is capped at
-  120 characters, tags at 32.
+- The 1000-character limit still applies to the body. The title is capped at
+  **120** characters and tags at **32**, enforced in `onTitleChange` / `addTag`.
+  Both caps were absent when this field first became reachable, and an unbounded
+  `TEXT` column fed by a free-text field is how a title ends up holding an entire
+  pasted paragraph — which then flows into the timeline card, the search result
+  row and the insights snapshot with no bound anywhere in the path.
 
 ## 8. Privacy
 
@@ -165,17 +193,42 @@ Unchanged and load-bearing:
 
 ## 9. Verification
 
-`gradle :app:testDebugUnitTest :app:compileDebugKotlin` — 231 tests at the
-cleanup baseline, plus new unit tests for every analyzer and for the `LIKE`
-escaping. Room migration tests unchanged and still passing: the schema is
-untouched.
+Gradle 8.9 at `/home/gradle-8.9/bin/gradle`, `--offline` (this repository has
+no wrapper):
+
+- `:app:testDebugUnitTest` → **365 tests, 0 failures** (231 at the cleanup
+  baseline, +134). New: `KeywordExtractorTest` 11, `MoodAnalyzerTest` 23,
+  `StatisticsEngineTest` 13, `PatternDetectorTest` 15, `DiaryAnalyzerTest` 20,
+  `DiarySearchViewModelTest` 11, `DiaryCalendarViewModelTest` 21,
+  `DiaryInsightsViewModelTest` 10, plus repository search/range escaping.
+- `:app:assembleDebug` → `BUILD SUCCESSFUL`; APK produced.
+- No `INTERNET` permission in the merged debug manifest. The only occurrence of
+  the string in the source manifest is the comment saying so.
+- Room migration tests unchanged and still passing: the schema is untouched at
+  v5.
+
+Bugs these tests caught in the implementation itself, all of the same shape —
+code that read correctly and was silently wrong:
+
+1. `drop(1)` on the search stream discarded the user's *first* query rather than
+   the initial empty string, because the collector subscribes lazily and by the
+   time it did, the first character was already in the `StateFlow`.
+2. The calendar opened on `DateTimeUtils.today()` while the rest of the class
+   read the injected clock, so under any test clock the grid disagreed with
+   itself about which month was current.
+3. The streak card reported "Last entry was 7 days ago" for a run of 7 that
+   ended *yesterday*. `currentLength` is a length, not an age, and
+   `WritingStreak` carries no timestamp to derive one from.
+4. `DiaryInsights.empty` greeted a brand-new user with a present-tense
+   reflection prompt, and the theme questions interpolated no `{word}`.
 
 ## 10. Known limitations
 
 - Search is a `LIKE` scan, not an index. Correct and fast at journal scale; a
   real index is not worth a migration here.
-- `KeywordExtractor` ranks by raw frequency, so a word repeated often in one
-  entry can outrank a word spread across many. `PatternDetector` exists
-  precisely to cover the spread-across-days case.
+- `KeywordExtractor` itself returns raw frequency counts. `PatternDetector` is
+  what turns that into the recurring-words list, and it ranks by **distinct
+  days** first, using occurrences only as a tie-break — so the word you circled
+  for a month outranks the one you hammered in a single evening.
 - Streaks count days with at least one entry, not days with a mood set, since
   mood remains optional.

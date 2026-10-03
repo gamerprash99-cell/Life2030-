@@ -746,6 +746,69 @@ class DiaryViewModelTest {
     }
 
     @Test
+    fun `the title is capped like the body`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onTitleChange("x".repeat(400))
+        assertEquals("an unbounded title becomes a pasted paragraph", 120, vm.state.value.title.length)
+
+        vm.onTitleChange("a real title")
+        assertEquals("a short title is never truncated", "a real title", vm.state.value.title)
+    }
+
+    @Test
+    fun `the body cap is unchanged`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("y".repeat(5000))
+        assertEquals(1000, vm.state.value.content.length)
+    }
+
+    @Test
+    fun `a tag is capped and still deduplicated`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.addTag("z".repeat(100))
+        assertEquals(32, vm.state.value.tags.single().length)
+
+        vm.addTag(vm.state.value.tags.single())
+        assertEquals("a duplicate is still refused after truncation", 1, vm.state.value.tags.size)
+    }
+
+    @Test
+    fun `title and mood reach the saved entry`() = runTest(dispatcher) {
+        val vm = editor()
+        val happy = com.lifeos.app.domain.model.DiaryMoods.OPTIONS.first { it.label == "Happy" }
+
+        vm.onTitleChange("The day the garden came back")
+        vm.onContentChange("It rained all week and then this.")
+        vm.onMoodChange(happy.key)
+        vm.save()
+        advanceUntilIdle()
+
+        // The point of the whole wiring: these two handlers had no caller, so
+        // nothing could ever set them. Assert it lands in the row.
+        val saved = dao.saved.last()
+        assertEquals("The day the garden came back", saved.title)
+        assertEquals(happy.key, saved.mood)
+    }
+
+    @Test
+    fun `a mood can be set and then cleared before saving`() = runTest(dispatcher) {
+        val vm = editor()
+        val happy = com.lifeos.app.domain.model.DiaryMoods.OPTIONS.first { it.label == "Happy" }
+
+        vm.onContentChange("Draft text")
+        vm.onMoodChange(happy.key)
+        vm.onMoodChange(null)
+        vm.save()
+        advanceUntilIdle()
+
+        // Mood is optional by design — the column is nullable and most existing
+        // entries have none — so clearing has to be as easy as setting.
+        assertNull(dao.saved.last().mood)
+    }
+
     fun `typing does not erase a blocked location state`() = runTest(dispatcher) {
         val vm = editorWithLocation(outcome = LocationOutcome.Failure(LocationFailure.PROVIDERS_DISABLED))
         vm.attachLocation()
