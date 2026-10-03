@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -35,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -123,7 +126,18 @@ fun MemoryMoment(
                         }
                     }
 
-                    Spacer(Modifier.height(8.dp))
+                    if (!entry.title.isNullOrBlank()) {
+                        Text(
+                            entry.title.trim(),
+                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
+                            color = DiaryInkViolet,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.height(5.dp))
+                    }
+
                     Text(entry.content, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp, lineHeight = 28.sp), color = MaterialTheme.colorScheme.onSurface)
 
                     val visiblePhotos = photos.take(3)
@@ -135,10 +149,13 @@ fun MemoryMoment(
                     val tags = remember(entry.id, entry.tagsCsv) { entryTags(entry) }
                     if (tags.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
                             tags.forEach { tag ->
                                 Box(Modifier.clip(CircleShape).background(DiaryLavender.copy(alpha = 0.58f)).padding(horizontal = 9.dp, vertical = 5.dp)) {
-                                    Text(tag, style = MaterialTheme.typography.labelSmall, color = DiaryTagInk)
+                                    Text(tag, style = MaterialTheme.typography.labelSmall, color = DiaryTagInk, maxLines = 1)
                                 }
                             }
                         }

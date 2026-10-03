@@ -21,9 +21,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -129,8 +129,10 @@ fun DiaryDayHeader(
                 }
             }
 
-            HeaderIconButton(icon = Icons.Filled.CalendarMonth, description = "Create memory", onClick = onCreate)
-            Spacer(Modifier.size(8.dp))
+            onOpenSearch?.let { open ->
+                HeaderIconButton(icon = Icons.Filled.Search, description = "Search memories", onClick = open)
+                Spacer(Modifier.size(8.dp))
+            }
             HeaderIconButton(icon = Icons.Filled.MoreVert, description = "Diary options", onClick = { showMenu = true })
             DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                 DropdownMenuItem(text = { Text("Write a memory") }, onClick = { showMenu = false; onCreate() })

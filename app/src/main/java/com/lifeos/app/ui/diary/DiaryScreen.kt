@@ -3,9 +3,11 @@ package com.lifeos.app.ui.diary
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +40,7 @@ import com.lifeos.app.core.media.DevicePhotoImporter
 import com.lifeos.app.core.media.RecordingState
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
+import com.lifeos.app.domain.model.DiaryMoods
 import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiaryLavender
@@ -165,41 +168,64 @@ fun DiaryScreen(
                     )
                 }
             } else {
-                Box(Modifier.weight(1f)) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        // The FAB's whole band, not just its bottom offset: with
-                        // only the offset the last item could be scrolled up to
-                        // the button's bottom edge and no further, so the closing
-                        // lines of a long memory stayed underneath it.
-                        contentPadding = PaddingValues(
-                            start = LifeOSSpacing.screenPadding,
-                            end = LifeOSSpacing.screenPadding,
-                            top = 8.dp,
-                            bottom = LifeOSSpacing.diaryFabOccupiedBottom
-                        )
-                    ) {
-                        itemsIndexed(memories, key = { _, entry -> entry.id }) { index, entry ->
-                            MemoryMoment(
-                                entry = entry,
-                                isFirst = index == 0,
-                                isLast = index == memories.lastIndex,
-                                onOpen = { onOpenEntry(entry.id) },
-                                onEdit = { viewModel.startEdit(entry) },
-                                onDelete = { viewModel.requestDelete(entry) },
-                                modifier = Modifier.revealAsMemory(index)
-                            )
-                        }
-                    }
-                    DiaryFab(
-                        onClick = viewModel::startNewEntry,
+                Column(Modifier.weight(1f)) {
+                    DiaryDaySummary(memories)
+                    Row(
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(
+                            .fillMaxWidth()
+                            .padding(horizontal = LifeOSSpacing.screenPadding, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Your moments",
+                            style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Serif),
+                            fontWeight = FontWeight.Bold,
+                            color = DiaryInkViolet
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            `${memories.size} ${if (memories.size == 1) "memory" else "memories"}`,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Box(Modifier.weight(1f)) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            // The FAB's whole band, not just its bottom offset: with
+                            // only the offset the last item could be scrolled up to
+                            // the button's bottom edge and no further, so the closing
+                            // lines of a long memory stayed underneath it.
+                            contentPadding = PaddingValues(
+                                start = LifeOSSpacing.screenPadding,
                                 end = LifeOSSpacing.screenPadding,
-                                bottom = LifeOSSpacing.diaryFabBottomOffset
+                                top = 8.dp,
+                                bottom = LifeOSSpacing.diaryFabOccupiedBottom
                             )
-                    )
+                        ) {
+                            itemsIndexed(memories, key = { _, entry -> entry.id }) { index, entry ->
+                                MemoryMoment(
+                                    entry = entry,
+                                    isFirst = index == 0,
+                                    isLast = index == memories.lastIndex,
+                                    onOpen = { onOpenEntry(entry.id) },
+                                    onEdit = { viewModel.startEdit(entry) },
+                                    onDelete = { viewModel.requestDelete(entry) },
+                                    modifier = Modifier.revealAsMemory(index)
+                                )
+                            }
+                        }
+                        DiaryFab(
+                            onClick = viewModel::startNewEntry,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(
+                                    end = LifeOSSpacing.screenPadding,
+                                    bottom = LifeOSSpacing.diaryFabBottomOffset
+                                )
+                        )
+                    }
                 }
             }
         }
@@ -223,6 +249,74 @@ fun DiaryScreen(
             timeMinutes = entry.timeMinutes,
             onConfirm = { viewModel.deleteEntry(entry.id) },
             onDismiss = viewModel::dismissDelete
+        )
+    }
+}
+
+@Composable
+private fun DiaryDaySummary(memories: List<DiaryEntity>) {
+    val wordCount = memories.sumOf {
+        it.content.trim().let { text -> if (text.isBlank()) 0 else text.split(Regex("\\s+")).size }
+    }
+    val moodKeys = memories.mapNotNull { it.mood?.takeIf(String::isNotBlank) }.distinct()
+    val mood = moodKeys.singleOrNull()?.let { DiaryMoods.fromStored(it) }
+    val moodLabel = when {
+        mood != null -> "${mood.emoji} ${mood.label}"
+        moodKeys.isNotEmpty() -> "Mixed moods"
+        else -> "No mood"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = LifeOSSpacing.screenPadding, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        DiarySummaryChip(
+            value = memories.size.toString(),
+            label = if (memories.size == 1) "memory" else "memories",
+            modifier = Modifier.weight(1f)
+        )
+        DiarySummaryChip(
+            value = wordCount.toString(),
+            label = "words",
+            modifier = Modifier.weight(1f)
+        )
+        DiarySummaryChip(
+            value = moodLabel,
+            label = "mood",
+            compact = true,
+            modifier = Modifier.weight(1.35f)
+        )
+    }
+}
+
+@Composable
+private fun DiarySummaryChip(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
+) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(DiaryLavender.copy(alpha = 0.22f))
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            value,
+            style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleMedium,
+            color = DiaryInkViolet,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
         )
     }
 }

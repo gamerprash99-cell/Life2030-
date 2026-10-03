@@ -234,7 +234,7 @@ fun DiaryEditor(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(start = 4.dp)
                 )
-                SaveChangesAction(enabled = canSave, onClick = onSave)
+                SaveChangesAction(isEditing = isEditing, enabled = canSave, onClick = onSave)
             }
 
             DateTimeStrip(
@@ -553,7 +553,7 @@ private fun DateTimeStrip(dateEpochDay: Long, timeMinutes: Int?, onDateClick: ()
  * shares with the back button and the title is exactly one target tall.
  */
 @Composable
-private fun SaveChangesAction(enabled: Boolean, onClick: () -> Unit) {
+private fun SaveChangesAction(isEditing: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Box(
         Modifier
             .defaultMinSize(minHeight = LifeOSSpacing.minTouchTarget)
@@ -564,7 +564,7 @@ private fun SaveChangesAction(enabled: Boolean, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            "Save changes",
+            if (isEditing) "Save changes" else "Save memory",
             style = MaterialTheme.typography.labelLarge,
             color = if (enabled) DiaryInkViolet else DiaryInkViolet.copy(alpha = 0.42f),
             maxLines = 1,
