@@ -83,6 +83,7 @@ import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.domain.model.DiaryAttachment
 import com.lifeos.app.domain.model.DiaryAttachments
+import com.lifeos.app.domain.model.DiaryMoods
 import com.lifeos.app.domain.model.DiaryTextStats
 import com.lifeos.app.domain.model.DiaryWeather
 import com.lifeos.app.ui.theme.DiaryActionViolet
@@ -196,7 +197,7 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                         Text(DateTimeUtils.formatMinutes(current.timeMinutes), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.size(8.dp))
                         current.mood?.takeIf { it.isNotBlank() }?.let { mood ->
-                            Box(Modifier.clip(CircleShape).background(DiaryMoods.backgroundOf(mood)).padding(horizontal = 10.dp, vertical = 6.dp)) { Text(DiaryMoods.fromStored(mood)?.let { it.emoji + " " + it.label } ?: mood, style = MaterialTheme.typography.labelMedium, color = DiaryTagInk, fontWeight = FontWeight.SemiBold) }
+                            Box(Modifier.clip(CircleShape).background(DiaryMoodVisuals.haloOf(mood)).padding(horizontal = 10.dp, vertical = 6.dp)) { Text(DiaryMoods.fromStored(mood)?.let { it.emoji + " " + it.label } ?: mood, style = MaterialTheme.typography.labelMedium, color = DiaryTagInk, fontWeight = FontWeight.SemiBold) }
                         }
                     }
                 }

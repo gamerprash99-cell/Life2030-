@@ -865,6 +865,17 @@ private class FakeDiaryDao : DiaryDao {
     override suspend fun getById(id: String): DiaryEntity? = state.value.firstOrNull { it.id == id }
 
     override suspend fun getAllForBackup(): List<DiaryEntity> = state.value
+
+        override suspend fun getAll(): List<DiaryEntity> = state.value
+
+        override suspend fun getAllInRange(fromEpochDay: Long, toEpochDay: Long): List<DiaryEntity> =
+            state.value.filter { it.dateEpochDay in fromEpochDay..toEpochDay }
+
+        override suspend fun search(pattern: String, moodKey: String?): List<DiaryEntity> =
+            state.value.filter { entry ->
+                entry.content.contains(pattern, ignoreCase = true) &&
+                    (moodKey == null || entry.mood == moodKey)
+            }
 }
 
 // ---- platform collaborators -------------------------------------------------

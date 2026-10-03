@@ -13,8 +13,8 @@ import androidx.compose.ui.unit.dp
 /** Small non-interactive mood marker used on the timeline spine and the editor header. */
 @Composable
 fun MoodDot(moodKey: String?, modifier: Modifier = Modifier, diameter: Int = 12) {
-    val accent = DiaryMoods.colorOf(moodKey)
-    val halo = DiaryMoods.backgroundOf(moodKey)
+    val accent = DiaryMoodVisuals.accentOf(moodKey)
+    val halo = DiaryMoodVisuals.haloOf(moodKey)
     Box(
         modifier = modifier
             .size(diameter.dp)

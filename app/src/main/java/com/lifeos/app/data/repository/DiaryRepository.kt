@@ -198,4 +198,58 @@ class DiaryRepository(
     suspend fun restoreFromBackup(entries: List<DiaryEntity>) = withContext(io) {
         entries.forEach { dao.upsert(it) }
     }
+
+    // ---- reading for search, calendar and analysis ----------------------
+
+    /**
+     * The whole journal, for the intelligence layer.
+     *
+     * Read onto [io] like every other write here: this is a full table read
+     * followed by a reduction over it, and the analyzers do enough string work
+     * that running them on the caller's thread would be a dropped-frame bug.
+     */
+    suspend fun getAll(): List<DiaryEntity> = withContext(io) { dao.getAll() }
+
+    /**
+     * Entries in one day range, inclusive, for the calendar.
+     *
+     * The bounds are swapped if a caller passes them the wrong way round, so a
+     * reversed range yields an empty list rather than silently returning the
+     * whole table to a query that asked for "a month".
+     */
+    suspend fun getAllInRange(fromEpochDay: Long, toEpochDay: Long): List<DiaryEntity> = withContext(io) {
+        val from = minOf(fromEpochDay, toEpochDay)
+        val to = maxOf(fromEpochDay, toEpochDay)
+        dao.getAllInRange(from, to)
+    }
+
+    /**
+     * Searches title, content and tags, newest first.
+     *
+     * A blank or whitespace-only query is rejected outright rather than
+     * escaped into `'%'` and executed. That distinction matters: escaped, it
+     * becomes a real "match everything" query and the caller would receive the
+     * entire journal back with no indication its search had been ignored.
+     */
+    suspend fun search(query: String, moodKey: String? = null): List<DiaryEntity> = withContext(io) {
+        if (query.isBlank()) return@withContext emptyList()
+        dao.search(escapeLikePattern(query.trim()), moodKey)
+    }
+
+    /**
+     * Escapes the three characters SQLite's `LIKE` treats as metacharacters, so
+     * a user searching for a literal `%`, `_` or `\` gets the literal text.
+     *
+     * The backslash must be escaped *first*. Replacing it last would then
+     * double-escape the backslashes this method had just introduced, turning
+     * `100%` into `100\\%` — a pattern matching a literal backslash followed by
+     * anything, which is not what the user typed.
+     *
+     * Order of the remaining two does not matter, since neither's replacement
+     * contains the other.
+     */
+    internal fun escapeLikePattern(raw: String): String = raw
+        .replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
 }
