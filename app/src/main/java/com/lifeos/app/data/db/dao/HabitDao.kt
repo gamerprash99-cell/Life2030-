@@ -19,9 +19,6 @@ interface HabitDao {
     @Query("SELECT * FROM habits WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): HabitEntity?
 
-    @Query("SELECT * FROM habits WHERE id = :id LIMIT 1")
-    fun observeById(id: String): Flow<HabitEntity?>
-
     @Query("UPDATE habits SET isArchived = 1, updatedAt = :now WHERE id = :id")
     suspend fun archive(id: String, now: Long)
 
@@ -49,9 +46,6 @@ interface HabitCompletionDao {
     @Query("SELECT * FROM habit_completions WHERE habitId = :habitId AND dateEpochDay = :epochDay LIMIT 1")
     fun observe(habitId: String, epochDay: Long): Flow<HabitCompletionEntity?>
 
-    @Query("SELECT * FROM habit_completions WHERE habitId = :habitId ORDER BY dateEpochDay ASC")
-    fun observeAllForHabit(habitId: String): Flow<List<HabitCompletionEntity>>
-
     @Query("SELECT * FROM habit_completions WHERE habitId = :habitId AND dateEpochDay BETWEEN :startEpochDay AND :endEpochDay ORDER BY dateEpochDay ASC")
     suspend fun getForHabitInRange(habitId: String, startEpochDay: Long, endEpochDay: Long): List<HabitCompletionEntity>
 
@@ -60,9 +54,6 @@ interface HabitCompletionDao {
 
     @Query("SELECT * FROM habit_completions WHERE dateEpochDay BETWEEN :startEpochDay AND :endEpochDay ORDER BY dateEpochDay ASC")
     fun observeAllInRange(startEpochDay: Long, endEpochDay: Long): Flow<List<HabitCompletionEntity>>
-
-    @Query("SELECT * FROM habit_completions WHERE dateEpochDay BETWEEN :startEpochDay AND :endEpochDay")
-    suspend fun getAllInRange(startEpochDay: Long, endEpochDay: Long): List<HabitCompletionEntity>
 
     @Query("SELECT * FROM habit_completions")
     suspend fun getAllForBackup(): List<HabitCompletionEntity>

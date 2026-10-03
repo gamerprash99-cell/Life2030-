@@ -29,6 +29,6 @@ There is one local user and no roles or remote authorization. App Lock protects 
 
 LifeOS does not ask you to sign in. If you turn on App Lock, it asks for a **LifeOS PIN** before opening the app. If you forget it, the recovery question must be answered before the PIN can be replaced.
 
-## Current state — 2026-09-16
+## Current state
 
-The authentication documentation now matches the current PIN-only implementation. No biometric dependency or runtime biometric code remains in the application source.
+The authentication documentation now matches the current PIN-only implementation. No runtime biometric code remains in the application source; the `androidx.biometric` dependency was also removed (2026 cleanup), so neither biometric code nor a lingering biometric dependency is present.

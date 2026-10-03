@@ -49,6 +49,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.R
+import com.lifeos.app.BuildConfig
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.reminders.ReminderScheduler
@@ -102,7 +103,7 @@ class SettingsViewModel(
         }
     }
     fun exportBackup(directory: File) = viewModelScope.launch {
-        runCatching { backupRepository.exportToFile(directory, "0.1.0") }
+        runCatching { backupRepository.exportToFile(directory, BuildConfig.VERSION_NAME) }
             .onSuccess { _lastExportedFile.value = it; _status.value = "Backup exported successfully." }
             .onFailure { _status.value = "Export failed: ${it.message ?: "Unknown error"}" }
     }

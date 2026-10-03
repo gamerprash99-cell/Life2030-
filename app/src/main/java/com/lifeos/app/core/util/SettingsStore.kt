@@ -8,9 +8,11 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.lifeos.app.core.security.PinHasher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 private val Context.dataStore by preferencesDataStore(name = "lifeos_settings")
 
@@ -130,8 +132,11 @@ class SettingsStore(private val context: Context) {
         require(pin.length == PIN_LENGTH && pin.all(Char::isDigit)) {
             "App Lock PIN must be exactly $PIN_LENGTH digits."
         }
-        val pinHash = PinHasher.hash(pin)
-        val answerHash = PinHasher.hash(recoveryAnswer.trim().lowercase())
+        // PBKDF2 (120k iterations) is deliberately slow; never run it on the
+        // caller's thread, which is the Main dispatcher from viewModelScope.
+        val (pinHash, answerHash) = withContext(Dispatchers.Default) {
+            PinHasher.hash(pin) to PinHasher.hash(recoveryAnswer.trim().lowercase())
+        }
         context.dataStore.edit {
             it[Keys.APP_LOCK_TYPE] = AppLockType.PIN.name
             it[Keys.PIN_SALT] = pinHash.saltBase64
@@ -172,7 +177,10 @@ class SettingsStore(private val context: Context) {
         val salt = prefs[Keys.PIN_SALT] ?: return PinAttemptResult.Incorrect(0)
         val hash = prefs[Keys.PIN_HASH] ?: return PinAttemptResult.Incorrect(0)
 
-        if (PinHasher.verify(enteredPin, salt, hash)) {
+        val matched = withContext(Dispatchers.Default) {
+            PinHasher.verify(enteredPin, salt, hash)
+        }
+        if (matched) {
             context.dataStore.edit {
                 it[Keys.PIN_FAILED_ATTEMPTS] = 0
                 it.remove(Keys.PIN_LOCKOUT_UNTIL)
@@ -214,7 +222,10 @@ class SettingsStore(private val context: Context) {
         val salt = prefs[Keys.RECOVERY_ANSWER_SALT] ?: return RecoveryAttemptResult.Incorrect(0)
         val hash = prefs[Keys.RECOVERY_ANSWER_HASH] ?: return RecoveryAttemptResult.Incorrect(0)
 
-        if (PinHasher.verify(enteredAnswer.trim().lowercase(), salt, hash)) {
+        val matched = withContext(Dispatchers.Default) {
+            PinHasher.verify(enteredAnswer.trim().lowercase(), salt, hash)
+        }
+        if (matched) {
             context.dataStore.edit {
                 it[Keys.RECOVERY_FAILED_ATTEMPTS] = 0
                 it.remove(Keys.RECOVERY_LOCKOUT_UNTIL)

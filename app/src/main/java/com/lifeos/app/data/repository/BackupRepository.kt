@@ -7,6 +7,8 @@ import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.TaskEntity
 import androidx.room.withTransaction
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -41,6 +43,9 @@ data class LifeOSBackup(
 
         /** Hard cap so a giant/corrupt import can't exhaust memory on read. */
         const val MAX_BACKUP_BYTES = 100L * 1024 * 1024
+
+        /** Keep this many most-recent local backup files, deleting the rest. */
+        const val MAX_KEPT_BACKUPS = 3
 
         fun isOversized(sizeBytes: Long): Boolean = sizeBytes > MAX_BACKUP_BYTES
     }
@@ -81,12 +86,28 @@ class BackupRepository(
     )
 
     /** Writes the export to app-private external files dir; caller shares it via a share sheet. */
-    suspend fun exportToFile(directory: File, appVersion: String): File {
+    suspend fun exportToFile(directory: File, appVersion: String): File = withContext(Dispatchers.IO) {
         val backup = buildBackup(appVersion)
         val text = json.encodeToString(backup)
         val file = File(directory, "lifeos-backup-${backup.exportedAtEpochMillis}.json")
         file.writeText(text)
-        return file
+        pruneOldBackups(directory, keepNewest = LifeOSBackup.MAX_KEPT_BACKUPS)
+        file
+    }
+
+    /**
+     * Each export shares the full life (potentially megabytes of JSON). Old
+     * files accumulate in app-private storage forever, so keep only the newest
+     * few and delete the rest. The user has already been offered the share
+     * sheet; the local copy is just a staging area in case they want to
+     * re-share.
+     */
+    private fun pruneOldBackups(directory: File, keepNewest: Int) {
+        val backups = directory
+            .listFiles { _, name -> name.startsWith("lifeos-backup-") && name.endsWith(".json") }
+            ?.sortedByDescending { it.lastModified() }
+            .orEmpty()
+        backups.drop(keepNewest).forEach { it.delete() }
     }
 
     /**
@@ -99,7 +120,9 @@ class BackupRepository(
             throw IllegalArgumentException("This backup file is too large to restore.")
         }
         val backup = try {
-            json.decodeFromString(LifeOSBackup.serializer(), file.readText())
+            withContext(Dispatchers.IO) {
+                json.decodeFromString(LifeOSBackup.serializer(), file.readText())
+            }
         } catch (e: Exception) {
             throw IllegalArgumentException("This file is not a valid LifeOS backup.", e)
         }

@@ -21,15 +21,10 @@ class TaskRepository(
         todayEpochDay: Long,
         nowMinutes: Int = DateTimeUtils.nowMinutesOfDay()
     ): Flow<List<TaskEntity>> = dao.observeOverdue(todayEpochDay, nowMinutes)
-    fun observeAll(): Flow<List<TaskEntity>> = dao.observeAll()
-    fun observeCountForDay(epochDay: Long): Flow<Int> = dao.observeCountForDay(epochDay)
-    fun observeCompletedCountForDay(epochDay: Long): Flow<Int> = dao.observeCompletedCountForDay(epochDay)
 
     /** Completed tasks whose completion timestamp falls inside [startMillis, endMillis] (Timeline source). */
     suspend fun getCompletedBetween(startMillis: Long, endMillis: Long): List<TaskEntity> =
         dao.getCompletedBetween(startMillis, endMillis)
-
-    suspend fun getById(id: String): TaskEntity? = dao.getById(id)
 
     /** The task's reminder row (used by the task-card reminder editor for its initial repeat cadence). */
     suspend fun getReminderFor(taskId: String): ReminderEntity? =

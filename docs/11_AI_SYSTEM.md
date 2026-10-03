@@ -89,10 +89,15 @@ based on the source size, not a measured APK delta.
 ## Network access required?
 
 **None.** Confirmed by direct code search: no `HttpURLConnection`, no
-OkHttp, no Retrofit, no Ktor, and no network permission remain anywhere in
-the app (see `docs/08_SECURITY.md` and `AndroidManifest.xml` — the
-`INTERNET` permission has been removed entirely, since nothing in the app
-uses it anymore).
+Retrofit, no Ktor, and no network permission remain in the app (see
+`docs/08_SECURITY.md` and `AndroidManifest.xml` — the `INTERNET` permission
+has been removed, since nothing in the app uses it anymore). One nuance: the
+Coil image-loading library (`io.coil-kt:coil-compose`, used for the profile
+photo) bundles the OkHttp Android artifact transitively, so an OkHttp JAR is
+present inside the APK. It is unreachable — there is no `INTERNET` permission,
+no Coil network fetcher is configured, and no first-party code references the
+either class — but it is binary baggage, not an egress path. The app cannot
+send or receive network traffic.
 
 ## Data privacy
 

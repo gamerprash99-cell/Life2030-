@@ -71,12 +71,7 @@ fun PinKeypad(
     }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        val rows = listOf(
-            listOf("1", "2", "3"),
-            listOf("4", "5", "6"),
-            listOf("7", "8", "9")
-        )
-        rows.forEach { row ->
+        KeypadRows.forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { digit ->
                     PinKey(digit, enabled) { tap { onDigit(digit.first()) } }
@@ -90,6 +85,13 @@ fun PinKeypad(
         }
     }
 }
+
+/** Static keypad layout so it isn't re-allocated on every recomposition. */
+private val KeypadRows = listOf(
+    listOf("1", "2", "3"),
+    listOf("4", "5", "6"),
+    listOf("7", "8", "9")
+)
 
 @Composable
 private fun androidx.compose.foundation.layout.RowScope.PinKey(
@@ -134,15 +136,3 @@ private fun androidx.compose.foundation.layout.RowScope.PinBackspaceKey(
     }
 }
 
-/** Themed keypad container used by both setup and unlock screens. */
-@Composable
-fun PinKeypadPanel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        tonalElevation = 2.dp
-    ) {
-        Box(Modifier.padding(16.dp), contentAlignment = Alignment.Center) { content() }
-    }
-}
