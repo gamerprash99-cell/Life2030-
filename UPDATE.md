@@ -1908,3 +1908,18 @@ Verification for this branch is source-level only; no local Android runtime is e
 - Focused the saved-entry visual redesign in `ui/diary/MemoryTimeline.kt` around the supplied third reference: time gutter, timeline lane/node proportions, tighter card spacing, rounded card geometry and lighter long-form body typography.
 - Kept the existing content-aware continuous spine, dynamic card heights, mood display, real local photo previews, tags, overflow actions and open/edit/delete callbacks.
 - No Diary header, ViewModel, repository, Room/schema, navigation, permission, dependency, network or offline behavior changed in this pass.
+
+## 2026-10-03 — Diary UI/UX refresh
+
+- Refreshed the production Diary presentation without changing the existing Kotlin/Compose architecture, ViewModels, repositories/use cases, Room schema, migrations, navigation routes, permissions, offline intelligence, media storage or dependencies.
+- Added a compact selected-day summary for memory count, word count and mood, plus a clearer “Your moments” timeline heading and count.
+- Replaced the Diary header’s misleading create-memory calendar icon with a direct Search affordance when the existing search destination is wired; creation remains through the existing FAB/overflow action.
+- Rendered saved memory titles in the timeline when present and made long tag rows horizontally scrollable so narrow phones do not overflow.
+- Clarified the editor action label: new memories show “Save memory”; edits show “Save changes”.
+- Initial CI exposed one introduced compile error in DiaryScreen.kt caused by malformed string interpolation in the new memory-count label. The first compiler error was fixed without suppression or bypass.
+
+### Verification
+
+- GitHub Actions workflow “Android CI Build”, run 37101122168, failed first on the malformed interpolation above; corrected in commit 018cb608c6864689e9def7c58f33799455641f53.
+- The corrected workflow run then completed successfully: test, assembleDebug, and assembleRelease all completed successfully, and both APK upload steps succeeded.
+- The final Android test/build result is verified by the GitHub Actions job status; no emulator/device visual pass is claimed in this environment.
