@@ -184,7 +184,7 @@ fun DiaryScreen(
                         )
                         Spacer(Modifier.weight(1f))
                         Text(
-                            `${memories.size} ${if (memories.size == 1) "memory" else "memories"}`,
+                            "${memories.size} ${if (memories.size == 1) "memory" else "memories"}",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
