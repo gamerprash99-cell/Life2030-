@@ -21,8 +21,6 @@ object DiaryTextStats {
         text.split(WHITESPACE)
             .count { it.isNotBlank() }
 
-    fun characterCount(text: String): Int = text.length
-
     fun remainingCharacters(text: String, limit: Int): Int = (limit - text.length).coerceAtLeast(0)
 
     fun isOverLimit(text: String, limit: Int): Boolean = text.length > limit

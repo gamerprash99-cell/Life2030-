@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -97,24 +96,3 @@ fun LifeOSSectionHeader(title: String, action: String? = null, onAction: (() -> 
     }
 }
 
-@Composable
-fun LifeOSBadge(text: String, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 12.dp, vertical = 8.dp)) {
-        Text(text, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
-    }
-}
-
-@Composable
-fun LifeOSIntelligenceCard(onClick: () -> Unit) {
-    LifeOSCard(modifier = Modifier.fillMaxWidth(), tint = Color(0xFFF1E8FF), onClick = onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = 0.72f)).padding(10.dp)) {
-                Icon(Icons.Filled.AutoAwesome, contentDescription = "LifeOS Intelligence", tint = LifeOSPrimary)
-            }
-            Column(Modifier.padding(start = 12.dp)) {
-                Text("LifeOS Intelligence", style = MaterialTheme.typography.titleMedium)
-                Text("Runs locally on your device", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}

@@ -55,7 +55,16 @@ fun DiaryDayHeader(
     onBack: () -> Unit,
     onCreate: () -> Unit,
     onSelectDay: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    // `modifier` first among the optional parameters, per Compose convention —
+    // inserting the destinations ahead of it puts it in a non-default position
+    // and trips ModifierParameter lint.
+    modifier: Modifier = Modifier,
+    // Nullable rather than defaulted lambdas that do nothing: a "Search" row
+    // that silently closes the menu would be worse than no row at all. Callers
+    // that do not provide a destination get no entry.
+    onOpenSearch: (() -> Unit)? = null,
+    onOpenCalendar: (() -> Unit)? = null,
+    onOpenInsights: (() -> Unit)? = null
 ) {
     val date = remember(selectedDay) { DateTimeUtils.epochDayToLocalDate(selectedDay) }
     var showMenu by remember { mutableStateOf(false) }
@@ -126,6 +135,27 @@ fun DiaryDayHeader(
             DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                 DropdownMenuItem(text = { Text("Write a memory") }, onClick = { showMenu = false; onCreate() })
                 DropdownMenuItem(text = { Text("Today") }, onClick = { showMenu = false; onSelectDay(DateTimeUtils.today().toEpochDay()) })
+                // Discoverable but not crowding the list: three screens reached
+                // from one overflow menu keep the day strip and the FAB as the
+                // only primary actions on this screen.
+                onOpenSearch?.let { open ->
+                    DropdownMenuItem(
+                        text = { Text("Search memories") },
+                        onClick = { showMenu = false; open() }
+                    )
+                }
+                onOpenCalendar?.let { open ->
+                    DropdownMenuItem(
+                        text = { Text("Calendar") },
+                        onClick = { showMenu = false; open() }
+                    )
+                }
+                onOpenInsights?.let { open ->
+                    DropdownMenuItem(
+                        text = { Text("Insights") },
+                        onClick = { showMenu = false; open() }
+                    )
+                }
                 DropdownMenuItem(text = { Text("Back") }, onClick = { showMenu = false; onBack() })
             }
         }

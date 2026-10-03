@@ -36,14 +36,16 @@ class AppDatabaseMigrationTest {
     @Throws(IOException::class)
     fun migrate2To3_dropsNotesAndCapturesKeepsEverythingElse() {
         // Create a v2 database and seed both tables that v3 must drop.
+        // Column lists mirror app/schemas/.../2.json exactly so INSERTs succeed
+        // on the strict NOT NULL schema (no defaults enforced).
         helper.createDatabase(TEST_DB, 2).apply {
             execSQL(
-                "INSERT INTO notes (id, title, contentJson, searchableText, folder, tagsCsv, pinned, favorite, archived, trashed, createdAt, updatedAt, isDeleted) " +
-                    "VALUES ('n1', 't', '[]', 't', NULL, '', 0, 0, 0, 0, 0, 0, 0)"
+                "INSERT INTO notes (id, title, contentJson, plainTextForSearch, folder, tagsCsv, isPinned, isFavorite, isArchived, isDeleted, createdAt, updatedAt, attachmentsJson) " +
+                    "VALUES ('n1', 't', '[]', 't', NULL, '', 0, 0, 0, 0, 0, 0, '[]')"
             )
             execSQL(
-                "INSERT INTO captures (id, type, filePath, caption, dateEpochDay, timeMinutes, createdAt) " +
-                    "VALUES ('c1', 'PHOTO', '/nonexistent/f.jpg', NULL, 0, 0, 0)"
+                "INSERT INTO captures (id, type, filePath, thumbnailPath, caption, transcript, mood, tagsCsv, dateEpochDay, timeMinutes, createdAt) " +
+                    "VALUES ('c1', 'PHOTO', '/nonexistent/f.jpg', NULL, NULL, NULL, NULL, '', 0, 0, 0)"
             )
             close()
         }

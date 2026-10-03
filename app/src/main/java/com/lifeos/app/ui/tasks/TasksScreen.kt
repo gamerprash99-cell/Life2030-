@@ -95,7 +95,10 @@ import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
 import com.lifeos.app.ui.components.rememberExactAlarmPermissionHost
 import com.lifeos.app.ui.components.rememberReminderPermissionHost
+import com.lifeos.app.ui.theme.LifeOSDanger
 import com.lifeos.app.ui.theme.LifeOSSpacing
+import com.lifeos.app.ui.theme.LifeOSSuccess
+import com.lifeos.app.ui.theme.LifeOSWarning
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -1013,9 +1016,9 @@ private fun PriorityDot(priority: TaskPriority, size: Dp = 11.dp) {
 }
 
 private fun priorityColor(priority: TaskPriority): Color = when (priority) {
-    TaskPriority.HIGH -> Color(0xFFD94A5B)
-    TaskPriority.MEDIUM -> Color(0xFFE39A28)
-    TaskPriority.LOW -> Color(0xFF2E9D63)
+    TaskPriority.HIGH -> LifeOSDanger
+    TaskPriority.MEDIUM -> LifeOSWarning
+    TaskPriority.LOW -> LifeOSSuccess
 }
 
 private fun priorityLabel(priority: TaskPriority): String = when (priority) {

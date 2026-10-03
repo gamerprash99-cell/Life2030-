@@ -29,6 +29,21 @@ import java.io.File
 /** Everything the composer renders. All fields are real user input or real device data. */
 private const val MAX_MEMORY_CHARACTERS = 1000
 
+/**
+ * Cap on the optional title.
+ *
+ * The body has always been capped at 1000 characters; the title did not exist as
+ * an input until this change, and an unbounded `TEXT` column fed by a free-text
+ * field is how a title ends up holding an entire pasted paragraph — which then
+ * flows into the timeline card, the search result row and the insights snapshot
+ * with no bound anywhere in the path. Truncating silently on input is the same
+ * contract the body already has.
+ */
+private const val MAX_TITLE_CHARACTERS = 120
+
+/** Tags are a short label, not a sentence. Same reasoning as the title. */
+private const val MAX_TAG_CHARACTERS = 32
+
 data class DiaryEditorState(
     val entryId: String? = null,
     val isEditing: Boolean = false,
@@ -201,7 +216,9 @@ class DiaryEditorViewModel(
         }
     }
 
-    fun onTitleChange(value: String) { _state.value = _state.value.copy(title = value, errorMessage = null) }
+    fun onTitleChange(value: String) {
+        _state.value = _state.value.copy(title = value.take(MAX_TITLE_CHARACTERS), errorMessage = null)
+    }
     fun onContentChange(value: String) {
         _state.value = _state.value.copy(content = value.take(MAX_MEMORY_CHARACTERS), errorMessage = null)
     }
@@ -210,7 +227,7 @@ class DiaryEditorViewModel(
     fun onTimeChange(minutes: Int) { _state.value = _state.value.copy(timeMinutes = minutes.coerceIn(0, 1439)) }
 
     fun addTag(raw: String) {
-        val tag = raw.trim()
+        val tag = raw.trim().take(MAX_TAG_CHARACTERS)
         if (tag.isEmpty()) return
         val current = _state.value.tags
         if (current.any { it.equals(tag, ignoreCase = true) }) return

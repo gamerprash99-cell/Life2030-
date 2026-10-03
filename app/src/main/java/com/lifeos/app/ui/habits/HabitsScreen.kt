@@ -90,7 +90,12 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
     val locator = LocalServiceLocator.current
     val viewModel: HabitsViewModel = viewModel(factory = LambdaViewModelFactory { HabitsViewModel(locator.habitRepository) })
     val habits by viewModel.habits.collectAsState()
-    val completions by locator.habitRepository.observeAllForDay(DateTimeUtils.today().toEpochDay()).collectAsState(initial = emptyList())
+    // The flow is remembered per composition (keyed on today) so a new
+    // subscription isn't created on every recomposition of this screen.
+    val todayEpochDay = remember { DateTimeUtils.today().toEpochDay() }
+    val completions by remember(todayEpochDay) {
+        locator.habitRepository.observeAllForDay(todayEpochDay)
+    }.collectAsState(initial = emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }

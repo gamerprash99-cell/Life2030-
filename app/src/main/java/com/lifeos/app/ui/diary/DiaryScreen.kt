@@ -52,7 +52,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
+fun DiaryScreen(
+    onBack: () -> Unit = {},
+    onOpenEntry: (String) -> Unit = {},
+    // The three sub-screens. Nullable and defaulted so the existing previews and
+    // any other caller keep compiling; the menu rows simply do not appear.
+    onOpenSearch: (() -> Unit)? = null,
+    onOpenCalendar: (() -> Unit)? = null,
+    onOpenInsights: (() -> Unit)? = null
+) {
     val locator = LocalServiceLocator.current
     val viewModel: DiaryViewModel = viewModel(factory = LambdaViewModelFactory { DiaryViewModel(locator.diaryRepository) })
     val memories by viewModel.memoriesForSelectedDay.collectAsStateWithLifecycle()
@@ -99,8 +107,12 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
             dayEpochDay = editorState.dateEpochDay.takeIf { editorState.entryId != null } ?: (editingEntry?.dateEpochDay ?: selectedDay),
             editing = editingEntry,
             timeMinutes = editorState.timeMinutes,
+            title = editorState.title,
+            onTitleChange = editorViewModel::onTitleChange,
             content = editorState.content,
             onContentChange = editorViewModel::onContentChange,
+            mood = editorState.mood,
+            onMoodChange = editorViewModel::onMoodChange,
             onDateChange = editorViewModel::onDateChange,
             onTimeChange = editorViewModel::onTimeChange,
             canSave = editorState.canSave,
@@ -125,7 +137,10 @@ fun DiaryScreen(onBack: () -> Unit = {}, onOpenEntry: (String) -> Unit = {}) {
                 daysWithMemories = daysWithMemories,
                 onBack = onBack,
                 onCreate = viewModel::startNewEntry,
-                onSelectDay = viewModel::selectDay
+                onSelectDay = viewModel::selectDay,
+                onOpenSearch = onOpenSearch,
+                onOpenCalendar = onOpenCalendar,
+                onOpenInsights = onOpenInsights
             )
             if (memories.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {

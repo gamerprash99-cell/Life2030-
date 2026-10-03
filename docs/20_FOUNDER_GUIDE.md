@@ -18,7 +18,7 @@ Users can export a local JSON backup and restore it through Android's native doc
 
 ## App Lock
 
-Users can choose None, Biometric or PIN. Biometric authentication is provided by Android and is based on device-enrolled biometrics. A PIN is the independent app-specific option.
+Users can choose None (no lock) or a 4-digit PIN. The PIN is stored only as a salted PBKDF2 hash with a recovery-question bypass for forgotten PINs. The earlier biometric option was removed and the `androidx.biometric` dependency deleted; biometric authentication is not offered.
 
 ## Current limitations
 

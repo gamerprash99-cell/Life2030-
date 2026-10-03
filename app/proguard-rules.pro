@@ -4,10 +4,9 @@
 -keep class androidx.room.** { *; }
 -keep @androidx.room.Entity class * { *; }
 
-# Keep data/domain models used for JSON backup/export & AI payloads
+# Keep data/domain models used for JSON backup/export
 -keep class com.lifeos.app.data.db.entities.** { *; }
 -keep class com.lifeos.app.domain.model.** { *; }
--keep class com.lifeos.app.core.ai.** { *; }
 
 # Kotlinx serialization
 -keepattributes *Annotation*, InnerClasses

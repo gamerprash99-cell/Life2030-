@@ -16,9 +16,12 @@ import java.util.Locale
  */
 object DateTimeUtils {
 
-    fun today(): LocalDate = LocalDate.now()
+    // DateTimeFormatter is immutable and thread-safe; building one per call
+    // showed up in list rows (tasks, timeline, memory list) on every row.
+    private val MINUTE_FORMATTER = DateTimeFormatter.ofPattern("h:mm a")
+    private val FULL_DATE_FORMATTER = DateTimeFormatter.ofPattern("d MMMM yyyy")
 
-    fun nowEpochMillis(): Long = System.currentTimeMillis()
+    fun today(): LocalDate = LocalDate.now()
 
     /** Current local time as minutes since midnight (0..1439). */
     fun nowMinutesOfDay(): Int {
@@ -26,27 +29,19 @@ object DateTimeUtils {
         return now.hour * 60 + now.minute
     }
 
-    fun LocalDate.toEpochDayLong(): Long = this.toEpochDay()
-
     fun epochDayToLocalDate(epochDay: Long): LocalDate = LocalDate.ofEpochDay(epochDay)
 
     fun LocalTime.toMinutesSinceMidnight(): Int = this.hour * 60 + this.minute
 
     fun minutesToLocalTime(minutes: Int): LocalTime = LocalTime.of(minutes / 60, minutes % 60)
 
-    /** Whole-number percentage of the current local day that has already elapsed (0..100). */
-    fun dayProgressPercent(now: LocalTime = LocalTime.now()): Int {
-        val minutes = now.hour * 60 + now.minute
-        return (minutes * 100 / 1440).coerceIn(0, 100)
-    }
-
     fun formatMinutes(minutes: Int): String {
         val t = minutesToLocalTime(minutes)
-        return t.format(DateTimeFormatter.ofPattern("h:mm a"))
+        return t.format(MINUTE_FORMATTER)
     }
 
     fun formatFullDate(date: LocalDate): String =
-        date.format(DateTimeFormatter.ofPattern("d MMMM yyyy"))
+        date.format(FULL_DATE_FORMATTER)
 
     fun formatDayOfWeek(date: LocalDate): String =
         date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()).uppercase()
@@ -61,12 +56,6 @@ object DateTimeUtils {
         in 17..20 -> "Good Evening"
         else -> "Good Night"
     }
-
-    fun startOfWeekEpochDay(date: LocalDate = today()): Long =
-        date.minusDays((date.dayOfWeek.value - 1).toLong()).toEpochDay()
-
-    fun endOfWeekEpochDay(date: LocalDate = today()): Long =
-        startOfWeekEpochDay(date) + 6
 
     fun startOfMonthEpochDay(date: LocalDate = today()): Long =
         date.withDayOfMonth(1).toEpochDay()

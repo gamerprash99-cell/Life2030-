@@ -43,6 +43,7 @@ import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.domain.model.DiaryAttachment
 import com.lifeos.app.domain.model.DiaryAttachments
+import com.lifeos.app.domain.model.DiaryMoods
 import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryInkViolet
@@ -100,7 +101,7 @@ fun MemoryMoment(
                 Column(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (selectedMood != null) {
-                            Box(Modifier.clip(CircleShape).background(selectedMood.halo).padding(horizontal = 11.dp, vertical = 7.dp)) {
+                            Box(Modifier.clip(CircleShape).background(DiaryMoodVisuals.haloOf(selectedMood)).padding(horizontal = 11.dp, vertical = 7.dp)) {
                                 Text(
                                     selectedMood.emoji + " " + selectedMood.label,
                                     style = MaterialTheme.typography.labelMedium,

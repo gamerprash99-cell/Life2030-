@@ -1,4 +1,50 @@
 
+## 2026-10-03 — Diary: title and mood can actually be set; search, calendar and insights (branch `fix/diary-date-strip-center-today`)
+
+The brief said "extend the existing architecture". For the intelligence layer
+that was not accurate, and the tests are what established it: before this pass
+there was no `Analyzer`, no `Insight`, no `StatisticsEngine` and no
+`LocalQuestionEngine` anywhere in the tree, and no DAO query contained `LIKE` at
+all. The specification (`docs/DIARY_REDESIGN.md`) was written first and then
+built against.
+
+**The headline defect: two handlers with no caller.** `DiaryEditorViewModel.onTitleChange` and `onMoodChange` existed, were wired into `DiaryEditorState`, and were persisted by `save()` — and nothing in the UI ever called them. `DiaryEntity.title` and `.mood` could therefore only be populated by an import or a restore. Every mood feature added in this pass (the calendar's day dots, the insights mix, the 7-day chart, the distribution) was unreachable from the UI: a user had no way to record a mood, so those screens would have shown "no mood" forever. The wiring is two composables and two parameters; the persistence layer was already correct.
+
+**Editor.** `DiaryTitleField` (optional, single line, `ImeAction.Next`, above the writing surface) and `DiaryMoodSelector` (8 discs, horizontal `LazyRow`, ringed current selection over the pastel halo, tapping the selected disc clears it). The title is a `BasicTextField` for the same reason the body is: no second boxed field inside an `imeNestedScroll` viewport, where a bordered field insets its own padding and the caret ends up visible while the title is scrolled under the toolbar. The selector scrolls horizontally rather than wrapping — 8 discs at 48dp need 384dp, and wrapping on a 360dp phone pushes the save controls under the keyboard. Title capped at 120 characters, tags at 32; both caps were missing once the field became reachable, and an unbounded `TEXT` column fed by free text is how a title ends up holding a pasted paragraph, which then flows into the timeline card, the search row and the insights snapshot with no bound anywhere in the path. The body cap stays 1000.
+
+**Intelligence layer** (`domain/intelligence/`, new). Framework-free: no Android, Room, Compose, coroutines or I/O, so it runs on a bare JVM and the same snapshot always yields the same bundle. Rules the code is built around, each of which is a decision rather than a default: every average is `null` below its own minimum sample rather than a confident number from two rows; an unrecognised mood is excluded from valence shares instead of being folded into "neutral", which would let one bad row dilute a real average; a tie at the top of the mood distribution reports no dominant mood; a streak that ran to *yesterday* survives today being empty; recurring words rank by distinct days, not raw frequency; and nothing infers a cause, a diagnosis or a state of mind. Reflection prompts come from a fixed table chosen by day-of-year — the same date always yields the same question, and nothing leaves the device.
+
+**Search.** `DiaryDao.search` over title/content/tags with `LIKE` metacharacters escaped and `ESCAPE '\'` declared — without both, searching `50%` matches everything. A blank query returns empty and never reaches the DAO, which is what stops an empty field turning into `LIKE '%'`. 300ms debounce, and a token so a slow early query cannot overwrite a fast later one; that race is real rather than theoretical, since the two run on different threads with no ordering guarantee. Capped at 200 rows and the screen says so. **No relevance ranking**: SQLite's `LIKE` reports whether a row matched, not how well, so a score would be a number invented after the fact. Newest-first.
+
+**Calendar.** Month grid, 42 cells, Monday-first to match the existing date strip. A dot encodes presence, not volume — three entries and one both get one 6dp dot, because a difference that small is not readable at this density and a varying dot would look like data while being noise; the count is in the selected-day list instead. Forward paging stops at the current month, since the composer clamps memory dates to the past and a future month can only ever be empty.
+
+**Insights.** Streak, stats, mood mix as a stacked bar with the labels and percentages as text beside it, a 7-day signed mood chart, recurring words, and the reflection prompt. Averages show "Not enough yet" rather than 0 — the engine returns `null` below its minimum sample precisely so the screen need not invent a number, and coercing it here would undo the whole design. The trend chart keeps empty days as gaps rather than skipping them: the streak-breakers are the interesting part of a writing habit. Bars are signed around a centre line, so a bad day is not drawn as a tall green column. Every bar carries a `contentDescription`, because the chart itself has no text.
+
+**Three deviations from the specification's first draft**, recorded because the draft was wrong: no relevance ranking or match highlighting in search; no "Write on this day" in the calendar; and the three entry points are rows in the header's existing overflow menu rather than icon actions plus an insights band, because a band above the list competes with the memories themselves for the most valuable space on the screen. The doc now says what the code does.
+
+**Route order is load-bearing.** `diary/search`, `diary/calendar` and `diary/insights` are registered *before* `diary/{entryId}` in `Screen.kt`: Nav Compose matches patterns in declaration order and `diary/{entryId}` also matches `diary/search`, so literals declared afterwards are swallowed by it and opening search would load an entry whose id happened to be "search".
+
+### Bugs the new tests caught in this implementation
+
+All four are the same shape — code that read correctly and was silently wrong, which is the argument for having written the tests:
+
+1. `drop(1)` on the search stream discarded the user's **first** query rather than the initial empty string, because the collector subscribes lazily and by the time it did, the first character was already in the `StateFlow`. The field appeared to do nothing at all.
+2. The calendar opened on `DateTimeUtils.today()` while the rest of its class read the injected clock, so under any test clock the grid disagreed with itself about which month was current.
+3. The streak card said "Last entry was 7 days ago" for a run of 7 that ended *yesterday*. `currentLength` is a length, not an age, and `WritingStreak` carries no timestamp to derive one from; it now says "Your run reached 7 days."
+4. `DiaryInsights.empty` greeted a brand-new user with a present-tense reflection prompt, and the theme questions interpolated no `{word}`.
+
+### Verification
+
+Gradle 8.9 at `/home/gradle-8.9/bin/gradle`, `--offline`; this repository has no wrapper.
+
+- `:app:testDebugUnitTest` → `BUILD SUCCESSFUL`, **365 tests, 0 failures** (231 at the cleanup baseline, +134). `DiaryViewModelTest` gains five: the title cap, the unchanged body cap, the tag cap with its duplicate check, and two that assert a title and a mood actually reach the saved row — the defect that started this work.
+- `:app:assembleDebug` → `BUILD SUCCESSFUL`; APK produced.
+- No `INTERNET` permission in the merged debug manifest. The only occurrence of the string in the source manifest is the comment saying so.
+- Room unchanged at v5; the four hand-written migrations are untouched and still pass.
+- `:app:lintDebug` → `BUILD SUCCESSFUL`, 0 errors, 9 issues (6 warnings, 3 informational). All 9 are pre-existing and none is in a file this work added: `TasksScreen.kt:902` (modifier parameter order), `strings.xml:14` (Plurals candidate), `AlarmPlaybackService.kt:231` (obsolete SDK check), `mipmap-anydpi-v26` (obsolete SDK), `AlarmFullScreenActivity.kt:247` and `DiaryEditor.kt:599-600` (autoboxing inside the untouched `SimpleDiaryTimePicker`), plus one unused-resource and one missing-monochrome-icon warning. Lint *did* catch one thing this work introduced — putting the three new destination parameters ahead of `modifier` in `DiaryDayHeader` tripped `ModifierParameter` — so `modifier` now comes first among the optional parameters, as Compose convention requires.
+- No new compiler warnings. The two deprecated `Icons.Filled.ArrowBack` / `Icons.Filled.MenuBook` warnings are pre-existing, on lines this work did not touch.
+
+
 ## 2026-10-02 — Diary: the keyboard no longer hides what you are typing, and the FAB no longer sits on top of it (branch `fix/diary-date-strip-center-today`)
 
 Three defects, each traced to a specific cause before anything was changed. No Room schema/migration, navigation route, permission, network/API, AI, telemetry or dependency change; `ViewModel`, repository and use-case boundaries are untouched.

@@ -54,6 +54,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            // Safe: no reflection-based resource lookup (no getIdentifier) exists
+            // anywhere in the app, so unused resources can be dropped at build.
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -102,8 +105,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    // Explicit dependency: collectAsStateWithLifecycle is used across screens but
+    // previously arrived only transitively through activity-compose.
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.activity:activity-compose:1.9.3")
-    implementation("androidx.biometric:biometric:1.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
@@ -111,7 +116,6 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.11.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.4")
@@ -140,9 +144,11 @@ dependencies {
     // matches kotlinx-coroutines-android above so no second coroutines is pulled in.
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.11.00"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // Kept on the androidTest classpath: compose-ui's androidTest variant resolves
+    // androidx.collection to 1.4.0, which is not in the offline build cache; the
+    // 1.4.4 pin (a patch release) is what's cached and satisfies the same API.
+    androidTestImplementation("androidx.collection:collection:1.4.4")
     // Room migration testing (MigrationTestHelper) — executed on a device/emulator
     androidTestImplementation("androidx.room:room-testing:2.6.1")
 }

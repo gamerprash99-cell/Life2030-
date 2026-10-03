@@ -17,6 +17,20 @@ sealed class Screen(val route: String) {
     }
     object Expenses : Screen("expenses")
     object Diary : Screen("diary")
+
+    /**
+     * The Diary sub-screens.
+     *
+     * Declared before [DiaryDetail] on purpose. `diary/{entryId}` also matches
+     * `diary/search`, and Nav Compose tries patterns in declaration order, so a
+     * literal route registered after the argument route would be swallowed by it
+     * — opening search would load an entry whose id happens to be "search".
+     * Keeping the literals first makes that impossible.
+     */
+    object DiarySearch : Screen("diary/search")
+    object DiaryCalendar : Screen("diary/calendar")
+    object DiaryInsights : Screen("diary/insights")
+
     object DiaryDetail : Screen("diary/{entryId}") {
         fun createRoute(entryId: String) = "diary/$entryId"
     }

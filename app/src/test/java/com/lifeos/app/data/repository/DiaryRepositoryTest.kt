@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -263,5 +264,103 @@ class DiaryRepositoryTest {
         }
 
         override suspend fun getAllForBackup(): List<DiaryEntity> = state.value
+
+        override suspend fun getAll(): List<DiaryEntity> = state.value
+
+        override suspend fun getAllInRange(fromEpochDay: Long, toEpochDay: Long): List<DiaryEntity> =
+            state.value.filter { it.dateEpochDay in fromEpochDay..toEpochDay }
+
+        /** Records the exact pattern handed to SQL, so escaping can be asserted end to end. */
+        var lastSearchPattern: String? = null
+            private set
+
+        override suspend fun search(pattern: String, moodKey: String?): List<DiaryEntity> {
+            lastSearchPattern = pattern
+            return state.value.filter { entry ->
+                val hit = entry.title?.contains(pattern, ignoreCase = true) == true ||
+                    entry.content.contains(pattern, ignoreCase = true) ||
+                    entry.tagsCsv.contains(pattern, ignoreCase = true)
+                hit && (moodKey == null || entry.mood == moodKey)
+            }
+        }
     }
+
+    // ---- search ---------------------------------------------------------
+
+    @Test
+    fun `a blank query returns nothing instead of everything`() = runTest {
+        dao.seed(entry("a", content = "anything"))
+        // Escaped, "" would become '%' and match the entire journal back with
+        // no indication the query had been ignored.
+        assertEquals(emptyList<DiaryEntity>(), repository.search(""))
+        assertEquals(emptyList<DiaryEntity>(), repository.search("   \n "))
+        assertNull(dao.lastSearchPattern)
+    }
+
+    /**
+     * The escaping matters because the query declares `ESCAPE '\'`: without it,
+     * searching for `50%` or `a_b` matches almost everything instead of the
+     * literal text. Asserted on the pattern that reaches the DAO, not on a
+     * helper, so the test fails if the escaping is ever dropped from the path
+     * the search actually takes.
+     */
+    @Test
+    fun `LIKE metacharacters are escaped on the way to SQL`() = runTest {
+        repository.search("50%")
+        assertEquals("50\\%", dao.lastSearchPattern)
+
+        repository.search("a_b")
+        assertEquals("a\\_b", dao.lastSearchPattern)
+
+        repository.search("c:\\dir")
+        assertEquals("c:\\\\dir", dao.lastSearchPattern)
+    }
+
+    @Test
+    fun `the query is trimmed and ordinary text is left alone`() = runTest {
+        repository.search("  coffee  ")
+        assertEquals("coffee", dao.lastSearchPattern)
+    }
+
+    @Test
+    fun `a mood filter narrows the result set`() = runTest {
+        dao.seed(
+            entry("a", content = "a good day", mood = "😊 Happy"),
+            entry("b", content = "a good day", mood = "😔 Sad")
+        )
+        assertEquals(2, repository.search("good").size)
+        assertEquals(1, repository.search("good", moodKey = "😊 Happy").size)
+    }
+
+    // ---- range ----------------------------------------------------------
+
+    @Test
+    fun `a day range is inclusive at both ends`() = runTest {
+        dao.seed(entry("a", day = 10), entry("b", day = 11), entry("c", day = 12))
+        assertEquals(3, repository.getAllInRange(10, 12).size)
+        assertEquals(1, repository.getAllInRange(11, 11).size)
+    }
+
+    /**
+     * A reversed range yields an empty list. Left alone, `BETWEEN 12 AND 10`
+     * is false for every row, but swapping the bounds means a caller bug shows
+     * up as "empty month" rather than as the whole table.
+     */
+    @Test
+    fun `a reversed day range is normalised rather than returning everything`() = runTest {
+        dao.seed(entry("a", day = 10), entry("b", day = 11), entry("c", day = 12))
+        assertEquals(3, repository.getAllInRange(12, 10).size)
+        assertEquals(emptyList<DiaryEntity>(), repository.getAllInRange(50, 40))
+    }
+
+    private fun entry(
+        id: String,
+        content: String = "content",
+        mood: String? = null,
+        day: Long = 20_000L
+    ) = DiaryEntity(
+        id = id, title = null, content = content, mood = mood, tagsCsv = "",
+        dateEpochDay = day, timeMinutes = 600, aiGenerated = false, isReviewed = true,
+        attachmentsJson = "", isFavorite = false, createdAt = 0L, updatedAt = 0L
+    )
 }

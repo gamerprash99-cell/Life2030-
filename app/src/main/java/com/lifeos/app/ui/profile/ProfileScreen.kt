@@ -227,10 +227,25 @@ private fun loadRotatedBitmap(context: Context, uri: Uri): Bitmap? = runCatching
         ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
     } ?: ExifInterface.ORIENTATION_NORMAL
 
-    val decoded = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
-        ?: return null
-
+    // Two-pass decode: read bounds first, then sample the nearest power-of-two
+    // factor so a 12MP gallery photo never allocates its full ~48MB buffer
+    // only to be scaled down afterwards.
     val maxDim = 2048
+    val bounds = context.contentResolver.openInputStream(uri)?.use { input ->
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeStream(input, null, opts)
+        opts
+    }
+    val sampleSize = bounds?.let { opts ->
+        val largest = max(opts.outWidth, opts.outHeight)
+        generateSequence(1) { it * 2 }.takeWhile { largest / it > maxDim }.last()
+    } ?: 1
+
+    val decoded = context.contentResolver.openInputStream(uri)?.use { input ->
+        val opts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+        BitmapFactory.decodeStream(input, null, opts)
+    } ?: return null
+
     val largest = max(decoded.width, decoded.height)
     var bitmap = if (largest > maxDim) {
         val scale = maxDim.toFloat() / largest

@@ -19,3 +19,7 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+
+# Generated code-graph artifacts from the AUDIT_REPORT.md tooling pass.
+# Regenerable; see AUDIT_REPORT.md. Not source.
+graphify-out/

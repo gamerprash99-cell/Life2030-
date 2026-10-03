@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.AppLockType
 import com.lifeos.app.core.util.StartupTrace
@@ -160,8 +161,11 @@ private fun OnboardingGate(content: @Composable () -> Unit) {
 @Composable
 private fun AppLockGate(content: @Composable () -> Unit) {
     val locator = LocalServiceLocator.current
-    val lockType by locator.settingsStore.appLockType.collectAsState(initial = AppLockType.NONE)
-    val autoLockEnabled by locator.settingsStore.autoLockEnabled.collectAsState(initial = true)
+    // Fail-closed: the initial null means "lock state not yet known", so the
+    // first frame renders the opaque gate instead of an unlocked preview. Only
+    // a resolved value of NONE (or a completed unlock) may show content.
+    val lockType by locator.settingsStore.appLockType.collectAsStateWithLifecycle(initialValue = null)
+    val autoLockEnabled by locator.settingsStore.autoLockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val lifecycleOwner = LocalLifecycleOwner.current
 
     var unlocked by remember { mutableStateOf(false) }
@@ -187,12 +191,21 @@ private fun AppLockGate(content: @Composable () -> Unit) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Changing the lock configuration must require a fresh unlock.
+// Changing the lock configuration must require a fresh unlock.
     androidx.compose.runtime.LaunchedEffect(lockType) { unlocked = false }
 
+    val resolved = lockType
     when {
-        lockType == AppLockType.NONE -> content()
+        // Unknown: keep the whole app covered until the real lock state resolves.
+        resolved == null -> AppLockGatePlaceholder()
+        resolved == AppLockType.NONE -> content()
         unlocked -> content()
-        else -> AppLockScreen(lockType = lockType, onUnlocked = { unlocked = true })
+        else -> AppLockScreen(lockType = resolved, onUnlocked = { unlocked = true })
     }
+}
+
+/** Opaque placeholder drawn while the lock state is still loading — never content. */
+@Composable
+private fun AppLockGatePlaceholder() {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {}
 }

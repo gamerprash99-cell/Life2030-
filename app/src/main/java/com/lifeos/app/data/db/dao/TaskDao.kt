@@ -45,12 +45,6 @@ interface TaskDao {
     """)
     fun observeOverdue(todayEpochDay: Long, nowMinutes: Int): Flow<List<TaskEntity>>
 
-    @Query("""
-        SELECT * FROM tasks WHERE isDeleted = 0
-        ORDER BY isCompleted ASC, $PRIORITY_ORDER ASC, dueDateEpochDay ASC
-    """)
-    fun observeAll(): Flow<List<TaskEntity>>
-
     @Query("SELECT * FROM tasks WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): TaskEntity?
 
@@ -74,12 +68,6 @@ interface TaskDao {
 
     @Query("UPDATE tasks SET dueDateEpochDay = :newEpochDay, updatedAt = :now WHERE id = :id")
     suspend fun reschedule(id: String, newEpochDay: Long, now: Long)
-
-    @Query("SELECT COUNT(*) FROM tasks WHERE isDeleted = 0 AND dueDateEpochDay = :epochDay")
-    fun observeCountForDay(epochDay: Long): Flow<Int>
-
-    @Query("SELECT COUNT(*) FROM tasks WHERE isDeleted = 0 AND dueDateEpochDay = :epochDay AND isCompleted = 1")
-    fun observeCompletedCountForDay(epochDay: Long): Flow<Int>
 
     @Query("SELECT * FROM tasks")
     suspend fun getAllForBackup(): List<TaskEntity>

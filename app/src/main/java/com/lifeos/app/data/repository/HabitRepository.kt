@@ -22,13 +22,11 @@ class HabitRepository(
     private val reminderRepository: ReminderRepository
 ) {
     fun observeAll(): Flow<List<HabitEntity>> = habitDao.observeAll()
-    fun observeById(id: String): Flow<HabitEntity?> = habitDao.observeById(id)
     fun observeCompletion(habitId: String, epochDay: Long): Flow<HabitCompletionEntity?> =
         completionDao.observe(habitId, epochDay)
     fun observeAllForDay(epochDay: Long): Flow<List<HabitCompletionEntity>> = completionDao.observeAllForDay(epochDay)
     fun observeAllInRange(startEpochDay: Long, endEpochDay: Long): Flow<List<HabitCompletionEntity>> =
         completionDao.observeAllInRange(startEpochDay, endEpochDay)
-    fun observeAllForHabit(habitId: String): Flow<List<HabitCompletionEntity>> = completionDao.observeAllForHabit(habitId)
 
     suspend fun getById(id: String): HabitEntity? = habitDao.getById(id)
 

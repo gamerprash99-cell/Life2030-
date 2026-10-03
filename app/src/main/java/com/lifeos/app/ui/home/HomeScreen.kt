@@ -150,7 +150,11 @@ fun HomeScreen(
                 }
             }
         } else {
-            itemsIndexed(activityItems) { index, item ->
+            itemsIndexed(
+                activityItems,
+                key = { _, item -> item.id },
+                contentType = { _, item -> item.type }
+            ) { index, item ->
                 TimelineRow(item, isLast = index == activityItems.lastIndex)
             }
         }
