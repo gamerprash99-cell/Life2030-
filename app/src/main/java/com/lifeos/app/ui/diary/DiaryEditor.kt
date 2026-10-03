@@ -129,8 +129,12 @@ fun DiaryEditor(
     dayEpochDay: Long,
     editing: DiaryEntity?,
     timeMinutes: Int?,
+    title: String,
+    onTitleChange: (String) -> Unit,
     content: String,
     onContentChange: (String) -> Unit,
+    mood: String?,
+    onMoodChange: (String?) -> Unit,
     onDateChange: (Long) -> Unit,
     onTimeChange: (Int) -> Unit,
     canSave: Boolean,
@@ -283,6 +287,16 @@ fun DiaryEditor(
                             .verticalScroll(contentScroll),
                         verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.diaryEditorSection)
                     ) {
+                        // Optional title, above the body. Persisted and loaded
+                        // since before this screen existed — the ViewModel
+                        // handler and the `title` column were both already
+                        // there — but nothing ever called them, so a title could
+                        // only arrive from an import or a backup.
+                        //
+                        // Optional and blank-by-default on purpose: requiring it
+                        // would be a behaviour change for every existing user,
+                        // and most memories are a paragraph, not a headline.
+                        DiaryTitleField(title = title, onTitleChange = onTitleChange)
                         // The writing surface: a rounded, tinted page inside the
                         // card, so the place you write on is bounded and clearly
                         // separate from the memory's metadata underneath.
@@ -333,6 +347,12 @@ fun DiaryEditor(
                         // actually used: writing, then how much of it there is, then
                         // what is attached to it.
                         CharacterCounter(length = content.length)
+                        // Mood, once the words are down. Its handler existed and
+                        // had no caller, so this is the wiring rather than new
+                        // state — and it is what makes the calendar's day dots,
+                        // the insights chart and the mood distribution have
+                        // anything to show at all.
+                        DiaryMoodSelector(selectedMoodKey = mood, onMoodChange = onMoodChange)
                         // A hairline between the writing and everything that
                         // describes it. Without this the metadata simply
                         // continued off the bottom of the writing surface, so

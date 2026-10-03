@@ -14,7 +14,10 @@ import com.lifeos.app.data.repository.OfflineOnlyWeatherSource
 import com.lifeos.app.data.repository.WeatherRepository
 import com.lifeos.app.data.repository.WeatherRepositoryImpl
 import com.lifeos.app.domain.usecase.BuildTimelineUseCase
+import com.lifeos.app.domain.usecase.GetDiaryCalendarUseCase
+import com.lifeos.app.domain.usecase.GetDiaryInsightsUseCase
 import com.lifeos.app.domain.usecase.GetHomeSummaryUseCase
+import com.lifeos.app.domain.usecase.SearchDiaryEntriesUseCase
 
 /**
  * A single, simple, hand-written DI container. Deliberately not Hilt/Dagger —
@@ -104,6 +107,30 @@ class ServiceLocator private constructor(context: Context) {
     }
     val getHomeSummaryUseCase: GetHomeSummaryUseCase by lazy {
         GetHomeSummaryUseCase(taskRepository, habitRepository, expenseRepository, buildTimelineUseCase)
+    }
+
+    // ---- Diary search, calendar and local insights ----------------------
+    //
+    // Stateless objects over [diaryRepository], all `by lazy` like everything
+    // else above: the Diary screens that use them are not the startup path, and
+    // nothing should touch the database until a screen asks for it.
+
+    val searchDiaryEntriesUseCase: SearchDiaryEntriesUseCase by lazy {
+        SearchDiaryEntriesUseCase(diaryRepository)
+    }
+
+    val getDiaryCalendarUseCase: GetDiaryCalendarUseCase by lazy {
+        GetDiaryCalendarUseCase(diaryRepository)
+    }
+
+    /**
+     * Local insights. Reads only rows already in Room and computes on
+     * `Dispatchers.Default`; there is no network collaborator to configure,
+     * which is why this build declares no `INTERNET` permission and needs no
+     * API key.
+     */
+    val getDiaryInsightsUseCase: GetDiaryInsightsUseCase by lazy {
+        GetDiaryInsightsUseCase(diaryRepository)
     }
 
     companion object {

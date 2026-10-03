@@ -20,8 +20,18 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.lifeos.app.ui.components.LifeOSBottomBar
+import com.lifeos.app.ui.diary.DiaryCalendarScreen
+import com.lifeos.app.ui.diary.DiaryCalendarViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.lifeos.app.core.di.LambdaViewModelFactory
+import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.ui.diary.DiaryDetailScreen
+import com.lifeos.app.ui.diary.DiaryInsightsScreen
+import com.lifeos.app.ui.diary.DiaryInsightsViewModel
 import com.lifeos.app.ui.diary.DiaryScreen
+import com.lifeos.app.ui.diary.DiarySearchScreen
+import com.lifeos.app.ui.diary.DiarySearchViewModel
 import com.lifeos.app.ui.expenses.ExpensesScreen
 import com.lifeos.app.ui.habits.HabitDetailScreen
 import com.lifeos.app.ui.habits.HabitsScreen
@@ -146,7 +156,73 @@ fun LifeOSNavHost() {
                 composable(Screen.Diary.route) {
                     DiaryScreen(
                         onBack = { navController.popBackStack() },
-                        onOpenEntry = { entryId -> navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true } }
+                        onOpenEntry = { entryId -> navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true } },
+                        onOpenSearch = { navController.navigate(Screen.DiarySearch.route) { launchSingleTop = true } },
+                        onOpenCalendar = { navController.navigate(Screen.DiaryCalendar.route) { launchSingleTop = true } },
+                        onOpenInsights = { navController.navigate(Screen.DiaryInsights.route) { launchSingleTop = true } }
+                    )
+                }
+
+                // Each of these owns its own ViewModel, created through the same
+                // manual ServiceLocator as every other screen. Reading the locator
+                // inside the destination's own composable (rather than hoisting
+                // the ViewModels up here) is what scopes them to the back-stack
+                // entry: popping the screen discards its state, which is what you
+                // want of a search — leaving would not expect the old query to be
+                // sitting there when you came back.
+                composable(Screen.DiarySearch.route) {
+                    val locator = LocalServiceLocator.current
+                    val searchViewModel: DiarySearchViewModel = viewModel(
+                        factory = LambdaViewModelFactory {
+                            DiarySearchViewModel(locator.searchDiaryEntriesUseCase)
+                        }
+                    )
+                    val searchState by searchViewModel.state.collectAsStateWithLifecycle()
+                    DiarySearchScreen(
+                        state = searchState,
+                        onQueryChange = searchViewModel::onQueryChange,
+                        onMoodFilterChange = searchViewModel::onMoodFilterChange,
+                        onSubmit = searchViewModel::onSubmit,
+                        onClearQuery = searchViewModel::onClearQuery,
+                        onBack = { navController.popBackStack() },
+                        onOpenEntry = { entryId ->
+                            navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true }
+                        }
+                    )
+                }
+
+                composable(Screen.DiaryCalendar.route) {
+                    val locator = LocalServiceLocator.current
+                    val calendarViewModel: DiaryCalendarViewModel = viewModel(
+                        factory = LambdaViewModelFactory {
+                            DiaryCalendarViewModel(locator.getDiaryCalendarUseCase)
+                        }
+                    )
+                    val calendarState by calendarViewModel.state.collectAsStateWithLifecycle()
+                    DiaryCalendarScreen(
+                        state = calendarState,
+                        onSelectDay = calendarViewModel::selectDay,
+                        onPreviousMonth = calendarViewModel::previousMonth,
+                        onNextMonth = calendarViewModel::nextMonth,
+                        onBack = { navController.popBackStack() },
+                        onOpenEntry = { entryId ->
+                            navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true }
+                        }
+                    )
+                }
+
+                composable(Screen.DiaryInsights.route) {
+                    val locator = LocalServiceLocator.current
+                    val insightsViewModel: DiaryInsightsViewModel = viewModel(
+                        factory = LambdaViewModelFactory {
+                            DiaryInsightsViewModel(locator.getDiaryInsightsUseCase)
+                        }
+                    )
+                    val insightsState by insightsViewModel.state.collectAsStateWithLifecycle()
+                    DiaryInsightsScreen(
+                        state = insightsState,
+                        onBack = { navController.popBackStack() },
+                        onReload = insightsViewModel::reload
                     )
                 }
                 composable(
