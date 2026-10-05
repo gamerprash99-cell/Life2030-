@@ -1,3 +1,142 @@
+## 2026-10-05 — Phase 1: automatic expense capture from payment notifications, and a real monthly budget (branch `fix/diary-date-strip-center-today`)
+
+The brief asked for an Expenses area that captures payments automatically and
+shows a budget. Neither half existed. There was no capture service, no parser and
+no budget model; `ExpensesScreen.kt:89` was a single line reading
+`val budget = 15_000.0`, a constant with no user behind it. So this is not an
+extension of an existing architecture — it is the first version of one, built so
+that the *next* extension (a review inbox for medium-confidence readings) is an
+addition rather than a rewrite.
+
+**Capture.** `TransactionCaptureService` is a `NotificationListenerService`,
+declared `exported="true"` with `android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"`
+— the platform requires both, and together they mean only `system_server` can bind
+it, never another app. The feature is **off until the user asks for it**, twice
+over: the system notification-access grant, and a stored `autoCaptureExpenses`
+flag that is re-read on *every* notification rather than cached at bind time, so
+turning it off in Settings takes effect immediately rather than at next launch.
+The Settings card states plainly what happens — on-device, no bank connection,
+nothing uploaded, high-confidence payments only, switchable — because "read your
+notifications" deserves more than a switch.
+
+**Parsing** (`domain/intelligence/TransactionParser.kt`, framework-free, no
+Android/Room/Compose, so it runs as an ordinary JVM test). Not per-bank templates:
+formats differ between apps, between app versions and between users' own custom
+templates, so an amount is located by *currency marker plus proximity to the
+movement word*, and meaning comes from keyword sets that overlap across banks.
+The amount rule is the part worth explaining, because "the first currency-marked
+number" is wrong about half the time — bank templates routinely carry the payment
+*and* the resulting balance, in either order. Every marked amount is scored by
+distance to the nearest movement word and the closest wins; two *different* marked
+amounts make the reading MEDIUM, and two *identical* ones are not ambiguous.
+
+**Meaning is classified before money is filed.** `EXPENSE`, `INCOME`, `REFUND`,
+`TRANSFER`, `UNKNOWN`. A credit is income; a refund is a refund even though a
+refund is textually also a credit; `transferred` is only a non-expense when the
+text *also* says it is self-directed, because "transferred to Rahul" is spending
+and treating every "transferred" as internal movement would silently drop real
+payments. ATM/cash withdrawal is declined outright — money leaving the account
+without anything being bought is not spending, and inventing a purchase for it
+would be the exact failure that makes an expense tracker untrustworthy. Only
+`HIGH` confidence becomes an expense: MEDIUM (two amounts) and LOW (an unmarked
+bare number) are left to the user, because there is no review inbox in this app
+yet and inventing one in Phase 1 would be scope the brief did not ask for.
+
+**Deduplication needs no schema change.** The row id is a SHA-256 fingerprint of
+the transaction — day, minute, amount in paise, normalised merchant, type, and a
+*hash* of the bank reference when one is present — so the same notification
+processed twice resolves to one row at the primary key. A second, weaker rule
+catches the shape banks actually produce: a confirmation and then a debit notice a
+minute apart, worded differently and therefore fingerprinted differently, are the
+same payment when the merchant matches and the times are within two minutes. When
+either row has **no** merchant, only an identical minute counts — a ₹10 taxi and a
+₹10 snack in the same minute must not be swallowed as one. The reference is
+hashed, never stored, never logged; a UTR has no business in a database that is
+encrypted but still readable through backup.
+
+**Nothing automatic about where the row lands.** `CaptureTransactionUseCase` calls
+the same `ExpenseRepository.addExpense` the add-expense sheet calls. There is no
+second table, no second DAO path, and no service that writes to a DAO directly.
+"Was this captured automatically" is answered by an `auto-captured` tag in the
+existing `tagsCsv` column — chosen over a new column precisely so the schema, the
+exported schema JSON and every installed database stay untouched, and because a
+tag survives backup and restore where an id convention would not be visible. Room
+stays at v5; no migration was written, and none is needed.
+
+**Budget.** One nullable `Double` in the existing `SettingsStore`, per the user's
+choice between this and a new Room table. Absent means "no budget yet", which is a
+*different screen* from "budget of zero" — the first-run card offers one action
+instead of a bar drawn against a number nobody chose. `BudgetProgress` is pure
+arithmetic over the month's total from the flow that already existed, so the bar
+cannot drift from the data. Remaining is never negative: an over-budget state shown
+as "−₹3,500 left" reads like a bug, so it is clamped to zero and the overshoot is
+reported separately as `overage` and an error-coloured bar. Reaching the budget
+exactly is not over budget.
+
+**Categories** (`domain/intelligence/ExpenseCategorizer.kt`) are matched on whole
+words, not substrings: "ola" sits inside "Cholamandalam", and a three-letter
+token matching a fragment is how an electricity bill gets filed as transport.
+An exact brand match is HIGH, a brand inside a longer name is MEDIUM, and anything
+unrecognised is `Other` — the app never invents a category, so the list in
+`ExpenseCategories.ALL` stays the single source of truth.
+
+### A defect the tests could not catch
+
+Final verification found one, and it is worth recording because it is the class
+of bug that survives a green build. `TransactionCaptureService` was declared with
+the correct `exported="true"` and `android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"`,
+but with no `<intent-filter>` for
+`android.service.notification.NotificationListenerService`. Settings enumerates
+the apps a user may grant notification access to by querying for services that
+handle that action; a service without the filter is never listed. LifeOS would
+therefore have never appeared in the notification-access screen, the grant could
+never be made, and the service would never have been bound — the feature would
+have shipped completely dead, with 433 passing tests, a clean lint report and a
+correct APK. Nothing short of reading the merged manifest against the platform
+contract finds this. The filter is now present and asserted in the merged
+manifest; the paired `<queries>` declaration, added in the same pass, is what lets
+`resolveActivity` see those Settings activities at all on API 30+.
+
+### Bugs the new tests caught in this implementation
+
+Five, all the same shape — code that read correctly and was silently wrong, which
+is the argument for having written the tests first:
+
+- **NFKC does not fold the rupee sign; it splits it.** U+20B9 decomposes
+  *canonically* to U+20A8 U+093F, and U+093F is in the composition exclusion
+  list, so normalisation reliably turns a clean ₹ into two characters and never
+  puts it back. The obvious implementation — normalise and carry on — would have
+  silently dropped every notification from keyboards that emit that spelling. The
+  sequences are now folded by hand, before the amount patterns run.
+- **"at 9:40 pm" was read as 09:40** and then rejected as implausible, because the
+  24-hour pattern matched first. Meridiem times are now read first.
+- **A UPI handle became a merchant called "to swiggy@paytm"** — the specific
+  `paid to` pattern correctly rejected the capture as an account identifier, and
+  the generic `to` fallback then re-captured the same span *including the
+  connector*, where cleaning succeeded. Fallback patterns now run only when no
+  specific pattern matched at all.
+- **"Debited from your account" filed the merchant as "your account"**, because
+  "account" is a trailing-keyword stop word and the cut happened before the
+  identifier check. Identifier-shaped captures are now rejected before any cutting.
+- **A reference fragment could be read as a clock time.** "Ref 51234 21:40" parses
+  as a time; the parser now believes an in-text time only when it lands within two
+  hours of the post time, and falls back to the post time otherwise.
+
+### Deliberately not built
+
+- **No medium/low-confidence review inbox.** The policy is to leave those entries
+  to the user; the boundary in `CaptureOutcome.Skipped` is where a review screen
+  would attach.
+- **No edit or delete of a captured expense.** Not asked for, and a captured row
+  is a normal expense row — it can be deleted from the list as any other.
+- **No new DataStore fields in the JSON backup.** `BackupRepository` still exports
+  Room data only, so the budget and the capture preference do not travel in a
+  restore. Recorded as a known gap rather than expanded silently into a backup
+  format change.
+- **No per-bank or per-app rules, no learning, no confidence that accumulates.**
+  A fixed keyword table that can be read and argued with beats a score nobody can
+  inspect.
+
 
 ## 2026-10-03 — Diary: title and mood can actually be set; search, calendar and insights (branch `fix/diary-date-strip-center-today`)
 

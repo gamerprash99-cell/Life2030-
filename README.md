@@ -112,12 +112,12 @@ is no third-party MVI/Redux framework.
 | **Habits** | Daily/custom schedules, goal counts, streaks, 12-week heatmap. `ui/habits/HabitsScreen.kt`, `HabitDetailScreen.kt` |
 | **Diary** | **Daily Memory**: an editorial memory timeline read one day at a time — a day masthead over a horizontally snapping, centre-keeping date strip (haptic per settled day change, bounded to the last 365 days, no future day), a hairline spine carrying each memory's mood, large leading journal type, an inline `+ Memory` action and a `YOUR STORY STARTS HERE` empty state. Full-screen composer (8 moods) with real photo, voice-note and place attachments and an honest weather-unavailable state; a post-save confirmation naming the stored day and minute with *View memory* / *Add another memory*; and a full-page detail view reusing the same language. Fully offline and Room-backed; no network calls. Search, a month calendar and a local intelligence screen (streak, stats, mood mix, 7-day mood chart, recurring words, reflection prompt) are reached from the header's overflow menu and read only rows already on the device. `ui/diary/`, `domain/intelligence/` |
 | **Notes** | Block-based rich text, pin/favorite/archive/trash, folder chips, local AI actions. `ui/notes/` |
-| **Expenses** | Monthly spend, daily average, fixed budget, remaining, recent transactions, add-expense sheet with categories. `ui/expenses/ExpensesScreen.kt` |
+| **Expenses** | Monthly spend, daily average, a user-set monthly budget with progress, remaining, recent transactions, and **optional on-device capture of payment notifications** into ordinary expenses. `ui/expenses/ExpensesScreen.kt`, `core/transactions/`, `domain/intelligence/` |
 | **Timeline** | Day-by-day merge of notes/tasks/habits/expenses/diary/captures. `ui/timeline/TimelineScreen.kt`, `BuildTimelineUseCase.kt` |
 | **Capture** | Photo (CameraX), video (CameraX Recorder), audio (MediaRecorder), quick thought; post-capture confirmation and a detail viewer. `ui/capture/` |
 | **Search** | Cross-feature `LIKE` search (not full-text/semantic). `ui/search/SearchScreen.kt` |
 | **App Lock** | PIN-only gate (`NONE`/`PIN`), salted PBKDF2 hash, recovery + lockout. `ui/security/`, `core/security/` |
-| **Settings** | App Lock, reminders toggle, Intelligence toggle, backup/export/restore. `ui/settings/SettingsScreen.kt` |
+| **Settings** | App Lock, reminders toggle, automatic expense capture (with the notification-access grant flow), Intelligence toggle, backup/export/restore. `ui/settings/SettingsScreen.kt` |
 | **Profile** | Local display name + profile photo (local content URI). `ui/profile/ProfileScreen.kt` |
 | **Intelligence** | On-device analyzers, reports, assistant chat, insights. `core/intelligence/` |
 | **Backup / Restore** | JSON export (app-private file) + restore via Android SAF. `data/repository/BackupRepository.kt` |
@@ -135,13 +135,36 @@ shows:
 - **This Month** card — total spend for the current month
   (`ExpenseRepository.observeTotalInRange`).
 - **Daily avg** — `total / number of days in the current month`.
-- **Budget** — a fixed local constant (`15_000.0` in `ExpensesScreen.kt`).
-- **Left** — `max(budget - total, 0)`.
+- **Budget** — a user-set monthly amount stored in `SettingsStore`
+  (`monthlyBudget`). **No budget set is its own state**: the card offers to set
+  one rather than drawing a bar against a number the user never chose.
+- **Left / Over** — `max(budget - total, 0)`, with the overshoot reported
+  separately as an error-coloured over-budget state.
 - **Recent Transactions** — current-month expenses from
   `ExpenseRepository.observeInRange`, each with category emoji, title and amount.
+  Expenses LifeOS filed itself carry an **Automatically detected** marker.
 - **Empty state** — shown when no expenses exist this month.
 - **Purple FAB (+)** — opens the existing Material 3 `ModalBottomSheet`
   "Add expense".
+
+### 5.1 Automatic expense capture (optional, off by default)
+
+A `NotificationListenerService` (`core/transactions/TransactionCaptureService.kt`)
+can turn payment notifications into expenses entirely on device:
+
+- Requires **both** the system notification-access grant (requested from
+  Settings, never at launch) and the in-app toggle in Settings.
+- `domain/intelligence/TransactionParser.kt` reads the amount, merchant, type,
+  payment method and time; only a **high-confidence expense** is recorded.
+  Income, refunds, self-directed transfers, ATM withdrawals and ambiguous
+  amounts are declined.
+- Deduplicated by a deterministic row id derived from the transaction, plus a
+  same-merchant/same-amount rule within a two-minute window. No new column and
+  no migration.
+- Categories come from a whole-word lookup against the categories the app
+  already offers; an unknown merchant becomes `Other`.
+- Notification text is never stored and never logged — only the parsed fields
+  reach the database.
 
 **Adding an expense**
 1. Enter `Amount (INR)` and an optional `Merchant or note`.

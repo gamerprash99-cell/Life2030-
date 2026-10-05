@@ -2,6 +2,7 @@ package com.lifeos.app.core.util
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -55,6 +56,16 @@ class SettingsStore(private val context: Context) {
         val AUTO_LOCK_ENABLED = booleanPreferencesKey("auto_lock_enabled")
         val REMINDERS_ENABLED = booleanPreferencesKey("reminders_enabled")
         val PROFILE_NAME = stringPreferencesKey("profile_name")
+
+        // Phase 1 automatic expense capture. The flag is stored rather than
+        // inferred from the system setting, because the system grant can be
+        // revoked from outside the app at any time: the store records the user's
+        // decision, and the live check below records whether it can be honoured.
+        val AUTO_CAPTURE_EXPENSES = booleanPreferencesKey("auto_capture_expenses")
+
+        // Monthly spending budget. Nullable by design - absent means "no budget
+        // set", which is a different screen from "budget of zero".
+        val MONTHLY_BUDGET = doublePreferencesKey("monthly_budget")
         val PROFILE_PHOTO_URI = stringPreferencesKey("profile_photo_uri")
 
         val APP_LOCK_TYPE = stringPreferencesKey("app_lock_type")
@@ -87,6 +98,14 @@ class SettingsStore(private val context: Context) {
     val profileName: Flow<String?> = context.dataStore.data.map { it[Keys.PROFILE_NAME] }
     val profilePhotoUri: Flow<String?> = context.dataStore.data.map { it[Keys.PROFILE_PHOTO_URI] }
 
+    /** Whether the user has asked for payment notifications to become expenses. Off until chosen. */
+    val autoCaptureExpenses: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_CAPTURE_EXPENSES] ?: false }
+
+    /** The monthly budget, or null when none has been set. */
+    val monthlyBudget: Flow<Double?> = context.dataStore.data.map { prefs ->
+        prefs[Keys.MONTHLY_BUDGET]?.takeIf { it > 0.0 }
+    }
+
     /**
      * Reads the settings file once so subsequent collectors get a cached value
      * instead of paying the first file read (and any false onboarding/lock
@@ -116,6 +135,19 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setProfileName(name: String) = context.dataStore.edit {
         if (name.isBlank()) it.remove(Keys.PROFILE_NAME) else it[Keys.PROFILE_NAME] = name.trim()
+    }
+
+    suspend fun setAutoCaptureExpenses(enabled: Boolean) =
+        context.dataStore.edit { it[Keys.AUTO_CAPTURE_EXPENSES] = enabled }
+
+    /**
+     * Stores the monthly budget, or clears it when [amount] is null or not
+     * positive - which is what "remove budget" means to the user, and is also
+     * how the screen returns to its first-run state.
+     */
+    suspend fun setMonthlyBudget(amount: Double?) = context.dataStore.edit { prefs ->
+        if (amount == null || amount <= 0.0) prefs.remove(Keys.MONTHLY_BUDGET)
+        else prefs[Keys.MONTHLY_BUDGET] = amount
     }
 
     /** Persists the profile photo content URI (already granted persistable read access by the picker). */
