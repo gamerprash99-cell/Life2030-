@@ -18,6 +18,21 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- Full-screen alarms keep the reminder visible above the lock screen. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!--
+        Package visibility (API 30+): Settings can only be asked whether it
+        handles the notification-listener access intents if LifeOS says it looks
+        for them. This declares visibility of the Settings activity alone — no
+        other package is declared, and no permission is implied by it.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.settings.NOTIFICATION_LISTENER_SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.NOTIFICATION_LISTENER_DETAIL_SETTINGS" />
+        </intent>
+    </queries>
     <!-- SCHEDULE_EXACT_ALARM lets LifeOS deliver task/habit reminders at the
          exact scheduled minute. It is a special access the user enables in
          Android's "Alarms & reminders" system page (requested from Settings and
@@ -120,6 +135,33 @@
             android:name=".core.reminders.AlarmPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <!--
+            Payment-notification capture (Phase 1). The platform requires this
+            service to be exported so it can be bound by system_server, and
+            requires BIND_NOTIFICATION_LISTENER_SERVICE on it; together those
+            mean only the platform may bind it, never another app. The feature
+            itself stays off until the user grants notification access and turns
+            the toggle on in Settings — see TransactionCaptureService.
+        -->
+        <service
+            android:name=".core.transactions.TransactionCaptureService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+
+            <!--
+                Required, not decorative. Settings builds its list of apps that
+                can be granted notification access by querying for services that
+                handle this action, so a service without this filter is never
+                shown to the user and the grant can never be made from the
+                system UI. The permission above is still what stops any other app
+                from binding it.
+            -->
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
         <!-- Full-screen alarm (also launched as the notification's FSI). -->
         <activity

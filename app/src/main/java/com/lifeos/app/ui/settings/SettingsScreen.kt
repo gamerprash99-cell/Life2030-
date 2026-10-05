@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material3.Button
@@ -54,6 +55,7 @@ import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.reminders.ReminderScheduler
 import com.lifeos.app.core.util.AppLockType
+import com.lifeos.app.core.util.NotificationAccess
 import com.lifeos.app.core.util.NotificationHelper
 import com.lifeos.app.core.util.PermissionManager
 import com.lifeos.app.core.util.PermissionStatus
@@ -81,6 +83,7 @@ class SettingsViewModel(
     val darkThemeEnabled = settingsStore.darkThemeEnabled
     val remindersEnabled = settingsStore.remindersEnabled
     val autoLockEnabled = settingsStore.autoLockEnabled
+    val autoCaptureExpenses = settingsStore.autoCaptureExpenses
     private val _status = MutableStateFlow<String?>(null)
     val status: StateFlow<String?> = _status
     private val _lastExportedFile = MutableStateFlow<File?>(null)
@@ -88,6 +91,15 @@ class SettingsViewModel(
 
     fun setDarkThemeEnabled(enabled: Boolean) = viewModelScope.launch { settingsStore.setDarkThemeEnabled(enabled) }
     fun setAutoLockEnabled(enabled: Boolean) = viewModelScope.launch { settingsStore.setAutoLockEnabled(enabled) }
+
+    /**
+     * Turning automatic capture on is only allowed once the system grant exists,
+     * so the switch cannot promise something that would silently not happen.
+     */
+    fun setAutoCaptureExpenses(enabled: Boolean) = viewModelScope.launch {
+        if (enabled && !NotificationAccess.isGranted(appContext)) return@launch
+        settingsStore.setAutoCaptureExpenses(enabled)
+    }
 
     /**
      * Persists the global reminder preference and makes it take effect:
@@ -130,6 +142,20 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit, onBack: () -> Unit = {}) {
     val darkTheme by vm.darkThemeEnabled.collectAsState(initial = false)
     val remindersEnabled by vm.remindersEnabled.collectAsState(initial = true)
     val autoLockEnabled by vm.autoLockEnabled.collectAsState(initial = true)
+    val autoCaptureExpenses by vm.autoCaptureExpenses.collectAsState(initial = false)
+    // Re-read on resume: the grant can be given or revoked in system Settings
+    // while this screen is in the background.
+    var notificationAccessGranted by remember { mutableStateOf(NotificationAccess.isGranted(context)) }
+    val captureLifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(captureLifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                notificationAccessGranted = NotificationAccess.isGranted(context)
+            }
+        }
+        captureLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { captureLifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val status by vm.status.collectAsState()
     val exported by vm.lastExportedFile.collectAsState()
 
@@ -201,6 +227,14 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit, onBack: () -> Unit = {}) {
                 LifeOSSectionHeader("Notifications / Reminders")
                 RemindersCard(enabled = remindersEnabled, onToggle = vm::setRemindersEnabled)
                 ExactAlarmsRemindersRow()
+                AutoCaptureCard(
+                    enabled = autoCaptureExpenses,
+                    accessGranted = notificationAccessGranted,
+                    onToggle = vm::setAutoCaptureExpenses,
+                    onGrantAccess = {
+                        runCatching { context.startActivity(NotificationAccess.appSettingsIntent(context)) }
+                    }
+                )
 
                 LifeOSSectionHeader("Backup & Local Storage")
                 LifeOSCard(Modifier.fillMaxWidth()) {
@@ -294,6 +328,68 @@ private fun RemindersCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
             // Schedule delivery is driven by the shared ReminderScheduler: exact
             // (setExactAndAllowWhileIdle) when SCHEDULE_EXACT_ALARM is granted or
             // not required, otherwise the permission-free inexact fallback.
+        }
+    }
+}
+
+/**
+ * Settings → automatic expense capture.
+ *
+ * Two separate things are true here and the copy keeps them apart: the user has
+ * *asked* for capture (the stored preference) and the system has *granted*
+ * access. Only the combination produces expenses, so the card reports both and
+ * only offers the grant request when it is actually missing.
+ *
+ * The explanation is deliberately specific — on-device, no bank connection, no
+ * upload, high-confidence payments only, and it can be switched off — because
+ * "read your notifications" deserves more than a switch and a shrug.
+ */
+@Composable
+private fun AutoCaptureCard(
+    enabled: Boolean,
+    accessGranted: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onGrantAccess: () -> Unit
+) {
+    LifeOSCard(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SettingsIcon(Icons.Filled.NotificationsActive)
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text("Automatic expense capture", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        when {
+                            enabled && accessGranted -> "On · reading payment notifications on this device."
+                            enabled -> "Waiting for notification access."
+                            accessGranted -> "Off · notification access is granted."
+                            else -> "Off · notification access not granted."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(checked = enabled && accessGranted, onCheckedChange = { checked ->
+                    if (checked && !accessGranted) onGrantAccess() else onToggle(checked)
+                })
+            }
+            Text(
+                "LifeOS reads payment notifications on this device and records the amount, merchant, " +
+                    "category, payment method and time. It is matched on-device, never uploaded, and LifeOS " +
+                    "is not connected to your bank. Only notifications it reads with high confidence are " +
+                    "recorded; anything ambiguous is left for you to add yourself. Notification text is " +
+                    "never stored.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (!accessGranted) {
+                androidx.compose.material3.TextButton(onClick = onGrantAccess, modifier = Modifier.fillMaxWidth()) {
+                    Text("Open notification access settings")
+                }
+            } else if (enabled) {
+                androidx.compose.material3.TextButton(onClick = { onToggle(false) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Turn off automatic capture")
+                }
+            }
         }
     }
 }

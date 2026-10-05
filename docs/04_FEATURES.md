@@ -46,14 +46,15 @@ Full inventory of every implemented feature, with exact file paths.
 
 **Purpose**: Personal expense logging with categories and monthly totals.
 
-- **User flow**: `ui/expenses/ExpensesScreen.kt` → "+" → amount, category (from `domain/model/Categories.kt`'s `ExpenseCategories.ALL`), optional merchant → Save
-- **Dashboard**: monthly total (`observeTotalInRange`), daily average, a fixed budget constant (`15_000.0`) and remaining ("Left"), plus the current month's Recent Transactions and an empty state.
+- **User flow**: `ui/expenses/ExpensesScreen.kt` → "+" → amount, category (from `domain/model/Categories.kt`'s `ExpenseCategories.ALL`), optional merchant → Save. Payment notifications can also become expenses automatically (Settings → Automatic expense capture), which writes through the same repository call.
+- **Dashboard**: monthly total (`observeTotalInRange`), daily average, and a user-set monthly budget (`SettingsStore.monthlyBudget`) with a progress bar, remaining ("Left") or an error-coloured over-budget state. With no budget set the card offers to set one instead of drawing a bar. The current month's Recent Transactions follow, with an "Automatically detected" marker on captured rows.
 - **Add-expense sheet**: a Material 3 `ModalBottomSheet`. It opens in the **expanded** position by default (`rememberModalBottomSheetState(skipPartiallyExpanded = true)`) and its body scrolls, so the whole form is reachable immediately across screen sizes, insets and font scales.
 - **Category selection**: a single existing `selectedCategory` state inside `AddExpenseSheet` (default `Food`). The selected chip renders in `MaterialTheme.colorScheme.primary` with `onPrimary` content color; all other chips keep the normal glass appearance. Exactly one category is highlighted at a time.
 - **Database**: `data/db/entities/ExpenseEntity.kt`, `data/db/dao/ExpenseDao.kt` (includes `getCategoryTotals` for category breakdowns)
 - **Repository**: `data/repository/ExpenseRepository.kt`
 - **Status**: Implemented
-- **Known limitations**: No editing of an existing expense (only add + implicit list); the budget is a fixed display constant with no user-configurable limit.
+- **Automatic capture**: `core/transactions/TransactionCaptureService.kt` (a `NotificationListenerService`) → `domain/intelligence/TransactionParser.kt` → `domain/usecase/CaptureTransactionUseCase.kt` → `ExpenseRepository.addExpense`. Off by default, behind the system notification-access grant and a stored toggle. Only high-confidence expenses are recorded; medium/low readings, income, refunds, transfers and withdrawals are declined. Deduplicated by a deterministic row id derived from the transaction, so no schema change. Notification text is never persisted.
+- **Known limitations**: No editing of an existing expense (only add + implicit list). A medium/low-confidence reading has no review inbox in Phase 1 and must be added by hand. The budget and the capture preference live in `SettingsStore` and are therefore **not** part of the JSON backup, which still exports Room data only.
 
 ## 5. Diary
 
