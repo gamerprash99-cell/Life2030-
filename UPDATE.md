@@ -1,3 +1,27 @@
+## 2026-10-06 — LifeOS 7-screen UI/UX + App Lock fix pass
+
+### Changed
+- App Lock setup and locked-screen PIN layouts now consume status/navigation insets and use a more compact shared keypad sizing, preventing the bottom row from being pushed into system navigation on shorter phones.
+- Locked-screen content remains behind the existing MainActivity.AppLockGate; no normal tab navigation is composed by the lock surface itself.
+- Profile card now has one clear avatar-edit interaction plus the existing display-name edit action; removed the redundant photo instruction line that wrapped poorly on narrow screens.
+- Profile Settings now uses the same shared ProfileRow pattern as App Lock/Local Backup instead of a bespoke duplicate card.
+- Existing Home empty states, Tasks All/Today/Upcoming scopes, shared weekly rhythm, bottom-bar policy, and LifeOS system-bar implementation were audited and preserved because they already address the requested issues.
+
+### Security
+- Preserved salted PBKDF2-derived PIN and recovery-answer storage in SettingsStore.
+- Preserved 5-attempt PIN lockout and 3-attempt recovery lockout with escalating delays.
+- Preserved fail-closed App Lock gate and no-plaintext/no-bypass behavior.
+- No biometric data access, network authentication, or external service was added.
+
+### Scope
+- No Room schema or migration changes.
+- No navigation architecture rewrite.
+- No new dependencies, network/API, cloud, telemetry, Firebase, or external AI.
+- No destructive Git operations.
+
+### Verification
+- Source-level audit completed against main.
+- No local Android checkout/emulator/AVD/Gradle runtime is exposed by the connected GitHub environment, so no fresh local compile/test/lint/device result is claimed in this pass.
 ## 2026-10-05 — Phase 1: automatic expense capture from payment notifications, and a real monthly budget (branch `fix/diary-date-strip-center-today`)
 
 The brief asked for an Expenses area that captures payments automatically and

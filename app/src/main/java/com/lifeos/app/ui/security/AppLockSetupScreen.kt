@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -63,8 +65,10 @@ fun AppLockSetupScreen(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(horizontal = 24.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         TextButton(onClick = onBack) { Text("Back") }
@@ -79,7 +83,7 @@ fun AppLockSetupScreen(onBack: () -> Unit) {
         when (step) {
             SetupStep.CREATE_PIN -> {
                 LifeOSCard(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("Create your PIN", style = MaterialTheme.typography.titleLarge)
                         Text("Choose exactly 4 digits. Your PIN is stored only as a salted hash.", style = MaterialTheme.typography.bodySmall)
                         PinDots(pin.length, Modifier.align(Alignment.CenterHorizontally))
@@ -98,7 +102,7 @@ fun AppLockSetupScreen(onBack: () -> Unit) {
 
             SetupStep.CONFIRM_PIN -> {
                 LifeOSCard(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("Confirm your PIN", style = MaterialTheme.typography.titleLarge)
                         Text("Re-enter the same 4 digits.", style = MaterialTheme.typography.bodySmall)
                         PinDots(confirmPin.length, Modifier.align(Alignment.CenterHorizontally), isError = error != null)
