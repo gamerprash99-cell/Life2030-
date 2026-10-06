@@ -22,6 +22,9 @@ class TaskRepository(
         nowMinutes: Int = DateTimeUtils.nowMinutesOfDay()
     ): Flow<List<TaskEntity>> = dao.observeOverdue(todayEpochDay, nowMinutes)
 
+    /** Unfinished tasks due strictly after today — the Tasks screen's "Upcoming" filter. */
+    fun observeUpcoming(todayEpochDay: Long): Flow<List<TaskEntity>> = dao.observeUpcoming(todayEpochDay)
+
     /** Completed tasks whose completion timestamp falls inside [startMillis, endMillis] (Timeline source). */
     suspend fun getCompletedBetween(startMillis: Long, endMillis: Long): List<TaskEntity> =
         dao.getCompletedBetween(startMillis, endMillis)

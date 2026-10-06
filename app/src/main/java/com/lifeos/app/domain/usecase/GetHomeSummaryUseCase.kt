@@ -1,8 +1,6 @@
 package com.lifeos.app.domain.usecase
 
 import com.lifeos.app.core.util.DateTimeUtils
-import com.lifeos.app.core.util.HabitStatsCalculator
-import com.lifeos.app.core.util.toSchedule
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.TaskEntity
@@ -70,7 +68,6 @@ class GetHomeSummaryUseCase(
         ) { args ->
             assemble(
                 today = today,
-                weekStart = weekStart,
                 epochDay = epochDay,
                 tasksToday = args[0] as List<TaskEntity>,
                 overdueTasks = args[1] as List<TaskEntity>,
@@ -84,7 +81,6 @@ class GetHomeSummaryUseCase(
 
     private suspend fun assemble(
         today: LocalDate,
-        weekStart: Long,
         epochDay: Long,
         tasksToday: List<TaskEntity>,
         overdueTasks: List<TaskEntity>,
@@ -94,7 +90,6 @@ class GetHomeSummaryUseCase(
         weekCompletions: List<HabitCompletionEntity>
     ): HomeSummary {
         val todayProgressByHabit = todayCompletions.associateBy { it.habitId }
-        val weekProgressByHabit = weekCompletions.groupBy { it.habitId }
 
         // One pass over the completions table for every active habit, instead of
         // a full-history Room query per habit, so startup stays responsive as
@@ -116,18 +111,14 @@ class GetHomeSummaryUseCase(
         }
         val habitsDoneToday = habitRows.count { it.isDone }
 
-        // A calendar day counts as a full consistency day when every active habit
-        // scheduled on it was completed. Non-scheduled days are never counted.
-        val scheduled = habits.map { habit -> habit to habit.toSchedule() }
-        val days = (0L..6L).map { offset ->
-            val day = weekStart + offset
-            val expected = scheduled.filter { (_, schedule) -> HabitStatsCalculator.isScheduled(schedule, day) }
-            val dayDone = expected.isNotEmpty() && expected.all { (habit, _) ->
-                val completion = weekProgressByHabit[habit.id]?.firstOrNull { it.dateEpochDay == day }
-                completion != null && completion.progressCount >= habit.goalCount
-            }
-            DayCheck(epochDay = day, isDone = dayDone, isToday = day == epochDay)
-        }
+        // One rule for the weekly rhythm, shared with Habits & Routines so the
+        // two screens can never disagree about what a "done" day is.
+        val days = buildWeeklyRhythm(
+            habits = habits,
+            todayCompletions = todayCompletions,
+            weekCompletions = weekCompletions,
+            today = today
+        )
 
         // The Daily Update is the real, live progress toward today's goals:
         // completed tasks + completed habits over every task/habit scheduled

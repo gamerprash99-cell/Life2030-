@@ -112,19 +112,28 @@ fun LifeOSNavHost() {
     val composerOwnsWindow = chrome.open &&
         (route == Screen.Diary.route || route == Screen.DiaryDetail.route)
 
+    // One rule, one place: the Diary composer owns the whole window while it is
+    // open, and App Lock setup is a security flow that must not carry the
+    // primary tab bar at all (see BottomBarVisibility.kt). Both are evaluated by
+    // a pure function so the behaviour is unit-testable.
+    val showBottomBar = shouldShowBottomBar(route, composerOwnsWindow)
+
     CompositionLocalProvider(LocalComposerChrome provides chrome) {
         Scaffold(
-            bottomBar = { if (!composerOwnsWindow) LifeOSBottomBar(navController) }
+            bottomBar = { if (showBottomBar) LifeOSBottomBar(navController) }
         ) { padding ->
             NavHost(
                 navController = navController,
                 startDestination = ROOT_TABS_GRAPH,
                 modifier = Modifier.padding(
                     top = padding.calculateTopPadding(),
-                    // Set explicitly rather than trusting the Scaffold's fallback:
-                    // when the bar is absent the Scaffold would otherwise hand back
-                    // its content-window-inset bottom, which is still a gap the
-                    // composer must not inherit.
+                    // Two different "no bottom bar" cases need two different
+                    // numbers. While the Diary composer is open it consumes the
+                    // bottom inset itself, so the Scaffold's fallback (which is
+                    // still a gap the composer must not inherit) is zeroed
+                    // explicitly. When a route merely *hides* the bar — App Lock
+                    // setup — the Scaffold already reports the system navigation
+                    // inset instead, which is exactly what that flow needs.
                     bottom = if (composerOwnsWindow) 0.dp else padding.calculateBottomPadding()
                 )
             ) {
