@@ -125,7 +125,6 @@ fun ProfileScreen(
                         Column(Modifier.padding(start = 14.dp).weight(1f)) {
                             Text(name?.takeIf { it.isNotBlank() } ?: "Your LifeOS Profile", style = MaterialTheme.typography.titleLarge)
                             Text("Personal space · stored on this device", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("Tap your photo to change it", style = MaterialTheme.typography.labelSmall, color = LifeOSPrimary, modifier = Modifier.padding(top = 4.dp))
                         }
                         Surface(onClick = { showNameDialog = true }, shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
                             Icon(Icons.Filled.Edit, contentDescription = "Edit display name", tint = LifeOSPrimary, modifier = Modifier.padding(10.dp))
@@ -135,7 +134,7 @@ fun ProfileScreen(
                 photoError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 ProfileRow(Icons.Filled.Lock, "App Lock", "Protect LifeOS with your 4-digit PIN", onOpenAppLock)
                 ProfileRow(Icons.Filled.Backup, "Local Backup", "Your backup stays under your control", onOpenSettings)
-                LifeOSCard(Modifier.fillMaxWidth(), onClick = onOpenSettings) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Filled.Settings, contentDescription = null, tint = LifeOSPrimary); Column(Modifier.padding(start = 14.dp)) { Text("Settings", style = MaterialTheme.typography.titleMedium); Text("Preferences, reminders and privacy", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
+                ProfileRow(Icons.Filled.Settings, "Settings", "Preferences, reminders and privacy", onOpenSettings)
                 ProfileRow(Icons.Filled.Info, "About LifeOS", "Version ${BuildConfig.VERSION_NAME}", { showAboutDialog = true })
             }
         }
