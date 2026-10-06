@@ -45,6 +45,13 @@ interface TaskDao {
     """)
     fun observeOverdue(todayEpochDay: Long, nowMinutes: Int): Flow<List<TaskEntity>>
 
+    @Query("""
+        SELECT * FROM tasks
+        WHERE isDeleted = 0 AND isCompleted = 0 AND dueDateEpochDay > :todayEpochDay
+        ORDER BY dueDateEpochDay ASC, $PRIORITY_ORDER ASC, dueTimeMinutes ASC
+    """)
+    fun observeUpcoming(todayEpochDay: Long): Flow<List<TaskEntity>>
+
     @Query("SELECT * FROM tasks WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): TaskEntity?
 

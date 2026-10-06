@@ -61,15 +61,15 @@ import com.lifeos.app.core.util.StartupTrace
 import com.lifeos.app.data.db.entities.TaskEntity
 import com.lifeos.app.domain.model.TimelineItem
 import com.lifeos.app.domain.model.TimelineItemType
-import com.lifeos.app.domain.usecase.DayCheck
 import com.lifeos.app.domain.usecase.HabitSummaryRow
 import com.lifeos.app.domain.usecase.HomeSummary
 import com.lifeos.app.ui.components.LifeOSCard
+import com.lifeos.app.ui.components.LifeOSGradientButton
+import com.lifeos.app.ui.components.LifeOSWeeklyRhythm
 import com.lifeos.app.ui.components.ProfileAvatar
 import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LifeOSWarning
-import java.time.LocalDate
 import java.util.Locale
 
 @Composable
@@ -142,10 +142,14 @@ fun HomeScreen(
         val activityItems = summary?.recentActivity.orEmpty()
         if (activityItems.isEmpty()) {
             item {
-                LifeOSCard(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("No activity recorded today", style = MaterialTheme.typography.titleMedium)
-                        Text("Tasks, habits and expenses you log today will appear here.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                LifeOSCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.surface) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("No activity yet", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Your notes, tasks, expenses and captures\nwill appear here.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -396,9 +400,10 @@ private fun QuickActionTile(label: String, icon: ImageVector, onClick: () -> Uni
 }
 
 /**
- * Habits block with a prominent title (larger, semibold onSurface) so the
- * section reads as a clear heading rather than a small caption — alongside the
- * trailing "n/N Active" and "Open all" actions.
+ * Habits block. The trailing `x/y Active` counter only appears once there is
+ * something to count — at zero habits it read as a broken "0/0", so an empty
+ * library now gets the same kind of intentional empty state as the rest of the
+ * dashboard, with the section's own "Open all" action as the way in.
  */
 @Composable
 private fun HabitsSection(summary: HomeSummary?, onOpenHabits: () -> Unit, onToggleHabit: (String, Boolean, Int) -> Unit) {
@@ -412,15 +417,22 @@ private fun HabitsSection(summary: HomeSummary?, onOpenHabits: () -> Unit, onTog
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(Modifier.weight(1f))
-        Text("$doneToday/${habits.size} Active", style = MaterialTheme.typography.labelMedium, color = LifeOSPrimary)
-        Spacer(Modifier.width(8.dp))
+        if (habits.isNotEmpty()) {
+            Text("$doneToday/${habits.size} Active", style = MaterialTheme.typography.labelMedium, color = LifeOSPrimary)
+            Spacer(Modifier.width(8.dp))
+        }
         SectionAction("Open all", onOpenHabits)
     }
     if (habits.isEmpty()) {
-        LifeOSCard(Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("No routines yet", style = MaterialTheme.typography.titleMedium)
-                Text("Create a small habit to start a local streak.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        LifeOSCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.surface) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("No habits yet", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Start with one small routine.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LifeOSGradientButton("Create habit", Modifier.fillMaxWidth(), onOpenHabits)
             }
         }
     } else {
@@ -441,7 +453,7 @@ private fun HabitsSection(summary: HomeSummary?, onOpenHabits: () -> Unit, onTog
                         }
                     }
                 }
-                WeeklyConsistencyRow(summary?.weeklyConsistency.orEmpty())
+                LifeOSWeeklyRhythm(summary?.weeklyConsistency.orEmpty())
                 Spacer(Modifier.height(2.dp))
                 habits.forEach { row ->
                     HabitRow(row, onToggleHabit = { onToggleHabit(row.habit.id, row.isDone, row.goalCount) })
@@ -449,43 +461,6 @@ private fun HabitsSection(summary: HomeSummary?, onOpenHabits: () -> Unit, onTog
             }
         }
     }
-}
-
-@Composable
-private fun WeeklyConsistencyRow(days: List<DayCheck>) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        days.forEach { day ->
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    weekdayLetter(day.epochDay),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (day.isToday) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(7.dp))
-                Box(
-                    Modifier.size(30.dp).clip(CircleShape).background(
-                        when {
-                            day.isDone -> LifeOSPrimary
-                            day.isToday -> MaterialTheme.colorScheme.primaryContainer
-                            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        }
-                    ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    when {
-                        day.isDone -> Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
-                        day.isToday -> Box(Modifier.size(6.dp).clip(CircleShape).background(LifeOSPrimary))
-                        else -> Box(Modifier.size(5.dp).clip(CircleShape).background(MaterialTheme.colorScheme.outlineVariant))
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun weekdayLetter(epochDay: Long): String {
-    val value = LocalDate.ofEpochDay(epochDay).dayOfWeek.value
-    return "MTWTFSS"[value - 1].toString()
 }
 
 @Composable

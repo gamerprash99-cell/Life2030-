@@ -6,13 +6,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.AppLockType
 import com.lifeos.app.core.util.StartupTrace
+import com.lifeos.app.ui.components.enableLifeOSEdgeToEdge
 import com.lifeos.app.ui.navigation.LifeOSNavHost
 import com.lifeos.app.ui.onboarding.OnboardingScreen
 import com.lifeos.app.ui.security.AppLockScreen
@@ -50,6 +51,11 @@ class MainActivity : ComponentActivity() {
         // intermediate "Unlocking your data…" screen is ever drawn.
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Goes edge-to-edge immediately, before the first frame, so the system
+        // splash is not letterboxed by an opaque status/navigation bar. The
+        // icon *polarity* is deliberately left to LifeOSSystemBars below: the
+        // no-argument overload picks it from the system's night-mode setting,
+        // which is not the same thing as the theme LifeOS paints.
         enableEdgeToEdge()
 
         val app = application as LifeOSApplication
@@ -79,6 +85,12 @@ class MainActivity : ComponentActivity() {
                     else -> {
                         val serviceLocator = locator
                         val darkTheme by serviceLocator.settingsStore.darkThemeEnabled.collectAsState(initial = false)
+
+                        // Keep the status-bar / navigation-bar icons readable
+                        // against what is actually painted behind them. Re-applied
+                        // on every theme change, so flipping dark mode in Settings
+                        // updates the bars too (see LifeOSSystemBars.kt).
+                        SideEffect { enableLifeOSEdgeToEdge(darkTheme) }
 
                         LifeOSTheme(darkTheme = darkTheme) {
                             CompositionLocalProvider(LocalServiceLocator provides serviceLocator) {

@@ -99,8 +99,11 @@ import com.lifeos.app.ui.theme.LifeOSDanger
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LifeOSSuccess
 import com.lifeos.app.ui.theme.LifeOSWarning
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.runtime.saveable.rememberSaveable
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalTime
@@ -111,6 +114,14 @@ class TasksViewModel(private val taskRepository: TaskRepository) : ViewModel() {
     private val today = DateTimeUtils.today().toEpochDay()
     val tasksToday: StateFlow<List<TaskEntity>> = taskRepository.observeForDay(today).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val overdue: StateFlow<List<TaskEntity>> = taskRepository.observeOverdue(today).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Unfinished work due after today. Read only while the "Upcoming" filter is
+     * actually selected, so the query's subscription is not paid for on every
+     * visit to a screen most people use on today's plan.
+     */
+    val upcoming: StateFlow<List<TaskEntity>> = taskRepository.observeUpcoming(today)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun toggleTask(id: String, completed: Boolean) = viewModelScope.launch { taskRepository.setCompleted(id, completed) }
 
@@ -153,26 +164,51 @@ class TasksViewModel(private val taskRepository: TaskRepository) : ViewModel() {
     }
 }
 
+/** The three scopes the task list can be viewed through. */
+private enum class TaskScope(val label: String) { ALL("All"), TODAY("Today"), UPCOMING("Upcoming") }
+
 @Composable
 fun TasksScreen() {
     val locator = LocalServiceLocator.current
     val viewModel: TasksViewModel = viewModel(factory = LambdaViewModelFactory { TasksViewModel(locator.taskRepository) })
     val today by viewModel.tasksToday.collectAsState()
     val overdue by viewModel.overdue.collectAsState()
+    var scope by rememberSaveable { mutableStateOf(TaskScope.ALL) }
+    // Read only when the Upcoming scope is on screen — see TasksViewModel.upcoming.
+    val upcoming by remember(scope) {
+        if (scope == TaskScope.UPCOMING) viewModel.upcoming else flowOf(emptyList())
+    }.collectAsState(initial = emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
-    var filter by remember { mutableStateOf("All") }
+    var category by rememberSaveable { mutableStateOf<String?>(null) }
     var editReminderTask by remember { mutableStateOf<TaskEntity?>(null) }
     var editRepeatType by remember { mutableStateOf(ReminderRepeatType.ONCE) }
-    val scope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
-    val categories = remember(today) { listOf("All") + today.mapNotNull { it.category }.distinct() }
-    val activeFilter = if (categories.any { it == filter }) filter else "All"
-    val filtered = if (activeFilter == "All") today else today.filter { it.category == activeFilter }
+    val categories = remember(today) {
+        today.mapNotNull { it.category }.distinct().sorted()
+    }
+    val inScope = when (scope) {
+        TaskScope.ALL, TaskScope.TODAY -> today
+        TaskScope.UPCOMING -> upcoming
+    }
+    // A category chip for a category that no longer exists in the current scope
+    // would silently show nothing, so an out-of-scope selection falls back to All.
+    val activeCategory = category?.takeIf { it in categories }
+    val filtered = activeCategory?.let { c -> inScope.filter { it.category == c } } ?: inScope
     val pending = today.count { !it.isCompleted }
     val completed = today.count { it.isCompleted }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        // The parent LifeOSNavHost Scaffold has already inset this destination
+        // for the status bar, the bottom navigation and the system navigation
+        // area. `Modifier.padding` does not *consume* insets, so a nested
+        // Scaffold asking for `systemBars` again added the status bar and the
+        // navigation bar a second time — a blank band above the header and below
+        // the last card, and a FAB pushed down under the bottom navigation.
+        // Zeroing the nested content insets leaves the destination's own real
+        // safe area exactly as the NavHost computed it.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddDialog = true },
@@ -195,8 +231,20 @@ fun TasksScreen() {
             verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
         ) {
             item { TasksHeader(pending = pending, completed = completed) }
-            item { CategoryFilterRow(categories = categories, selected = activeFilter, onSelect = { filter = it }) }
-            if (overdue.isNotEmpty()) {
+            item { TaskScopeRow(selected = scope, onSelect = { scope = it }) }
+            // The category chips only earn their row once there is more than one
+            // real category to switch between; with none, they duplicated the
+            // scope row and made a single "All" chip look like a broken filter.
+            if (categories.size > 1) {
+                item {
+                    CategoryFilterRow(
+                        categories = categories,
+                        selected = activeCategory,
+                        onSelect = { category = it }
+                    )
+                }
+            }
+            if (overdue.isNotEmpty() && scope != TaskScope.UPCOMING) {
                 item { TasksSectionHeader(title = "Overdue", count = overdue.size) }
                 items(overdue, key = { "overdue-${it.id}" }) { task ->
                     TaskCard(
@@ -204,7 +252,7 @@ fun TasksScreen() {
                         onToggle = { viewModel.toggleTask(task.id, it) },
                         onKeepForTomorrow = { viewModel.keepForTomorrow(task.id) },
                         onEditReminder = {
-                            scope.launch {
+                            coroutineScope.launch {
                                 viewModel.reminderRepeatFor(task.id) { editRepeatType = it }
                                 editReminderTask = task
                             }
@@ -212,23 +260,29 @@ fun TasksScreen() {
                     )
                 }
             }
-            item { TasksSectionHeader(title = "Today's Focus", count = pending) }
+            item {
+                TasksSectionHeader(
+                    title = if (activeCategory != null) activeCategory else scope.focusTitle(),
+                    count = filtered.count { !it.isCompleted }
+                )
+            }
             val pendingTasks = filtered.filter { !it.isCompleted }
             if (pendingTasks.isEmpty()) {
                 item {
                     EmptyFocusCard(
-                        currentFilter = activeFilter.takeIf { it != "All" },
+                        scope = scope,
+                        currentFilter = activeCategory,
                         onAddTask = { showAddDialog = true }
                     )
                 }
             } else {
-                items(pendingTasks, key = { it.id }) { task ->
+                items(pendingTasks, key = { "${scope.name}-${it.id}" }) { task ->
                     TaskCard(
                         task = task,
                         onToggle = { viewModel.toggleTask(task.id, it) },
                         onKeepForTomorrow = { viewModel.keepForTomorrow(task.id) },
                         onEditReminder = {
-                            scope.launch {
+                            coroutineScope.launch {
                                 viewModel.reminderRepeatFor(task.id) { editRepeatType = it }
                                 editReminderTask = task
                             }
@@ -236,15 +290,15 @@ fun TasksScreen() {
                     )
                 }
             }
-            if (completed > 0) {
+            if (scope != TaskScope.UPCOMING && completed > 0) {
                 item { TasksSectionHeader(title = "Completed", count = completed) }
-                items(filtered.filter { it.isCompleted }, key = { "done-${it.id}" }) { task ->
+                items(filtered.filter { t -> t.isCompleted }, key = { t -> "done-${t.id}" }) { task ->
                     TaskCard(
                         task = task,
                         onToggle = { viewModel.toggleTask(task.id, it) },
                         onKeepForTomorrow = {},
                         onEditReminder = {
-                            scope.launch {
+                            coroutineScope.launch {
                                 viewModel.reminderRepeatFor(task.id) { editRepeatType = it }
                                 editReminderTask = task
                             }
@@ -319,12 +373,42 @@ private fun TasksHeader(pending: Int, completed: Int) {
     }
 }
 
+/**
+ * Scope chips. Given zero horizontal content padding of its own: the chips live
+ * inside the screen's padded LazyColumn, and a LazyRow that also padded itself
+ * pushed the row that far right and made it look misaligned against the header
+ * and the section titles above it.
+ */
 @Composable
-private fun CategoryFilterRow(categories: List<String>, selected: String, onSelect: (String) -> Unit) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(9.dp),
-        contentPadding = PaddingValues(horizontal = LifeOSSpacing.screenPadding)
+private fun TaskScopeRow(selected: TaskScope, onSelect: (TaskScope) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(9.dp)
     ) {
+        TaskScope.entries.forEach { scope ->
+            FilterChip(
+                selected = scope == selected,
+                onClick = { onSelect(scope) },
+                label = { Text(scope.label) },
+                shape = RoundedCornerShape(11.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryFilterRow(categories: List<String>, selected: String?, onSelect: (String?) -> Unit) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(9.dp)
+    ) {
+        item {
+            FilterChip(
+                selected = selected == null,
+                onClick = { onSelect(null) },
+                label = { Text("All categories") },
+                shape = RoundedCornerShape(11.dp)
+            )
+        }
         items(categories, key = { it }) { category ->
             val isSelected = category == selected
             FilterChip(
@@ -357,6 +441,21 @@ private fun CategoryFilterRow(categories: List<String>, selected: String, onSele
 }
 
 @Composable
+/** The heading for whichever scope is on screen, or for a single category within it. */
+/** Reads naturally after "today"/"tomorrow"-style wording, e.g. "No work tasks today". */
+private fun TaskScope.adverb(): String = when (this) {
+    TaskScope.ALL -> "yet"
+    TaskScope.TODAY -> "today"
+    TaskScope.UPCOMING -> "coming up"
+}
+
+private fun TaskScope.focusTitle(): String = when (this) {
+    TaskScope.ALL -> "All Tasks"
+    TaskScope.TODAY -> "Today's Focus"
+    TaskScope.UPCOMING -> "Upcoming"
+}
+
+@Composable
 private fun TasksSectionHeader(title: String, count: Int) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -382,7 +481,7 @@ private fun TasksSectionHeader(title: String, count: Int) {
 }
 
 @Composable
-private fun EmptyFocusCard(currentFilter: String?, onAddTask: () -> Unit) {
+private fun EmptyFocusCard(scope: TaskScope, currentFilter: String?, onAddTask: () -> Unit) {
     LifeOSCard(
         modifier = Modifier.fillMaxWidth(),
         tint = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
@@ -403,13 +502,24 @@ private fun EmptyFocusCard(currentFilter: String?, onAddTask: () -> Unit) {
                     modifier = Modifier.size(28.dp)
                 )
             }
+            // Say which scope produced the emptiness. "Nothing scheduled today"
+            // was wrong for an empty Upcoming list and for an empty category.
             Text(
-                if (currentFilter == null) "Nothing scheduled today" else "No tasks in $currentFilter",
+                when {
+                    currentFilter != null -> "No $currentFilter tasks ${scope.adverb()}"
+                    scope == TaskScope.UPCOMING -> "Nothing coming up"
+                    scope == TaskScope.TODAY -> "Nothing scheduled today"
+                    else -> "No tasks yet"
+                },
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center
             )
             Text(
-                "Keep your plan small and intentional.",
+                when {
+                    currentFilter != null -> "Try another category, or add one here."
+                    scope == TaskScope.UPCOMING -> "Add a task with a future due date and it will show up here."
+                    else -> "Keep your plan small and intentional."
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
