@@ -70,9 +70,9 @@ fun PinKeypad(
         action()
     }
 
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         KeypadRows.forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { digit ->
                     PinKey(digit, enabled) { tap { onDigit(digit.first()) } }
                 }
@@ -106,7 +106,7 @@ private fun androidx.compose.foundation.layout.RowScope.PinKey(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier
             .weight(1f)
-            .size(56.dp)
+            .size(64.dp)
             .semantics { role = Role.Button; contentDescription = label }
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -127,7 +127,7 @@ private fun androidx.compose.foundation.layout.RowScope.PinBackspaceKey(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier
             .weight(1f)
-            .size(56.dp)
+            .size(64.dp)
             .semantics { role = Role.Button; contentDescription = "Backspace" }
     ) {
         Box(contentAlignment = Alignment.Center) {
