@@ -95,6 +95,9 @@ android {
 }
 
 // Room schema export is consumed by JVM schema tests and MigrationTestHelper.
+// The exported JSONs under app/schemas/ are committed on purpose: with
+// room.incremental enabled, Room reads the previous schema on every run and
+// fails with "Empty schema file" on a clean checkout that lacks them.
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
     arg("room.incremental", "true")

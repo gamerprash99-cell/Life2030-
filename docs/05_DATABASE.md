@@ -19,9 +19,12 @@ Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "lifeo
   crash on upgrade** rather than silently deleting data. See
   `docs/16_KNOWN_ISSUES.md`.
 - **Schema export**: `app/build.gradle.kts` configures
-  `room.schemaLocation = "$projectDir/schemas"`, but ⚠️ **no `schemas/`
-  directory currently exists in the repository** — it is only generated the
-  first time the project is actually built.
+  `room.schemaLocation = "$projectDir/schemas"`. The exported JSONs under
+  `app/schemas/com.lifeos.app.data.db.AppDatabase/` are **committed to version
+  control**. This is required because `room.incremental = true` makes Room read
+  the previous schema on every build; a clean checkout without the file fails
+  with `Empty schema file`. The schemas are also consumed by
+  `MigrationTestHelper` via the `androidTest` assets path.
 
 ## Tables (entities)
 
