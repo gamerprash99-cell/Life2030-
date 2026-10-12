@@ -52,13 +52,16 @@ class SearchViewModel(
 
     fun search(query: String) {
         viewModelScope.launch {
-            if (query.isBlank()) { _results.value = SearchResults(); return@launch }
-            _results.value = SearchResults(
-                notes = noteRepo.search(query).map { it.title.ifBlank { "Untitled note" } },
-                tasks = taskRepo.search(query).map { it.title },
-                expenses = expenseRepo.search(query).map { "${it.merchant ?: it.category} — ₹${it.amount}" },
-                diary = diaryRepo.search(query).map { it.content.take(60) }
-            )
+            if (query.isBlank()) {
+                _results.value = SearchResults()
+                return@launch
+            }
+            val notes = noteRepo.search(query).map { it.title.ifBlank { "Untitled note" } }
+            val diary = diaryRepo.search(query).map { it.content.take(60) }
+
+            // Task and expense search are not implemented in their current
+            // repositories. Do not invent results or add duplicate query layers.
+            _results.value = SearchResults(notes = notes, diary = diary)
         }
     }
 }
@@ -80,14 +83,15 @@ fun SearchScreen() {
         Column(modifier = Modifier.padding(padding).fillMaxWidth().padding(16.dp)) {
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
-                placeholder = { Text("Search notes, tasks, expenses, diary…") },
+                placeholder = { Text("Search notes and diary…") },
                 modifier = Modifier.fillMaxWidth()
             )
 
-            LazyColumn(contentPadding = PaddingValues(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(
+                contentPadding = PaddingValues(top = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 if (results.notes.isNotEmpty()) item { ResultSection("Notes", results.notes) }
-                if (results.tasks.isNotEmpty()) item { ResultSection("Tasks", results.tasks) }
-                if (results.expenses.isNotEmpty()) item { ResultSection("Expenses", results.expenses) }
                 if (results.diary.isNotEmpty()) item { ResultSection("Diary", results.diary) }
             }
         }
