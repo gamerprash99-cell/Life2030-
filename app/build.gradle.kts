@@ -133,6 +133,12 @@ dependencies {
 
     // DataStore for settings / preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // WorkManager backs persisted, local task/habit reminders.
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+
+    // Android-managed biometric prompt for the existing App Lock flow.
+    implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
     // Image loading (profile photo in ProfileScreen, Snap photos on the Timeline)
