@@ -3,35 +3,47 @@ package com.lifeos.app.ui.insights
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class NarrativeScoreTest {
+/**
+ * The narrative-score row belonged to the previous Insights design and no
+ * longer exists in the current offline, repository-backed Insights screen.
+ * These tests cover the current state model instead of testing the removed
+ * narrativeScore parser.
+ */
+class InsightsUiStateTest {
 
     @Test
-    fun `inline score notation is parsed`() {
-        assertEquals(62, narrativeScore("Overall: steady progress (score 62/100)."))
+    fun `default state starts loading with month selected`() {
+        val state = InsightsUiState()
+
+        assertEquals(true, state.loading)
+        assertEquals(InsightsPeriod.MONTH, state.period)
     }
 
     @Test
-    fun `dash notation used by question answer is parsed`() {
-        assertEquals(48, narrativeScore("Your productivity this week: getting started — 48/100 (tasks 30%, habits 50%)."))
+    fun `default metrics are zero until local repository data is loaded`() {
+        val state = InsightsUiState()
+
+        assertEquals(0, state.tasksCompleted)
+        assertEquals(0, state.habitCompletions)
+        assertEquals(0, state.habitsTracked)
+        assertEquals(0.0, state.spendTotal, 0.0)
+        assertEquals(0.0, state.dailyAverage, 0.0)
+        assertEquals(0, state.diaryEntries)
+        assertEquals(0, state.captures)
     }
 
     @Test
-    fun `first score wins when several are present`() {
-        assertEquals(70, narrativeScore("score 70/100 and again score 40/100"))
+    fun `period options expose clear labels`() {
+        assertEquals("Week", InsightsPeriod.WEEK.label)
+        assertEquals("Month", InsightsPeriod.MONTH.label)
+        assertEquals("Year", InsightsPeriod.YEAR.label)
     }
 
     @Test
-    fun `missing score falls back to zero`() {
-        assertEquals(0, narrativeScore("Overall: strong momentum."))
-    }
+    fun `top category remains absent when no spend category exists`() {
+        val state = InsightsUiState()
 
-    @Test
-    fun `out of range numbers are clamped by parser or reported as is`() {
-        assertEquals(120, narrativeScore("score 120/100"))
-    }
-
-    @Test
-    fun `empty text falls back to zero`() {
-        assertEquals(0, narrativeScore(""))
+        assertEquals(null, state.topCategory)
+        assertEquals(0.0, state.topCategoryAmount, 0.0)
     }
 }
