@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.ui.components.GlassCard
@@ -37,8 +38,11 @@ import com.lifeos.app.ui.components.LifeOSTopBar
 @Composable
 fun NotesListScreen(onOpenNote: (String?) -> Unit, onBack: () -> Unit = {}) {
     val locator = LocalServiceLocator.current
-    val viewModel: NotesListViewModel = viewModel(factory = LambdaViewModelFactory { NotesListViewModel(locator.noteRepository) })
-    val notes by viewModel.notes.collectAsState()
+    val viewModel: NotesViewModel = viewModel(
+        factory = LambdaViewModelFactory { NotesViewModel(locator.noteRepository) }
+    )
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val notes = state.notes
     Scaffold(topBar = { LifeOSTopBar("Notes", "Your local ideas and notes", onBack = onBack) }, floatingActionButton = { FloatingActionButton(onClick = { onOpenNote(null) }) { Icon(Icons.Filled.Add, contentDescription = "New note") } }) { padding ->
         if (notes.isEmpty()) {
             Column(Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { Text("No notes yet", style = MaterialTheme.typography.titleMedium); Text("Tap + to write your first note", style = MaterialTheme.typography.bodySmall) }
@@ -49,7 +53,7 @@ fun NotesListScreen(onOpenNote: (String?) -> Unit, onBack: () -> Unit = {}) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(note.title.ifBlank { "Untitled note" }, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(note.plainTextForSearch.take(80), style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                                Text(note.content.take(80), style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                             }
                             if (note.isPinned) Icon(Icons.Filled.PushPin, contentDescription = "Pinned", tint = MaterialTheme.colorScheme.primary)
                         }
