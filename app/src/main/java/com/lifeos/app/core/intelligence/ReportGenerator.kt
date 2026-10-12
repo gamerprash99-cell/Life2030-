@@ -70,7 +70,9 @@ class ReportGenerator(
         val spendPrev = expenseRepository.getInRange(previousStartEpochDay, previousEndEpochDay).sumOf { it.amount }
         val spendTrend = TrendAnalyzer.compare("spend", spendThis, spendPrev)
 
-        val categoryTotals = expenseRepository.getCategoryTotals(startEpochDay, endEpochDay)
+        val categoryTotals = expenseRepository.getInRange(startEpochDay, endEpochDay)
+            .groupBy { it.category }
+            .map { (category, entries) -> CategoryTotal(category, entries.sumOf { it.amount }) }
         val patterns = listOfNotNull(
             PatternDetector.topSpendCategory(categoryTotals)
         )

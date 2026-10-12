@@ -69,6 +69,14 @@ object MediaStorage {
         File(captureAudioDir(context), "capture_audio_${uniqueSuffix()}.m4a")
 
     /**
+     * Backward-compatible names retained for legacy capture destinations.
+     * All paths still resolve to the same app-private capture directories.
+     */
+    fun newPhotoFile(context: Context): File = newCapturePhotoFile(context)
+    fun newVideoFile(context: Context): File = newCaptureVideoFile(context)
+    fun newAudioFile(context: Context): File = newCaptureAudioFile(context)
+
+    /**
      * Deletes diary media files that no entry references any more. Called
      * after an entry is deleted or its attachments are replaced, so removing
      * a photo/voice note does not leave orphaned recordings on disk.

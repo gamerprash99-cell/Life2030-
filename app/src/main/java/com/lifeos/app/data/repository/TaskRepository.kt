@@ -25,6 +25,19 @@ class TaskRepository(
     /** Unfinished tasks due strictly after today — the Tasks screen's "Upcoming" filter. */
     fun observeUpcoming(todayEpochDay: Long): Flow<List<TaskEntity>> = dao.observeUpcoming(todayEpochDay)
 
+    /** Reads one task through the repository boundary for local reminders. */
+    suspend fun getById(id: String): TaskEntity? = dao.getById(id)
+
+    /** Local-only search for LIFE commands. Deleted tasks are excluded from matches. */
+    suspend fun search(query: String): List<TaskEntity> {
+        if (query.isBlank()) return emptyList()
+        val term = query.trim()
+        return dao.getAllForBackup().filter { task ->
+            !task.isDeleted && listOfNotNull(task.title, task.description, task.notes, task.category)
+                .any { it.contains(term, ignoreCase = true) }
+        }
+    }
+
     /** Completed tasks whose completion timestamp falls inside [startMillis, endMillis] (Timeline source). */
     suspend fun getCompletedBetween(startMillis: Long, endMillis: Long): List<TaskEntity> =
         dao.getCompletedBetween(startMillis, endMillis)

@@ -34,10 +34,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        ksp {
-            arg("room.schemaLocation", "$projectDir/schemas")
-            arg("room.incremental", "true")
-        }
     }
 
     signingConfigs {
@@ -98,6 +94,12 @@ android {
     sourceSets.getByName("androidTest").assets.srcDirs("$projectDir/schemas")
 }
 
+// Room schema export is consumed by JVM schema tests and MigrationTestHelper.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
+}
+
 dependencies {
     // Core / Kotlin
     implementation("androidx.core:core-ktx:1.15.0")
@@ -133,6 +135,12 @@ dependencies {
 
     // DataStore for settings / preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // WorkManager backs persisted, local task/habit reminders.
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+
+    // Android-managed biometric prompt for the existing App Lock flow.
+    implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
     // Image loading (profile photo in ProfileScreen, Snap photos on the Timeline)

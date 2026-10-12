@@ -2,7 +2,6 @@ package com.lifeos.app.core.life
 
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.repository.*
-import com.lifeos.app.domain.model.NoteBlock
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -86,7 +85,7 @@ class LifeController(
         val content = raw.substringAfterAny(listOf("save a note", "save this note", "note:", "save note"), raw).trim().trim(':',' ')
         if (content.isBlank()) return LifeResult("What should I save in Notes?")
         val title = content.take(48).replaceFirstChar { it.uppercase() }
-        val id = notes.createNote(title, listOf(NoteBlock.Paragraph(UUID.randomUUID().toString(), content)))
+        val id = notes.create(title = title, content = content, tags = emptyList(), folderId = null)
         return LifeResult("Saved to Notes: $title", destination = LifeDestination.Note(id), feedback = LifeActionFeedback("Open Note", LifeDestination.Note(id)))
     }
 
@@ -100,7 +99,15 @@ class LifeController(
     private suspend fun createDiary(raw: String): LifeResult {
         val content = raw.substringAfterAny(listOf("save in diary", "save to diary", "diary:", "diary"), raw).trim().trim(':',' ')
         val now = LocalDateTime.now()
-        diary.createEntry(null, content, null, emptyList(), now.toLocalDate().toEpochDay(), now.hour * 60 + now.minute, false)
+        diary.createEntry(
+            title = null,
+            content = content,
+            mood = null,
+            tags = emptyList(),
+            dateEpochDay = now.toLocalDate().toEpochDay(),
+            timeMinutes = now.hour * 60 + now.minute,
+            aiGenerated = false
+        )
         return LifeResult("Saved to Diary.", destination = LifeDestination.Diary, feedback = LifeActionFeedback("Open Diary", LifeDestination.Diary))
     }
 

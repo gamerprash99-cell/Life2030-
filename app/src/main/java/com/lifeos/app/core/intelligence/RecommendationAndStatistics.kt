@@ -94,9 +94,9 @@ class StatisticsEngine(
     private val expenseRepository: ExpenseRepository
 ) {
     suspend fun computeAllTime(): PersonalStatistics {
-        val notes = noteRepository.observeAll().first().size
-        val allTasks = taskRepository.observeAll().first()
-        val tasksCompleted = allTasks.count { it.isCompleted }
+        val notes = noteRepository.observeActive().first().size
+        val allTasks = taskRepository.getAllForBackup()
+        val tasksCompleted = allTasks.count { it.isCompleted && !it.isDeleted }
         val habits = habitRepository.observeAll().first().count { !it.isArchived }
         val diaryEntries = diaryRepository.observeAll().first()
         val captures = captureRepository.observeAll().first().size

@@ -57,6 +57,13 @@ object DateTimeUtils {
         else -> "Good Night"
     }
 
+    /** ISO week boundaries (Monday through Sunday), in the user's local calendar. */
+    fun startOfWeekEpochDay(date: LocalDate = today()): Long =
+        date.minusDays((date.dayOfWeek.value - 1).toLong()).toEpochDay()
+
+    fun endOfWeekEpochDay(date: LocalDate = today()): Long =
+        startOfWeekEpochDay(date) + 6L
+
     fun startOfMonthEpochDay(date: LocalDate = today()): Long =
         date.withDayOfMonth(1).toEpochDay()
 

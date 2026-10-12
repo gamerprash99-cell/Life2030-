@@ -223,6 +223,10 @@ class DiaryRepository(
         dao.getAllInRange(from, to)
     }
 
+    /** Naming alias shared by the local intelligence/report layer. */
+    suspend fun getInRange(startEpochDay: Long, endEpochDay: Long): List<DiaryEntity> =
+        getAllInRange(startEpochDay, endEpochDay)
+
     /**
      * Searches title, content and tags, newest first.
      *

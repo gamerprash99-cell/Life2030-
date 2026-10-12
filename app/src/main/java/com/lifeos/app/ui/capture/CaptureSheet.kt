@@ -40,7 +40,7 @@ import com.lifeos.app.data.db.entities.CaptureType
 import kotlinx.coroutines.launch
 
 private enum class CaptureMode { MENU, PHOTO, VIDEO, AUDIO, CONFIRM }
-private data class JustCaptured(val type: CaptureType, val filePath: String?)
+private data class JustCaptured(val type: String, val filePath: String?)
 
 @Composable
 fun CaptureSheet(onDismiss: () -> Unit) {
@@ -50,16 +50,15 @@ fun CaptureSheet(onDismiss: () -> Unit) {
     var thought by remember { mutableStateOf("") }
     var justCaptured by remember { mutableStateOf<JustCaptured?>(null) }
 
-    fun saveCapture(type: CaptureType, filePath: String?, caption: String?, showConfirmation: Boolean) {
+    fun saveCapture(type: String, filePath: String?, caption: String?, showConfirmation: Boolean) {
         scope.launch {
             val now = DateTimeUtils.today()
             val minutes = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
-            locator.captureRepository.addCapture(
+            locator.captureRepository.create(
                 type = type,
                 filePath = filePath,
-                caption = caption,
-                dateEpochDay = now.toEpochDay(),
-                timeMinutes = minutes
+                text = caption,
+                tags = listOf(type.lowercase())
             )
             if (showConfirmation) {
                 justCaptured = JustCaptured(type, filePath)
