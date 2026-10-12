@@ -73,7 +73,7 @@ import java.util.Locale
 
 /** A destination an answer can offer to open, so a reply is actionable. */
 enum class AiAction(val label: String) {
-    INSIGHTS("Open Insights"),
+    LIFE("Open Life"),
     DIARY("Open Diary"),
     TASKS("Open Tasks"),
     HABITS("Open Habits"),
@@ -97,9 +97,10 @@ data class AiUiState(
  * LifeOS AI — a *local*, deterministic question answerer.
  *
  * There is no model and no network. The assistant classifies the question by
- * keyword, then answers using the same numbers the Insights screen computes from
- * the local database. That constraint is the feature: every reply is traceable
- * to stored rows and can never hallucinate a fact about the user's life.
+ * keyword, then answers using the same numbers the Life hub and every module
+ * compute from the local database. That constraint is the feature: every reply
+ * is traceable to stored rows and can never hallucinate a fact about the user's
+ * life.
  */
 class AiAssistantViewModel(
     private val taskRepository: TaskRepository,
@@ -208,10 +209,10 @@ class AiAssistantViewModel(
                 val tasks = runCatching { taskRepository.getCompletedBetween(monthStartMillis, tomorrowMillis).size }.getOrDefault(0)
                 val spend = runCatching { expenseRepository.observeInRange(monthStart, todayEpoch).first() }.getOrDefault(emptyList()).sumOf { it.amount }
                 val diary = runCatching { diaryRepository.getAllInRange(monthStart, todayEpoch) }.getOrDefault(emptyList()).size
-                "This month: $tasks task${if (tasks == 1) "" else "s"} done, ${money(spend)} spent, and $diary diary entr${if (diary == 1) "y" else "ies"} written." to AiAction.INSIGHTS
+                "This month: $tasks task${if (tasks == 1) "" else "s"} done, ${money(spend)} spent, and $diary diary entr${if (diary == 1) "y" else "ies"} written." to AiAction.LIFE
             }
 
-            else -> "I can answer questions about your spending, tasks, habits, diary or captured moments. Try “What did I spend this month?”" to AiAction.INSIGHTS
+            else -> "I can answer questions about your spending, tasks, habits, diary or captured moments. Try “What did I spend this month?”" to AiAction.LIFE
         }
     }
 

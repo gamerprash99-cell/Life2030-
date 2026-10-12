@@ -48,9 +48,6 @@ sealed class Screen(val route: String) {
         fun createRoute(noteId: String) = "note/$noteId"
     }
 
-    /** Insights — the on-device analytics dashboard. A primary tab. */
-    object Insights : Screen("insights")
-
     /** Life — the connected-history hub (timeline, calendar, search, modules). */
     object Life : Screen("life")
 

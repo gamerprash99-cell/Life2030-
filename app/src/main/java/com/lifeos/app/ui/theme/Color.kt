@@ -3,107 +3,122 @@ package com.lifeos.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // ===========================================================================
-// LifeOS "Aurora Noir" — the premium design language (v3).
+// LifeOS "PRISM GLASS" — the design language (v4, rebuilt from zero).
 //
-// A cinematic, jewel-toned system. The old neon violet→magenta gradient is
-// replaced by a calmer pair (Iris indigo → Orchid), with two supporting jewel
-// hues: an aurora mint for "alive / success" and a champagne gold reserved for
-// premium moments (streaks, records, achievements). Depth is neutral and soft
-// rather than brand-coloured, so surfaces read as expensive, not loud.
+// Light refracted through glass. A dark-first, cool-neutral obsidian canvas
+// carries frosted, translucent surfaces; a single iridescent spectrum
+// (indigo -> sky -> coral) is the ONLY loud colour and is reserved for identity
+// moments: the hero, the Capture action and the AI orb. Everything else is
+// calm neutral ink on glass, so content leads and colour means something.
 //
-// Every legacy public name below is kept, so every existing call site keeps
-// compiling while adopting the new look. New names are additive.
+// Every public token name from the previous system is kept, so every existing
+// call site keeps compiling while it silently adopts the new look. New
+// PRISM-named tokens are additive.
 // ===========================================================================
 
 // ---- Canvas & surfaces -----------------------------------------------------
 
-/** The page behind everything: a faintly violet porcelain in light mode. */
-val LifeOSBackgroundLight = Color(0xFFF5F3FA)
-/** Obsidian ink — deep, cool, calm. */
-val LifeOSBackgroundDark = Color(0xFF08070D)
+/** The page behind everything: a faintly cool porcelain in light mode. */
+val LifeOSBackgroundLight = Color(0xFFF5F5FA)
+/** Obsidian void — the infinite dark canvas the glass floats over. */
+val LifeOSBackgroundDark = Color(0xFF08080C)
 
 val LifeOSSurfaceLight = Color(0xFFFFFFFF)
-val LifeOSSurfaceDark = Color(0xFF141220)
+val LifeOSSurfaceDark = Color(0xFF121218)
 
 /** A recessed surface for wells, insets and secondary panels. */
-val LifeOSSurfaceVariantLight = Color(0xFFECE8F5)
-val LifeOSSurfaceVariantDark = Color(0xFF201D2E)
+val LifeOSSurfaceVariantLight = Color(0xFFECECF3)
+val LifeOSSurfaceVariantDark = Color(0xFF1B1B24)
 
 /** A raised surface one step above [LifeOSSurfaceLight] (menus, sheets, popovers). */
 val LifeOSSurfaceRaisedLight = Color(0xFFFFFFFF)
-val LifeOSSurfaceRaisedDark = Color(0xFF1C1929)
+val LifeOSSurfaceRaisedDark = Color(0xFF1E1E28)
 
 // ---- Content (text & icons) ------------------------------------------------
 
-val LifeOSTextPrimaryLight = Color(0xFF141118)
-val LifeOSTextPrimaryDark = Color(0xFFF2F0FA)
-val LifeOSTextSecondaryLight = Color(0xFF5A5470)
-val LifeOSTextSecondaryDark = Color(0xFFA9A3C2)
+val LifeOSTextPrimaryLight = Color(0xFF14141A)
+val LifeOSTextPrimaryDark = Color(0xFFF4F4F8)
+val LifeOSTextSecondaryLight = Color(0xFF5C5C6E)
+val LifeOSTextSecondaryDark = Color(0xFFA6A6B8)
+
+/** The deepest tertiary slate — structural labels, dividers and disabled hints. */
+val LifeOSTextMutedLight = Color(0xFF8A8A9C)
+val LifeOSTextMutedDark = Color(0xFF6E6E80)
 
 // ---- Borders & outlines ----------------------------------------------------
 
 val LifeOSBorderLight = Color(0x14000000)
 val LifeOSBorderDark = Color(0x1FFFFFFF)
-val LifeOSOutlineLight = Color(0xFF9A94AE)
-val LifeOSOutlineDark = Color(0xFF6C6682)
+val LifeOSOutlineLight = Color(0xFF9A9AAE)
+val LifeOSOutlineDark = Color(0xFF4A4A5A)
 
 // ---- Glass -----------------------------------------------------------------
 //
-// Quieter than before: a touch less opaque, a finer rim, a softer sheen, so the
-// content on a card leads and the material never competes with it.
+// The frosted sheet itself. Deeply translucent so the aurora behind it shows
+// through, with a bright top rim and a deep bottom rim so a surface reads as a
+// real lens rather than a flat translucent rectangle.
 
-val GlassLight = Color(0xE0FFFFFF)
-val GlassDark = Color(0xC41B1826)
+val GlassLight = Color(0xE8FFFFFF)
+val GlassDark = Color(0xCC14141C)
 val GlassBorderLight = Color(0x14000000)
-val GlassBorderDark = Color(0x22FFFFFF)
+val GlassBorderDark = Color(0x1FFFFFFF)
 
 // The dual-tone rim: light catches the top edge, shadow pools on the bottom.
-val GlassTopEdgeLight = Color(0xB0FFFFFF)
-val GlassTopEdgeDark = Color(0x5CFFFFFF)
-val GlassBottomEdgeLight = Color(0x24000000)
-val GlassBottomEdgeDark = Color(0x4A000000)
+val GlassTopEdgeLight = Color(0xB3FFFFFF)
+val GlassTopEdgeDark = Color(0x66FFFFFF)
+val GlassBottomEdgeLight = Color(0x1A000000)
+val GlassBottomEdgeDark = Color(0x40000000)
 
 // The "liquid" sheen across the upper part of a sheet, and the soft base shadow.
-val GlassSheenLight = Color(0x30FFFFFF)
-val GlassSheenDark = Color(0x14FFFFFF)
-val GlassInnerShadowLight = Color(0x12000000)
-val GlassInnerShadowDark = Color(0x2A000000)
+val GlassSheenLight = Color(0x33FFFFFF)
+val GlassSheenDark = Color(0x1AFFFFFF)
+val GlassInnerShadowLight = Color(0x14000000)
+val GlassInnerShadowDark = Color(0x33000000)
 
 /**
  * Ambient glow palette — the soft colour clouds a frosted surface refracts.
- * Re-cut for Aurora Noir: iris, orchid and a whisper of aurora mint, kept
- * deliberately faint so a glow can never overpower on-surface content.
+ * Prism Glass keeps them faint and cool (indigo, violet, sky) so a glow can
+ * never overpower on-surface content.
  */
-val AmbientGlowLavenderLight = Color(0x5CAD9EFF) // iris haze
-val AmbientGlowMagentaLight = Color(0x4DDEA6FF)  // orchid haze
-val AmbientGlowSkyLight = Color(0x408FD3FF)      // cool daylight haze
-val AmbientGlowLavenderDark = Color(0x4D3A2E86)  // iris haze (dark)
-val AmbientGlowMagentaDark = Color(0x402E1E63)   // orchid haze (dark)
-val AmbientGlowSkyDark = Color(0x38204A8A)       // cool haze (dark)
+val AmbientGlowLavenderLight = Color(0x4D8B7CFF) // indigo haze
+val AmbientGlowMagentaLight = Color(0x3DFF9AA5)  // coral haze
+val AmbientGlowSkyLight = Color(0x3D4CC9F0)      // sky haze
+val AmbientGlowLavenderDark = Color(0x4D4A3AC0)  // indigo haze (dark)
+val AmbientGlowMagentaDark = Color(0x3D4A2E7A)   // violet haze (dark)
+val AmbientGlowSkyDark = Color(0x38204A8A)       // sky haze (dark)
 
-// ---- Brand -----------------------------------------------------------------
+// ---- Brand — the Prism spectrum --------------------------------------------
 
-/** Iris — the primary action / selection colour. */
-val LifeOSPrimary = Color(0xFF5A4BE8)
+/** Iris indigo — the primary action / selection colour. The spectrum's first stop. */
+val LifeOSPrimary = Color(0xFF5B49E6)
 
 /** A deeper iris for pressed states and gradient depth. */
-val LifeOSPrimaryDeep = Color(0xFF3D2FBE)
+val LifeOSPrimaryDeep = Color(0xFF3B2CC4)
 
-/** Orchid — the gradient partner. Calm, not hot pink. */
-val LifeOSSecondary = Color(0xFF8B3DDB)
+/** Sky — the gradient partner and the "informational" second accent. */
+val LifeOSSecondary = Color(0xFF2F9BE0)
 
 /** A very soft iris wash, for containers and selected surfaces. */
-val LifeOSAccentLavender = Color(0xFFE7E2FF)
+val LifeOSAccentLavender = Color(0xFFE9E5FF)
 
-/** Aurora mint — the "alive" second accent; success reads here too. */
-val LifeOSTertiary = Color(0xFF0F9E8E)
+/** Coral — the warm third accent, and the app's "energetic" highlight. */
+val LifeOSTertiary = Color(0xFFE0576B)
+
+// The named spectrum stops, for the identity gradient. Kept separate from the
+// role tokens above so the gradient can stay vivid in both themes.
+val PrismIndigo = Color(0xFF7C6BFF)
+val PrismSky = Color(0xFF4CC9F0)
+val PrismCoral = Color(0xFFFF7A85)
+
+/** The one identity gradient. Reserved for the hero, Capture and the AI orb. */
+val PrismSpectrum = listOf(PrismIndigo, PrismSky, PrismCoral)
 
 // ---- Premium highlight -----------------------------------------------------
 
 /**
- * Champagne gold — reserved for premium moments only: streaks, personal
- * records, achievements, "best day" badges. Using it anywhere else would rob
- * it of meaning. [LifeOSGoldSoft] is its light-tinted fill on a surface.
+ * Amber gold — reserved for premium moments only: streaks, personal records,
+ * achievements, "best day" badges. Using it anywhere else would rob it of
+ * meaning. [LifeOSGoldSoft] is its light-tinted fill on a surface.
  */
 val LifeOSGold = Color(0xFFB8860B)
 val LifeOSGoldBright = Color(0xFFE8B44A)
@@ -123,12 +138,11 @@ val LifeOSShadow = Color(0xFF1A1626)
 val LifeOSScrim = Color(0x66000000)
 
 // ===========================================================================
-// Diary "Tactile Editorial Journal" — mood palette + ink/paper tones.
+// Diary — the app's one deliberately non-glass module.
 //
-// The diary is deliberately a physical object: it stays warm paper even when
-// the rest of LifeOS is dark, exactly as a paper notebook would. These tokens
-// are used only by the diary module (and the shared timeline that renders diary
-// entries), so they are intentionally outside the Aurora system.
+// A physical paper object: it stays warm paper even when the rest of LifeOS is
+// obsidian, exactly as a paper notebook would. These tokens are used only by
+// the diary module and the shared timeline that renders diary entries.
 // ===========================================================================
 
 val DiaryMoodHappy = Color(0xFFF59E0B)      // goldenrod
@@ -139,9 +153,7 @@ val DiaryMoodExcited = Color(0xFF7D5260)    // dried rose plum
 
 /**
  * The Diary's *heading* ink: a warm near-black pen ink reserved for text and
- * the timeline spine. It is deliberately never used for anything actionable: a
- * tappable control painted in a near-black ink reads as disabled. Actionable
- * controls use [DiaryActionViolet].
+ * the timeline spine. Deliberately never used for anything actionable.
  */
 val DiaryInkViolet = Color(0xFF2E2A26)
 
@@ -150,9 +162,8 @@ val DiaryInkSoft = Color(0xFF6C6357)
 
 /**
  * The Diary's actionable hue: the blue-black of a fountain-pen stroke. Every
- * control the user can press — the FAB, the "Write" action, the selected-mood
- * ring, the cursor — is painted in this ink, so "pressable" and "read this"
- * are told apart by hue alone.
+ * control the user can press is painted in this ink, so "pressable" and
+ * "read this" are told apart by hue alone.
  */
 val DiaryActionViolet = Color(0xFF2E4A6E)
 
@@ -170,7 +181,7 @@ val DiaryRibbon = Color(0xFF9C3A3A)         // fabric bookmark
 val DiarySaveDisabled = Color(0xFFEDE3CE)   // disabled Save pill
 val DiaryPageShadow = Color(0x243B2F1E)     // soft drop shadow under a page
 
-// Pastel mood-pill fills (Stitch "Tactile Editorial Journal" mood palette).
+// Pastel mood-pill fills.
 val DiaryMoodHappyPastel = Color(0xFFFEF3C7)
 val DiaryMoodCalmPastel = Color(0xFFD1FAE5)
 val DiaryMoodSadPastel = Color(0xFFE0E7FF)

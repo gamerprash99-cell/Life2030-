@@ -90,7 +90,7 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun ProfileScreen(
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
     onOpenSettings: () -> Unit,
     onOpenAppLock: () -> Unit = onOpenSettings
 ) {
@@ -132,7 +132,7 @@ fun ProfileScreen(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            LifeOSTopBar("Profile", "Your LifeOS space", onBack = onBack)
+            LifeOSTopBar("You", "Your LifeOS space", onBack = onBack)
             Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 LifeOSCard(Modifier.fillMaxWidth(), tint = LifeOSAccentLavender) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

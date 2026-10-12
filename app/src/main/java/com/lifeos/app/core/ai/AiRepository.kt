@@ -13,7 +13,7 @@ import com.lifeos.app.core.intelligence.LifeOSIntelligenceEngine
  * returns a result computed entirely on-device.
  *
  * This class is kept as a thin compatibility layer over the engine so the
- * UI call sites (NotesViewModel, DiaryScreen, InsightsScreen,
+ * UI call sites (NotesViewModel, DiaryScreen, LifeScreen,
  * AiAssistantScreen) didn't need a full rewrite — only their `NoApiKey`
  * branches were removed, since that case no longer exists.
  */

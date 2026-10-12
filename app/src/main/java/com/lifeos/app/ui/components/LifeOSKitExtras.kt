@@ -294,7 +294,7 @@ fun LifeOSIconButton(
 @Composable
 fun LifeOSHeroCard(
     modifier: Modifier = Modifier,
-    brush: Brush = Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary)),
+    brush: Brush = prismBrush(),
     contentPadding: PaddingValues = PaddingValues(LifeOSSpacing.xl),
     content: @Composable () -> Unit
 ) {

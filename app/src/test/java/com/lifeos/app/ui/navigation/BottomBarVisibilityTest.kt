@@ -45,8 +45,8 @@ class BottomBarVisibilityTest {
     @Test
     fun `shows for the new primary tabs`() {
         assertTrue(shouldShowBottomBar(Screen.Notes.route, false))
-        assertTrue(shouldShowBottomBar(Screen.Insights.route, false))
         assertTrue(shouldShowBottomBar(Screen.Life.route, false))
+        assertTrue(shouldShowBottomBar(Screen.Profile.route, false))
     }
 
     @Test

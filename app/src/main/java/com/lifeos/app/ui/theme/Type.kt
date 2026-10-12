@@ -27,9 +27,7 @@ val PoppinsFamily = FontFamily(
  *
  * Used only by the diary module for the things a person actually writes — a
  * memory's title and body, the day's date, the empty-page invitation — while
- * controls and small labels keep the app's legible default sans. Light is
- * reserved for the large date so it reads as a pen flourish rather than bold
- * body copy.
+ * controls and small labels keep the app's legible default sans.
  */
 val DiaryHandwriting = FontFamily(
     Font(R.font.kalam_light, FontWeight.Light),
@@ -38,26 +36,27 @@ val DiaryHandwriting = FontFamily(
 )
 
 /**
- * Calm, high-legibility hierarchy on Poppins — tuned for Aurora Noir.
+ * Prism Glass hierarchy on Poppins.
  *
- * Display sizes carry a slightly tighter tracking so large headings feel
- * composed and "editorial" rather than loose; titles step up to SemiBold for a
- * firmer hierarchy; labels keep a touch of positive tracking so small caps read
- * as deliberate eyebrows. Line heights stay generous enough for 200% font
- * scaling without text colliding.
+ * Display sizes carry negative tracking so large headings bind into confident
+ * units rather than reading loose; titles step to SemiBold/Bold for a firmer
+ * hierarchy; labels keep a touch of positive tracking so small caps read as
+ * deliberate eyebrows. Body copy keeps a relaxed line-height (1.6x) so long
+ * notes and diary entries stay comfortable on the obsidian canvas, and every
+ * style survives 200% font scaling without collision.
  */
 val LifeOSTypography = Typography(
-    displayLarge = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 42.sp, lineHeight = 50.sp, letterSpacing = (-0.8).sp),
-    displayMedium = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 35.sp, lineHeight = 43.sp, letterSpacing = (-0.6).sp),
-    displaySmall = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 29.sp, lineHeight = 37.sp, letterSpacing = (-0.4).sp),
-    headlineLarge = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 35.sp, letterSpacing = (-0.4).sp),
-    headlineMedium = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 23.sp, lineHeight = 30.sp, letterSpacing = (-0.3).sp),
+    displayLarge = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 46.sp, lineHeight = 54.sp, letterSpacing = (-1.0).sp),
+    displayMedium = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 38.sp, lineHeight = 46.sp, letterSpacing = (-0.8).sp),
+    displaySmall = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 31.sp, lineHeight = 39.sp, letterSpacing = (-0.6).sp),
+    headlineLarge = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 29.sp, lineHeight = 36.sp, letterSpacing = (-0.5).sp),
+    headlineMedium = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 24.sp, lineHeight = 31.sp, letterSpacing = (-0.4).sp),
     headlineSmall = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 27.sp, letterSpacing = (-0.2).sp),
     titleLarge = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, lineHeight = 25.sp, letterSpacing = (-0.1).sp),
     titleMedium = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 22.sp),
     titleSmall = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp),
-    bodyLarge = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp),
-    bodyMedium = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 21.sp),
+    bodyLarge = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 25.sp),
+    bodyMedium = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 22.sp),
     bodySmall = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 18.sp),
     labelLarge = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 18.sp, letterSpacing = 0.2.sp),
     labelMedium = TextStyle(fontFamily = PoppinsFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.4.sp),
