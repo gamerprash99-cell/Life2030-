@@ -169,4 +169,5 @@ private fun captureTitle(type: String?): String = when (type) {
     CaptureType.AUDIO -> "Audio"
     CaptureType.THOUGHT -> "Thought"
     null -> "Capture"
+    else -> "Capture"
 }

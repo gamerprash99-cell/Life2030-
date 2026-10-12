@@ -26,9 +26,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.data.repository.DiaryRepository
-import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.NoteRepository
-import com.lifeos.app.data.repository.TaskRepository
 import com.lifeos.app.ui.components.GlassCard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,8 +41,6 @@ data class SearchResults(
 
 class SearchViewModel(
     private val noteRepo: NoteRepository,
-    private val taskRepo: TaskRepository,
-    private val expenseRepo: ExpenseRepository,
     private val diaryRepo: DiaryRepository
 ) : ViewModel() {
     private val _results = MutableStateFlow(SearchResults())
@@ -71,7 +67,7 @@ fun SearchScreen() {
     val locator = LocalServiceLocator.current
     val viewModel: SearchViewModel = viewModel(
         factory = LambdaViewModelFactory {
-            SearchViewModel(locator.noteRepository, locator.taskRepository, locator.expenseRepository, locator.diaryRepository)
+            SearchViewModel(locator.noteRepository, locator.diaryRepository)
         }
     )
     var query by remember { mutableStateOf("") }
