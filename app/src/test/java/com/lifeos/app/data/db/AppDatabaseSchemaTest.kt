@@ -1,5 +1,9 @@
 package com.lifeos.app.data.db
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -27,36 +31,28 @@ class AppDatabaseSchemaTest {
             ?: error("Can't find the exported Room v6 schema at app/schemas/com.lifeos.app.data.db.AppDatabase/6.json.")
     }
 
-    private fun createSqlFor(table: String, json: String = readSchemaJson()): String =
-        Regex("\\"tableName\\"\\s*:\\s*\\"$table\\"")
-            .find(json)
-            ?.let { match ->
-                val tail = json.substring(match.range.last)
-                Regex("\\"createSql\\"\\s*:\\s*\\"([^\\"]*)\\"")
-                    .find(tail)
-                    ?.groupValues
-                    ?.get(1)
-            }
+    private fun schemaJson() = Json.parseToJsonElement(readSchemaJson()).jsonObject
+
+    private fun entityJsonObjects() =
+        schemaJson().getValue("database").jsonObject.getValue("entities").jsonArray.map { it.jsonObject }
+
+    private fun createSqlFor(table: String): String =
+        entityJsonObjects()
+            .firstOrNull { it.getValue("tableName").jsonPrimitive.content == table }
+            ?.getValue("createSql")
+            ?.jsonPrimitive
+            ?.content
             ?: error("Can't find createSql for table '$table' in exported v6 schema")
 
     private fun columnsOf(createSql: String): Set<String> =
         Regex("`([a-zA-Z_]+)`").findAll(createSql).map { it.groupValues[1] }.toSet()
 
-    private fun tableNames(): Set<String> {
-        val json = readSchemaJson()
-        return Regex("\\"tableName\\"\\s*:\\s*\\"([a-z_]+)\\"")
-            .findAll(json)
-            .map { it.groupValues[1] }
-            .toSet()
-    }
+    private fun tableNames(): Set<String> =
+        entityJsonObjects().map { it.getValue("tableName").jsonPrimitive.content }.toSet()
 
     @Test
     fun schema_isVersionSix() {
-        val version = Regex("\\"version\\"\\s*:\\s*(\\d+)")
-            .find(readSchemaJson())
-            ?.groupValues
-            ?.get(1)
-            ?.toInt()
+        val version = schemaJson().getValue("database").jsonObject.getValue("version").jsonPrimitive.content.toInt()
         assertEquals(6, version)
     }
 
