@@ -3,4 +3,17 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowBackground">@android:color/white</item>
     </style>
+
+    <!--
+        Android 12+ native splash (backported by androidx.core:core-splashscreen
+        on older API levels). MainActivity uses this so the system's own startup
+        screen covers the encrypted-database open; LifeOS never shows a second,
+        custom "Unlocking your data…" screen. The real app UI is
+        Theme.LifeOS (postSplashScreenTheme).
+    -->
+    <style name="Theme.LifeOS.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@android:color/white</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.LifeOS</item>
+    </style>
 </resources>

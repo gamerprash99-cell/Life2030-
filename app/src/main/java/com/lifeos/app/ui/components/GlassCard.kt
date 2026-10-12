@@ -1,38 +1,58 @@
 package com.lifeos.app.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
-import com.lifeos.app.ui.theme.LocalGlassColors
+import com.lifeos.app.ui.theme.LifeOSRadius
 
+/**
+ * A frosted, translucent surface riding the Liquid Glass material. These are
+ * thin wrappers over [`liquidGlass`] so every existing caller (the bottom
+ * navigation, the Home header, Timeline/Expenses/Habits cards) automatically
+ * inherits the full liquid treatment — the vertical gradient sheet, the tint
+ * overlay, the specular sheen, the deep base shadow and the dual-tone rim
+ * light — instead of a flat translucent rectangle.
+ */
+
+/** Apply Liquid Glass chrome directly to a modifier (persistent chrome, headers). */
 @Composable
-fun GlassCard(modifier: Modifier = Modifier, cornerRadius: androidx.compose.ui.unit.Dp = 24.dp, content: @Composable () -> Unit) {
-    val glass = LocalGlassColors.current
-    val shape = RoundedCornerShape(cornerRadius)
-    Box(
-        modifier = modifier
-            .shadow(elevation = 12.dp, shape = shape, ambientColor = glass.border, spotColor = glass.border)
-            .clip(shape)
-            .background(Brush.linearGradient(colors = listOf(glass.surface, glass.surface.copy(alpha = glass.surface.alpha * 0.85f))))
-            .border(width = 1.dp, color = glass.border, shape = shape)
-            .padding(20.dp)
+fun Modifier.glassSurface(
+    shape: Shape = RoundedCornerShape(LifeOSRadius.xlarge),
+    tint: androidx.compose.ui.graphics.Color? = null
+): Modifier = this.liquidGlass(shape = shape, tint = tint)
+
+/** A liquid glass card. Body/list surfaces stay translucent enough to show the ambient glow behind them. */
+@Composable
+fun GlassCard(
+    modifier: Modifier = Modifier,
+    cornerRadius: androidx.compose.ui.unit.Dp = LifeOSRadius.xlarge,
+    content: @Composable () -> Unit
+) {
+    LiquidGlassSurface(
+        modifier = modifier,
+        shape = RoundedCornerShape(cornerRadius),
+        contentPadding = PaddingValues(20.dp)
     ) { content() }
 }
 
+/** A liquid glass chip with a stronger accent tint when selected. */
 @Composable
-fun GlassChip(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val glass = LocalGlassColors.current
-    val shape = RoundedCornerShape(50)
-    Box(modifier = modifier.clip(shape).background(glass.surface).border(width = 1.dp, color = glass.border, shape = shape).padding(horizontal = 12.dp, vertical = 6.dp)) {
+fun GlassChip(
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    val tint = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        null
+    }
+    LiquidGlassChip(modifier = modifier, selected = selected, tint = tint) {
         content()
     }
 }

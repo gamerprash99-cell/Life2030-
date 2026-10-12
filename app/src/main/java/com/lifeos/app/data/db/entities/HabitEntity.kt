@@ -1,6 +1,7 @@
 package com.lifeos.app.data.db.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
@@ -9,7 +10,7 @@ enum class HabitFrequency { DAILY, WEEKLY, CUSTOM }
 
 /** Habit Tracker — Section 11/12/13. */
 @Serializable
-@Entity(tableName = "habits")
+@Entity(tableName = "habits", indices = [Index(value = ["isArchived"])])
 data class HabitEntity(
     @PrimaryKey val id: String,
     val name: String,
@@ -26,7 +27,7 @@ data class HabitEntity(
 )
 
 @Serializable
-@Entity(tableName = "habit_completions", primaryKeys = ["habitId", "dateEpochDay"])
+@Entity(tableName = "habit_completions", primaryKeys = ["habitId", "dateEpochDay"], indices = [Index(value = ["dateEpochDay"])])
 data class HabitCompletionEntity(
     val habitId: String,
     val dateEpochDay: Long,

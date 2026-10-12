@@ -1,293 +1,521 @@
 package com.lifeos.app.ui.home
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SelfImprovement
-import androidx.compose.material.icons.filled.Spa
-import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
-import com.lifeos.app.ui.components.LifeOSCard
-import com.lifeos.app.ui.components.LifeOSGradientButton
-import com.lifeos.app.ui.components.LifeOSIntelligenceCard
-import com.lifeos.app.ui.components.LifeOSSectionHeader
-import com.lifeos.app.ui.theme.LifeOSAccentLavender
+import com.lifeos.app.data.db.entities.TaskEntity
+import com.lifeos.app.domain.usecase.HabitSummaryRow
+import com.lifeos.app.domain.usecase.HomeSummary
+import com.lifeos.app.ui.components.LifeOSBanner
+import com.lifeos.app.ui.components.LifeOSHeroCard
+import com.lifeos.app.ui.components.LifeOSIconButton
+import com.lifeos.app.ui.components.LifeOSPill
+import com.lifeos.app.ui.components.LifeOSSurface
+import com.lifeos.app.ui.components.LifeOSWeeklyRhythm
+import com.lifeos.app.ui.components.ProfileAvatar
+import com.lifeos.app.ui.components.liquidGlass
 import com.lifeos.app.ui.theme.LifeOSPrimary
+import com.lifeos.app.ui.theme.LifeOSRadius
+import com.lifeos.app.ui.theme.LifeOSSecondary
 import com.lifeos.app.ui.theme.LifeOSSpacing
+import com.lifeos.app.ui.theme.LifeOSSuccess
+import com.lifeos.app.ui.theme.LifeOSWarning
+import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
+import java.util.Locale
 
+/**
+ * Home — the command centre. One hero (today's real progress), a quick-action
+ * rail, an entry to LifeOS AI, today's tasks and habits, the shared weekly
+ * rhythm, today's spend, and a preview of recent activity.
+ *
+ * Every number comes from [HomeSummary], which is assembled live from persisted
+ * rows — nothing here is a placeholder.
+ */
 @Composable
 fun HomeScreen(
     onOpenTasks: () -> Unit,
     onOpenHabits: () -> Unit,
-    onOpenCapture: () -> Unit,
-    onOpenAiAssistant: () -> Unit,
-    onOpenNotes: () -> Unit = {},
-    onOpenExpenses: () -> Unit = {},
-    onOpenDiary: () -> Unit = {},
-    onOpenInsights: () -> Unit = {},
-    onOpenSearch: () -> Unit = {},
-    onOpenTimeline: () -> Unit = {},
-    onOpenProfile: () -> Unit = {}
+    onOpenExpenses: () -> Unit,
+    onOpenDiary: () -> Unit,
+    onOpenTimeline: () -> Unit,
+    onOpenProfile: () -> Unit,
+    onOpenSnap: () -> Unit,
+    onOpenSnapItem: (String) -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenAi: () -> Unit
 ) {
     val locator = LocalServiceLocator.current
-    val viewModel: HomeViewModel = viewModel(factory = LambdaViewModelFactory { HomeViewModel(locator.getHomeSummaryUseCase, locator.taskRepository, locator.habitRepository) })
-    val summary by viewModel.summary.collectAsState()
-    val totalTasks = summary?.tasksTotalToday ?: 0
-    val completedTasks = summary?.tasksCompletedToday ?: 0
-    val verifiedHabits = summary?.habitsToday?.count { it.isDone } ?: 0
-    val totalHabits = summary?.habitsToday?.size ?: 0
-    val momentum = if (totalTasks + totalHabits == 0) 0 else (((completedTasks + verifiedHabits).toFloat() / (totalTasks + totalHabits)) * 100).toInt()
-    val animatedMomentum by animateFloatAsState(targetValue = (momentum / 100f).coerceIn(0f, 1f), animationSpec = spring(stiffness = 500f), label = "homeMomentum")
+    val viewModel: HomeViewModel = viewModel(
+        factory = LambdaViewModelFactory {
+            HomeViewModel(locator.getHomeSummaryUseCase, locator.taskRepository, locator.habitRepository)
+        }
+    )
+    val summary by viewModel.summary.collectAsStateWithLifecycle()
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
             start = LifeOSSpacing.screenPadding,
             end = LifeOSSpacing.screenPadding,
-            top = 12.dp,
-            bottom = 28.dp
+            top = LifeOSSpacing.md,
+            bottom = 140.dp
         ),
         verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
     ) {
-        item { HomeHeader(summary?.dateLabel, onOpenSearch, onOpenProfile) }
-        item { GreetingBlock(summary?.greeting ?: "Welcome back") }
-        item { DailyMomentumCard(momentum, completedTasks, totalTasks, verifiedHabits, totalHabits, summary?.todaySpend ?: 0.0, animatedMomentum) }
+        item { HomeHeader(summary, onOpenSearch, onOpenProfile) }
+
+        item { DailyUpdateHero(summary) }
+
         item {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
-                item { QuickAction("New Note", Icons.Filled.EditNote, onOpenNotes) }
-                item { QuickAction("Log Expense", Icons.Filled.Payments, onOpenExpenses) }
-                item { QuickAction("Reflect", Icons.Filled.SelfImprovement, onOpenDiary) }
-                item { QuickAction("Insights", Icons.Filled.AutoAwesome, onOpenInsights) }
-                item { QuickAction("Timeline", Icons.Filled.Timeline, onOpenTimeline) }
-            }
+            QuickActionRow(
+                onOpenTasks = onOpenTasks,
+                onOpenHabits = onOpenHabits,
+                onOpenExpenses = onOpenExpenses,
+                onOpenDiary = onOpenDiary
+            )
         }
-        item { LifeOSSectionHeader("Today's Priorities", "See all", onOpenTasks) }
-        if (summary?.tasksToday.isNullOrEmpty()) {
-            item { EmptyStateCard("No tasks planned for today", "Add a task when you are ready to focus.", onOpenTasks) }
-        } else {
-            items(summary?.tasksToday?.take(4).orEmpty(), key = { it.id }) { task ->
-                LifeOSCard(Modifier.fillMaxWidth(), onClick = onOpenTasks) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Filled.CheckCircle,
-                            contentDescription = if (task.isCompleted) "Completed" else "Not completed",
-                            tint = if (task.isCompleted) LifeOSPrimary else MaterialTheme.colorScheme.outlineVariant,
-                            modifier = Modifier.size(22.dp)
+
+        item { AiNudge(onOpenAi) }
+
+        summary?.let { s ->
+            if (s.overdueTaskCount > 0) {
+                item {
+                    LifeOSBanner(
+                        icon = Icons.Filled.WarningAmber,
+                        text = "${s.overdueTaskCount} task${if (s.overdueTaskCount == 1) "" else "s"} slipped past their day. Reschedule or clear them on Tasks.",
+                        tint = LocalLifeOSSemanticColors.current.warning,
+                        action = "Open",
+                        onAction = onOpenTasks
+                    )
+                }
+            }
+
+            item {
+                SectionHeader(
+                    title = "Today's tasks",
+                    trailing = if (s.tasksTotalToday > 0) "${s.tasksCompletedToday}/${s.tasksTotalToday}" else null,
+                    onSeeAll = onOpenTasks
+                )
+            }
+            if (s.tasksToday.isEmpty()) {
+                item { EmptyRow(Icons.Outlined.CheckCircle, "Nothing planned today", "Add a task to give the day a spine.", "Add task", onOpenTasks) }
+            } else {
+                items(s.tasksToday.take(5), key = { it.id }) { task ->
+                    TaskRow(task = task, onToggle = { viewModel.toggleTask(task.id, !task.isCompleted) })
+                }
+            }
+
+            item {
+                SectionHeader(
+                    title = "Habits",
+                    trailing = if (s.habitsToday.isNotEmpty()) "${s.habitsToday.count { it.isDone }}/${s.habitsToday.size}" else null,
+                    onSeeAll = onOpenHabits
+                )
+            }
+            if (s.habitsToday.isEmpty()) {
+                item { EmptyRow(Icons.Filled.LocalFireDepartment, "No habits yet", "Small daily repetitions compound. Start one.", "Add habit", onOpenHabits) }
+            } else {
+                items(s.habitsToday.take(5), key = { it.habit.id }) { row ->
+                    HabitRow(row = row, onToggle = { viewModel.toggleHabit(row.habit.id, row.isDone, row.goalCount) })
+                }
+            }
+
+            item {
+                LifeOSSurface(Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("This week", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                            LifeOSPill(text = "${s.weeklyDoneDays}/7 days", tint = LifeOSSuccess)
+                        }
+                        LifeOSWeeklyRhythm(days = s.weeklyConsistency, dotSize = 32.dp)
+                        Text(
+                            when {
+                                s.weeklyDoneDays >= 6 -> "A strong week. Keep the rhythm."
+                                s.weeklyDoneDays >= 3 -> "Halfway there — momentum is building."
+                                s.weeklyDoneDays > 0 -> "A start. Stack one more day."
+                                else -> "A clean week ahead."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text(task.title, style = MaterialTheme.typography.bodyLarge)
-                            task.category?.let { Text("#$it", style = MaterialTheme.typography.bodySmall, color = LifeOSPrimary) }
+                    }
+                }
+            }
+
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
+                    MiniStat(
+                        label = "Spent today",
+                        value = formatMoney(s.todaySpend),
+                        icon = Icons.Filled.Payments,
+                        tint = LifeOSPrimary,
+                        onClick = onOpenExpenses,
+                        modifier = Modifier.weight(1f)
+                    )
+                    MiniStat(
+                        label = "Quick capture",
+                        value = "＋",
+                        icon = null,
+                        tint = LifeOSSecondary,
+                        onClick = onOpenSnap,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            if (s.recentActivity.isNotEmpty()) {
+                item { SectionHeader(title = "Recent activity", trailing = null, onSeeAll = onOpenTimeline) }
+                items(s.recentActivity.take(4), key = { it.id }) { activity ->
+                    LifeOSSurface(Modifier.fillMaxWidth(), onClick = { onOpenSnapItem(activity.sourceId) }) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
+                            Box(
+                                Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(LifeOSRadius.medium))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(activity.icon, style = MaterialTheme.typography.titleMedium)
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text(activity.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                activity.subtitle?.let {
+                                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
             }
         }
-        item { LifeOSSectionHeader("Habits Streak", "Open all", onOpenHabits) }
-        item {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
-                items(summary?.habitsToday.orEmpty(), key = { it.habit.id }) { row ->
-                    LifeOSCard(
-                        Modifier.size(width = 148.dp, height = 126.dp),
-                        tint = if (row.isDone) LifeOSAccentLavender else MaterialTheme.colorScheme.surface,
-                        onClick = onOpenHabits
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                            Text(row.habit.icon, style = MaterialTheme.typography.headlineMedium)
-                            Text(row.habit.name, style = MaterialTheme.typography.labelMedium, maxLines = 1)
-                            Spacer(Modifier.height(7.dp))
-                            Text("${row.progressCount}/${row.goalCount}", style = MaterialTheme.typography.titleMedium, color = if (row.isDone) LifeOSPrimary else MaterialTheme.colorScheme.onSurface)
-                            Text(if (row.isDone) "Completed" else "Today", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
+    }
+}
+
+@Composable
+private fun HomeHeader(summary: HomeSummary?, onOpenSearch: () -> Unit, onOpenProfile: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                summary?.greeting ?: "Hello",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                summary?.dateLabel ?: "",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        LifeOSIconButton(Icons.Filled.Search, contentDescription = "Search", onClick = onOpenSearch)
+        Spacer(Modifier.size(LifeOSSpacing.sm))
+        ProfileAvatar(size = 44.dp, onClick = onOpenProfile)
+    }
+}
+
+@Composable
+private fun DailyUpdateHero(summary: HomeSummary?) {
+    val percent = summary?.dailyUpdatePercent ?: 0
+    val progress by animateFloatAsState(percent / 100f, tween(600), label = "dailyUpdate")
+
+    LifeOSHeroCard {
+        Column(verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        (summary?.dayStatusLabel ?: "Day starting").uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.85f)
+                    )
+                    Text(
+                        "$percent%",
+                        style = MaterialTheme.typography.displayMedium,
+                        color = Color.White
+                    )
+                    Text(
+                        "of today's goals",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
                 }
+                BoltDisc()
             }
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(LifeOSRadius.pill))
+                    .background(Color.White.copy(alpha = 0.24f))
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(progress.coerceIn(0f, 1f))
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(LifeOSRadius.pill))
+                        .background(Color.White)
+                )
+            }
+            val done = (summary?.tasksCompletedToday ?: 0) + (summary?.habitsToday?.count { it.isDone } ?: 0)
+            val total = (summary?.tasksTotalToday ?: 0) + (summary?.habitsToday?.size ?: 0)
+            Text(
+                if (total == 0) "Nothing scheduled yet — add a task or a habit to start."
+                else "$done of $total goals done today",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.9f)
+            )
         }
-        if (summary?.habitsToday.isNullOrEmpty()) {
-            item { EmptyStateCard("No routines yet", "Create a small habit to start a local streak.", onOpenHabits) }
-        }
-        item { RecentActivityCard(summary?.todaySpend ?: 0.0, summary?.overdueTaskCount ?: 0, completedTasks, totalTasks, onOpenTimeline) }
-        item { LifeOSIntelligenceCard(onClick = onOpenAiAssistant) }
-        item { LifeOSGradientButton(text = "Capture a moment", modifier = Modifier.fillMaxWidth(), onClick = onOpenCapture) }
     }
 }
 
 @Composable
-private fun HomeHeader(dateLabel: String?, onSearch: () -> Unit, onProfile: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("LifeOS", style = MaterialTheme.typography.titleLarge)
-                Text("•", color = LifeOSPrimary)
-                Text("Today", style = MaterialTheme.typography.labelSmall, color = LifeOSPrimary)
-            }
-            Text(dateLabel ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, contentDescription = "Search") }
-        Surface(onClick = onProfile, modifier = Modifier.size(44.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .32f)) { Icon(Icons.Filled.Person, contentDescription = "Profile", tint = LifeOSPrimary, modifier = Modifier.padding(10.dp)) }
+private fun BoltDisc() {
+    Box(
+        Modifier
+            .size(56.dp)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.18f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(Icons.Filled.Bolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
     }
 }
 
-/**
- * Greeting plus a soft radial glow. The decorative gradient uses
- * [Modifier.matchParentSize] so it never dictates the block height — the
- * previous version sized the decoration at 210.dp which pushed a large empty
- * gap between the greeting and Daily Momentum.
- */
 @Composable
-private fun GreetingBlock(greeting: String) {
-    Box(Modifier.fillMaxWidth()) {
+private fun QuickActionRow(
+    onOpenTasks: () -> Unit,
+    onOpenHabits: () -> Unit,
+    onOpenExpenses: () -> Unit,
+    onOpenDiary: () -> Unit
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
+        QuickAction(Icons.Outlined.CheckCircle, "Tasks", LifeOSSuccess, onOpenTasks, Modifier.weight(1f))
+        QuickAction(Icons.Filled.LocalFireDepartment, "Habits", LifeOSWarning, onOpenHabits, Modifier.weight(1f))
+        QuickAction(Icons.Filled.Payments, "Money", LifeOSPrimary, onOpenExpenses, Modifier.weight(1f))
+        QuickAction(Icons.Filled.Description, "Diary", LifeOSSecondary, onOpenDiary, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun QuickAction(icon: ImageVector, label: String, tint: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(LifeOSRadius.large))
+            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.large), tint = tint, interactive = true)
+            .clickable(onClick = onClick)
+            .padding(vertical = LifeOSSpacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+    }
+}
+
+@Composable
+private fun AiNudge(onOpenAi: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(LifeOSRadius.xlarge))
+            .background(Brush.linearGradient(listOf(LifeOSPrimary.copy(alpha = 0.14f), LifeOSSecondary.copy(alpha = 0.14f))))
+            .clickable(onClick = onOpenAi)
+            .padding(horizontal = LifeOSSpacing.lg, vertical = LifeOSSpacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
+    ) {
         Box(
             Modifier
-                .matchParentSize()
+                .size(40.dp)
                 .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = .38f),
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0f)
-                        )
-                    )
-                )
+                .background(Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary))),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.Bolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text("Ask LifeOS AI", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+            Text("“What did I spend this month?”", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String, trailing: String?, onSeeAll: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
+        trailing?.let {
+            Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = LifeOSSpacing.sm))
+        }
+        Text(
+            "See all",
+            style = MaterialTheme.typography.labelMedium,
+            color = LifeOSPrimary,
+            modifier = Modifier
+                .clip(RoundedCornerShape(LifeOSRadius.pill))
+                .clickable(onClick = onSeeAll)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
         )
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(greeting, style = MaterialTheme.typography.headlineLarge)
-            Text("A calm plan for a focused day.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
     }
 }
 
 @Composable
-private fun DailyMomentumCard(
-    momentum: Int,
-    completedTasks: Int,
-    totalTasks: Int,
-    verifiedHabits: Int,
-    totalHabits: Int,
-    spend: Double,
-    animatedMomentum: Float
-) {
-    LifeOSCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.surface) {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .35f), shape = CircleShape) {
-                    Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.padding(9.dp))
-                }
-                Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                    Text("Daily Momentum", style = MaterialTheme.typography.titleLarge)
-                    Text("$momentum% of your day targets achieved", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Surface(color = LifeOSAccentLavender, shape = RoundedCornerShape(50)) {
-                    Text(if (momentum >= 50) "On Pace" else "Start", modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp), color = LifeOSPrimary, style = MaterialTheme.typography.labelMedium)
+private fun TaskRow(task: TaskEntity, onToggle: () -> Unit) {
+    LifeOSSurface(Modifier.fillMaxWidth(), onClick = onToggle) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
+            Box(
+                Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .then(
+                        if (task.isCompleted) Modifier.background(LifeOSSuccess)
+                        else Modifier.border(2.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (task.isCompleted) {
+                    Icon(Icons.Filled.Check, contentDescription = "Completed", tint = Color.White, modifier = Modifier.size(16.dp))
                 }
             }
-            LinearProgressIndicator(
-                progress = { animatedMomentum },
-                modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50)),
-                color = LifeOSPrimary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .7f)
+            Text(
+                task.title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MomentumStat("Tasks", "$completedTasks/$totalTasks", Modifier.weight(1f))
-                MomentumStat("Habits", "$verifiedHabits/$totalHabits", Modifier.weight(1f))
-                MomentumStat("Spend", "₹${"%.0f".format(spend)}", Modifier.weight(1f))
+            if (task.priority.name == "HIGH") {
+                LifeOSPill(text = "High", tint = LocalLifeOSSemanticColors.current.warning)
             }
         }
     }
 }
 
 @Composable
-private fun RecentActivityCard(spend: Double, overdue: Int, completedTasks: Int, totalTasks: Int, onOpenTimeline: () -> Unit) {
-    LifeOSCard(Modifier.fillMaxWidth(), onClick = onOpenTimeline) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(color = LifeOSAccentLavender, shape = RoundedCornerShape(16.dp)) {
-                Icon(Icons.Filled.Timeline, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.padding(10.dp))
+private fun HabitRow(row: HabitSummaryRow, onToggle: () -> Unit) {
+    LifeOSSurface(Modifier.fillMaxWidth(), onClick = onToggle) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(LifeOSRadius.medium))
+                    .background(LifeOSPrimary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(row.habit.icon, style = MaterialTheme.typography.titleMedium)
             }
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("Recent Activity", style = MaterialTheme.typography.titleMedium)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(row.habit.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    buildString {
-                        if (totalTasks > 0) append("$completedTasks/$totalTasks tasks done")
-                        append("₹${"%.0f".format(spend)} spent today")
-                        if (overdue > 0) append(" · $overdue overdue")
-                    },
+                    if (row.currentStreak > 0) "${row.currentStreak}-day streak · ${row.progressCount}/${row.goalCount} today" else "${row.progressCount}/${row.goalCount} today",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Surface(color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .4f), shape = CircleShape) {
-                Icon(Icons.Filled.Spa, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.padding(9.dp))
+            Box(
+                Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .then(
+                        if (row.isDone) Modifier.background(LifeOSSuccess)
+                        else Modifier.border(2.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (row.isDone) {
+                    Icon(Icons.Filled.Check, contentDescription = "Done", tint = Color.White, modifier = Modifier.size(16.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun MomentumStat(label: String, value: String, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = .7f), shape = RoundedCornerShape(16.dp)) {
-        Column(Modifier.fillMaxWidth().padding(vertical = 9.dp, horizontal = 7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, style = MaterialTheme.typography.titleMedium)
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun MiniStat(label: String, value: String, icon: ImageVector?, tint: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(LifeOSRadius.xlarge))
+            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.xlarge), tint = tint, interactive = true)
+            .clickable(onClick = onClick)
+            .padding(LifeOSSpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            icon?.let { Icon(it, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp)) }
+            Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
+        Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
 @Composable
-private fun QuickAction(label: String, icon: ImageVector, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp, modifier = Modifier.height(50.dp)) {
-        Row(modifier = Modifier.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            Icon(icon, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.size(19.dp))
-            Text(label, style = MaterialTheme.typography.labelMedium)
+private fun EmptyRow(icon: ImageVector, title: String, body: String, action: String, onAction: () -> Unit) {
+    LifeOSSurface(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                action,
+                style = MaterialTheme.typography.labelMedium,
+                color = LifeOSPrimary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(LifeOSRadius.pill))
+                    .clickable(onClick = onAction)
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            )
         }
     }
 }
 
-@Composable
-private fun EmptyStateCard(title: String, subtitle: String, onClick: () -> Unit) {
-    LifeOSCard(Modifier.fillMaxWidth(), onClick = onClick) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
+private fun formatMoney(amount: Double): String {
+    val digits = if (amount % 1.0 == 0.0) 0 else 2
+    return "₹" + String.format(Locale.getDefault(), "%,.${digits}f", amount)
 }

@@ -1,292 +1,431 @@
 package com.lifeos.app.ui.ai
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.lifeos.app.core.life.LifeController
-import com.lifeos.app.core.life.LifeDestination
-import com.lifeos.app.core.ai.AiResult
-import com.lifeos.app.core.ai.ChatMessage
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
-import com.lifeos.app.ui.components.GlassCard
+import com.lifeos.app.data.repository.CaptureRepository
+import com.lifeos.app.data.repository.DiaryRepository
+import com.lifeos.app.data.repository.ExpenseRepository
+import com.lifeos.app.data.repository.HabitRepository
+import com.lifeos.app.data.repository.TaskRepository
+import com.lifeos.app.ui.components.LifeOSBanner
+import com.lifeos.app.ui.components.LifeOSIconButton
+import com.lifeos.app.ui.theme.LifeOSPrimary
+import com.lifeos.app.ui.theme.LifeOSRadius
+import com.lifeos.app.ui.theme.LifeOSSecondary
+import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.lifeos.app.core.life.LifeConversation
-import com.lifeos.app.core.life.LifeAppContext
-import com.lifeos.app.core.life.LifeSection
-import com.lifeos.app.core.life.LifeActionFeedback
-import com.lifeos.app.core.life.LifeSessionMemory
-import com.lifeos.app.core.ai.runtime.LifeVoiceInputController
-import com.lifeos.app.core.util.LifeOSPermissions
-import com.lifeos.app.core.util.PermissionStatus
-import com.lifeos.app.core.util.rememberPermissionState
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.Locale
 
-class AiAssistantViewModel(private val lifeController: LifeController) : ViewModel() {
-    private val conversation = LifeConversation()
-    private val sessionMemory = LifeSessionMemory()
-    private val _messages = MutableStateFlow<List<ChatMessage>>(
-        listOf(ChatMessage("assistant", "Hi! I'm LIFE — your private, offline LifeOS assistant. Tell me what to save, find, or change."))
+/** A destination an answer can offer to open, so a reply is actionable. */
+enum class AiAction(val label: String) {
+    INSIGHTS("Open Insights"),
+    DIARY("Open Diary"),
+    TASKS("Open Tasks"),
+    HABITS("Open Habits"),
+    EXPENSES("Open Spending"),
+    SEARCH("Search everything")
+}
+
+data class AiMessage(
+    val id: Long,
+    val fromUser: Boolean,
+    val text: String,
+    val action: AiAction? = null
+)
+
+data class AiUiState(
+    val messages: List<AiMessage> = emptyList(),
+    val thinking: Boolean = false
+)
+
+/**
+ * LifeOS AI — a *local*, deterministic question answerer.
+ *
+ * There is no model and no network. The assistant classifies the question by
+ * keyword, then answers using the same numbers the Insights screen computes from
+ * the local database. That constraint is the feature: every reply is traceable
+ * to stored rows and can never hallucinate a fact about the user's life.
+ */
+class AiAssistantViewModel(
+    private val taskRepository: TaskRepository,
+    private val habitRepository: HabitRepository,
+    private val expenseRepository: ExpenseRepository,
+    private val diaryRepository: DiaryRepository,
+    private val captureRepository: CaptureRepository
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(
+        AiUiState(
+            messages = listOf(
+                AiMessage(
+                    id = 0,
+                    fromUser = false,
+                    text = "Ask me about your month — spending, tasks, habits or your diary. I read only your own records, on this phone."
+                )
+            )
+        )
     )
-    val messages: StateFlow<List<ChatMessage>> = _messages
+    val state: StateFlow<AiUiState> = _state.asStateFlow()
 
-    private val _busy = MutableStateFlow(false)
-    val busy: StateFlow<Boolean> = _busy
+    private var nextId = 1L
 
-    private val _requiresConfirmation = MutableStateFlow(false)
-    val requiresConfirmation: StateFlow<Boolean> = _requiresConfirmation
-
-    private val _latestDestination = MutableStateFlow<LifeDestination?>(null)
-
-    private val _latestFeedback = MutableStateFlow<LifeActionFeedback?>(null)
-    val latestFeedback: StateFlow<LifeActionFeedback?> = _latestFeedback
-    val latestDestination: StateFlow<LifeDestination?> = _latestDestination
-
-    fun send(text: String, context: LifeAppContext = LifeAppContext()) {
-        if (text.isBlank() || _busy.value) return
-        conversation.addUser(text)
-        _messages.value = _messages.value + ChatMessage("user", text)
+    fun ask(question: String) {
+        val q = question.trim()
+        if (q.isEmpty()) return
+        val userMessage = AiMessage(nextId++, fromUser = true, text = q)
+        _state.update { it.copy(messages = it.messages + userMessage, thinking = true) }
         viewModelScope.launch {
-            _busy.value = true
-            runCatching { lifeController.handle(text, context, conversation.previousUserText()) }
-                .onSuccess { result ->
-                    conversation.addAssistant(result.message)
-                    sessionMemory.remember(result)
-                    _messages.value = _messages.value + ChatMessage("assistant", result.message)
-                    _requiresConfirmation.value = result.requiresConfirmation
-                    _latestDestination.value = result.destination
-                    _latestFeedback.value = result.feedback
-                }
-                .onFailure { error ->
-                    val message = "Sorry, LIFE hit an error: ${error.message ?: "Unknown error"}"
-                    conversation.addAssistant(message)
-                    _messages.value = _messages.value + ChatMessage("assistant", message)
-                    _requiresConfirmation.value = false
-                }
-            _busy.value = false
+            val (answer, action) = answer(q)
+            _state.update { it.copy(messages = it.messages + AiMessage(nextId++, fromUser = false, text = answer, action = action), thinking = false) }
         }
     }
 
-    fun confirm(context: LifeAppContext = LifeAppContext()) {
-        _requiresConfirmation.value = false
-        send("confirm", context)
+    private suspend fun answer(question: String): Pair<String, AiAction?> {
+        val text = question.lowercase(Locale.getDefault())
+        val today = LocalDate.now()
+        val zone = ZoneId.systemDefault()
+        val monthStart = today.withDayOfMonth(1).toEpochDay()
+        val todayEpoch = today.toEpochDay()
+        val weekStart = today.minusDays(6).toEpochDay()
+        val monthStartMillis = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val tomorrowMillis = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val weekStartMillis = today.minusDays(6).atStartOfDay(zone).toInstant().toEpochMilli()
+
+        return when {
+            text.containsAny("spend", "spent", "money", "cost", "expense", "budget") -> {
+                val expenses = runCatching { expenseRepository.observeInRange(monthStart, todayEpoch).first() }.getOrDefault(emptyList())
+                val total = expenses.sumOf { it.amount }
+                val top = expenses.groupBy { it.category }.maxByOrNull { it.value.sumOf { e -> e.amount } }
+                val reply = if (expenses.isEmpty()) {
+                    "You haven't logged any spending this month yet. Add one from Spending and I'll break it down."
+                } else {
+                    buildString {
+                        append("This month you've spent ${money(total)} across ${expenses.size} expense${if (expenses.size == 1) "" else "s"}.")
+                        top?.let { append(" The biggest category is ${it.key} at ${money(it.value.sumOf { e -> e.amount })}.") }
+                    }
+                }
+                reply to AiAction.EXPENSES
+            }
+
+            text.containsAny("task", "todo", "to-do", "done", "finished") -> {
+                val week = runCatching { taskRepository.getCompletedBetween(weekStartMillis, tomorrowMillis).size }.getOrDefault(0)
+                val month = runCatching { taskRepository.getCompletedBetween(monthStartMillis, tomorrowMillis).size }.getOrDefault(0)
+                val reply = if (month == 0) {
+                    "No tasks logged as complete this month. Tick one off and I'll start counting."
+                } else {
+                    "You've completed $month task${if (month == 1) "" else "s"} this month — $week in the last 7 days."
+                }
+                reply to AiAction.TASKS
+            }
+
+            text.containsAny("habit", "streak", "routine") -> {
+                val tracked = runCatching { habitRepository.observeAll().first().size }.getOrDefault(0)
+                val done = runCatching { habitRepository.observeAllInRange(monthStart, todayEpoch).first().size }.getOrDefault(0)
+                val reply = if (tracked == 0) {
+                    "You're not tracking any habits yet. Add one and I'll keep the streak."
+                } else {
+                    "You have $tracked habit${if (tracked == 1) "" else "s"} tracked, with $done check-in${if (done == 1) "" else "s"} this month."
+                }
+                reply to AiAction.HABITS
+            }
+
+            text.containsAny("diary", "journal", "wrote", "writing", "mood", "feel") -> {
+                val entries = runCatching { diaryRepository.getAllInRange(weekStart, todayEpoch).size }.getOrDefault(0)
+                val reply = if (entries == 0) {
+                    "Nothing in your diary this week. Even one line keeps the thread."
+                } else {
+                    "You wrote $entries diary entr${if (entries == 1) "y" else "ies"} in the last 7 days."
+                }
+                reply to AiAction.DIARY
+            }
+
+            text.containsAny("capture", "memory", "memories", "photo", "picture", "moment") -> {
+                val captures = runCatching { captureRepository.getAllInRange(monthStartMillis, tomorrowMillis).size }.getOrDefault(0)
+                val reply = if (captures == 0) {
+                    "No captures this month yet. Use the ＋ button to save a moment."
+                } else {
+                    "You saved $captures moment${if (captures == 1) "" else "s"} this month."
+                }
+                reply to AiAction.SEARCH
+            }
+
+            text.containsAny("week", "month", "overview", "summary", "how am i", "progress") -> {
+                val tasks = runCatching { taskRepository.getCompletedBetween(monthStartMillis, tomorrowMillis).size }.getOrDefault(0)
+                val spend = runCatching { expenseRepository.observeInRange(monthStart, todayEpoch).first() }.getOrDefault(emptyList()).sumOf { it.amount }
+                val diary = runCatching { diaryRepository.getAllInRange(monthStart, todayEpoch) }.getOrDefault(emptyList()).size
+                "This month: $tasks task${if (tasks == 1) "" else "s"} done, ${money(spend)} spent, and $diary diary entr${if (diary == 1) "y" else "ies"} written." to AiAction.INSIGHTS
+            }
+
+            else -> "I can answer questions about your spending, tasks, habits, diary or captured moments. Try “What did I spend this month?”" to AiAction.INSIGHTS
+        }
     }
 
-    fun cancel(context: LifeAppContext = LifeAppContext()) {
-        lifeController.cancelPendingAction()
-        _requiresConfirmation.value = false
-        send("cancel", context)
+    private fun String.containsAny(vararg needles: String): Boolean = needles.any { contains(it) }
+
+    private fun money(amount: Double): String {
+        val digits = if (amount % 1.0 == 0.0) 0 else 2
+        return "₹" + String.format(Locale.getDefault(), "%,.${digits}f", amount)
+    }
+}
+
+/**
+ * The assistant surface: a scrolling transcript, a privacy line, tappable
+ * starter questions, and a single input. Answers carry an action chip so a reply
+ * always leads somewhere real.
+ */
+@Composable
+fun AiAssistantScreen(
+    onBack: () -> Unit,
+    onAction: (AiAction) -> Unit
+) {
+    val locator = LocalServiceLocator.current
+    val viewModel: AiAssistantViewModel = viewModel(
+        factory = LambdaViewModelFactory {
+            AiAssistantViewModel(
+                locator.taskRepository,
+                locator.habitRepository,
+                locator.expenseRepository,
+                locator.diaryRepository,
+                locator.captureRepository
+            )
+        }
+    )
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+    var input by rememberSaveable { mutableStateOf("") }
+
+    LaunchedEffect(state.messages.size) {
+        if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.lastIndex)
     }
 
-    fun clearConversation() {
-        lifeController.cancelPendingAction()
-        conversation.clear()
-        sessionMemory.clear()
-        _requiresConfirmation.value = false
-        _latestDestination.value = null
-        _latestFeedback.value = null
-        _messages.value = listOf(ChatMessage("assistant", "Conversation cleared. I'm still here, fully offline."))
+    val starters = remember {
+        listOf(
+            "What did I spend this month?",
+            "How many tasks did I finish?",
+            "How are my habits going?",
+            "Did I journal this week?"
+        )
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
+        ) {
+            LifeOSIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text("LifeOS AI", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
+                Text("On-device · private", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.sm),
+            verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
+        ) {
+            item {
+                LifeOSBanner(
+                    icon = Icons.Filled.Lock,
+                    text = "Answers are computed on this phone from your own records. Nothing is sent anywhere."
+                )
+            }
+            items(state.messages, key = { it.id }) { message -> MessageBubble(message, onAction = onAction) }
+            if (state.thinking) {
+                item {
+                    Text(
+                        "Thinking…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = LifeOSSpacing.sm)
+                    )
+                }
+            }
+        }
+
+        LazyRow(
+            Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding),
+            horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm),
+            contentPadding = PaddingValues(vertical = LifeOSSpacing.sm)
+        ) {
+            items(starters) { starter ->
+                Text(
+                    starter,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = LifeOSPrimary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(LifeOSRadius.pill))
+                        .background(LifeOSPrimary.copy(alpha = 0.10f))
+                        .clickable { viewModel.ask(starter) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                )
+            }
+        }
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
+        ) {
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(LifeOSRadius.pill))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                    .padding(horizontal = LifeOSSpacing.lg, vertical = LifeOSSpacing.md)
+            ) {
+                if (input.isEmpty()) {
+                    Text("Ask about your life…", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                BasicTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(LifeOSPrimary),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (input.isBlank()) SolidColor(MaterialTheme.colorScheme.surfaceVariant)
+                        else Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary))
+                    )
+                    .clickable(enabled = input.isNotBlank()) {
+                        viewModel.ask(input)
+                        input = ""
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "Send",
+                    tint = if (input.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun AiAssistantScreen(
-    onOpenDestination: (LifeDestination) -> Unit = {},
-    onOpenFeedback: (LifeActionFeedback) -> Unit = {},
-    appContext: LifeAppContext = LifeAppContext()
-) {
-    val locator = LocalServiceLocator.current
-    val viewModel: AiAssistantViewModel = viewModel(factory = LambdaViewModelFactory { AiAssistantViewModel(locator.lifeController) })
-    val messages by viewModel.messages.collectAsState()
-    val busy by viewModel.busy.collectAsState()
-    val requiresConfirmation by viewModel.requiresConfirmation.collectAsState()
-    val latestDestination by viewModel.latestDestination.collectAsState()
-    val latestFeedback by viewModel.latestFeedback.collectAsState()
-    var input by remember { mutableStateOf("") }
-    var listening by remember { mutableStateOf(false) }
-    var voiceStatus by remember { mutableStateOf<String?>(null) }
-    var voiceLanguage by remember { mutableStateOf("en-IN") }
-    var voiceBusy by remember { mutableStateOf(false) }
-    val androidContext = androidx.compose.ui.platform.LocalContext.current
-    val microphone = rememberPermissionState(LifeOSPermissions.RECORD_AUDIO)
-    val voice = remember(androidContext) { LifeVoiceInputController(androidContext) }
-    DisposableEffect(Unit) { onDispose { voice.stop() } }
-
-    Scaffold(topBar = { TopAppBar(title = { Text("LIFE") }) }) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(messages) { message ->
-                    val isUser = message.role == "user"
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
-                        GlassCard {
-                            Text(message.content, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                }
-                if (busy) {
-                    item {
-                        Row(horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp))
-                            Text("Thinking…")
-                        }
-                    }
-                }
-                latestFeedback?.let { feedback ->
-                    item {
-                        androidx.compose.material3.Button(
-                            onClick = { onOpenFeedback(feedback) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(feedback.label) }
-                    }
-                } ?: latestDestination?.let { destination ->
-                    item {
-                        androidx.compose.material3.Button(
-                            onClick = { onOpenDestination(destination) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("Open ${destination.javaClass.simpleName.removeSuffix("Kt")}") }
-                    }
-                }
-            }
-
-            if (requiresConfirmation) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    IconButton(onClick = { viewModel.cancel(appContext) }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Cancel")
-                    }
-                    Spacer(modifier = Modifier.height(0.dp))
-                    androidx.compose.material3.Button(onClick = { viewModel.confirm(appContext) }) { Text("Confirm") }
-                }
-            }
-
-            voiceStatus?.let { status ->
-                Text(status, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 16.dp))
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End
-            ) {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        voiceLanguage = when (voiceLanguage) {
-                            "en-IN" -> "hi-IN"
-                            "hi-IN" -> "gu-IN"
-                            else -> "en-IN"
-                        }
-                    },
-                    enabled = !listening
-                ) {
-                    Text(when (voiceLanguage) {
-                        "hi-IN" -> "हिन्दी"
-                        "gu-IN" -> "ગુજરાતી"
-                        else -> "English"
-                    })
-                }
-            }
-            Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = input, onValueChange = { input = it },
-                    placeholder = { Text("Ask LIFE…") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = false,
-                    maxLines = 4,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
-                    keyboardActions = KeyboardActions(onDone = {
-                        if (!voiceBusy && input.isNotBlank()) {
-                            viewModel.send(input, appContext)
-                            input = ""
-                        }
-                    })
+private fun MessageBubble(message: AiMessage, onAction: (AiAction) -> Unit) {
+    val isUser = message.fromUser
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth(0.86f)
+                .clip(
+                    RoundedCornerShape(
+                        topStart = LifeOSRadius.large,
+                        topEnd = LifeOSRadius.large,
+                        bottomStart = if (isUser) LifeOSRadius.large else LifeOSRadius.small,
+                        bottomEnd = if (isUser) LifeOSRadius.small else LifeOSRadius.large
+                    )
                 )
-                IconButton(onClick = {
-                    if (listening) {
-                        voice.stop()
-                        listening = false
-                        voiceBusy = false
-                        voiceStatus = null
-                    } else when (microphone.status) {
-                        PermissionStatus.GRANTED -> {
-                            if (!voice.isAvailable()) {
-                                voiceStatus = "On-device voice recognition isn't available on this device."
-                            } else {
-                                listening = true
-                                voiceBusy = true
-                                voiceStatus = "Listening offline…"
-                                voice.start(
-                                    languageTags = listOf(voiceLanguage),
-                                    onPartial = { partial -> input = partial },
-                                    onResult = { result ->
-                                        input = result
-                                        listening = false
-                                        voiceBusy = false
-                                        voiceStatus = "Voice command received — sending to LIFE…"
-                                        viewModel.send(result, appContext)
-                                        input = ""
-                                        voiceStatus = null
-                                    },
-                                    onError = { message ->
-                                        listening = false
-                                        voiceBusy = false
-                                        voiceStatus = message
-                                    }
-                                )
-                            }
-                        }
-                        PermissionStatus.PERMANENTLY_DENIED -> microphone.openSettings()
-                        PermissionStatus.NOT_YET_REQUESTED_OR_DENIABLE -> microphone.request()
-                    }
-                }) {
-                    Icon(if (listening) Icons.Filled.Stop else Icons.Filled.Mic, contentDescription = if (listening) "Stop voice input" else "Voice input")
-                }
-                IconButton(onClick = { viewModel.send(input, appContext); input = "" }) {
-                    Icon(Icons.Filled.Send, contentDescription = "Send")
-                }
+                .background(
+                    if (isUser) Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary))
+                    else SolidColor(MaterialTheme.colorScheme.surface)
+                )
+                .padding(LifeOSSpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
+        ) {
+            Text(
+                message.text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface
+            )
+            message.action?.let { action ->
+                Text(
+                    action.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isUser) Color.White else LifeOSPrimary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(LifeOSRadius.pill))
+                        .background(if (isUser) Color.White.copy(alpha = 0.16f) else LifeOSPrimary.copy(alpha = 0.10f))
+                        .clickable { onAction(action) }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
             }
         }
     }

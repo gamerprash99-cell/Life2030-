@@ -17,7 +17,17 @@ object ExpenseCategories {
         ExpenseCategoryDef("Other", "❤️"),
     )
 
+    /**
+     * Where an expense lands when nothing better is known. Named rather than
+     * written as a string literal at call sites so the automatic-capture
+     * categoriser and the manual picker cannot drift apart on it.
+     */
+    const val DEFAULT = "Other"
+
     fun emojiFor(category: String): String = ALL.find { it.name == category }?.emoji ?: "❤️"
+
+    /** True for a category the app itself offers, so nothing invents a new one. */
+    fun isKnown(category: String): Boolean = ALL.any { it.name == category }
 }
 
 /** Habit Analytics — Section 12. */

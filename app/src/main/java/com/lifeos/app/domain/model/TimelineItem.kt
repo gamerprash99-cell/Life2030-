@@ -2,10 +2,13 @@ package com.lifeos.app.domain.model
 
 /**
  * The Life Timeline (Section 3/60) is deliberately NOT its own database table.
- * It is a real-time aggregation over Notes, Tasks, Habits, Expenses, Diary and
- * Captures — this is what the spec means by "connect through Date, Time, Tags,
- * Timeline, Relationships" rather than duplicating data into a redundant table.
+ * It is a real-time aggregation over Tasks, Habits, Expenses and Diary entries —
+ * this is what the spec means by "connect through Date, Time, Tags, Timeline,
+ * Relationships" rather than duplicating data into a redundant table.
  * See domain/usecase/BuildTimelineUseCase.kt for how this is assembled.
+ *
+ * [imagePath] is set for a Snap (a captured moment) so the Timeline and Home can
+ * render the photo itself rather than an icon. It is null for every other type.
  */
 data class TimelineItem(
     val id: String,
@@ -16,7 +19,8 @@ data class TimelineItem(
     val timeMinutes: Int,
     val icon: String,
     val sourceId: String,
-    val moodOrCategory: String? = null
+    val moodOrCategory: String? = null,
+    val imagePath: String? = null
 )
 
-enum class TimelineItemType { NOTE, TASK_COMPLETED, HABIT_COMPLETED, EXPENSE, DIARY, CAPTURE }
+enum class TimelineItemType { TASK_COMPLETED, HABIT_COMPLETED, EXPENSE, DIARY, SNAP }

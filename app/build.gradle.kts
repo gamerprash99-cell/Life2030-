@@ -54,6 +54,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            // Safe: no reflection-based resource lookup (no getIdentifier) exists
+            // anywhere in the app, so unused resources can be dropped at build.
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -89,14 +92,22 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    // MigrationTestHelper needs the exported KSP schema JSONs on the
+    // androidTest assets path to validate migrations in connected tests.
+    sourceSets.getByName("androidTest").assets.srcDirs("$projectDir/schemas")
 }
 
 dependencies {
     // Core / Kotlin
     implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    // Explicit dependency: collectAsStateWithLifecycle is used across screens but
+    // previously arrived only transitively through activity-compose.
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
@@ -105,7 +116,6 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.11.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.4")
@@ -123,25 +133,30 @@ dependencies {
 
     // DataStore for settings / preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 
-    // WorkManager (reminders, recurring task/habit rollover, backup scheduling)
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
-
-    // Image loading for capture attachments
+    // Image loading (profile photo in ProfileScreen, Snap photos on the Timeline)
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    // CameraX — real Photo/Video capture (Section 3 Life Capture)
-    val cameraxVersion = "1.4.0"
-    implementation("androidx.camera:camera-core:$cameraxVersion")
-    implementation("androidx.camera:camera-camera2:$cameraxVersion")
-    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
-    implementation("androidx.camera:camera-view:$cameraxVersion")
-    implementation("androidx.camera:camera-video:$cameraxVersion")
+    // CameraX — the in-app Snap camera (preview, front/back flip, zoom, capture).
+    // Uses the camera-view controller so a single PreviewView owns preview,
+    // zoom state and still capture; no Google/Play dependency.
+    implementation("androidx.camera:camera-core:1.4.1")
+    implementation("androidx.camera:camera-camera2:1.4.1")
+    implementation("androidx.camera:camera-lifecycle:1.4.1")
+    implementation("androidx.camera:camera-view:1.4.1")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
+    // ViewModel tests need to drive viewModelScope deterministically; the version
+    // matches kotlinx-coroutines-android above so no second coroutines is pulled in.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.11.00"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // Kept on the androidTest classpath: compose-ui's androidTest variant resolves
+    // androidx.collection to 1.4.0, which is not in the offline build cache; the
+    // 1.4.4 pin (a patch release) is what's cached and satisfies the same API.
+    androidTestImplementation("androidx.collection:collection:1.4.4")
+    // Room migration testing (MigrationTestHelper) — executed on a device/emulator
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
 }

@@ -11,47 +11,124 @@ import androidx.compose.ui.graphics.Color
 private val LightColors = lightColorScheme(
     primary = LifeOSPrimary,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFE8DEFF),
-    onPrimaryContainer = Color(0xFF21005D),
+    primaryContainer = LifeOSAccentLavender,
+    onPrimaryContainer = Color(0xFF211056),
     secondary = LifeOSSecondary,
-    secondaryContainer = LifeOSAccentLavender,
-    onSecondaryContainer = Color(0xFF580066),
-    tertiary = Color(0xFF6C37C7),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFF0E4FF),
+    onSecondaryContainer = Color(0xFF3A0060),
+    tertiary = LifeOSTertiary,
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFD2F7F2),
+    onTertiaryContainer = Color(0xFF00372F),
     background = LifeOSBackgroundLight,
     onBackground = LifeOSTextPrimaryLight,
     surface = LifeOSSurfaceLight,
     onSurface = LifeOSTextPrimaryLight,
-    surfaceVariant = Color(0xFFE8DDFF),
-    onSurfaceVariant = Color(0xFF494455),
-    outline = Color(0xFF7A7487),
-    outlineVariant = Color(0xFFCAC3D8),
+    surfaceVariant = LifeOSSurfaceVariantLight,
+    onSurfaceVariant = LifeOSTextSecondaryLight,
+    surfaceContainerHighest = LifeOSSurfaceVariantLight,
+    outline = LifeOSOutlineLight,
+    outlineVariant = Color(0xFFD6D0E4),
     error = LifeOSDanger,
+    onError = Color.White,
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFCDBDFF),
-    onPrimary = Color(0xFF381080),
-    primaryContainer = Color(0xFF5B21B6),
-    onPrimaryContainer = Color(0xFFF1E8FF),
-    secondary = Color(0xFFEA57FF),
-    secondaryContainer = Color(0xFF580066),
-    onSecondaryContainer = Color(0xFFFFD6FD),
-    tertiary = Color(0xFFB99AEF),
+    primary = Color(0xFFA99CFF),
+    onPrimary = Color(0xFF241566),
+    primaryContainer = Color(0xFF4A3BAE),
+    onPrimaryContainer = Color(0xFFE7E2FF),
+    secondary = Color(0xFFD8A8FF),
+    onSecondary = Color(0xFF34005E),
+    secondaryContainer = Color(0xFF4E1E80),
+    onSecondaryContainer = Color(0xFFF3E2FF),
+    tertiary = Color(0xFF5EEAD4),
+    onTertiary = Color(0xFF003730),
+    tertiaryContainer = Color(0xFF12554C),
+    onTertiaryContainer = Color(0xFFC9F7EF),
     background = LifeOSBackgroundDark,
     onBackground = LifeOSTextPrimaryDark,
     surface = LifeOSSurfaceDark,
     onSurface = LifeOSTextPrimaryDark,
-    surfaceVariant = Color(0xFF302A38),
-    onSurfaceVariant = Color(0xFFC5B9CF),
-    outline = Color(0xFF958DA0),
-    outlineVariant = Color(0xFF4B4453),
-    error = LifeOSDanger,
+    surfaceVariant = LifeOSSurfaceVariantDark,
+    onSurfaceVariant = LifeOSTextSecondaryDark,
+    surfaceContainerHighest = LifeOSSurfaceVariantDark,
+    outline = LifeOSOutlineDark,
+    outlineVariant = Color(0xFF39344C),
+    error = Color(0xFFFF8AA0),
+    onError = Color(0xFF3E0012),
 )
 
-data class GlassColors(val surface: Color, val border: Color)
+/**
+ * All the paints one Liquid Glass surface needs. [surface] and [border] keep
+ * the original two-field contract alive (existing call sites read them), while
+ * the new fields carry the edge light, the specular sheen and the base shadow
+ * that make a translucent surface read as real curved glass.
+ */
+data class GlassColors(
+    val surface: Color,
+    val border: Color,
+    val topEdge: Color,
+    val bottomEdge: Color,
+    val sheen: Color,
+    val innerShadow: Color
+)
 
 val LocalGlassColors = staticCompositionLocalOf {
-    GlassColors(surface = GlassLight, border = GlassBorderLight)
+    GlassColors(
+        surface = GlassLight,
+        border = GlassBorderLight,
+        topEdge = GlassTopEdgeLight,
+        bottomEdge = GlassBottomEdgeLight,
+        sheen = GlassSheenLight,
+        innerShadow = GlassInnerShadowLight
+    )
+}
+
+/** The three ambient colour clouds that float behind every screen. */
+data class AmbientGlowColors(val primary: Color, val secondary: Color, val tertiary: Color)
+
+val LocalAmbientGlowColors = staticCompositionLocalOf {
+    AmbientGlowColors(
+        primary = AmbientGlowLavenderLight,
+        secondary = AmbientGlowMagentaLight,
+        tertiary = AmbientGlowSkyLight
+    )
+}
+
+/**
+ * Semantic colours the Material scheme does not carry but the LifeOS UI needs
+ * by name: success / warning / info states, the hairline border colour used on
+ * opaque (non-glass) surfaces, and the premium gold used for streaks, records
+ * and achievements. Screens read these instead of reaching for a raw hex, so a
+ * future palette change is a one-file edit.
+ */
+data class LifeOSSemanticColors(
+    val success: Color,
+    val onSuccess: Color,
+    val warning: Color,
+    val onWarning: Color,
+    val info: Color,
+    val border: Color,
+    val gold: Color,
+    val goldSoft: Color,
+    /** The neutral base colour every soft shadow is mixed from. */
+    val shadow: Color,
+)
+
+val LocalLifeOSSemanticColors = staticCompositionLocalOf {
+    LifeOSSemanticColors(
+        success = LifeOSSuccess,
+        onSuccess = Color.White,
+        warning = LifeOSWarning,
+        onWarning = Color.White,
+        info = LifeOSInfo,
+        border = LifeOSBorderLight,
+        gold = LifeOSGold,
+        goldSoft = LifeOSGoldSoft,
+        shadow = LifeOSShadow,
+    )
 }
 
 @Composable
@@ -62,8 +139,68 @@ fun LifeOSTheme(
 ) {
     // Dynamic Material colors remain opt-in so the LifeOS brand palette is stable.
     val colorScheme = if (darkTheme) DarkColors else LightColors
-    val glassColors = if (darkTheme) GlassColors(GlassDark, GlassBorderDark) else GlassColors(GlassLight, GlassBorderLight)
-    androidx.compose.runtime.CompositionLocalProvider(LocalGlassColors provides glassColors) {
+    val glassColors = if (darkTheme) {
+        GlassColors(
+            surface = GlassDark,
+            border = GlassBorderDark,
+            topEdge = GlassTopEdgeDark,
+            bottomEdge = GlassBottomEdgeDark,
+            sheen = GlassSheenDark,
+            innerShadow = GlassInnerShadowDark
+        )
+    } else {
+        GlassColors(
+            surface = GlassLight,
+            border = GlassBorderLight,
+            topEdge = GlassTopEdgeLight,
+            bottomEdge = GlassBottomEdgeLight,
+            sheen = GlassSheenLight,
+            innerShadow = GlassInnerShadowLight
+        )
+    }
+    val ambientGlowColors = if (darkTheme) {
+        AmbientGlowColors(
+            primary = AmbientGlowLavenderDark,
+            secondary = AmbientGlowMagentaDark,
+            tertiary = AmbientGlowSkyDark
+        )
+    } else {
+        AmbientGlowColors(
+            primary = AmbientGlowLavenderLight,
+            secondary = AmbientGlowMagentaLight,
+            tertiary = AmbientGlowSkyLight
+        )
+    }
+    val semanticColors = if (darkTheme) {
+        LifeOSSemanticColors(
+            success = Color(0xFF4ADE80),
+            onSuccess = Color(0xFF00391C),
+            warning = Color(0xFFFBBF24),
+            onWarning = Color(0xFF2B1A00),
+            info = Color(0xFF93C5FD),
+            border = LifeOSBorderDark,
+            gold = Color(0xFFF0C868),
+            goldSoft = LifeOSGoldSoft,
+            shadow = Color.Black,
+        )
+    } else {
+        LifeOSSemanticColors(
+            success = LifeOSSuccess,
+            onSuccess = Color.White,
+            warning = LifeOSWarning,
+            onWarning = Color.White,
+            info = LifeOSInfo,
+            border = LifeOSBorderLight,
+            gold = LifeOSGold,
+            goldSoft = LifeOSGoldSoft,
+            shadow = LifeOSShadow,
+        )
+    }
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalGlassColors provides glassColors,
+        LocalAmbientGlowColors provides ambientGlowColors,
+        LocalLifeOSSemanticColors provides semanticColors
+    ) {
         MaterialTheme(colorScheme = colorScheme, typography = LifeOSTypography, shapes = LifeOSShapes, content = content)
     }
 }

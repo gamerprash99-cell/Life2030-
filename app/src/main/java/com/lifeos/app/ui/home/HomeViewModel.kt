@@ -25,11 +25,19 @@ class HomeViewModel(
         viewModelScope.launch { taskRepository.setCompleted(id, completed) }
     }
 
-    fun incrementHabit(habitId: String, currentProgress: Int, goalCount: Int) {
+    /**
+     * Toggles a habit's real completion for today: completing writes progress
+     * up to the goal, undoing clears today's record. Both are persisted, so the
+     * UI (and weekly consistency) updates from Room via the summary flow.
+     */
+    fun toggleHabit(habitId: String, isDone: Boolean, goalCount: Int) {
         viewModelScope.launch {
             val today = DateTimeUtils.today().toEpochDay()
-            val next = (currentProgress + 1).coerceAtMost(goalCount + 5)
-            habitRepository.logProgress(habitId, today, next)
+            if (isDone) {
+                habitRepository.clearProgress(habitId, today)
+            } else {
+                habitRepository.logProgress(habitId, today, goalCount)
+            }
         }
     }
 }

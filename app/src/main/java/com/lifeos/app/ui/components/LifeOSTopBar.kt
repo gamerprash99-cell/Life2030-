@@ -1,13 +1,17 @@
 package com.lifeos.app.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.Icon
@@ -17,19 +21,81 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.lifeos.app.ui.theme.LifeOSPrimary
+import com.lifeos.app.ui.theme.LifeOSRadius
 
+/**
+ * The shared secondary-destination header: a floating liquid glass bar with the
+ * title on a tinted frost sheet, an optional back affordance and trailing
+ * actions. Every pushed screen (Expenses, Settings, Profile, Habits…) reads as
+ * a pane over the ambient backdrop rather than a flat strip.
+ */
 @Composable
-fun LifeOSTopBar(title: String, subtitle: String? = null, onBack: (() -> Unit)? = null, onSearch: (() -> Unit)? = null, actions: @Composable RowScope.() -> Unit = {}) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (onBack != null) IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back") }
-        else Icon(Icons.Filled.Spa, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-        androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
+fun LifeOSTopBar(
+    title: String,
+    subtitle: String? = null,
+    onBack: (() -> Unit)? = null,
+    onSearch: (() -> Unit)? = null,
+    modifier: Modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    actions: @Composable RowScope.() -> Unit = {}
+) {
+    LiquidGlassSurface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(LifeOSRadius.large),
+        tint = LifeOSPrimary,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (onBack != null) {
+                IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            } else {
+                Icon(
+                    Icons.Filled.Spa,
+                    contentDescription = null,
+                    tint = LifeOSPrimary,
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .size(24.dp)
+                        .clip(CircleShape)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                subtitle?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            if (onSearch != null) {
+                IconButton(onClick = onSearch, modifier = Modifier.size(44.dp)) {
+                    Icon(Icons.Filled.Search, contentDescription = "Search")
+                }
+            }
+            actions()
         }
-        if (onSearch != null) IconButton(onClick = onSearch, modifier = Modifier.size(44.dp)) { Icon(Icons.Filled.Search, contentDescription = "Search") }
-        actions()
     }
 }

@@ -1,18 +1,16 @@
 package com.lifeos.app.data.repository
 
-import com.lifeos.app.data.db.entities.CaptureEntity
-import com.lifeos.app.data.db.entities.CaptureType
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.db.entities.ExpenseEntity
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.HabitFrequency
-import com.lifeos.app.data.db.entities.NoteEntity
 import com.lifeos.app.data.db.entities.TaskEntity
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BackupSerializationTest {
@@ -22,12 +20,6 @@ class BackupSerializationTest {
     private fun sampleBackup() = LifeOSBackup(
         exportedAtEpochMillis = 1_700_000_000_000L,
         appVersion = "0.2.0",
-        notes = listOf(
-            NoteEntity(
-                id = "n1", title = "Draft", contentJson = "[]", plainTextForSearch = "Hello",
-                folder = null, tagsCsv = "ideas", createdAt = 1L, updatedAt = 1L
-            )
-        ),
         tasks = listOf(
             TaskEntity(
                 id = "t1", title = "Ship release", description = "Push the build",
@@ -56,12 +48,6 @@ class BackupSerializationTest {
                 tagsCsv = "life", dateEpochDay = 19_001L, timeMinutes = 30,
                 createdAt = 1L, updatedAt = 2L
             )
-        ),
-        captures = listOf(
-            CaptureEntity(
-                id = "c1", type = CaptureType.PHOTO, filePath = "/tmp/a.jpg",
-                dateEpochDay = 19_001L, timeMinutes = 5, createdAt = 1L
-            )
         )
     )
 
@@ -85,8 +71,51 @@ class BackupSerializationTest {
 
     @Test
     fun `empty backup round trips`() {
-        val empty = LifeOSBackup(1L, "0.2.0", emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+        val empty = LifeOSBackup(1L, "0.2.0", emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
         val decoded = json.decodeFromString<LifeOSBackup>(json.encodeToString(empty))
         assertEquals(empty, decoded)
+    }
+
+    @Test
+    fun `legacy backup with notes and captures still decodes`() {
+        // v1 backups exported before Notes/Captures were removed carried extra
+        // "notes" and "captures" keys. ignoreUnknownKeys must let them import;
+        // the extra keys are simply dropped.
+        val legacy = """{
+            "exportedAtEpochMillis": 1700000000000,
+            "appVersion": "0.2.0",
+            "notes": [], "tasks": [], "habits": [], "habitCompletions": [],
+            "expenses": [], "diaryEntries": [], "captures": []
+        }"""
+        val decoded = json.decodeFromString<LifeOSBackup>(legacy)
+        assertEquals(emptyList<TaskEntity>(), decoded.tasks)
+        assertEquals(LifeOSBackup.CURRENT_FORMAT_VERSION, decoded.formatVersion)
+    }
+
+    @Test
+    fun `current backup carries the current format version`() {
+        val backup = sampleBackup()
+        assertEquals(LifeOSBackup.CURRENT_FORMAT_VERSION, backup.formatVersion)
+    }
+
+    @Test
+    fun `validateBackup accepts current and rejects unknown or newer versions`() {
+        assertEquals(null, validateBackup(sampleBackup()))
+        assertEquals(null, validateBackup(sampleBackup().copy(formatVersion = 1)))
+
+        val newer = sampleBackup().copy(formatVersion = LifeOSBackup.CURRENT_FORMAT_VERSION + 1)
+        val newerError = validateBackup(newer)
+        assertTrue(newerError != null && newerError.contains("newer"))
+
+        val invalid = sampleBackup().copy(formatVersion = 0)
+        val invalidError = validateBackup(invalid)
+        assertTrue(invalidError != null && invalidError.isNotBlank())
+    }
+
+    @Test
+    fun `size guard rejects oversized backup files`() {
+        assertTrue(!LifeOSBackup.isOversized(0L))
+        assertTrue(!LifeOSBackup.isOversized(LifeOSBackup.MAX_BACKUP_BYTES))
+        assertTrue(LifeOSBackup.isOversized(LifeOSBackup.MAX_BACKUP_BYTES + 1))
     }
 }

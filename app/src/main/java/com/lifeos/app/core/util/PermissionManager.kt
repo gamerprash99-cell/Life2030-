@@ -1,11 +1,11 @@
 package com.lifeos.app.core.util
 
-import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,6 +39,69 @@ object PermissionManager {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
+    }
+
+    /**
+     * Deep-links to Android's Location settings page, where the user can turn
+     * location back on for the device.
+     *
+     * This is a *system service* problem, not a permission problem, and the two
+     * need different destinations: granting the app permission is
+     * [openAppSettings], while switching location on is here. Modelled on
+     * [openExactAlarmSettings] — guarded by SDK, wrapped in a catch, and always
+     * falling back to app details rather than crashing on an OEM build that does
+     * not ship the action. A location fix cannot be obtained at all while
+     * location is off, so this is the only route that can actually fix the
+     * state; offering the permission screen instead would be another dead end.
+     */
+    fun openLocationSettings(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                context.startActivity(
+                    Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+                return
+            } catch (_: Exception) {
+                // Some OEM builds (and some work profiles) lack this action.
+            }
+        } else {
+            // Pre-S: there is no dedicated location source page, so go to
+            // Security, which is where location used to live.
+            try {
+                context.startActivity(
+                    Intent(Settings.ACTION_SECURITY_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+                return
+            } catch (_: Exception) {
+                // Fall through to app details.
+            }
+        }
+        openAppSettings(context)
+    }
+
+    /**
+     * Deep-links to Android's "Alarms & reminders" system page
+     * (`Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM`), where the user can
+     * toggle LifeOS's `SCHEDULE_EXACT_ALARM` special access. Only available
+     * from Android 12 (S) — on older versions the permission does not exist,
+     * so it falls back to the plain app-details settings instead of crashing.
+     */
+    @Suppress("InlinedApi") // ACTION_REQUEST_SCHEDULE_EXACT_ALARM is API 31+; guarded by the SDK check below.
+    fun openExactAlarmSettings(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                context.startActivity(
+                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+                return
+            } catch (_: Exception) {
+                // Some OEM builds lack this action; fall back to app details.
+            }
+        }
+        openAppSettings(context)
     }
 }
 
@@ -91,9 +154,4 @@ fun rememberPermissionState(permission: String): PermissionState {
             openSettings = { PermissionManager.openAppSettings(context) }
         )
     }
-}
-
-object LifeOSPermissions {
-    const val CAMERA = Manifest.permission.CAMERA
-    const val RECORD_AUDIO = Manifest.permission.RECORD_AUDIO
 }

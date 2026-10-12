@@ -7,8 +7,11 @@ import com.lifeos.app.data.db.entities.ExpenseEntity
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.NoteEntity
+import com.lifeos.app.data.db.entities.NoteFolderEntity
 import com.lifeos.app.data.db.entities.TaskEntity
 import androidx.room.withTransaction
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -24,58 +27,136 @@ import java.io.File
 data class LifeOSBackup(
     val exportedAtEpochMillis: Long,
     val appVersion: String,
-    val notes: List<NoteEntity>,
     val tasks: List<TaskEntity>,
     val habits: List<HabitEntity>,
     val habitCompletions: List<HabitCompletionEntity>,
     val expenses: List<ExpenseEntity>,
     val diaryEntries: List<DiaryEntity>,
-    val captures: List<CaptureEntity>
-)
+    // Optional so backups written before Notes/Captures returned still decode
+    // (ignoreUnknownKeys covers the reverse: a newer file read by an older build).
+    val notes: List<NoteEntity> = emptyList(),
+    val noteFolders: List<NoteFolderEntity> = emptyList(),
+    val captures: List<CaptureEntity> = emptyList(),
+    val formatVersion: Int = LifeOSBackup.CURRENT_FORMAT_VERSION
+) {
+    companion object {
+        /**
+         * Bump whenever the serialized shape changes incompatibly so imports
+         * can be rejected clearly instead of restoring garbage silently. v1
+         * backups written by older LifeOS builds contained "notes" and
+         * "captures" keys; those keys are simply ignored on import now
+         * (ignoreUnknownKeys), so old export files remain restorable.
+         */
+        const val CURRENT_FORMAT_VERSION = 1
+
+        /** Hard cap so a giant/corrupt import can't exhaust memory on read. */
+        const val MAX_BACKUP_BYTES = 100L * 1024 * 1024
+
+        /** Keep this many most-recent local backup files, deleting the rest. */
+        const val MAX_KEPT_BACKUPS = 3
+
+        fun isOversized(sizeBytes: Long): Boolean = sizeBytes > MAX_BACKUP_BYTES
+    }
+}
+
+/**
+ * Validates a decoded backup before it is written into the database. Returns an
+ * English error message the UI can surface, or null when the backup is safe to
+ * restore.
+ */
+fun validateBackup(backup: LifeOSBackup): String? = when {
+    backup.formatVersion < 1 ->
+        "This file is not a valid LifeOS backup."
+    backup.formatVersion > LifeOSBackup.CURRENT_FORMAT_VERSION ->
+        "This backup was created by a newer version of LifeOS. Update the app first."
+    else -> null
+}
 
 class BackupRepository(
     private val database: AppDatabase,
-    private val noteRepo: NoteRepository,
     private val taskRepo: TaskRepository,
     private val habitRepo: HabitRepository,
     private val expenseRepo: ExpenseRepository,
     private val diaryRepo: DiaryRepository,
-    private val captureRepo: CaptureRepository
+    private val noteRepo: NoteRepository,
+    private val captureRepo: CaptureRepository,
+    private val reminderRepository: ReminderRepository
 ) {
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
     suspend fun buildBackup(appVersion: String): LifeOSBackup = LifeOSBackup(
         exportedAtEpochMillis = System.currentTimeMillis(),
         appVersion = appVersion,
-        notes = noteRepo.getAllForBackup(),
         tasks = taskRepo.getAllForBackup(),
         habits = habitRepo.getAllForBackup(),
         habitCompletions = habitRepo.getAllCompletionsForBackup(),
         expenses = expenseRepo.getAllForBackup(),
         diaryEntries = diaryRepo.getAllForBackup(),
-        captures = captureRepo.getAllForBackup()
+        notes = noteRepo.getAllForBackup(),
+        noteFolders = noteRepo.getAllFoldersForBackup(),
+        captures = captureRepo.getAllForBackup(),
+        formatVersion = LifeOSBackup.CURRENT_FORMAT_VERSION
     )
 
     /** Writes the export to app-private external files dir; caller shares it via a share sheet. */
-    suspend fun exportToFile(directory: File, appVersion: String): File {
+    suspend fun exportToFile(directory: File, appVersion: String): File = withContext(Dispatchers.IO) {
         val backup = buildBackup(appVersion)
         val text = json.encodeToString(backup)
         val file = File(directory, "lifeos-backup-${backup.exportedAtEpochMillis}.json")
         file.writeText(text)
-        return file
+        pruneOldBackups(directory, keepNewest = LifeOSBackup.MAX_KEPT_BACKUPS)
+        file
     }
 
+    /**
+     * Each export shares the full life (potentially megabytes of JSON). Old
+     * files accumulate in app-private storage forever, so keep only the newest
+     * few and delete the rest. The user has already been offered the share
+     * sheet; the local copy is just a staging area in case they want to
+     * re-share.
+     */
+    private fun pruneOldBackups(directory: File, keepNewest: Int) {
+        val backups = directory
+            .listFiles { _, name -> name.startsWith("lifeos-backup-") && name.endsWith(".json") }
+            ?.sortedByDescending { it.lastModified() }
+            .orEmpty()
+        backups.drop(keepNewest).forEach { it.delete() }
+    }
+
+    /**
+     * Decodes and validates a backup file before restoring. Throws with a
+     * user-facing message when the file is oversized, not a LifeOS backup, or
+     * was written by a newer app version.
+     */
     suspend fun importFromFile(file: File) {
-        val backup = json.decodeFromString(LifeOSBackup.serializer(), file.readText())
+        if (LifeOSBackup.isOversized(file.length())) {
+            throw IllegalArgumentException("This backup file is too large to restore.")
+        }
+        val backup = try {
+            withContext(Dispatchers.IO) {
+                json.decodeFromString(LifeOSBackup.serializer(), file.readText())
+            }
+        } catch (e: Exception) {
+            throw IllegalArgumentException("This file is not a valid LifeOS backup.", e)
+        }
+        val error = validateBackup(backup)
+        if (error != null) throw IllegalArgumentException(error)
         restore(backup)
     }
 
-    suspend fun restore(backup: LifeOSBackup) = database.withTransaction {
-        noteRepo.restoreFromBackup(backup.notes)
-        taskRepo.restoreFromBackup(backup.tasks)
-        habitRepo.restoreFromBackup(backup.habits, backup.habitCompletions)
-        expenseRepo.restoreFromBackup(backup.expenses)
-        diaryRepo.restoreFromBackup(backup.diaryEntries)
-        captureRepo.restoreFromBackup(backup.captures)
+    suspend fun restore(backup: LifeOSBackup) {
+        database.withTransaction {
+            taskRepo.restoreFromBackup(backup.tasks)
+            habitRepo.restoreFromBackup(backup.habits, backup.habitCompletions)
+            expenseRepo.restoreFromBackup(backup.expenses)
+            diaryRepo.restoreFromBackup(backup.diaryEntries)
+            // Folders before notes so a note's folderId references a folder that
+            // already exists after a restore.
+            noteRepo.restoreFromBackup(backup.notes, backup.noteFolders)
+            captureRepo.restoreFromBackup(backup.captures)
+        }
+        // Rebuild the reminders table + exact alarms from the restored mirrors so
+        // reminders survive a restore without re-entering them by hand.
+        reminderRepository.rebuildFromMirrors(backup.tasks, backup.habits)
     }
 }

@@ -1,53 +1,71 @@
 package com.lifeos.app.ui.timeline
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
-import com.lifeos.app.data.db.entities.CaptureType
-import com.lifeos.app.data.repository.CaptureRepository
 import com.lifeos.app.domain.model.TimelineItem
-import com.lifeos.app.domain.model.TimelineItemType
 import com.lifeos.app.domain.usecase.BuildTimelineUseCase
-import com.lifeos.app.ui.capture.rememberVideoThumbnail
 import com.lifeos.app.ui.components.GlassCard
+import com.lifeos.app.ui.diary.DiaryTheme
+import com.lifeos.app.ui.diary.diaryPaperBackground
+import com.lifeos.app.ui.theme.DiaryHairline
+import com.lifeos.app.ui.theme.DiaryHandwriting
+import com.lifeos.app.ui.theme.DiaryInkSoft
+import com.lifeos.app.ui.theme.DiaryInkViolet
+import com.lifeos.app.ui.theme.DiaryLavender
+import com.lifeos.app.ui.theme.DiaryPaperCard
+import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -58,42 +76,235 @@ class TimelineViewModel(private val buildTimeline: BuildTimelineUseCase) : ViewM
     fun loadFor(epochDay: Long) { viewModelScope.launch { _items.value = buildTimeline(epochDay) } }
 }
 
+/**
+ * Life Timeline — a real-time, read-only aggregation of the day's Tasks,
+ * Habits, Expenses and Diary entries (see BuildTimelineUseCase), drawn as a
+ * dated journal from the Stitch "Timeline" reference: a 2px hairline spine on
+ * a fixed left track, anchored by paper node badges, feeding 24dp-radius
+ * cards. Navigation and data flow are unchanged.
+ */
 @Composable
-fun TimelineScreen(onOpenCapture: (String) -> Unit = {}) {
+fun TimelineScreen(
+    onBack: () -> Unit = {},
+    onOpenItem: (TimelineItem) -> Unit = {}
+) {
     val locator = LocalServiceLocator.current
     val viewModel: TimelineViewModel = viewModel(factory = LambdaViewModelFactory { TimelineViewModel(locator.buildTimelineUseCase) })
-    var selectedDate by remember { mutableStateOf(DateTimeUtils.today()) }
+    val today = remember { DateTimeUtils.today() }
+    var selectedDate by remember { mutableStateOf(today) }
     val items by viewModel.items.collectAsState()
     LaunchedEffect(selectedDate) { viewModel.loadFor(selectedDate.toEpochDay()) }
-    Scaffold(topBar = { TopAppBar(title = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) { IconButton(onClick = { selectedDate = selectedDate.minusDays(1) }) { Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous day") }; Text(DateTimeUtils.formatFullDate(selectedDate), style = MaterialTheme.typography.titleMedium); IconButton(onClick = { selectedDate = selectedDate.plusDays(1) }) { Icon(Icons.Filled.ChevronRight, contentDescription = "Next day") } } }) }) { padding ->
-        if (items.isEmpty()) Column(Modifier.fillMaxWidth().padding(padding).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { Icon(Icons.Filled.EventBusy, contentDescription = null, modifier = Modifier.size(40.dp).padding(bottom = 8.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)); Text("Nothing recorded for this day yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) }
-        else LazyColumn(Modifier.padding(padding).fillMaxWidth(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { items(items, key = { it.id }) { item -> TimelineRow(item, locator.captureRepository) { if (item.type == TimelineItemType.CAPTURE) onOpenCapture(item.sourceId) } } }
+    BackHandler(onBack = onBack)
+    val canGoForward = selectedDate.isBefore(today)
+
+    DiaryTheme {
+        Scaffold { padding ->
+            Column(Modifier.fillMaxSize().diaryPaperBackground().padding(padding)) {
+                TimelineHeader(
+                    dateLabel = DateTimeUtils.formatFullDate(selectedDate),
+                    canGoForward = canGoForward,
+                    onBack = onBack,
+                    onPrevious = { selectedDate = selectedDate.minusDays(1) },
+                    onNext = { if (canGoForward) selectedDate = selectedDate.plusDays(1) }
+                )
+                if (items.isEmpty()) {
+                    TimelineEmptyState(Modifier.fillMaxSize())
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = LifeOSSpacing.screenPadding,
+                            end = LifeOSSpacing.screenPadding,
+                            top = 6.dp,
+                            bottom = LifeOSSpacing.compactPadding
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                            TimelineSpineRow(
+                                item = item,
+                                isFirst = index == 0,
+                                isLast = index == items.lastIndex,
+                                onClick = { onOpenItem(item) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Centered dated header with back navigation and day-navigation chevrons. */
+@Composable
+private fun TimelineHeader(
+    dateLabel: String,
+    canGoForward: Boolean,
+    onBack: () -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+        }
+        Text(
+            dateLabel,
+            style = MaterialTheme.typography.titleLarge.copy(fontFamily = DiaryHandwriting),
+            fontWeight = FontWeight.SemiBold,
+            color = DiaryInkViolet,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(2f).padding(horizontal = 4.dp)
+        )
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onPrevious, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous day")
+            }
+            IconButton(enabled = canGoForward, onClick = onNext, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Filled.ChevronRight, contentDescription = "Next day")
+            }
+        }
+    }
+}
+
+/**
+ * One journal row: a 2px hairline spine on a fixed 24dp+ track, anchored by a
+ * paper node badge, with the entry card beside it.
+ */
+@Composable
+private fun TimelineSpineRow(item: TimelineItem, isFirst: Boolean, isLast: Boolean, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth()) {
+        Box(
+            Modifier
+                .width(32.dp)
+        ) {
+            val nodeSize = 30.dp
+            val nodeTopPadding = 6.dp
+            val nodeCenterY = nodeTopPadding + (nodeSize / 2f)
+            val railX = 16.dp
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .drawBehind {
+                        val x = railX.toPx()
+                        val center = nodeCenterY.toPx()
+                        drawLine(
+                            color = DiaryHairline,
+                            strokeWidth = 2.dp.toPx(),
+                            start = Offset(x, if (isFirst) center else 0f),
+                            end = Offset(x, if (isLast) center else size.height)
+                        )
+                    }
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = nodeTopPadding)
+            ) {
+                NodeBadge(item.icon)
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        TimelineEntryCard(item, onClick = onClick)
+    }
+}
+
+/** Paper node badge that anchors a timeline entry on the spine. */
+@Composable
+private fun NodeBadge(icon: String) {
+    Surface(
+        color = DiaryPaperCard,
+        shape = CircleShape,
+        border = BorderStroke(1.dp, DiaryHairline),
+        shadowElevation = 1.dp,
+        modifier = Modifier.size(30.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(icon, fontSize = 13.sp)
+        }
     }
 }
 
 @Composable
-private fun TimelineRow(item: TimelineItem, captureRepository: CaptureRepository, onClick: () -> Unit) {
-    val isCapture = item.type == TimelineItemType.CAPTURE
-    GlassCard(modifier = Modifier.fillMaxWidth().let { if (isCapture) it.clickable(onClick = onClick) else it }) {
+private fun TimelineEntryCard(item: TimelineItem, onClick: () -> Unit) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        cornerRadius = 24.dp
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (isCapture) CaptureThumbnail(item.sourceId, item.icon, captureRepository) else Text(item.icon, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(end = 12.dp))
-            Column(Modifier.weight(1f)) { Text(item.title, style = MaterialTheme.typography.bodyLarge); item.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) } }
-            Text(DateTimeUtils.formatMinutes(item.timeMinutes), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        item.title,
+                        style = MaterialTheme.typography.titleMedium.copy(fontFamily = DiaryHandwriting),
+                        fontWeight = FontWeight.Bold,
+                        color = DiaryInkViolet,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                item.subtitle?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = DiaryInkSoft,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Surface(
+                color = DiaryLavender.copy(alpha = 0.55f),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    DateTimeUtils.formatMinutes(item.timeMinutes),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = DiaryInkViolet,
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                )
+            }
         }
     }
 }
 
+/** Muted, on-brand empty state that mirrors the Diary's, tuned to the day view. */
 @Composable
-@Suppress("ProduceStateDoesNotAssignValue")
-private fun CaptureThumbnail(captureId: String, fallbackIcon: String, captureRepository: CaptureRepository) {
-    val capture by produceState<com.lifeos.app.data.db.entities.CaptureEntity?>(initialValue = null, key1 = captureId) { value = captureRepository.getById(captureId) }
-    val filePath = capture?.filePath
-    Box(Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-        when {
-            capture?.type == CaptureType.PHOTO && filePath != null -> AsyncImage(model = filePath, contentDescription = "Photo thumbnail", modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-            capture?.type == CaptureType.VIDEO && filePath != null -> { val thumb = rememberVideoThumbnail(filePath); if (thumb != null) androidx.compose.foundation.Image(bitmap = thumb, contentDescription = "Video thumbnail", modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop) else Text(fallbackIcon, style = MaterialTheme.typography.headlineSmall) }
-            else -> Text(fallbackIcon, style = MaterialTheme.typography.headlineSmall)
+private fun TimelineEmptyState(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(84.dp)
+                .background(DiaryLavender.copy(alpha = 0.55f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.Timeline, contentDescription = null, tint = DiaryInkViolet, modifier = Modifier.size(36.dp))
         }
+        Text(
+            "No timeline entries",
+            style = MaterialTheme.typography.titleMedium.copy(fontFamily = DiaryHandwriting),
+            fontWeight = FontWeight.Bold,
+            color = DiaryInkViolet,
+            modifier = Modifier.padding(top = 18.dp)
+        )
+        Text(
+            "Tasks, habits, expenses and diary entries from this day will appear here.",
+            style = MaterialTheme.typography.bodySmall,
+            color = DiaryInkSoft,
+            modifier = Modifier.padding(top = 6.dp, start = 32.dp, end = 32.dp),
+            textAlign = TextAlign.Center
+        )
     }
-    androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(12.dp))
 }

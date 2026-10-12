@@ -1,7 +1,6 @@
 package com.lifeos.app.data.repository
 
 import com.lifeos.app.core.util.IdGenerator
-import com.lifeos.app.data.db.dao.CategoryTotal
 import com.lifeos.app.data.db.dao.ExpenseDao
 import com.lifeos.app.data.db.entities.ExpenseEntity
 import com.lifeos.app.data.db.entities.PaymentMethod
@@ -22,9 +21,16 @@ class ExpenseRepository(private val dao: ExpenseDao) {
         merchant: String? = null,
         paymentMethod: PaymentMethod = PaymentMethod.OTHER,
         note: String? = null,
-        tags: List<String> = emptyList()
+        tags: List<String> = emptyList(),
+        /**
+         * Row id to write. Automatic capture supplies a deterministic id derived
+         * from the transaction itself, so the same payment arriving twice as two
+         * notifications resolves to one row through the primary key instead of
+         * needing a separate lookup table. Defaults to a fresh UUID, which is
+         * what every manual entry gets.
+         */
+        id: String = IdGenerator.newId()
     ): String {
-        val id = IdGenerator.newId()
         dao.upsert(
             ExpenseEntity(
                 id = id, amount = amount, category = category, dateEpochDay = dateEpochDay,
@@ -37,16 +43,22 @@ class ExpenseRepository(private val dao: ExpenseDao) {
 
     suspend fun delete(id: String) = dao.delete(id)
 
-    suspend fun getCategoryTotals(startEpochDay: Long, endEpochDay: Long): List<CategoryTotal> =
-        dao.getCategoryTotals(startEpochDay, endEpochDay)
-
-    suspend fun search(query: String): List<ExpenseEntity> {
-        if (query.isBlank()) return emptyList()
-        return dao.search(query)
-    }
-
-    suspend fun getInRange(startEpochDay: Long, endEpochDay: Long): List<ExpenseEntity> = dao.getInRange(startEpochDay, endEpochDay)
-
     suspend fun getAllForBackup(): List<ExpenseEntity> = dao.getAllForBackup()
     suspend fun restoreFromBackup(expenses: List<ExpenseEntity>) = expenses.forEach { dao.upsert(it) }
+
+    suspend fun existsById(id: String): Boolean = dao.existsById(id)
+
+    /**
+     * Rows recorded on [epochDay] whose amount is within half a cent of
+     * [amount] — the candidate set a duplicate check reasons about. See
+     * [ExpenseDao.findSameAmountOnDay] for why the comparison is a range rather
+     * than equality.
+     */
+    suspend fun findSameAmountOnDay(epochDay: Long, amount: Double): List<ExpenseEntity> =
+        dao.findSameAmountOnDay(epochDay, amount - AMOUNT_MATCH_TOLERANCE, amount + AMOUNT_MATCH_TOLERANCE)
+
+    companion object {
+        /** Half a cent: enough to cover float representation, too small to merge real amounts. */
+        const val AMOUNT_MATCH_TOLERANCE = 0.005
+    }
 }
