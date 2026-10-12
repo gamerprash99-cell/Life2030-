@@ -26,7 +26,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.data.repository.DiaryRepository
+import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.NoteRepository
+import com.lifeos.app.data.repository.TaskRepository
 import com.lifeos.app.ui.components.GlassCard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,6 +43,8 @@ data class SearchResults(
 
 class SearchViewModel(
     private val noteRepo: NoteRepository,
+    private val taskRepo: TaskRepository,
+    private val expenseRepo: ExpenseRepository,
     private val diaryRepo: DiaryRepository
 ) : ViewModel() {
     private val _results = MutableStateFlow(SearchResults())
@@ -48,16 +52,13 @@ class SearchViewModel(
 
     fun search(query: String) {
         viewModelScope.launch {
-            if (query.isBlank()) {
-                _results.value = SearchResults()
-                return@launch
-            }
-            val notes = noteRepo.search(query).map { it.title.ifBlank { "Untitled note" } }
-            val diary = diaryRepo.search(query).map { it.content.take(60) }
-
-            // Task and expense search are not implemented in their current
-            // repositories. Do not invent results or add duplicate query layers.
-            _results.value = SearchResults(notes = notes, diary = diary)
+            if (query.isBlank()) { _results.value = SearchResults(); return@launch }
+            _results.value = SearchResults(
+                notes = noteRepo.search(query).map { it.title.ifBlank { "Untitled note" } },
+                tasks = taskRepo.search(query).map { it.title },
+                expenses = expenseRepo.search(query).map { "${it.merchant ?: it.category} — ₹${it.amount}" },
+                diary = diaryRepo.search(query).map { it.content.take(60) }
+            )
         }
     }
 }
@@ -67,7 +68,7 @@ fun SearchScreen() {
     val locator = LocalServiceLocator.current
     val viewModel: SearchViewModel = viewModel(
         factory = LambdaViewModelFactory {
-            SearchViewModel(locator.noteRepository, locator.diaryRepository)
+            SearchViewModel(locator.noteRepository, locator.taskRepository, locator.expenseRepository, locator.diaryRepository)
         }
     )
     var query by remember { mutableStateOf("") }
@@ -79,15 +80,14 @@ fun SearchScreen() {
         Column(modifier = Modifier.padding(padding).fillMaxWidth().padding(16.dp)) {
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
-                placeholder = { Text("Search notes and diary…") },
+                placeholder = { Text("Search notes, tasks, expenses, diary…") },
                 modifier = Modifier.fillMaxWidth()
             )
 
-            LazyColumn(
-                contentPadding = PaddingValues(top = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            LazyColumn(contentPadding = PaddingValues(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (results.notes.isNotEmpty()) item { ResultSection("Notes", results.notes) }
+                if (results.tasks.isNotEmpty()) item { ResultSection("Tasks", results.tasks) }
+                if (results.expenses.isNotEmpty()) item { ResultSection("Expenses", results.expenses) }
                 if (results.diary.isNotEmpty()) item { ResultSection("Diary", results.diary) }
             }
         }
