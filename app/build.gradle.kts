@@ -34,10 +34,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        ksp {
-            arg("room.schemaLocation", "$projectDir/schemas")
-            arg("room.incremental", "true")
-        }
     }
 
     signingConfigs {
@@ -96,6 +92,12 @@ android {
     // MigrationTestHelper needs the exported KSP schema JSONs on the
     // androidTest assets path to validate migrations in connected tests.
     sourceSets.getByName("androidTest").assets.srcDirs("$projectDir/schemas")
+}
+
+// Room schema export is consumed by JVM schema tests and MigrationTestHelper.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
 }
 
 dependencies {
