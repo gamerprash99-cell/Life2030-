@@ -78,3 +78,12 @@ Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and re
 - Fix branch: `fix/ci-latest-kotlin-compilation`. Restored explicit WorkManager and Biometric dependencies; kept the central permission helper and added compatibility file-factory names backed by the existing app-private capture directories; aligned legacy Capture and Notes screens with current Room-backed repository/entity APIs; restricted the legacy Search screen to real Notes and Diary search results.
 - No database entity, Room schema, migration, navigation destination, user data, external service, or network permission was changed.
 - Verification status at documentation update time: GitHub Actions rerun is still required after the fix commits. No passing build/test result is claimed until a fresh CI run reports success.
+
+
+## 2026-10-12 — CI follow-up: Intelligence APIs and stale Insights test
+
+- The next CI attempt confirmed app production Kotlin compilation now succeeds for both debug and release variants. Its remaining errors were confined to six unresolved `narrativeScore` calls in `NarrativeScoreTest.kt`.
+- Inspection confirmed the current `InsightsScreen`/`InsightsViewModel` no longer expose or display that old narrative score. Replaced the stale test with unit tests covering the current `InsightsUiState` defaults and `InsightsPeriod` labels instead of adding dead production code or disabling the test.
+- Reconciled retained offline Intelligence and LIFE command code with the current repository contracts: task reads use existing backup/read APIs, expense/date-range and search helpers use existing Room repositories/queries, diary range access delegates to the existing range query, and weekly boundaries are calculated as ISO Monday–Sunday local dates.
+- The current test/build workflow was last observed as `in_progress` in the build/test step with no fresh run conclusion or downloadable live logs. Therefore the final build/test result remains **unverified** until a completed Actions run reports its conclusion.
+- All changes remain on `fix/ci-latest-kotlin-compilation` and PR #48; `main` was not modified or merged. No Room schema, migration, user data, network permission, or external service was added or changed.
