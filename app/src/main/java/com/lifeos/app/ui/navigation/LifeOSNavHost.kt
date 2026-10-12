@@ -40,7 +40,6 @@ import com.lifeos.app.ui.expenses.ExpensesScreen
 import com.lifeos.app.ui.habits.HabitDetailScreen
 import com.lifeos.app.ui.habits.HabitsScreen
 import com.lifeos.app.ui.home.HomeScreen
-import com.lifeos.app.ui.insights.InsightsScreen
 import com.lifeos.app.ui.life.LifeScreen
 import com.lifeos.app.ui.notes.NoteEditorScreen
 import com.lifeos.app.ui.notes.NotesScreen
@@ -175,11 +174,6 @@ fun LifeOSNavHost() {
                             }
                         )
                     }
-                    composable(Screen.Insights.route) {
-                        InsightsScreen(
-                            onOpenAi = { navController.navigate(Screen.AiAssistant.route) { launchSingleTop = true } }
-                        )
-                    }
                     composable(Screen.Life.route) {
                         LifeScreen(
                             onOpenTimeline = { navController.navigate(Screen.Timeline.route) { launchSingleTop = true } },
@@ -188,6 +182,17 @@ fun LifeOSNavHost() {
                             onOpenTasks = { navController.navigate(Screen.Tasks.route) { launchSingleTop = true } },
                             onOpenHabits = { navController.navigate(Screen.Habits.route) { launchSingleTop = true } },
                             onOpenExpenses = { navController.navigate(Screen.Expenses.route) { launchSingleTop = true } }
+                        )
+                    }
+
+                    // You — the personal hub (profile, app lock, backup and
+                    // settings). It replaces the removed Insights tab as the
+                    // bottom bar's fourth slot, so "your space" is one tap from
+                    // anywhere instead of an overlay pushed from Home.
+                    composable(Screen.Profile.route) {
+                        ProfileScreen(
+                            onOpenSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                            onOpenAppLock = { navController.navigate(Screen.AppLockSetup.route) { launchSingleTop = true } }
                         )
                     }
                 }
@@ -225,7 +230,7 @@ fun LifeOSNavHost() {
                         onBack = { navController.popBackStack() },
                         onAction = { action ->
                             val route = when (action) {
-                                AiAction.INSIGHTS -> Screen.Insights.route
+                                AiAction.LIFE -> Screen.Life.route
                                 AiAction.DIARY -> Screen.Diary.route
                                 AiAction.TASKS -> Screen.Tasks.route
                                 AiAction.HABITS -> Screen.Habits.route
@@ -352,13 +357,6 @@ fun LifeOSNavHost() {
                             }
                             navController.navigate(route) { launchSingleTop = true }
                         }
-                    )
-                }
-                composable(Screen.Profile.route) {
-                    ProfileScreen(
-                        onBack = { navController.popBackStack() },
-                        onOpenSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
-                        onOpenAppLock = { navController.navigate(Screen.AppLockSetup.route) { launchSingleTop = true } }
                     )
                 }
                 composable(Screen.Settings.route) {

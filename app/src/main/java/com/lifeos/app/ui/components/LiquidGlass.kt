@@ -40,37 +40,38 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSRadius
-import com.lifeos.app.ui.theme.LifeOSSecondary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalAmbientGlowColors
 import com.lifeos.app.ui.theme.LocalGlassColors
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
+import com.lifeos.app.ui.theme.PrismCoral
+import com.lifeos.app.ui.theme.PrismIndigo
+import com.lifeos.app.ui.theme.PrismSky
 
 /**
- * Liquid Glass — the iOS-26-style material, transplanted to Jetpack Compose.
+ * Prism Glass — the app's material, rebuilt from zero.
  *
  * A sheet that blurs and refracts the colour behind it. On Android (minSdk 26)
- * there is no real-time backdrop blur primitive behind a sibling tree, so the
- * material is *painted* to read as curved glass:
+ * there is no real backdrop-blur primitive behind a sibling tree, so the
+ * material is *painted* to read as a curved optical lens:
  *
- *  1. a translucent vertical gradient (lighter where the light hits from above),
+ *  1. a translucent vertical gradient (cooler and brighter where the light
+ *     hits from above, deeper at the foot),
  *  2. an optional accent [tint] overlay that picks up the colour beside it,
  *  3. a specular sheen swept across the upper third (the "liquid" highlight),
- *  4. a soft shadow pooled at the base (the curve of the glass),
- *  5. a dual-tone rim — bright along the top edge, deep along the bottom — drawn
- *     by stroking the shape's outline, clipped to the top/bottom halves.
+ *  4. a soft shadow pooled at the base (the curve of the lens),
+ *  5. a dual-tone rim — a bright light line along the top edge and a deeper
+ *     shadow line along the bottom — drawn by stroking the shape's outline,
+ *     clipped to the top/bottom halves.
  *
- * When [interactive] is true the surface *reacts* (like `.interactive()` in the
- * iOS API): a press brightens the sheet, strengthens the tint and lifts the
- * drop shadow. Callers animate the scale themselves through the same press
- * signal — [LiquidGlassSurface], [LiquidGlassButton] and [LifeOSCard] already do.
+ * When [interactive] is true the surface *reacts*: a press brightens the sheet,
+ * strengthens the tint and lifts the drop shadow. Callers animate the scale
+ * themselves through the same press signal — [LiquidGlassSurface],
+ * [LiquidGlassButton] and [LifeOSCard] already do.
  *
- * `@Namespace`-style morphing is not available in Compose, so like glass
- * rendering it is simulated: all glass shares one token set and one ambient
- * glow pool, which is what makes separate sheets read as one connected liquid
- * surface instead of as separate controls (the app's own rule 25).
+ * All glass shares one token set and one ambient glow pool, which is what makes
+ * separate sheets read as one connected material instead of separate controls.
  */
 @Composable
 fun Modifier.liquidGlass(
@@ -81,17 +82,15 @@ fun Modifier.liquidGlass(
     elevation: Dp = 6.dp
 ): Modifier {
     val glass = LocalGlassColors.current
-    // Aurora Noir: depth is neutral. A brand-tinted shadow on every surface made
-    // the whole app glow violet; a quiet neutral shadow reads as expensive and
-    // lets the glass material, not the shadow, carry the brand.
+    // Depth is neutral; the material, not the shadow, carries the brand.
     val shadowBase = LocalLifeOSSemanticColors.current.shadow
     val lift = if (pressed) 1f else 0f
     return this
         .shadow(
             elevation = if (pressed) elevation * 1.4f else elevation,
             shape = shape,
-            ambientColor = shadowBase.copy(alpha = 0.10f + 0.05f * lift),
-            spotColor = shadowBase.copy(alpha = 0.14f + 0.07f * lift)
+            ambientColor = shadowBase.copy(alpha = 0.12f + 0.05f * lift),
+            spotColor = shadowBase.copy(alpha = 0.18f + 0.07f * lift)
         )
         .clip(shape)
         .drawBehind {
@@ -100,12 +99,12 @@ fun Modifier.liquidGlass(
             val rimPath = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@drawBehind)) }
 
             // 1. The sheet: brighter at the top (light from above), more
-            //    translucent at the foot, and the whole sheet warms up on press.
+            //    translucent at the foot, and the whole sheet warms on press.
             drawRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        lerp(glass.surface, Color.White, 0.05f + 0.08f * lift),
-                        lerp(glass.surface.copy(alpha = glass.surface.alpha * 0.82f), Color.White, 0.03f * lift)
+                        lerp(glass.surface, Color.White, 0.07f + 0.07f * lift),
+                        lerp(glass.surface.copy(alpha = glass.surface.alpha * 0.80f), Color.White, 0.02f * lift)
                     ),
                     startY = 0f,
                     endY = h
@@ -117,19 +116,18 @@ fun Modifier.liquidGlass(
             // 2. The tint: the accent colour of the content beside the glass.
             if (tint != null) {
                 drawRect(
-                    color = tint.copy(alpha = 0.13f + 0.10f * lift),
+                    color = tint.copy(alpha = 0.12f + 0.10f * lift),
                     topLeft = Offset.Zero,
                     size = Size(w, h)
                 )
             }
 
-            // 3. The specular sheen across the upper third — finer now, so the
-            //    material reads as polished rather than wet.
+            // 3. The specular sheen across the upper third — the "liquid" highlight.
             drawRect(
                 brush = Brush.verticalGradient(
                     colorStops = arrayOf(
-                        0f to glass.sheen.copy(alpha = glass.sheen.alpha * (0.55f + 0.3f * lift)),
-                        0.28f to Color.Transparent
+                        0f to glass.sheen.copy(alpha = glass.sheen.alpha * (0.60f + 0.30f * lift)),
+                        0.30f to Color.Transparent
                     ),
                     startY = 0f,
                     endY = h
@@ -138,7 +136,7 @@ fun Modifier.liquidGlass(
                 size = Size(w, h)
             )
 
-            // 4. The pooled base shadow (the glass curves down away from the light).
+            // 4. The pooled base shadow (the lens curves down away from the light).
             drawRect(
                 brush = Brush.verticalGradient(
                     colorStops = arrayOf(
@@ -153,8 +151,7 @@ fun Modifier.liquidGlass(
             )
 
             // 5. The dual-tone rim: a bright light line along the top edge and a
-            //    deeper shadow line along the bottom edge. Each half-stroke is
-            //    clipped so only that portion of the outline is painted.
+            //    deeper shadow line along the bottom edge.
             clipRect(0f, 0f, w, h * 0.5f) {
                 drawPath(rimPath, glass.topEdge, style = Stroke(1.dp.toPx()))
             }
@@ -165,10 +162,9 @@ fun Modifier.liquidGlass(
 }
 
 /**
- * A liquid glass sheet with optional press reactivity. The Compose equivalent of
- * `.glassEffect(.regular.tint(...).interactive())`: translucent, tint-frosted and,
- * when [onClick] is set, reacting to touch with a spring scale, a warm brighten
- * and a strengthening accent tint.
+ * A Prism Glass sheet with optional press reactivity: translucent, tint-frosted
+ * and, when [onClick] is set, reacting to touch with a spring scale, a warm
+ * brighten and a strengthening accent tint.
  */
 @Composable
 fun LiquidGlassSurface(
@@ -230,7 +226,7 @@ fun LiquidGlassChip(
     ) { content() }
 }
 
-/** A fully-rounded liquid glass button. [prominent] is the gradient hero action. */
+/** A fully-rounded Prism Glass button. [prominent] is the spectrum hero action. */
 @Composable
 fun LiquidGlassButton(
     text: String,
@@ -254,15 +250,15 @@ fun LiquidGlassButton(
                     .shadow(
                         elevation = if (pressed) 18.dp else 12.dp,
                         shape = shape,
-                        ambientColor = LifeOSPrimary.copy(alpha = 0.28f),
-                        spotColor = LifeOSSecondary.copy(alpha = 0.30f)
+                        ambientColor = PrismIndigo.copy(alpha = 0.30f),
+                        spotColor = PrismSky.copy(alpha = 0.26f)
                     )
                     .clip(shape)
                     .background(
                         Brush.horizontalGradient(
                             listOf(
-                                lerp(LifeOSPrimary, Color.White, 0.12f * if (pressed) 1f else 0f),
-                                lerp(LifeOSSecondary, Color.White, 0.10f * if (pressed) 1f else 0f)
+                                lerp(PrismIndigo, Color.White, 0.12f * if (pressed) 1f else 0f),
+                                lerp(PrismSky, Color.White, 0.10f * if (pressed) 1f else 0f)
                             )
                         )
                     )
@@ -283,11 +279,10 @@ fun LiquidGlassButton(
 }
 
 /**
- * The floating primary action, in glass. The [prominent] variant is the vivid
- * hero — a brand-gradient orb under a swept specular highlight with the same
- * dual-tone rim as every other sheet, so it reads as the loudest piece of the
- * *same* glass rather than a flat Material puck. The regular variant is the bare
- * frost, tinted with the primary accent. Both press with a spring scale.
+ * The floating primary action, in Prism Glass. The [prominent] variant is the
+ * vivid spectrum orb — the identity gradient under a swept specular highlight
+ * with the same dual-tone rim as every other sheet. The regular variant is the
+ * bare frost, tinted with the primary accent. Both press with a spring scale.
  */
 @Composable
 fun LiquidGlassFab(
@@ -314,17 +309,12 @@ fun LiquidGlassFab(
             .shadow(
                 elevation = if (pressed) 18.dp else 11.dp,
                 shape = shape,
-                ambientColor = shadowBase.copy(alpha = 0.22f),
-                spotColor = LifeOSPrimary.copy(alpha = 0.24f)
+                ambientColor = shadowBase.copy(alpha = 0.24f),
+                spotColor = PrismIndigo.copy(alpha = 0.30f)
             )
             .clip(shape)
             .background(
-                Brush.linearGradient(
-                    listOf(
-                        lerp(LifeOSPrimary, Color.White, 0.10f * lift),
-                        lerp(LifeOSSecondary, Color.White, 0.08f * lift)
-                    )
-                )
+                Brush.linearGradient(listOf(PrismIndigo, PrismSky, PrismCoral))
             )
             .drawBehind {
                 val w = size.width
@@ -374,11 +364,16 @@ private fun selectRich(selected: Boolean, tint: Color?): Color? {
     return if (selected) tint else tint.copy(alpha = 0.4f)
 }
 
+/** The one identity gradient brush, for hero surfaces that want the spectrum. */
+fun prismBrush(horizontal: Boolean = false): Brush =
+    if (horizontal) Brush.horizontalGradient(listOf(PrismIndigo, PrismSky))
+    else Brush.linearGradient(listOf(PrismIndigo, PrismSky, PrismCoral))
+
 /**
- * The calm, slowly-illuminated page behind the whole app — the colour pool the
- * glass refracts. Paints the theme background, three soft detached brand glows
- * (lavender / magenta / sky) and a gentle vignette that keeps the edges calm so
- * content never floats against a hot border.
+ * The calm, slowly-illuminated obsidian void behind the whole app — the colour
+ * pool the glass refracts. Paints the theme background, three soft indigo /
+ * violet / sky glows and a gentle vignette that keeps the edges calm so content
+ * never floats against a hot border.
  *
  * Glows are painted with DrawScope radial gradients, not image assets, so they
  * cost no downloads, scale to any screen and sub-pixel smoothly in both themes.
@@ -391,7 +386,7 @@ fun LifeOSAmbientBackground(
     val scheme = MaterialTheme.colorScheme
     val glow = LocalAmbientGlowColors.current
     val baseTop = scheme.background
-    val baseBottom = lerp(scheme.background, scheme.primaryContainer, 0.30f)
+    val baseBottom = lerp(scheme.background, scheme.primaryContainer, 0.22f)
 
     Box(
         modifier
@@ -404,7 +399,7 @@ fun LifeOSAmbientBackground(
                 .drawBehind {
                     val w = size.width
                     val h = size.height
-                    // Lavender glow, top-left.
+                    // Indigo glow, top-left.
                     drawCircle(
                         brush = Brush.radialGradient(
                             colorStops = arrayOf(
@@ -417,7 +412,7 @@ fun LifeOSAmbientBackground(
                         radius = w * 0.85f,
                         center = Offset(w * 0.06f, h * 0.02f)
                     )
-                    // Magenta glow, top-right.
+                    // Violet glow, top-right.
                     drawCircle(
                         brush = Brush.radialGradient(
                             colorStops = arrayOf(

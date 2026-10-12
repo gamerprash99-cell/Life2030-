@@ -5,26 +5,23 @@ import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
 /**
- * The one corner-radius scale for the whole app.
+ * The one corner-radius scale for the whole app — Prism Glass.
  *
- * Before this, corners were written out per call site — 8, 12, 14, 18, 22, 24,
- * 28, 30 — so two cards sitting side by side could disagree about how round a
- * card is. Four steps cover every surface the app actually has: [small] for
- * chips and image tiles, [medium] for controls and small panels, [large] for
- * cards and tiles, and [xlarge] for hero/primary surfaces. [pill] is the fully
- * rounded shape for buttons and chips.
- *
- * The diary keeps its own paper geometry (see `DiaryPaper.kt`): paper has
- * corners, app cards do not, so the diary is deliberately outside this scale.
+ * Pebble-like curvature: cards and sheets are generously round, controls are
+ * tighter so they still read as pressable, and pills are fully round. Four
+ * steps cover every surface the app actually has: [small] for chips and image
+ * tiles, [medium] for controls and small panels, [large] for cards and tiles,
+ * and [xlarge] for hero/primary surfaces. [sheet] is the full-width bottom
+ * sheet. The diary keeps its own paper geometry (see `DiaryPaper.kt`).
  */
 object LifeOSRadius {
-    val small = 12.dp
-    val medium = 16.dp
-    val large = 22.dp
-    val xlarge = 28.dp
+    val small = 14.dp
+    val medium = 18.dp
+    val large = 24.dp
+    val xlarge = 30.dp
 
     /** A full-width bottom sheet / capture surface — the largest radius in the app. */
-    val sheet = 34.dp
+    val sheet = 36.dp
     val pill = 50.dp
 }
 
