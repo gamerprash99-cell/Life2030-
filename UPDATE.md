@@ -108,3 +108,55 @@ Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and re
 - Recorded that the broader dead-code sweep is still marked pending in `REDESIGN_PLAN.md`; no component is declared dead without call-site/reachability verification.
 - Verification performed: inspected repository tree, selected source/configuration/documentation files, test inventory, recent commit metadata, and latest visible CI job result. No local build, emulator/device test, screenshot capture, profiling, or full unused-symbol analysis was performed as part of this report.
 - No application source, database schema, migration, feature, or user data was changed. The report is on branch `audit/ui-ux-codebase-review-2026-10-12` for review.
+
+## 2026-10-12 — P0 UX baseline: contract, note-editor safety, Home hierarchy
+
+Scope: a first, deliberately narrow slice of the P0 work from the 2026-10-12
+static audit. No database schema, migration, entity, repository contract or user
+data was touched; no permission or network path was added.
+
+### Canonical product/UI contract (new)
+- Added `docs/CURRENT_PRODUCT_UI_CONTRACT.md` — the single authoritative
+  statement of the five destinations (Home · Notes · Capture · Insights · Life),
+  Capture as a centre **action** rather than a tab, every track module's entry
+  points, the Aurora Noir token values as they actually are in `Color.kt`, the
+  Diary paper-aesthetic exception, and the offline/data-honesty/privacy
+  contract.
+- Corrected `UI_UX_FLOW_NAVIGATION.md` rather than rewriting it: a clearly marked
+  "Corrections — 2026-10-12" note flags the historical palette
+  (`#7C4DFF`/`#D946EF` → `#5A4BE8`/`#8B3DDB`), the non-existent `life_calendar`
+  route, and the Notes-editor/AI details that do not match the build. History is
+  preserved; the active spec is now unambiguous.
+
+### Note editor — unsaved changes are no longer silently discarded
+- **Root cause:** both the header Back arrow and system Back called `onBack()`
+  directly, so an accidental Back or gesture threw away an unsaved note with no
+  prompt.
+- **Fix (`NoteEditorScreen.kt`):** a draft-vs-baseline check (`isNoteDirty` +
+  `NoteBaseline`) gates leaving. Back now runs a two-stage rule — the first press
+  only dismisses the keyboard, the second opens a "Discard changes?" dialog with
+  **Keep editing** / **Discard**. The same guard covers the arrow and system Back.
+- New unit tests (`NoteEditorDirtyTest`, 9 cases) pin the rule: an untouched
+  existing note is clean, any edit (including clearing a field) is dirty, an
+  untouched new note is clean, and a new note typed-then-cleared is clean.
+
+### Home — content leads
+- Moved the LifeOS AI entry from above today's tasks to the **last** section of
+  Home. The screen now reads: today's progress → tasks → habits → weekly rhythm →
+  spend/capture → recent activity → LifeOS AI, so the user's real day ranks above
+  the assistant rather than competing with it.
+
+### Verification
+- Ran `./gradlew testDebugUnitTest` on this branch: **BUILD SUCCESSFUL**, 471
+  tests, 0 failures / 0 errors / 0 skipped, including the new
+  `NoteEditorDirtyTest` (9 cases) and the pre-existing `AppDatabaseSchemaTest`.
+- No device/emulator was available, so contrast at 200% font scale, touch-target
+  checks, TalkBack order and cold/warm startup timings remain **unverified** and
+  are listed below.
+
+### Remaining (unchanged by this pass)
+- Device measurements: cold/warm startup, contrast at 200% font scale, TalkBack
+  order, per-screen interaction review.
+- The navigation-graph question of whether tapping an *unvisited* root tab from a
+  stacked module should clear the module (currently it stacks the tab above it).
+- Dead-code reachability inventory (audit P2).

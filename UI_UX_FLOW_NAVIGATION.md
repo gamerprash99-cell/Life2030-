@@ -4,6 +4,22 @@
 > architecture, the navigation graph, every key user flow, the screen
 > inventory, the design language, and the accessibility rules.
 
+> **Corrections — 2026-10-12.** Some details below are historical and no longer
+> match the code. Read them with these corrections, and treat
+> [`docs/CURRENT_PRODUCT_UI_CONTRACT.md`](CURRENT_PRODUCT_UI_CONTRACT.md) as the
+> authoritative contract:
+> - **Palette (§1):** the current tokens are Aurora Noir —
+>   `LifeOSPrimary #5A4BE8` and `LifeOSSecondary #8B3DDB` (light). The older
+>   `#7C4DFF` / `#D946EF` values recorded here are superseded.
+> - **Calendar (§3.2, §4.5):** there is no `life_calendar` route; the calendar
+>   that exists is the Diary calendar (`diary/calendar`).
+> - **Notes editor (§4.2):** the editor has a title, a body and tags with an
+>   explicit Save; there is no rich-text toolbar, no attachments and no in-editor
+>   AI sheet in the current build.
+> - **AI (§4.10, §5.3):** LifeOS AI is an on-device, rule-based assistant over
+>   permitted local data. There is no on-device speech-to-text diary flow and no
+>   external/cloud processing.
+
 ---
 
 ## 1. Design Language — Glassmorphism, used with discipline
@@ -25,7 +41,7 @@ readability, accessibility, battery and performance come first.
 
 | Token group | File | Examples |
 |---|---|---|
-| Color | `Color.kt` | `LifeOSPrimary #7C4DFF`, `LifeOSSecondary #D946EF`, surface/background, category accents, glass tints |
+| Color | `Color.kt` | `LifeOSPrimary #5A4BE8`, `LifeOSSecondary #8B3DDB` (Aurora Noir — see the corrections note), surface/background, category accents, glass tints |
 | Type | `Type.kt` | display / headline / title / body / label scale |
 | Shape | `Shape.kt` | `LifeOSRadius.small/medium/large/xlarge/pill` |
 | Spacing | `Spacing.kt` | `screenPadding 24`, `sectionSpacing 20`, `minTouchTarget 48` |

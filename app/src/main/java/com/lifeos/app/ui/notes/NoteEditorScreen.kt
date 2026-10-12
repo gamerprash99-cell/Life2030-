@@ -1,5 +1,6 @@
 package com.lifeos.app.ui.notes
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -7,10 +8,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,16 +25,22 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -65,6 +74,52 @@ data class NoteEditorUiState(
     val saved: Boolean = false
 )
 
+/**
+ * What the editor looked like when it opened, or when it was last saved. It is
+ * the baseline the current draft is compared against to decide whether leaving
+ * would throw away work.
+ *
+ * [isNew] is the part a plain field comparison cannot express: an untouched new
+ * note has nothing to lose, and neither does a new note the user typed into and
+ * then cleared back to empty — whereas an *existing* note whose fields the user
+ * emptied genuinely does.
+ */
+internal data class NoteBaseline(
+    val isNew: Boolean,
+    val title: String,
+    val content: String,
+    val tags: List<String>
+)
+
+/**
+ * True when closing the editor now would discard typing the user has not saved.
+ *
+ * An all-blank draft is treated as nothing to keep, which is the same rule
+ * [NoteEditorViewModel.save] uses when it declines to write an empty note. For a
+ * brand-new note that means "dirty only once there is something in it"; for an
+ * existing note it means any difference from the loaded values counts, including
+ * clearing a field.
+ */
+internal fun isNoteDirty(
+    title: String,
+    content: String,
+    tags: List<String>,
+    baseline: NoteBaseline
+): Boolean {
+    if (baseline.isNew) {
+        return title.isNotBlank() || content.isNotBlank() || tags.isNotEmpty()
+    }
+    // The repository trims the title on write, so compare the trimmed form to
+    // avoid flagging a title the user only added trailing spaces to.
+    return title.trim() != baseline.title ||
+        content != baseline.content ||
+        tags != baseline.tags
+}
+
+/** Parses a persisted `tagsCsv` into the tag list the editor shows. */
+internal fun parseNoteTags(tagsCsv: String): List<String> =
+    tagsCsv.split(",").map(String::trim).filter(String::isNotEmpty)
+
 /** Backs the note editor. A new note is created lazily on first save. */
 class NoteEditorViewModel(
     private val repository: NoteRepository,
@@ -76,6 +131,13 @@ class NoteEditorViewModel(
 
     private var existingId: String? = requestedId.takeUnless { it == "new" || it.isBlank() }
 
+    private var baseline = NoteBaseline(
+        isNew = existingId == null,
+        title = "",
+        content = "",
+        tags = emptyList()
+    )
+
     init {
         val id = existingId
         if (id == null) {
@@ -83,19 +145,35 @@ class NoteEditorViewModel(
         } else {
             viewModelScope.launch {
                 val note = repository.getById(id)
-                _state.update {
-                    if (note == null) it.copy(loading = false)
-                    else it.copy(
-                        loading = false,
+                if (note == null) {
+                    _state.update { it.copy(loading = false) }
+                } else {
+                    val tags = parseNoteTags(note.tagsCsv)
+                    _state.update {
+                        it.copy(
+                            loading = false,
+                            title = note.title,
+                            content = note.content,
+                            tags = tags,
+                            folderId = note.folderId,
+                            noteId = note.id
+                        )
+                    }
+                    baseline = NoteBaseline(
+                        isNew = false,
                         title = note.title,
                         content = note.content,
-                        tags = note.tagsCsv.split(",").map(String::trim).filter(String::isNotEmpty),
-                        folderId = note.folderId,
-                        noteId = note.id
+                        tags = tags
                     )
                 }
             }
         }
+    }
+
+    /** True when leaving the editor now would lose unsaved typing. */
+    fun hasUnsavedChanges(): Boolean {
+        val s = _state.value
+        return isNoteDirty(s.title, s.content, s.tags, baseline)
     }
 
     fun onTitleChange(value: String) = _state.update { it.copy(title = value) }
@@ -121,13 +199,23 @@ class NoteEditorViewModel(
             if (id == null) {
                 val newId = repository.create(current.title, current.content, current.tags, current.folderId)
                 existingId = newId
+                baseline = baselineOfWritten(current)
                 _state.update { it.copy(saved = true, noteId = newId) }
             } else {
                 repository.update(id, current.title, current.content, current.tags, current.folderId)
+                baseline = baselineOfWritten(current)
                 _state.update { it.copy(saved = true) }
             }
         }
     }
+
+    /** The baseline a successfully written draft leaves behind: no longer dirty. */
+    private fun baselineOfWritten(draft: NoteEditorUiState) = NoteBaseline(
+        isNew = false,
+        title = draft.title.trim(),
+        content = draft.content,
+        tags = draft.tags
+    )
 }
 
 /**
@@ -135,6 +223,7 @@ class NoteEditorViewModel(
  * borderless body, and a lightweight tag rail. Save is explicit and the screen
  * closes on the one-shot [NoteEditorUiState.saved] signal.
  */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun NoteEditorScreen(
     noteId: String,
@@ -146,6 +235,23 @@ fun NoteEditorScreen(
         factory = LambdaViewModelFactory { NoteEditorViewModel(locator.noteRepository, noteId) }
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Leaving is gated on real unsaved work. Both the header's Back arrow and the
+    // system Back go through the same request, so neither can silently discard a
+    // draft. The keyboard keeps the first press — the same two-stage rule the
+    // Diary composer uses — so an accidental Back while typing only closes the
+    // keyboard, and a second Back asks before anything is lost.
+    var showDiscardDialog by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val requestLeave: () -> Unit = {
+        if (viewModel.hasUnsavedChanges()) showDiscardDialog = true else onBack()
+    }
+    val imeVisible = WindowInsets.isImeVisible
+    BackHandler(enabled = imeVisible) {
+        val controller = keyboardController
+        if (controller != null) controller.hide() else requestLeave()
+    }
+    BackHandler(enabled = !imeVisible, onBack = requestLeave)
 
     LaunchedEffect(state.saved) {
         if (state.saved) onBack()
@@ -164,7 +270,7 @@ fun NoteEditorScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
         ) {
-            LifeOSIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
+            LifeOSIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = requestLeave)
             Spacer(Modifier.weight(1f))
             Text(
                 if (state.noteId == null) "New note" else "Editing",
@@ -243,5 +349,19 @@ fun NoteEditorScreen(
                 }
             )
         }
+    }
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Discard changes?") },
+            text = { Text("This note has unsaved changes. Leaving now will lose them.") },
+            confirmButton = {
+                TextButton(onClick = { showDiscardDialog = false; onBack() }) { Text("Discard") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep editing") }
+            }
+        )
     }
 }

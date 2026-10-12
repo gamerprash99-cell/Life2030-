@@ -119,8 +119,6 @@ fun HomeScreen(
             )
         }
 
-        item { AiNudge(onOpenAi) }
-
         summary?.let { s ->
             if (s.overdueTaskCount > 0) {
                 item {
@@ -232,6 +230,12 @@ fun HomeScreen(
                     }
                 }
             }
+
+            // LifeOS AI is the screen's last entry, not a banner above the user's
+            // real day. Content leads: today's tasks, habits, spend and memories
+            // rank first, and the on-device assistant is offered underneath them
+            // as one more thing the user can reach — never as a competing hero.
+            item { AiNudge(onOpenAi) }
         }
     }
 }
