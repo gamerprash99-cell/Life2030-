@@ -982,3 +982,107 @@ This is a provisional planning score, not a measured app-quality score. It refle
 - Migration, export/restore, media, reminder, and App Lock regression evidence.
 
 **Bottom line:** LifeOS does not need an uncontrolled rewrite. It needs a single design contract, a measured startup journey, a carefully prioritized screen-by-screen redesign, and a safe code cleanup process. The existing work is valuable; the goal is to make it coherent, reliable, and genuinely production-ready without losing features or personal data.
+
+
+## 26. Practical review protocol for each pull request
+
+Use this protocol for every UI/UX change so that visual improvements do not introduce subtle functional regressions.
+
+### Before implementation
+- State the user problem in one sentence.
+- Name the route and entry points affected.
+- List the expected behavior before and after.
+- Identify the ViewModel, use case, repository, and persisted data touched.
+- Identify permission, media, database, and navigation implications.
+- Capture the current screen and note the device, theme, and font scale.
+- Decide which tests will prove the change works.
+- If a screen's design differs intentionally from the shared system, explain why.
+
+### During implementation
+- Prefer existing components and token names where they represent the intended semantics.
+- Avoid mixing layout refactors, data-model changes, and navigation rewrites in the same pull request.
+- Keep state hoisted to the established owner; avoid duplicating source-of-truth state inside composables.
+- Avoid launching database work synchronously from composable execution.
+- Use lifecycle-aware collection for long-lived screen state where appropriate.
+- Keep list identity stable and avoid expensive work in frequently recomposed content.
+- Preserve input while the keyboard opens, the device rotates, or the screen is temporarily recreated.
+- Keep destructive actions explicit and ensure dismissing a sheet does not unexpectedly save or delete data.
+
+### Before review
+- Run the targeted tests and record the exact command/result.
+- Run the supported build and test commands for the project.
+- Inspect the full diff, not only the changed screen.
+- Search for duplicated components and obsolete imports created by the change.
+- Compare before/after screenshots in both themes.
+- Check the screen with large font settings and the system keyboard.
+- Verify Back and bottom-bar visibility after every modal or full-window route.
+- Confirm no new network permission, analytics SDK, cloud endpoint, or personal-data upload was introduced.
+- Update UPDATE.md with the actual change, files affected, verification performed, and remaining issues.
+- If a test could not run, state that explicitly rather than marking it passed.
+
+### Review questions
+1. Does this solve a real user problem, or is it only visual novelty?
+2. Can the user identify the main action without reading every label?
+3. Is the content more prominent than the background treatment?
+4. Is the state derived from persisted data, or is a value being guessed?
+5. What happens with no data, invalid data, permission denial, or storage failure?
+6. Can the user recover from an accidental Back or dismiss action?
+7. Does this preserve the existing navigation and return destination?
+8. Does the UI remain usable when the device is small or text is enlarged?
+9. Does the screen still work with the network unavailable?
+10. Does this change add another component that duplicates an existing one?
+11. Is any deletion proven safe by call-site and runtime reachability evidence?
+12. Are the documentation and implementation now more aligned than before?
+
+## 27. Screen review scorecard
+
+Score each criterion as Pass, Needs Work, or Not Tested. Do not turn Not Tested into Pass. A screen should not be considered ready while a P0 item is Needs Work or Not Tested.
+
+| Criterion | What Pass means |
+|---|---|
+| Purpose | The screen's primary job is obvious |
+| Hierarchy | The most important content/action wins visual attention |
+| Data honesty | Metrics reflect real data and disclose missing coverage |
+| State coverage | Loading, empty, populated, and error states are handled |
+| Navigation | Entry, Back, and return-to-origin behavior are correct |
+| Insets | Content clears system bars, gestures, and keyboard |
+| Responsiveness | Small/large layouts and font scaling remain usable |
+| Accessibility | Labels, roles, focus order, contrast, and touch targets are acceptable |
+| Motion | Transitions are meaningful, quick, and non-blocking |
+| Performance | No measured jank or avoidable heavy rendering in normal use |
+| Privacy | No unneeded permission or external data transfer |
+| Data safety | Existing records and relationships remain intact |
+| Test evidence | Relevant tests and manual checks have recorded results |
+| Maintainability | Shared tokens/components are reused without new duplication |
+| Documentation | Current behavior and known limitations are recorded |
+
+## 28. How to report findings without overclaiming
+
+During the next full audit, every finding should include a reproducible symptom, an exact source path or route, the user impact, the evidence level, and the smallest safe next step. For example, “the initial expense sheet hides the save action on a small device” should only be called confirmed after reproducing it on that device; until then it is a risk to test. Similarly, “component X is dead” should require call-site analysis and a successful removal/build check, not just a search that returned no obvious result.
+
+Separate the backlog into:
+- **Confirmed defect:** reproduced or proven from code path.
+- **UX inconsistency:** a concrete mismatch with the chosen design contract.
+- **Performance risk:** requires profiling to establish severity.
+- **Cleanup candidate:** likely unnecessary but not yet proven.
+- **Product decision:** requires an explicit behavior choice.
+- **Future enhancement:** useful but not needed for current stabilization.
+
+This classification keeps the team from spending days polishing speculative issues while genuine data, navigation, or startup problems remain unresolved.
+
+## 29. Final execution order in one page
+
+1. Lock baseline and verify current build/test status.
+2. Reconcile the current product contract and historical docs.
+3. Validate splash, database initialization, and recovery.
+4. Test root navigation, Back, and full-window inset ownership.
+5. Standardize shared tokens and components.
+6. Redesign Home around today's real actions.
+7. Simplify Capture and fix its permission/lifecycle paths.
+8. Improve Expenses entry visibility and validation.
+9. Refine Notes, Tasks, Habits, Timeline, Diary, Insights, Search, and Settings in small releases.
+10. Complete the reachability-based dead-code/dependency sweep.
+11. Run migration, security, accessibility, offline, and device regression checks.
+12. Publish release readiness only after the evidence exists.
+
+The governing rule is simple: improve the user's experience while reducing uncertainty in the code. Every phase should leave LifeOS easier to use, easier to maintain, and at least as safe for existing personal data as it was before.
