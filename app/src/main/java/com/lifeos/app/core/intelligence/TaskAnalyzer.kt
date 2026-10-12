@@ -2,7 +2,6 @@ package com.lifeos.app.core.intelligence
 
 import com.lifeos.app.data.db.entities.TaskPriority
 import com.lifeos.app.data.repository.TaskRepository
-import kotlinx.coroutines.flow.first
 
 /**
  * Rule-based/statistical task analysis. Reads through TaskRepository only —
@@ -13,7 +12,7 @@ class TaskAnalyzer(private val taskRepository: TaskRepository) {
 
     /** Analyzes all tasks whose due date falls in [startEpochDay]..[endEpochDay]. */
     suspend fun analyzePeriod(startEpochDay: Long, endEpochDay: Long, todayEpochDay: Long): TaskAnalysis {
-        val allTasks = taskRepository.observeAll().first()
+        val allTasks = taskRepository.getAllForBackup()
         val inPeriod = allTasks.filter { task ->
             val due = task.dueDateEpochDay ?: return@filter false
             due in startEpochDay..endEpochDay && !task.isDeleted

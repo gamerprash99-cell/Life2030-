@@ -1,6 +1,5 @@
 package com.lifeos.app.core.intelligence
 
-import com.lifeos.app.data.db.dao.CategoryTotal
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import java.time.DayOfWeek
@@ -12,6 +11,8 @@ import java.time.LocalDate
  * existing lists. Deliberately simple, explainable rules rather than a
  * generic pattern-mining algorithm.
  */
+data class CategoryTotal(val category: String, val total: Double)
+
 object PatternDetector {
 
     /** Finds the day of week with the most missed (0-progress) completions, if any pattern exists. */
