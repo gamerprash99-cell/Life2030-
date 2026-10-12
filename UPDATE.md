@@ -87,3 +87,14 @@ Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and re
 - Reconciled retained offline Intelligence and LIFE command code with the current repository contracts: task reads use existing backup/read APIs, expense/date-range and search helpers use existing Room repositories/queries, diary range access delegates to the existing range query, and weekly boundaries are calculated as ISO Monday–Sunday local dates.
 - The current test/build workflow was last observed as `in_progress` in the build/test step with no fresh run conclusion or downloadable live logs. Therefore the final build/test result remains **unverified** until a completed Actions run reports its conclusion.
 - All changes remain on `fix/ci-latest-kotlin-compilation` and PR #48; `main` was not modified or merged. No Room schema, migration, user data, network permission, or external service was added or changed.
+
+
+## 2026-10-12 — Room v6 schema-test repair and preservation review
+
+- CI reached unit tests after production Kotlin compilation and debug APK packaging. Seven `AppDatabaseSchemaTest` cases failed because the schema fixture was not available at the expected path; the test still asserted obsolete v3–v5 tables while the current `AppDatabase` is v6 and intentionally contains nine entity tables.
+- Moved `room.schemaLocation` / `room.incremental` arguments to the project-level KSP extension so Room exports its schema at `app/schemas/com.lifeos.app.data.db.AppDatabase/6.json`.
+- Reworked `AppDatabaseSchemaTest` to parse the exported schema JSON with kotlinx.serialization and verify version 6, the exact current entity table set, and persisted columns for reminders, diary entries, Notes, Note folders, and Captures. No entity definitions, Room version, or migration SQL was changed.
+- Replaced obsolete `narrativeScore` unit checks with tests for the current Insights state model, which no longer exposes that old score.
+- Final preservation review restored the existing permission helper behavior verbatim and added only `LifeOSPermissions.CAMERA` / `RECORD_AUDIO` constants; restored the existing four-category local Search UI, backed by added on-device repository search methods.
+- Verification at this point: production Kotlin compilation and debug APK assembly succeeded on a prior branch run, but that run failed in unit tests due to the stale/missing schema fixture. A fresh full CI result for the final source revision is still pending; no green build is claimed until a completed run reports success.
+- All fixes remain on `fix/ci-latest-kotlin-compilation` / PR #48. `main` has not been modified or merged. Changes remain offline-only, and no user data or database migration was changed.
