@@ -65,3 +65,16 @@ Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and re
 
 ### Remaining
 - Run the project's normal Android CI/build locally or in GitHub Actions once the wrapper is present to perform the final compiler, unit-test, instrumentation, and lint verification.
+
+
+## 2026-10-12 — Latest GitHub Actions compilation repair
+
+- Audited failed workflow run [38227803179](https://github.com/gamerprash99-cell/Life2030-/actions/runs/38227803179) on `main`, commit `47f1d40`. The failing job was **Assemble debug APK**; the first real task failure was Kotlin compilation.
+- Root causes from the job log:
+  - `:app:compileDebugKotlin` could not resolve `androidx.work` types because the WorkManager KTX dependency had been dropped, and the existing App Lock implementation could not resolve AndroidX Biometric / FragmentActivity APIs because the Biometric dependency was missing.
+  - Legacy Capture UI files still called the former capture repository/entity API (enum types, `addCapture`, separate date/time and caption properties) after the repository changed to string capture types and timestamped `CaptureEntity` records.
+  - Legacy Notes list code referenced a missing `NotesListViewModel` and removed `plainTextForSearch` property.
+  - Legacy Search code called task/expense repository search methods that are not present in the current data layer.
+- Fix branch: `fix/ci-latest-kotlin-compilation`. Restored explicit WorkManager and Biometric dependencies; kept the central permission helper and added compatibility file-factory names backed by the existing app-private capture directories; aligned legacy Capture and Notes screens with current Room-backed repository/entity APIs; restricted the legacy Search screen to real Notes and Diary search results.
+- No database entity, Room schema, migration, navigation destination, user data, external service, or network permission was changed.
+- Verification status at documentation update time: GitHub Actions rerun is still required after the fix commits. No passing build/test result is claimed until a fresh CI run reports success.
