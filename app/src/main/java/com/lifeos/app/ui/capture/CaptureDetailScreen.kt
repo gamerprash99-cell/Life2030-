@@ -35,6 +35,9 @@ import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.CaptureEntity
 import com.lifeos.app.data.db.entities.CaptureType
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.lifeos.app.data.repository.CaptureRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -126,16 +129,17 @@ fun CaptureDetailScreen(captureId: String, onBack: () -> Unit) {
                             CaptureType.PHOTO -> PhotoPreview(path, modifier = Modifier.fillMaxWidth())
                             CaptureType.VIDEO -> VideoPreview(path, modifier = Modifier.fillMaxWidth())
                             CaptureType.AUDIO -> AudioPreview(path, modifier = Modifier.fillMaxWidth())
-                            CaptureType.THOUGHT -> Unit
+                            else -> Unit
                         }
                     }
 
-                    item.caption?.let { caption ->
-                        Text(caption, style = MaterialTheme.typography.bodyLarge)
+                    item.text?.let { text ->
+                        Text(text, style = MaterialTheme.typography.bodyLarge)
                     }
 
                     Text(
-                        "${DateTimeUtils.formatFullDate(DateTimeUtils.epochDayToLocalDate(item.dateEpochDay))} · ${DateTimeUtils.formatMinutes(item.timeMinutes)}",
+                        SimpleDateFormat("EEE, d MMM yyyy · HH:mm", Locale.getDefault())
+                            .format(Date(item.createdAt)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
@@ -159,7 +163,7 @@ fun CaptureDetailScreen(captureId: String, onBack: () -> Unit) {
     }
 }
 
-private fun captureTitle(type: CaptureType?): String = when (type) {
+private fun captureTitle(type: String?): String = when (type) {
     CaptureType.PHOTO -> "Photo"
     CaptureType.VIDEO -> "Video"
     CaptureType.AUDIO -> "Audio"
