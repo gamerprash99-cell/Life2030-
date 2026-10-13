@@ -58,7 +58,6 @@ import com.lifeos.app.ui.components.LifeOSSearchBar
 import com.lifeos.app.ui.components.LifeOSSkeletonList
 import com.lifeos.app.ui.components.LifeOSSurface
 import com.lifeos.app.ui.components.LiquidGlassFab
-import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
@@ -197,7 +196,7 @@ private fun NoteCard(
     LifeOSSurface(Modifier.fillMaxWidth(), onClick = onClick) {
         Column(verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)) {
-                if (note.isPinned) Icon(Icons.Filled.PushPin, contentDescription = "Pinned", tint = LifeOSPrimary, modifier = Modifier.size(15.dp))
+                if (note.isPinned) Icon(Icons.Filled.PushPin, contentDescription = "Pinned", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
                 Text(
                     note.title.ifBlank { "Untitled note" },
                     style = MaterialTheme.typography.titleMedium,
@@ -231,10 +230,10 @@ private fun NoteCard(
                     Text(
                         "#$tag",
                         style = MaterialTheme.typography.labelSmall,
-                        color = LifeOSPrimary,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .clip(RoundedCornerShape(LifeOSRadius.pill))
-                            .background(LifeOSPrimary.copy(alpha = 0.10f))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }

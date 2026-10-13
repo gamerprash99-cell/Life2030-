@@ -43,9 +43,8 @@ import coil.compose.AsyncImage
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.CaptureType
-import com.lifeos.app.ui.theme.LifeOSPrimary
+import com.lifeos.app.ui.components.prismBrush
 import com.lifeos.app.ui.theme.LifeOSRadius
-import com.lifeos.app.ui.theme.LifeOSSecondary
 import java.io.File
 import kotlinx.coroutines.launch
 
@@ -70,7 +69,7 @@ fun SnapViewerScreen(
 
     val item = capture ?: run {
         Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), Alignment.Center) {
-            CircularProgressIndicator(color = LifeOSPrimary)
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
         return
     }
@@ -114,7 +113,7 @@ fun SnapViewerScreen(
                         .fillMaxWidth()
                         .padding(24.dp)
                         .clip(RoundedCornerShape(LifeOSRadius.xlarge))
-                        .background(Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary)))
+                        .background(prismBrush())
                         .padding(28.dp),
                     contentAlignment = Alignment.Center
                 ) {

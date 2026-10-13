@@ -47,9 +47,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.data.db.entities.CaptureType
-import com.lifeos.app.ui.theme.LifeOSPrimary
+import com.lifeos.app.ui.components.prismBrush
 import com.lifeos.app.ui.theme.LifeOSRadius
-import com.lifeos.app.ui.theme.LifeOSSecondary
 import java.io.File
 import kotlinx.coroutines.launch
 
@@ -132,7 +131,7 @@ fun SnapComposeView(
                 shape = RoundedCornerShape(LifeOSRadius.large),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Done),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = LifeOSPrimary,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline
                 )
             )
@@ -166,7 +165,7 @@ fun SnapComposeView(
                     .fillMaxWidth()
                     .height(56.dp)
                     .clip(RoundedCornerShape(LifeOSRadius.pill))
-                    .background(Brush.horizontalGradient(listOf(LifeOSPrimary, LifeOSSecondary)))
+                    .background(prismBrush(horizontal = true))
                     .clickable(enabled = !saving) {
                         saving = true
                         error = null

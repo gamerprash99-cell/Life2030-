@@ -45,7 +45,6 @@ import com.lifeos.app.ui.components.LifeOSIconButton
 import com.lifeos.app.ui.components.LifeOSSearchBar
 import com.lifeos.app.ui.components.LifeOSSurface
 import com.lifeos.app.ui.components.LifeOSSkeletonList
-import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -222,7 +221,7 @@ fun GlobalSearchScreen(
 @Composable
 private fun SearchGroupHeader(title: String, count: Int) {
     Row(Modifier.fillMaxWidth().padding(top = LifeOSSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
-        Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = LifeOSPrimary)
+        Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
         Text("  ·  $count", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -237,7 +236,7 @@ private fun ResultRow(
 ) {
     LifeOSSurface(Modifier.fillMaxWidth(), onClick = onClick, contentPadding = PaddingValues(LifeOSSpacing.lg)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-            Icon(icon, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.padding(end = 2.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 2.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (subtitle.isNotBlank()) {

@@ -39,9 +39,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.lifeos.app.core.util.MediaStorage
-import com.lifeos.app.ui.theme.LifeOSPrimary
+import com.lifeos.app.ui.components.prismBrush
 import com.lifeos.app.ui.theme.LifeOSRadius
-import com.lifeos.app.ui.theme.LifeOSSecondary
 
 /**
  * The whole Snap flow behind one route: request the camera permission only when
@@ -141,7 +140,7 @@ private fun SnapPermissionScreen(
                 Modifier
                     .size(84.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary))),
+                    .background(prismBrush()),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.PhotoCamera, null, tint = Color.White, modifier = Modifier.size(38.dp))
@@ -170,7 +169,7 @@ private fun SnapPermissionScreen(
                         .fillMaxWidth()
                         .height(54.dp)
                         .clip(RoundedCornerShape(LifeOSRadius.pill))
-                        .background(Brush.horizontalGradient(listOf(LifeOSPrimary, LifeOSSecondary)))
+                        .background(prismBrush(horizontal = true))
                         .clickable(onClick = onRequest),
                     contentAlignment = Alignment.Center
                 ) {

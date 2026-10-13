@@ -57,9 +57,8 @@ import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.data.repository.TaskRepository
 import com.lifeos.app.ui.components.LifeOSBanner
 import com.lifeos.app.ui.components.LifeOSIconButton
-import com.lifeos.app.ui.theme.LifeOSPrimary
+import com.lifeos.app.ui.components.prismBrush
 import com.lifeos.app.ui.theme.LifeOSRadius
-import com.lifeos.app.ui.theme.LifeOSSecondary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -280,7 +279,7 @@ fun AiAssistantScreen(
                 Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary))),
+                    .background(prismBrush()),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
@@ -325,10 +324,10 @@ fun AiAssistantScreen(
                 Text(
                     starter,
                     style = MaterialTheme.typography.labelMedium,
-                    color = LifeOSPrimary,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .clip(RoundedCornerShape(LifeOSRadius.pill))
-                        .background(LifeOSPrimary.copy(alpha = 0.10f))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
                         .clickable { viewModel.ask(starter) }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 )
@@ -357,7 +356,7 @@ fun AiAssistantScreen(
                     onValueChange = { input = it },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                    cursorBrush = SolidColor(LifeOSPrimary),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -367,7 +366,7 @@ fun AiAssistantScreen(
                     .clip(CircleShape)
                     .background(
                         if (input.isBlank()) SolidColor(MaterialTheme.colorScheme.surfaceVariant)
-                        else Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary))
+                        else prismBrush()
                     )
                     .clickable(enabled = input.isNotBlank()) {
                         viewModel.ask(input)
@@ -405,7 +404,7 @@ private fun MessageBubble(message: AiMessage, onAction: (AiAction) -> Unit) {
                     )
                 )
                 .background(
-                    if (isUser) Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary))
+                    if (isUser) prismBrush()
                     else SolidColor(MaterialTheme.colorScheme.surface)
                 )
                 .padding(LifeOSSpacing.lg),
@@ -420,10 +419,10 @@ private fun MessageBubble(message: AiMessage, onAction: (AiAction) -> Unit) {
                 Text(
                     action.label,
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (isUser) Color.White else LifeOSPrimary,
+                    color = if (isUser) Color.White else MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .clip(RoundedCornerShape(LifeOSRadius.pill))
-                        .background(if (isUser) Color.White.copy(alpha = 0.16f) else LifeOSPrimary.copy(alpha = 0.10f))
+                        .background(if (isUser) Color.White.copy(alpha = 0.16f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
                         .clickable { onAction(action) }
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 )
