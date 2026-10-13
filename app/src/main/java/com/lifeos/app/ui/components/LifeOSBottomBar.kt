@@ -57,9 +57,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.lifeos.app.ui.navigation.ROOT_TABS_GRAPH
 import com.lifeos.app.ui.navigation.Screen
-import com.lifeos.app.ui.theme.LifeOSPrimary
+import com.lifeos.app.ui.theme.LifeOSElevation
 import com.lifeos.app.ui.theme.LifeOSRadius
-import com.lifeos.app.ui.theme.LifeOSSecondary
+import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
 
 /**
  * A single item of the primary bottom navigation.
@@ -119,7 +119,7 @@ fun LifeOSBottomBar(navController: NavHostController) {
                     .fillMaxWidth()
                     .liquidGlass(
                         shape = pillShape,
-                        tint = LifeOSPrimary.copy(alpha = 0.30f),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.30f),
                         elevation = 16.dp
                     )
                     .padding(horizontal = 8.dp, vertical = 8.dp),
@@ -167,7 +167,7 @@ private fun BottomNavEntry(
     modifier: Modifier = Modifier
 ) {
     val contentColor by animateColorAsState(
-        targetValue = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = spring(stiffness = 500f),
         label = "bottomNavColor"
     )
@@ -185,15 +185,19 @@ private fun BottomNavEntry(
             .scale(pressedScale)
             .then(
                 if (selected) {
-                    // The active tab is a lit, brand-gradient pill — the loudest
-                    // small surface in the app, so "where am I" is never a guess.
+                    // The active tab is a solid clay pill — loud enough that
+                    // "where am I" is never a guess, but deliberately NOT the
+                    // identity gradient: that stays reserved for Capture, the
+                    // hero and the AI orb so it keeps meaning "this is LifeOS".
+                    // Solid clay also holds the label at 5.4:1, where the
+                    // gradient's gold end would drop white text under 4.5:1.
                     Modifier
                         .clip(entryShape)
-                        .background(Brush.horizontalGradient(listOf(LifeOSPrimary, LifeOSSecondary)))
+                        .background(MaterialTheme.colorScheme.primary)
                 } else {
                     Modifier
                         .clip(entryShape)
-                        .background(if (pressed) LifeOSPrimary.copy(alpha = 0.08f) else Color.Transparent)
+                        .background(if (pressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent)
                 }
             )
             .semantics { this.role = Role.Tab; this.selected = selected }
@@ -247,9 +251,15 @@ private fun CaptureCenterButton(onClick: () -> Unit, modifier: Modifier = Modifi
             Modifier
                 .size(52.dp)
                 .scale(pressedScale)
-                .shadow(12.dp, CircleShape, clip = false)
+                .shadow(
+                    elevation = LifeOSElevation.floating,
+                    shape = CircleShape,
+                    clip = false,
+                    ambientColor = LocalLifeOSSemanticColors.current.shadow.copy(alpha = LifeOSElevation.shadowAlphaRest),
+                    spotColor = LocalLifeOSSemanticColors.current.shadow.copy(alpha = LifeOSElevation.shadowAlphaLift)
+                )
                 .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary)))
+                .background(prismBrush())
                 .semantics {
                     role = Role.Button
                     contentDescription = "Open capture"

@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.Color
  * the redesigned surfaces, buttons and section titles without a rewrite.
  */
 
-/** A liquid glass card with the app's standard radius and padding. */
+/** A matte card with the app's standard radius and padding. */
 @Composable
 fun LifeOSCard(
     modifier: Modifier = Modifier,

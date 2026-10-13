@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.lifeos.app.core.di.LocalServiceLocator
-import com.lifeos.app.ui.theme.LifeOSPrimary
 
 /**
  * The single source of truth for the user's avatar in LifeOS. Shows the photo
@@ -88,7 +87,7 @@ private fun LetterAvatar(name: String?, shape: Shape) {
                 Icon(
                     Icons.Filled.Person,
                     contentDescription = "Profile",
-                    tint = LifeOSPrimary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.fillMaxSize(0.56f)
                 )
             } else {
@@ -96,7 +95,7 @@ private fun LetterAvatar(name: String?, shape: Shape) {
                     initial,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = LifeOSPrimary
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }

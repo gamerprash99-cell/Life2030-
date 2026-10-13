@@ -48,26 +48,27 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lifeos.app.ui.theme.LifeOSElevation
-import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSRadius
-import com.lifeos.app.ui.theme.LifeOSSecondary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
+import com.lifeos.app.ui.theme.PrismCoral
+import com.lifeos.app.ui.theme.PrismIndigo
+import com.lifeos.app.ui.theme.PrismSky
 
 // ===========================================================================
 // LifeOS component kit (v2)
 //
 // Thin, token-driven building blocks every screen composes from. They all ride
-// the Liquid Glass material or the Aurora surfaces, so a screen built from them
+// the Lumen matte material, so a screen built from them
 // is automatically consistent with the rest of the app. Nothing here reads a
 // raw hex or a magic dp — colour comes from the theme and spacing from
 // [LifeOSSpacing].
 // ===========================================================================
 
 /**
- * The standard content surface — a liquid glass sheet with the app's card
- * radius and comfortable padding. This is the single building block screens use
- * for grouped content, so "a card" looks the same everywhere.
+ * The standard content surface — a matte sheet with the app's card radius and
+ * comfortable padding. This is the single building block screens use for
+ * grouped content, so "a card" looks the same everywhere.
  */
 @Composable
 fun LifeOSSurface(
@@ -147,10 +148,16 @@ fun LifeOSSectionTitle(
     ) {
         Text(
             title,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground
+            // Serif: a section title is the app speaking, so it carries the
+            // display voice rather than the sans used for the content beneath.
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            // Weight, not a spacer, so a long title ellipsises instead of
+            // pushing the action off the edge.
+            modifier = Modifier.weight(1f),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
         )
-        Spacer(Modifier.weight(1f))
         if (action != null && onAction != null) {
             Text(
                 action,
@@ -280,7 +287,7 @@ fun LifeOSProgressBar(
                 .fillMaxWidth(animated)
                 .height(height)
                 .clip(RoundedCornerShape(LifeOSRadius.pill))
-                .background(Brush.horizontalGradient(listOf(LifeOSPrimary, LifeOSSecondary)))
+                .background(prismBrush(horizontal = true))
         )
     }
 }
@@ -315,7 +322,7 @@ fun LifeOSProgressRing(
                 style = Stroke(width = stroke, cap = StrokeCap.Round)
             )
             drawArc(
-                brush = Brush.sweepGradient(listOf(LifeOSPrimary, LifeOSSecondary, LifeOSPrimary)),
+                brush = Brush.sweepGradient(listOf(PrismIndigo, PrismSky, PrismCoral, PrismIndigo)),
                 startAngle = 135f,
                 sweepAngle = 270f * animated,
                 useCenter = false,
@@ -342,7 +349,7 @@ fun LifeOSPrimaryButton(
     val scale by animateFloatAsState(if (pressed) 0.975f else 1f, spring(stiffness = 800f), label = "btn")
     val shape = RoundedCornerShape(LifeOSRadius.pill)
     val fill = if (enabled) {
-        Brush.horizontalGradient(listOf(LifeOSPrimary, LifeOSSecondary))
+        prismBrush(horizontal = true)
     } else {
         Brush.horizontalGradient(
             listOf(
@@ -357,8 +364,8 @@ fun LifeOSPrimaryButton(
             .shadow(
                 elevation = if (enabled) LifeOSElevation.raised else 0.dp,
                 shape = shape,
-                ambientColor = LifeOSPrimary.copy(alpha = 0.24f),
-                spotColor = LifeOSSecondary.copy(alpha = 0.26f)
+                ambientColor = LocalLifeOSSemanticColors.current.shadow.copy(alpha = LifeOSElevation.shadowAlphaRest),
+                spotColor = LocalLifeOSSemanticColors.current.shadow.copy(alpha = LifeOSElevation.shadowAlphaLift)
             )
             .clip(shape)
             .background(fill)

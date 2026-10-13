@@ -49,9 +49,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.lifeos.app.ui.theme.LifeOSPrimary
+import com.lifeos.app.ui.theme.LifeOSElevation
 import com.lifeos.app.ui.theme.LifeOSRadius
-import com.lifeos.app.ui.theme.LifeOSSecondary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
 
@@ -116,7 +115,7 @@ fun LifeOSSearchBar(
                     onValueChange = onValueChange,
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                    cursorBrush = SolidColor(LifeOSPrimary),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -299,10 +298,18 @@ fun LifeOSHeroCard(
     content: @Composable () -> Unit
 ) {
     val shape = RoundedCornerShape(LifeOSRadius.xlarge)
+    // Depth comes from the shared ladder and the neutral shadow token — never
+    // from a brand-tinted smear, which would stain whatever sits behind it.
+    val shadowColor = LocalLifeOSSemanticColors.current.shadow
     Box(
         modifier
             .fillMaxWidth()
-            .shadow(elevation = 14.dp, shape = shape, ambientColor = Color.Black.copy(alpha = 0.14f), spotColor = LifeOSPrimary.copy(alpha = 0.22f))
+            .shadow(
+                elevation = LifeOSElevation.hero,
+                shape = shape,
+                ambientColor = shadowColor.copy(alpha = LifeOSElevation.shadowAlphaRest),
+                spotColor = shadowColor.copy(alpha = LifeOSElevation.shadowAlphaLift)
+            )
             .clip(shape)
             .background(brush)
             .padding(contentPadding)
