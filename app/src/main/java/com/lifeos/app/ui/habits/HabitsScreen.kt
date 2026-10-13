@@ -70,7 +70,6 @@ import com.lifeos.app.ui.components.ReminderTimePickerDialog
 import com.lifeos.app.ui.components.rememberExactAlarmPermissionHost
 import com.lifeos.app.ui.components.rememberReminderPermissionHost
 import com.lifeos.app.ui.theme.LifeOSAccentLavender
-import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -218,13 +217,13 @@ private fun HabitCard(habit: HabitEntity, repository: HabitRepository, onOpen: (
     val analytics by produceState<com.lifeos.app.domain.model.HabitAnalytics?>(null, habit.id) { value = runCatching { repository.computeAnalytics(habit) }.getOrNull() }
     LifeOSCard(Modifier.fillMaxWidth(), onClick = { onOpen(habit.id) }, tint = if (done) LifeOSAccentLavender else MaterialTheme.colorScheme.surface) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(color = if (done) LifeOSPrimary else MaterialTheme.colorScheme.surfaceVariant, shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) { Text(habit.icon, modifier = Modifier.padding(11.dp), style = MaterialTheme.typography.titleLarge) }
+            Surface(color = if (done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant, shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) { Text(habit.icon, modifier = Modifier.padding(11.dp), style = MaterialTheme.typography.titleLarge) }
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text(habit.name, style = MaterialTheme.typography.titleMedium)
                 Text(buildString { append("${habit.frequency.name.lowercase().replaceFirstChar { it.uppercase() }} · "); append(if (habit.goalCount > 1) "$progress/${habit.goalCount} today" else if (done) "Completed today" else "Tap to check in") }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                analytics?.let { Text("${it.currentStreak} day streak · ${it.longestStreak} best", style = MaterialTheme.typography.labelSmall, color = LifeOSPrimary, modifier = Modifier.padding(top = 4.dp)) }
+                analytics?.let { Text("${it.currentStreak} day streak · ${it.longestStreak} best", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp)) }
             }
-            IconButton(onClick = { onLogToday(progress) }) { Icon(if (done) Icons.Filled.Check else Icons.Filled.RadioButtonUnchecked, contentDescription = if (done) "Completed today" else "Check in today", tint = if (done) LifeOSPrimary else MaterialTheme.colorScheme.outline) }
+            IconButton(onClick = { onLogToday(progress) }) { Icon(if (done) Icons.Filled.Check else Icons.Filled.RadioButtonUnchecked, contentDescription = if (done) "Completed today" else "Check in today", tint = if (done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline) }
         }
     }
 }
@@ -258,7 +257,7 @@ private fun TodaysProgressCard(done: Int, scheduled: Int) {
                 Text(
                     "${(fraction * 100).toInt()}%",
                     style = MaterialTheme.typography.titleMedium,
-                    color = LifeOSPrimary
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
             LifeOSProgressBar(progress = fraction)
@@ -287,7 +286,7 @@ private fun WeeklyRhythmCard(days: List<DayCheck>) {
                 Text(
                     "$doneDays/7",
                     style = MaterialTheme.typography.titleMedium,
-                    color = LifeOSPrimary
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
             LifeOSWeeklyRhythm(days)

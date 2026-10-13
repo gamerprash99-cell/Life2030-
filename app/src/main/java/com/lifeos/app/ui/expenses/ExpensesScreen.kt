@@ -61,7 +61,6 @@ import com.lifeos.app.ui.components.LifeOSEmptyState
 import com.lifeos.app.ui.components.LifeOSEyebrow
 import com.lifeos.app.ui.components.LifeOSTopBar
 import com.lifeos.app.ui.components.LiquidGlassFab
-import com.lifeos.app.ui.theme.LifeOSPrimary
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -260,7 +259,7 @@ private fun FirstBudgetCard(onSetBudget: () -> Unit) {
 @Composable
 private fun BudgetCard(progress: BudgetProgress, dailyAverage: Double, onEdit: () -> Unit) {
     val over = progress.isOverBudget
-    val barColor = if (over) MaterialTheme.colorScheme.error else LifeOSPrimary
+    val barColor = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     val percent = BudgetProgress.percentOfBudget(progress) ?: 0
     val status = if (over) {
         "₹${"%,.0f".format(progress.overage)} over budget"
@@ -319,13 +318,13 @@ private fun AutoDetectedLabel() {
         Icon(
             Icons.Filled.AutoAwesome,
             contentDescription = null,
-            tint = LifeOSPrimary,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.height(13.dp)
         )
         Text(
             "Automatically detected",
             style = MaterialTheme.typography.labelSmall,
-            color = LifeOSPrimary
+            color = MaterialTheme.colorScheme.primary
         )
     }
 }

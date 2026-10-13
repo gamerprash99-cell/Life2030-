@@ -51,7 +51,6 @@ import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.data.repository.NoteRepository
 import com.lifeos.app.ui.components.LifeOSIconButton
 import com.lifeos.app.ui.components.LifeOSPrimaryButton
-import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -289,7 +288,7 @@ fun NoteEditorScreen(
             value = state.title,
             onValueChange = viewModel::onTitleChange,
             textStyle = MaterialTheme.typography.headlineLarge.copy(color = MaterialTheme.colorScheme.onBackground),
-            cursorBrush = SolidColor(LifeOSPrimary),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             modifier = Modifier.fillMaxWidth(),
             decorationBox = { inner ->
                 Box {
@@ -309,14 +308,14 @@ fun NoteEditorScreen(
                         Row(
                             Modifier
                                 .clip(RoundedCornerShape(LifeOSRadius.pill))
-                                .background(LifeOSPrimary.copy(alpha = 0.12f))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
                                 .clickable { viewModel.removeTag(tag) }
                                 .padding(horizontal = 10.dp, vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Text("#$tag", style = MaterialTheme.typography.labelSmall, color = LifeOSPrimary)
-                            Text("×", style = MaterialTheme.typography.labelSmall, color = LifeOSPrimary)
+                            Text("#$tag", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Text("×", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -333,7 +332,7 @@ fun NoteEditorScreen(
                 value = state.content,
                 onValueChange = viewModel::onContentChange,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                cursorBrush = SolidColor(LifeOSPrimary),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 modifier = Modifier.fillMaxSize(),
                 decorationBox = { inner ->
                     Box {

@@ -44,14 +44,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.lifeos.app.ui.components.LifeOSGradientButton
-import com.lifeos.app.ui.theme.LifeOSPrimary
 
 private data class OnboardingPage(val title: String, val body: String, val icon: @Composable () -> Unit)
 
 private val pages = listOf(
-    OnboardingPage("Welcome to LifeOS", "Track tasks, build habits, record expenses, and journal your day — all on one device.") { Icon(Icons.Filled.Bolt, null, tint = LifeOSPrimary, modifier = Modifier.size(54.dp)) },
-    OnboardingPage("Your life. Your data.", "Your tasks, habits, expenses and diary stay on your device unless you explicitly export them.") { Icon(Icons.Filled.Lock, null, tint = LifeOSPrimary, modifier = Modifier.size(54.dp)) },
-    OnboardingPage("Everything connects", "Tasks, habits, expenses and diary entries become one chronological LifeOS timeline.") { Icon(Icons.Filled.Timeline, null, tint = LifeOSPrimary, modifier = Modifier.size(54.dp)) },
+    OnboardingPage("Welcome to LifeOS", "Track tasks, build habits, record expenses, and journal your day — all on one device.") { Icon(Icons.Filled.Bolt, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(54.dp)) },
+    OnboardingPage("Your life. Your data.", "Your tasks, habits, expenses and diary stay on your device unless you explicitly export them.") { Icon(Icons.Filled.Lock, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(54.dp)) },
+    OnboardingPage("Everything connects", "Tasks, habits, expenses and diary entries become one chronological LifeOS timeline.") { Icon(Icons.Filled.Timeline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(54.dp)) },
 )
 
 @Composable
@@ -78,7 +77,7 @@ fun OnboardingScreen(
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 if (!isLast) {
-                    Text("Skip", color = LifeOSPrimary, style = MaterialTheme.typography.labelLarge, modifier = Modifier.clickable { onFinish() }.padding(12.dp))
+                    Text("Skip", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, modifier = Modifier.clickable { onFinish() }.padding(12.dp))
                 }
             }
 
@@ -121,14 +120,14 @@ fun OnboardingScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Backup, contentDescription = "Restore backup", tint = LifeOSPrimary, modifier = Modifier.size(18.dp))
-                            Text("Restore a LifeOS backup", color = LifeOSPrimary, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
+                            Icon(Icons.Filled.Backup, contentDescription = "Restore backup", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            Text("Restore a LifeOS backup", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
                         }
                     }
                     Text(restoreStatus ?: "Restore from Android storage", color = if (restoreStatus?.startsWith("Restore failed") == true) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp))
                     Row(Modifier.align(Alignment.CenterHorizontally).padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         pages.indices.forEach { i ->
-                            Box(Modifier.scale(if (i == pageIndex) indicatorScale else 1f).size(if (i == pageIndex) 24.dp else 7.dp, 7.dp).background(if (i == pageIndex) LifeOSPrimary else scheme.outlineVariant, RoundedCornerShape(50)))
+                            Box(Modifier.scale(if (i == pageIndex) indicatorScale else 1f).size(if (i == pageIndex) 24.dp else 7.dp, 7.dp).background(if (i == pageIndex) MaterialTheme.colorScheme.primary else scheme.outlineVariant, RoundedCornerShape(50)))
                         }
                     }
                 }

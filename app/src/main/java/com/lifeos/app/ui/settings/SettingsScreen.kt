@@ -66,7 +66,6 @@ import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSSectionHeader
 import com.lifeos.app.ui.components.LifeOSTopBar
 import com.lifeos.app.ui.theme.LifeOSAccentLavender
-import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -181,7 +180,7 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit, onBack: () -> Unit = {}) {
                 LifeOSCard(Modifier.fillMaxWidth(), tint = LifeOSAccentLavender) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(18.dp)) {
-                            Icon(Icons.Filled.PrivacyTip, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.padding(12.dp))
+                            Icon(Icons.Filled.PrivacyTip, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(12.dp))
                         }
                         Column(Modifier.padding(start = 12.dp)) {
                             Text("Zero cloud telemetry", style = MaterialTheme.typography.titleMedium)

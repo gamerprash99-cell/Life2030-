@@ -11,22 +11,22 @@ import androidx.compose.ui.unit.dp
 import com.lifeos.app.ui.theme.LifeOSRadius
 
 /**
- * A frosted, translucent surface riding the Liquid Glass material. These are
- * thin wrappers over [`liquidGlass`] so every existing caller (the bottom
- * navigation, the Home header, Timeline/Expenses/Habits cards) automatically
- * inherits the full liquid treatment — the vertical gradient sheet, the tint
- * overlay, the specular sheen, the deep base shadow and the dual-tone rim
- * light — instead of a flat translucent rectangle.
+ * A matte surface riding the Lumen material. These are thin wrappers over
+ * [`liquidGlass`] so every existing caller (the bottom navigation, the Home
+ * header, Timeline/Expenses/Habits cards) automatically inherits the full matte
+ * treatment — the opaque warm sheet, the whisper of tint, the faint upper wash,
+ * the pooled base shadow and the single warm hairline — instead of a flat
+ * rectangle. The wrapper names are legacy; the material is not.
  */
 
-/** Apply Liquid Glass chrome directly to a modifier (persistent chrome, headers). */
+/** Apply the matte surface chrome directly to a modifier (persistent chrome, headers). */
 @Composable
 fun Modifier.glassSurface(
     shape: Shape = RoundedCornerShape(LifeOSRadius.xlarge),
     tint: androidx.compose.ui.graphics.Color? = null
 ): Modifier = this.liquidGlass(shape = shape, tint = tint)
 
-/** A liquid glass card. Body/list surfaces stay translucent enough to show the ambient glow behind them. */
+/** A matte card. Body/list surfaces are opaque, so content stays legible against the ambient wash. */
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
@@ -40,7 +40,7 @@ fun GlassCard(
     ) { content() }
 }
 
-/** A liquid glass chip with a stronger accent tint when selected. */
+/** A matte chip with a stronger accent tint when selected. */
 @Composable
 fun GlassChip(
     modifier: Modifier = Modifier,

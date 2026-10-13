@@ -103,11 +103,9 @@ import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
 import com.lifeos.app.ui.components.rememberExactAlarmPermissionHost
 import com.lifeos.app.ui.components.rememberReminderPermissionHost
-import com.lifeos.app.ui.theme.LifeOSDanger
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
-import com.lifeos.app.ui.theme.LifeOSSuccess
-import com.lifeos.app.ui.theme.LifeOSWarning
+import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.saveable.rememberSaveable
 import kotlinx.coroutines.flow.SharingStarted
@@ -1169,10 +1167,11 @@ private fun PriorityDot(priority: TaskPriority, size: Dp = 11.dp) {
     Box(Modifier.size(size).clip(CircleShape).background(priorityColor(priority)))
 }
 
+@Composable
 private fun priorityColor(priority: TaskPriority): Color = when (priority) {
-    TaskPriority.HIGH -> LifeOSDanger
-    TaskPriority.MEDIUM -> LifeOSWarning
-    TaskPriority.LOW -> LifeOSSuccess
+    TaskPriority.HIGH -> MaterialTheme.colorScheme.error
+    TaskPriority.MEDIUM -> LocalLifeOSSemanticColors.current.warning
+    TaskPriority.LOW -> LocalLifeOSSemanticColors.current.success
 }
 
 private fun priorityLabel(priority: TaskPriority): String = when (priority) {

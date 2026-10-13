@@ -12,15 +12,15 @@ private val LightColors = lightColorScheme(
     primary = LifeOSPrimary,
     onPrimary = Color.White,
     primaryContainer = LifeOSAccentLavender,
-    onPrimaryContainer = Color(0xFF1E1050),
+    onPrimaryContainer = Color(0xFF4A1F0E),
     secondary = LifeOSSecondary,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFD6EFFB),
-    onSecondaryContainer = Color(0xFF053246),
+    secondaryContainer = Color(0xFFDCE5D6),
+    onSecondaryContainer = Color(0xFF25301F),
     tertiary = LifeOSTertiary,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFFFE0E3),
-    onTertiaryContainer = Color(0xFF5B0016),
+    tertiaryContainer = Color(0xFFF6E3C4),
+    onTertiaryContainer = Color(0xFF3E2A08),
     background = LifeOSBackgroundLight,
     onBackground = LifeOSTextPrimaryLight,
     surface = LifeOSSurfaceLight,
@@ -29,24 +29,24 @@ private val LightColors = lightColorScheme(
     onSurfaceVariant = LifeOSTextSecondaryLight,
     surfaceContainerHighest = LifeOSSurfaceVariantLight,
     outline = LifeOSOutlineLight,
-    outlineVariant = Color(0xFFDEDEE8),
+    outlineVariant = Color(0xFFDED5C8),
     error = LifeOSDanger,
     onError = Color.White,
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFB9AEFF),
-    onPrimary = Color(0xFF221070),
-    primaryContainer = Color(0xFF4A3AC0),
-    onPrimaryContainer = Color(0xFFE7E3FF),
-    secondary = Color(0xFF7FD0F5),
-    onSecondary = Color(0xFF003347),
-    secondaryContainer = Color(0xFF0E5E86),
-    onSecondaryContainer = Color(0xFFCDEBFF),
-    tertiary = Color(0xFFFF9AA5),
-    onTertiary = Color(0xFF5B0016),
-    tertiaryContainer = Color(0xFF9A2E3C),
-    onTertiaryContainer = Color(0xFFFFE0E3),
+    primary = Color(0xFFE08B62),
+    onPrimary = Color(0xFF331508),
+    primaryContainer = Color(0xFF7A3A20),
+    onPrimaryContainer = Color(0xFFFBE0D2),
+    secondary = Color(0xFF93A588),
+    onSecondary = Color(0xFF1E2A18),
+    secondaryContainer = Color(0xFF3D4A34),
+    onSecondaryContainer = Color(0xFFDCE5D6),
+    tertiary = Color(0xFFE0B070),
+    onTertiary = Color(0xFF3A2606),
+    tertiaryContainer = Color(0xFF7A5A22),
+    onTertiaryContainer = Color(0xFFF8E4C4),
     background = LifeOSBackgroundDark,
     onBackground = LifeOSTextPrimaryDark,
     surface = LifeOSSurfaceDark,
@@ -55,16 +55,18 @@ private val DarkColors = darkColorScheme(
     onSurfaceVariant = LifeOSTextSecondaryDark,
     surfaceContainerHighest = LifeOSSurfaceVariantDark,
     outline = LifeOSOutlineDark,
-    outlineVariant = Color(0xFF2A2A38),
-    error = Color(0xFFFF8AA0),
-    onError = Color(0xFF3E0012),
+    outlineVariant = Color(0xFF43392E),
+    error = Color(0xFFFF9B8F),
+    onError = Color(0xFF4A0F0B),
 )
 
 /**
- * All the paints one glass surface needs. [surface] and [border] keep the
+ * All the paints one matte surface needs. [surface] and [border] keep the
  * original two-field contract alive (existing call sites read them), while the
- * new fields carry the edge light, the specular sheen and the base shadow that
- * make a translucent surface read as a real curved lens.
+ * remaining fields carry the soft top light, the faint upper wash and the
+ * pooled base shadow that make an opaque sheet read as a warm, physical object
+ * rather than a flat rectangle. v5 is matte: there is no backdrop blur and no
+ * specular highlight.
  */
 data class GlassColors(
     val surface: Color,
@@ -175,14 +177,14 @@ fun LifeOSTheme(
     }
     val semanticColors = if (darkTheme) {
         LifeOSSemanticColors(
-            success = Color(0xFF4ADE80),
-            onSuccess = Color(0xFF00391C),
-            warning = Color(0xFFFBBF24),
-            onWarning = Color(0xFF2B1A00),
-            info = Color(0xFF7FC4FF),
+            success = Color(0xFF7CC48F),
+            onSuccess = Color(0xFF10240F),
+            warning = Color(0xFFE8B45C),
+            onWarning = Color(0xFF2E1C05),
+            info = Color(0xFF8FB8E0),
             border = LifeOSBorderDark,
             muted = LifeOSTextMutedDark,
-            gold = Color(0xFFF0C868),
+            gold = Color(0xFFE8C978),
             goldSoft = LifeOSGoldSoft,
             shadow = Color.Black,
         )

@@ -13,7 +13,7 @@ import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.MaterialTheme
@@ -27,11 +27,8 @@ import com.lifeos.app.ui.components.LifeOSEyebrow
 import com.lifeos.app.ui.components.LifeOSHeroCard
 import com.lifeos.app.ui.components.LifeOSPrimaryButton
 import com.lifeos.app.ui.components.LifeOSSearchBar
-import com.lifeos.app.ui.theme.LifeOSPrimary
-import com.lifeos.app.ui.theme.LifeOSSecondary
 import com.lifeos.app.ui.theme.LifeOSSpacing
-import com.lifeos.app.ui.theme.LifeOSSuccess
-import com.lifeos.app.ui.theme.LifeOSWarning
+import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
 
 /**
  * Life — the hub for everything that has already happened. A quiet command
@@ -89,14 +86,14 @@ fun LifeScreen(
         item { LifeOSEyebrow("Your modules") }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                LifeOSActionTile(Icons.Filled.Book, "Diary", onOpenDiary, Modifier.weight(1f), accent = LifeOSPrimary, caption = "Daily memory")
-                LifeOSActionTile(Icons.Filled.CheckCircle, "Tasks", onOpenTasks, Modifier.weight(1f), accent = LifeOSSuccess, caption = "What to do")
+                LifeOSActionTile(Icons.Filled.Book, "Diary", onOpenDiary, Modifier.weight(1f), accent = MaterialTheme.colorScheme.primary, caption = "Daily memory")
+                LifeOSActionTile(Icons.Filled.CheckCircle, "Tasks", onOpenTasks, Modifier.weight(1f), accent = LocalLifeOSSemanticColors.current.success, caption = "What to do")
             }
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                LifeOSActionTile(Icons.Filled.LocalFireDepartment, "Habits", onOpenHabits, Modifier.weight(1f), accent = LifeOSWarning, caption = "Streaks")
-                LifeOSActionTile(Icons.Filled.ReceiptLong, "Spending", onOpenExpenses, Modifier.weight(1f), accent = LifeOSSecondary, caption = "Money")
+                LifeOSActionTile(Icons.Filled.LocalFireDepartment, "Habits", onOpenHabits, Modifier.weight(1f), accent = LocalLifeOSSemanticColors.current.warning, caption = "Streaks")
+                LifeOSActionTile(Icons.AutoMirrored.Filled.ReceiptLong, "Spending", onOpenExpenses, Modifier.weight(1f), accent = MaterialTheme.colorScheme.secondary, caption = "Money")
             }
         }
         item { LifeOSEyebrow("Memory") }
@@ -106,7 +103,7 @@ fun LifeScreen(
                 "Memories & search",
                 onOpenSearch,
                 Modifier.fillMaxWidth(),
-                accent = LifeOSPrimary,
+                accent = MaterialTheme.colorScheme.primary,
                 caption = "Photos, thoughts, places and everything you captured"
             )
         }

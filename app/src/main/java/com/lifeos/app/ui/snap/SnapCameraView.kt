@@ -62,8 +62,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import com.lifeos.app.core.util.MediaStorage
-import com.lifeos.app.ui.theme.LifeOSPrimary
-import com.lifeos.app.ui.theme.LifeOSSecondary
 
 /**
  * The in-app Snap camera. A single [LifecycleCameraController] owns the preview,
@@ -310,11 +308,11 @@ private fun ShutterButton(isCapturing: Boolean, onClick: () -> Unit) {
                 .size(60.dp)
                 .padding(2.dp)
                 .clip(CircleShape)
-                .background(if (isCapturing) LifeOSSecondary else Color.White)
+                .background(if (isCapturing) MaterialTheme.colorScheme.secondary else Color.White)
         )
         Canvas(Modifier.size(78.dp)) {
             drawCircle(
-                color = LifeOSPrimary.copy(alpha = 0.0f),
+                color = Color.Transparent,
                 radius = size.minDimension / 2f,
                 style = Stroke(width = scale * 4.dp.toPx())
             )

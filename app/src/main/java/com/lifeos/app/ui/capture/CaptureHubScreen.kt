@@ -66,11 +66,9 @@ import com.lifeos.app.ui.components.LifeOSBanner
 import com.lifeos.app.ui.components.LifeOSIconButton
 import com.lifeos.app.ui.components.LifeOSPrimaryButton
 import com.lifeos.app.ui.components.liquidGlass
-import com.lifeos.app.ui.theme.LifeOSPrimary
+import com.lifeos.app.ui.components.prismBrush
 import com.lifeos.app.ui.theme.LifeOSRadius
-import com.lifeos.app.ui.theme.LifeOSSecondary
 import com.lifeos.app.ui.theme.LifeOSSpacing
-import com.lifeos.app.ui.theme.LifeOSSuccess
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
 
 /**
@@ -177,19 +175,19 @@ fun CaptureHubScreen(
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                    CaptureTile(Icons.Filled.CameraAlt, "Photo", "Take one now", LifeOSPrimary, onOpenCamera, Modifier.weight(1f))
-                    CaptureTile(Icons.Filled.Videocam, "Video", "From the camera", LifeOSSecondary, onOpenCamera, Modifier.weight(1f))
+                    CaptureTile(Icons.Filled.CameraAlt, "Photo", "Take one now", MaterialTheme.colorScheme.primary, onOpenCamera, Modifier.weight(1f))
+                    CaptureTile(Icons.Filled.Videocam, "Video", "From the camera", MaterialTheme.colorScheme.secondary, onOpenCamera, Modifier.weight(1f))
                 }
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                    CaptureTile(Icons.Filled.GraphicEq, "Audio", "Clip a voice note", LifeOSSuccess, { notice = "Voice notes are coming next. Type a thought for now." }, Modifier.weight(1f))
+                    CaptureTile(Icons.Filled.GraphicEq, "Audio", "Clip a voice note", LocalLifeOSSemanticColors.current.success, { notice = "Voice notes are coming next. Type a thought for now." }, Modifier.weight(1f))
                     CaptureTile(Icons.Filled.Mood, "Mood", "How are you?", LocalLifeOSSemanticColors.current.gold, { showMoodPicker = !showMoodPicker }, Modifier.weight(1f))
                 }
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                    CaptureTile(Icons.Filled.Lightbulb, "Thought", "Write it down", LifeOSSecondary, { thoughtFocus.requestFocus() }, Modifier.weight(1f))
+                    CaptureTile(Icons.Filled.Lightbulb, "Thought", "Write it down", MaterialTheme.colorScheme.secondary, { thoughtFocus.requestFocus() }, Modifier.weight(1f))
                     CaptureTile(
                         Icons.Filled.LocationOn,
                         "Location",
@@ -223,7 +221,7 @@ fun CaptureHubScreen(
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.xlarge), tint = LifeOSPrimary)
+                            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.xlarge), tint = MaterialTheme.colorScheme.primary)
                             .padding(horizontal = LifeOSSpacing.lg, vertical = LifeOSSpacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
@@ -236,7 +234,7 @@ fun CaptureHubScreen(
                                 value = quickThought,
                                 onValueChange = { quickThought = it },
                                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                                cursorBrush = SolidColor(LifeOSPrimary),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                 maxLines = 3,
                                 modifier = Modifier.fillMaxWidth().focusRequester(thoughtFocus)
                             )
@@ -247,7 +245,7 @@ fun CaptureHubScreen(
                                 .clip(CircleShape)
                                 .background(
                                     if (quickThought.isBlank()) SolidColor(MaterialTheme.colorScheme.surfaceVariant)
-                                    else Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary))
+                                    else prismBrush()
                                 )
                                 .clickable(enabled = quickThought.isNotBlank()) {
                                     viewModel.saveThought(quickThought)
@@ -305,7 +303,7 @@ private fun MoodChip(mood: DiaryMood, onClick: () -> Unit) {
     Row(
         Modifier
             .clip(RoundedCornerShape(LifeOSRadius.pill))
-            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.pill), tint = LifeOSPrimary, interactive = true)
+            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.pill), tint = MaterialTheme.colorScheme.primary, interactive = true)
             .clickable(onClick = onClick)
             .padding(horizontal = LifeOSSpacing.lg, vertical = LifeOSSpacing.sm),
         verticalAlignment = Alignment.CenterVertically,
@@ -322,12 +320,12 @@ private fun SuccessPanel(message: String, onDone: () -> Unit, onAgain: () -> Uni
         Modifier
             .fillMaxWidth()
             .padding(horizontal = LifeOSSpacing.screenPadding)
-            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.xlarge), tint = LifeOSSuccess)
+            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.xlarge), tint = LocalLifeOSSemanticColors.current.success)
             .padding(LifeOSSpacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
     ) {
-        Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = LifeOSSuccess, modifier = Modifier.size(36.dp))
+        Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = LocalLifeOSSemanticColors.current.success, modifier = Modifier.size(36.dp))
         Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
         Row(
             horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md),

@@ -77,7 +77,6 @@ import com.lifeos.app.ui.components.LifeOSEyebrow
 import com.lifeos.app.ui.components.LifeOSTopBar
 import com.lifeos.app.ui.components.ProfileAvatar
 import com.lifeos.app.ui.theme.LifeOSAccentLavender
-import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import java.io.File
 import java.io.FileOutputStream
@@ -153,13 +152,13 @@ fun ProfileScreen(
                             Text(
                                 "Tap your photo to change it",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = LifeOSPrimary,
+                                color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
                         Surface(onClick = { showNameDialog = true }, shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Edit display name", tint = LifeOSPrimary, modifier = Modifier.padding(10.dp))
+                            Icon(Icons.Filled.Edit, contentDescription = "Edit display name", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(10.dp))
                         }
                     }
                 }
@@ -375,6 +374,8 @@ private fun ProfilePhotoCropDialog(
                 ) {
                     val fit = fitRect
                     val crop = cropRect
+                    // Hoisted: MaterialTheme is not readable inside a Canvas draw lambda.
+                    val handleColor = MaterialTheme.colorScheme.primary
                     Canvas(Modifier.fillMaxSize()) {
                         val currentFit = fit ?: return@Canvas
                         val currentCrop = crop ?: return@Canvas
@@ -398,7 +399,7 @@ private fun ProfilePhotoCropDialog(
                         )
                         val handle = 18.dp.toPx()
                         drawCircle(
-                            color = LifeOSPrimary,
+                            color = handleColor,
                             radius = handle / 2f,
                             center = currentCrop.bottomRight - Offset(handle / 4f, handle / 4f)
                         )
@@ -457,7 +458,7 @@ private fun ProfileRow(
     LifeOSCard(Modifier.fillMaxWidth(), onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(14.dp)) {
-                Icon(icon, contentDescription = null, tint = LifeOSPrimary, modifier = Modifier.padding(10.dp))
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(10.dp))
             }
             Column(Modifier.padding(start = 12.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)

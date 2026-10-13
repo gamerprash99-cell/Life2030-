@@ -26,7 +26,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lifeos.app.domain.usecase.DayCheck
-import com.lifeos.app.ui.theme.LifeOSPrimary
 import java.time.LocalDate
 
 /**
@@ -77,7 +76,7 @@ fun LifeOSWeeklyRhythm(
                         .clip(CircleShape)
                         .background(
                             when {
-                                day.isDone -> LifeOSPrimary
+                                day.isDone -> MaterialTheme.colorScheme.primary
                                 day.isToday -> MaterialTheme.colorScheme.primaryContainer
                                 else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                             }
@@ -95,7 +94,7 @@ fun LifeOSWeeklyRhythm(
                             Modifier
                                 .size(dotSize * 0.2f)
                                 .clip(CircleShape)
-                                .background(LifeOSPrimary)
+                                .background(MaterialTheme.colorScheme.primary)
                         )
                         else -> Box(
                             Modifier

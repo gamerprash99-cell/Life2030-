@@ -24,14 +24,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.lifeos.app.ui.theme.LifeOSPrimary
 import com.lifeos.app.ui.theme.LifeOSRadius
 
 /**
- * The shared secondary-destination header: a floating liquid glass bar with the
- * title on a tinted frost sheet, an optional back affordance and trailing
+ * The shared secondary-destination header: a floating matte bar with the
+ * title on a warm sheet, an optional back affordance and trailing
  * actions. Every pushed screen (Expenses, Settings, Profile, Habits…) reads as
- * a pane over the ambient backdrop rather than a flat strip.
+ * a raised pane over the ambient wash rather than a flat strip.
  */
 @Composable
 fun LifeOSTopBar(
@@ -45,7 +44,7 @@ fun LifeOSTopBar(
     LiquidGlassSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(LifeOSRadius.large),
-        tint = LifeOSPrimary,
+        tint = MaterialTheme.colorScheme.primary,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Row(
@@ -65,7 +64,7 @@ fun LifeOSTopBar(
                 Icon(
                     Icons.Filled.Spa,
                     contentDescription = null,
-                    tint = LifeOSPrimary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .padding(start = 4.dp)
                         .size(24.dp)

@@ -58,12 +58,9 @@ import com.lifeos.app.ui.components.LifeOSSurface
 import com.lifeos.app.ui.components.LifeOSWeeklyRhythm
 import com.lifeos.app.ui.components.ProfileAvatar
 import com.lifeos.app.ui.components.liquidGlass
-import com.lifeos.app.ui.theme.LifeOSPrimary
+import com.lifeos.app.ui.components.prismBrush
 import com.lifeos.app.ui.theme.LifeOSRadius
-import com.lifeos.app.ui.theme.LifeOSSecondary
 import com.lifeos.app.ui.theme.LifeOSSpacing
-import com.lifeos.app.ui.theme.LifeOSSuccess
-import com.lifeos.app.ui.theme.LifeOSWarning
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
 import java.util.Locale
 
@@ -166,8 +163,8 @@ fun HomeScreen(
                 LifeOSSurface(Modifier.fillMaxWidth()) {
                     Column(verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("This week", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                            LifeOSPill(text = "${s.weeklyDoneDays}/7 days", tint = LifeOSSuccess)
+                            Text("This week", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                            LifeOSPill(text = "${s.weeklyDoneDays}/7 days", tint = LocalLifeOSSemanticColors.current.success)
                         }
                         LifeOSWeeklyRhythm(days = s.weeklyConsistency, dotSize = 32.dp)
                         Text(
@@ -190,7 +187,7 @@ fun HomeScreen(
                         label = "Spent today",
                         value = formatMoney(s.todaySpend),
                         icon = Icons.Filled.Payments,
-                        tint = LifeOSPrimary,
+                        tint = MaterialTheme.colorScheme.primary,
                         onClick = onOpenExpenses,
                         modifier = Modifier.weight(1f)
                     )
@@ -198,7 +195,7 @@ fun HomeScreen(
                         label = "Quick capture",
                         value = "＋",
                         icon = null,
-                        tint = LifeOSSecondary,
+                        tint = MaterialTheme.colorScheme.secondary,
                         onClick = onOpenSnap,
                         modifier = Modifier.weight(1f)
                     )
@@ -336,10 +333,10 @@ private fun QuickActionRow(
     onOpenDiary: () -> Unit
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-        QuickAction(Icons.Outlined.CheckCircle, "Tasks", LifeOSSuccess, onOpenTasks, Modifier.weight(1f))
-        QuickAction(Icons.Filled.LocalFireDepartment, "Habits", LifeOSWarning, onOpenHabits, Modifier.weight(1f))
-        QuickAction(Icons.Filled.Payments, "Money", LifeOSPrimary, onOpenExpenses, Modifier.weight(1f))
-        QuickAction(Icons.Filled.Description, "Diary", LifeOSSecondary, onOpenDiary, Modifier.weight(1f))
+        QuickAction(Icons.Outlined.CheckCircle, "Tasks", LocalLifeOSSemanticColors.current.success, onOpenTasks, Modifier.weight(1f))
+        QuickAction(Icons.Filled.LocalFireDepartment, "Habits", LocalLifeOSSemanticColors.current.warning, onOpenHabits, Modifier.weight(1f))
+        QuickAction(Icons.Filled.Payments, "Money", MaterialTheme.colorScheme.primary, onOpenExpenses, Modifier.weight(1f))
+        QuickAction(Icons.Filled.Description, "Diary", MaterialTheme.colorScheme.secondary, onOpenDiary, Modifier.weight(1f))
     }
 }
 
@@ -365,7 +362,7 @@ private fun AiNudge(onOpenAi: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(LifeOSRadius.xlarge))
-            .background(Brush.linearGradient(listOf(LifeOSPrimary.copy(alpha = 0.14f), LifeOSSecondary.copy(alpha = 0.14f))))
+            .background(prismBrush(alpha = 0.14f))
             .clickable(onClick = onOpenAi)
             .padding(horizontal = LifeOSSpacing.lg, vertical = LifeOSSpacing.md),
         verticalAlignment = Alignment.CenterVertically,
@@ -375,7 +372,7 @@ private fun AiNudge(onOpenAi: () -> Unit) {
             Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(LifeOSPrimary, LifeOSSecondary))),
+                .background(prismBrush()),
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Filled.Bolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
@@ -391,14 +388,14 @@ private fun AiNudge(onOpenAi: () -> Unit) {
 @Composable
 private fun SectionHeader(title: String, trailing: String?, onSeeAll: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
+        Text(title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
         trailing?.let {
             Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = LifeOSSpacing.sm))
         }
         Text(
             "See all",
             style = MaterialTheme.typography.labelMedium,
-            color = LifeOSPrimary,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .clip(RoundedCornerShape(LifeOSRadius.pill))
                 .clickable(onClick = onSeeAll)
@@ -416,7 +413,7 @@ private fun TaskRow(task: TaskEntity, onToggle: () -> Unit) {
                     .size(26.dp)
                     .clip(CircleShape)
                     .then(
-                        if (task.isCompleted) Modifier.background(LifeOSSuccess)
+                        if (task.isCompleted) Modifier.background(LocalLifeOSSemanticColors.current.success)
                         else Modifier.border(2.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
                     ),
                 contentAlignment = Alignment.Center
@@ -448,7 +445,7 @@ private fun HabitRow(row: HabitSummaryRow, onToggle: () -> Unit) {
                 Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(LifeOSRadius.medium))
-                    .background(LifeOSPrimary.copy(alpha = 0.12f)),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(row.habit.icon, style = MaterialTheme.typography.titleMedium)
@@ -466,7 +463,7 @@ private fun HabitRow(row: HabitSummaryRow, onToggle: () -> Unit) {
                     .size(28.dp)
                     .clip(CircleShape)
                     .then(
-                        if (row.isDone) Modifier.background(LifeOSSuccess)
+                        if (row.isDone) Modifier.background(LocalLifeOSSemanticColors.current.success)
                         else Modifier.border(2.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
                     ),
                 contentAlignment = Alignment.Center
@@ -509,7 +506,7 @@ private fun EmptyRow(icon: ImageVector, title: String, body: String, action: Str
             Text(
                 action,
                 style = MaterialTheme.typography.labelMedium,
-                color = LifeOSPrimary,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .clip(RoundedCornerShape(LifeOSRadius.pill))
                     .clickable(onClick = onAction)
