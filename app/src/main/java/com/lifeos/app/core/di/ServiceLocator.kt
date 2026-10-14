@@ -1,6 +1,7 @@
 package com.lifeos.app.core.di
 
 import android.content.Context
+import com.lifeos.app.core.intelligence.LifeOSIntelligenceEngine
 import com.lifeos.app.core.location.DeviceLocationProvider
 import com.lifeos.app.core.util.SettingsStore
 import com.lifeos.app.data.db.AppDatabase
@@ -146,6 +147,22 @@ class ServiceLocator private constructor(context: Context) {
      */
     val getDiaryInsightsUseCase: GetDiaryInsightsUseCase by lazy {
         GetDiaryInsightsUseCase(diaryRepository)
+    }
+
+    /**
+     * The on-device intelligence facade — the single entry point the Insights
+     * tab uses for weekly / monthly reports and all-time personal statistics.
+     *
+     * Same contract as everything else here: `by lazy`, no network, no API key.
+     * It reads only rows already stored in Room and does arithmetic on
+     * `Dispatchers.Default`, so "All calculations are based on real stored
+     * data" (spec §28) holds by construction.
+     */
+    val lifeOSIntelligenceEngine: LifeOSIntelligenceEngine by lazy {
+        LifeOSIntelligenceEngine(
+            noteRepository, taskRepository, habitRepository,
+            diaryRepository, expenseRepository, captureRepository
+        )
     }
 
     companion object {

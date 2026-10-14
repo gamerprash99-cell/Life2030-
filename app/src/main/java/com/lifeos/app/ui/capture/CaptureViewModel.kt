@@ -2,9 +2,9 @@ package com.lifeos.app.ui.capture
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lifeos.app.core.location.DeviceLocationProvider
 import com.lifeos.app.core.location.LocationFailure
 import com.lifeos.app.core.location.LocationOutcome
+import com.lifeos.app.core.location.LocationProvider
 import com.lifeos.app.data.db.entities.CaptureType
 import com.lifeos.app.data.repository.CaptureRepository
 import com.lifeos.app.domain.model.DiaryMood
@@ -37,7 +37,7 @@ data class CaptureUiState(
  */
 class CaptureViewModel(
     private val captureRepository: CaptureRepository,
-    private val locationProvider: DeviceLocationProvider
+    private val locationProvider: LocationProvider
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CaptureUiState())
@@ -101,7 +101,40 @@ class CaptureViewModel(
         }
     }
 
+    /**
+     * A recorded voice capture. The file has already been written to app-private
+     * storage by the recorder; this persists the row that points at it, together
+     * with the recorder's own measured duration and MIME type — never an estimate.
+     * A storage failure is surfaced honestly (what → why → how) and the clip is
+     * left on disk rather than silently discarded.
+     */
+    fun saveAudio(filePath: String, durationMillis: Long) {
+        viewModelScope.launch {
+            _state.update { it.copy(saving = true, error = null) }
+            runCatching {
+                captureRepository.create(
+                    type = CaptureType.AUDIO,
+                    filePath = filePath,
+                    mimeType = "audio/mp4",
+                    durationMillis = durationMillis,
+                    tags = listOf("audio")
+                )
+            }.onSuccess {
+                _state.update { it.copy(saving = false, confirmation = "Voice note saved to your timeline · ${nowLabel()}") }
+            }.onFailure { failure ->
+                _state.update {
+                    it.copy(
+                        saving = false,
+                        error = "Couldn't save the recording: ${failure.message ?: "storage error"}. " +
+                            "The audio is still on this device."
+                    )
+                }
+            }
+        }
+    }
+
     fun dismissConfirmation() = _state.update { it.copy(confirmation = null) }
+
     fun dismissError() = _state.update { it.copy(error = null) }
 
     private fun nowLabel(): String = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())

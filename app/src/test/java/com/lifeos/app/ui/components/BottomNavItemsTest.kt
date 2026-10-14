@@ -8,9 +8,9 @@ import org.junit.Test
 class BottomNavItemsTest {
 
     @Test
-    fun `order is Home Notes Life You`() {
+    fun `order is Home Notes Insights Life`() {
         assertEquals(
-            listOf(Screen.Home, Screen.Notes, Screen.Life, Screen.Profile),
+            listOf(Screen.Home, Screen.Notes, Screen.Insights, Screen.Life),
             bottomNavItems.map { it.screen }
         )
     }

@@ -51,6 +51,13 @@ sealed class Screen(val route: String) {
     /** Life — the connected-history hub (timeline, calendar, search, modules). */
     object Life : Screen("life")
 
+    /**
+     * Insights — the spec §27/§28 dashboard: weekly and monthly reports plus
+     * all-time personal statistics, every figure computed from stored rows.
+     * A primary tab (see the bottom bar).
+     */
+    object Insights : Screen("insights")
+
     /** The Capture hub — a full-window sheet opened from the centre action. */
     object Capture : Screen("capture")
 
