@@ -6,6 +6,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -17,6 +19,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,6 +37,7 @@ import com.lifeos.app.ui.navigation.LifeOSNavHost
 import com.lifeos.app.ui.onboarding.OnboardingScreen
 import com.lifeos.app.ui.security.AppLockScreen
 import com.lifeos.app.ui.security.DataKeyErrorScreen
+import com.lifeos.app.ui.start.LifeOSStartScreen
 import com.lifeos.app.ui.theme.LifeOSTheme
 import java.io.File
 import kotlinx.coroutines.launch
@@ -95,25 +99,47 @@ class MainActivity : ComponentActivity() {
 
                         LifeOSTheme(darkTheme = darkTheme) {
                             CompositionLocalProvider(LocalServiceLocator provides serviceLocator) {
-                                // The whole app floats on the Liquid Glass ambient
-                                // backdrop — the soft lavender/magenta/sky colour
-                                // clouds every translucent surface refracts. Every
-                                // destination paints on top of it (the NavHost and
-                                // its inner Scaffolds are transparent; the Diary
-                                // keeps its own opaque paper by design).
-                                LifeOSAmbientBackground {
-                                    // Deliberately gated on Ready, and *not* composed
-                                    // behind the splash. Composing it anyway would build
-                                    // Home's ViewModel, whose repository dependency chain
-                                    // is exactly what forces `AppDatabase.getInstance()`
-                                    // — so an overlay here would quietly move the
-                                    // SQLCipher open back onto the main thread. Waiting
-                                    // costs nothing: the native splash is on screen
-                                    // either way, and it is dismissed the moment
-                                    // databaseState flips to Ready.
-                                    if (initState == DatabaseInit.Ready) {
-                                        OnboardingGate {
-                                            AppLockGate { LifeOSNavHost() }
+                                // The one-time animated start screen. It plays only
+                                // after the encrypted database has opened (so the
+                                // ring never spins over a stalled open) and only on
+                                // a cold start — rememberSaveable means a rotation
+                                // mid-splash never replays it, and a later process
+                                // restart does. Crossfade blends it into the app
+                                // instead of a hard cut.
+                                var startDone by rememberSaveable { mutableStateOf(false) }
+                                val ready = initState == DatabaseInit.Ready
+                                Crossfade(
+                                    targetState = ready && !startDone,
+                                    animationSpec = tween(durationMillis = 320),
+                                    label = "startupHandoff"
+                                ) { starting ->
+                                    if (starting) {
+                                        LifeOSStartScreen(onFinished = { startDone = true })
+                                    } else {
+                                        // The whole app floats on the Liquid Glass
+                                        // ambient backdrop — the soft lavender/
+                                        // magenta/sky colour clouds every
+                                        // translucent surface refracts. Every
+                                        // destination paints on top of it (the
+                                        // NavHost and its inner Scaffolds are
+                                        // transparent; the Diary keeps its own
+                                        // opaque paper by design).
+                                        LifeOSAmbientBackground {
+                                            // Deliberately gated on Ready, and *not*
+                                            // composed behind the splash. Composing
+                                            // it anyway would build Home's ViewModel,
+                                            // whose repository dependency chain is
+                                            // exactly what forces
+                                            // `AppDatabase.getInstance()` — so an
+                                            // overlay here would quietly move the
+                                            // SQLCipher open back onto the main
+                                            // thread. Waiting costs nothing: the
+                                            // native splash is on screen either way.
+                                            if (ready) {
+                                                OnboardingGate {
+                                                    AppLockGate { LifeOSNavHost() }
+                                                }
+                                            }
                                         }
                                     }
                                 }

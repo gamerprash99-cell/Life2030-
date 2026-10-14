@@ -1,6 +1,11 @@
 package com.lifeos.app.ui.home
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -262,6 +268,7 @@ private fun HomeHeader(summary: HomeSummary?, onOpenSearch: () -> Unit, onOpenPr
 private fun DailyUpdateHero(summary: HomeSummary?) {
     val percent = summary?.dailyUpdatePercent ?: 0
     val progress by animateFloatAsState(percent / 100f, tween(600), label = "dailyUpdate")
+    val onSurface = MaterialTheme.colorScheme.onSurface
 
     LifeOSHeroCard {
         Column(verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
@@ -270,17 +277,17 @@ private fun DailyUpdateHero(summary: HomeSummary?) {
                     Text(
                         (summary?.dayStatusLabel ?: "Day starting").uppercase(),
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.85f)
+                        color = onSurface.copy(alpha = 0.85f)
                     )
                     Text(
                         "$percent%",
                         style = MaterialTheme.typography.displayMedium,
-                        color = Color.White
+                        color = onSurface
                     )
                     Text(
                         "of today's goals",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.9f)
+                        color = onSurface.copy(alpha = 0.9f)
                     )
                 }
                 BoltDisc()
@@ -290,14 +297,14 @@ private fun DailyUpdateHero(summary: HomeSummary?) {
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(LifeOSRadius.pill))
-                    .background(Color.White.copy(alpha = 0.24f))
+                    .background(onSurface.copy(alpha = 0.08f))
             ) {
                 Box(
                     Modifier
                         .fillMaxWidth(progress.coerceIn(0f, 1f))
                         .height(8.dp)
                         .clip(RoundedCornerShape(LifeOSRadius.pill))
-                        .background(Color.White)
+                        .background(onSurface)
                 )
             }
             val done = (summary?.tasksCompletedToday ?: 0) + (summary?.habitsToday?.count { it.isDone } ?: 0)
@@ -306,7 +313,7 @@ private fun DailyUpdateHero(summary: HomeSummary?) {
                 if (total == 0) "Nothing scheduled yet — add a task or a habit to start."
                 else "$done of $total goals done today",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.9f)
+                color = onSurface.copy(alpha = 0.9f)
             )
         }
     }
@@ -314,14 +321,15 @@ private fun DailyUpdateHero(summary: HomeSummary?) {
 
 @Composable
 private fun BoltDisc() {
+    val onSurface = MaterialTheme.colorScheme.onSurface
     Box(
         Modifier
             .size(56.dp)
             .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.18f)),
+            .background(onSurface.copy(alpha = 0.18f)),
         contentAlignment = Alignment.Center
     ) {
-        Icon(Icons.Filled.Bolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+        Icon(Icons.Filled.Bolt, contentDescription = null, tint = onSurface, modifier = Modifier.size(28.dp))
     }
 }
 
@@ -358,6 +366,20 @@ private fun QuickAction(icon: ImageVector, label: String, tint: Color, onClick: 
 
 @Composable
 private fun AiNudge(onOpenAi: () -> Unit) {
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    // The orb breathes very gently — it reads as "alive / always here" without
+    // pretending to be working (there is nothing to wait for until it is opened).
+    val orbTransition = rememberInfiniteTransition(label = "aiOrb")
+    val orbBreath by orbTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "aiOrbBreath"
+    )
     Row(
         Modifier
             .fillMaxWidth()
@@ -371,17 +393,22 @@ private fun AiNudge(onOpenAi: () -> Unit) {
         Box(
             Modifier
                 .size(40.dp)
+                .graphicsLayer {
+                    val s = 1f + 0.08f * orbBreath
+                    scaleX = s
+                    scaleY = s
+                }
                 .clip(CircleShape)
                 .background(prismBrush()),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Filled.Bolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+            Icon(Icons.Filled.Bolt, contentDescription = null, tint = onSurface, modifier = Modifier.size(20.dp))
         }
         Column(Modifier.weight(1f)) {
-            Text("Ask LifeOS AI", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-            Text("“What did I spend this month?”", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Ask LifeOS AI", style = MaterialTheme.typography.titleSmall, color = onSurface)
+            Text("“What did I spend this month?”", style = MaterialTheme.typography.bodySmall, color = onSurfaceVariant)
         }
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = onSurfaceVariant, modifier = Modifier.size(18.dp))
     }
 }
 
