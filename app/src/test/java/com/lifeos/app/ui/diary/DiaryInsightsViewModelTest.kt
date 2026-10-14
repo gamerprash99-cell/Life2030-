@@ -1,5 +1,6 @@
 package com.lifeos.app.ui.diary
 
+import androidx.lifecycle.viewModelScope
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.domain.intelligence.DiaryInsights
 import com.lifeos.app.domain.intelligence.LocalQuestionEngine
@@ -10,6 +11,7 @@ import com.lifeos.app.domain.model.DiaryMoods
 import com.lifeos.app.domain.usecase.GetDiaryInsightsUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -31,16 +33,23 @@ class DiaryInsightsViewModelTest {
     private val today = LocalDate.of(2026, 10, 14).toEpochDay()
     private val dispatcher = StandardTestDispatcher()
 
+    /** ViewModels own Main-scope jobs; clear every test instance so one test cannot leak into the next. */
+    private val createdScopes = mutableListOf<kotlinx.coroutines.CoroutineScope>()
+
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
 
     @After
-    fun tearDown() = Dispatchers.resetMain()
+    fun tearDown() {
+        createdScopes.forEach { it.coroutineContext.cancelChildren() }
+        createdScopes.clear()
+        Dispatchers.resetMain()
+    }
 
     private fun viewModel(dao: InMemoryDiaryDao) = DiaryInsightsViewModel(
         getInsights = GetDiaryInsightsUseCase(DiaryRepository(dao, io = dispatcher), compute = dispatcher) { today },
         today = { today }
-    )
+    ).also { createdScopes += it.viewModelScope }
 
     /** Enough entries to clear [com.lifeos.app.domain.intelligence.DiaryAnalyzer.MIN_ENTRIES_FOR_INSIGHTS]. */
     private fun entries(count: Int, mood: String? = null) = (1..count).map {
@@ -181,10 +190,7 @@ class DiaryInsightsViewModelTest {
             override suspend fun getAll(): List<com.lifeos.app.data.db.entities.DiaryEntity> =
                 throw IllegalStateException("database is gone")
         }
-        val vm = DiaryInsightsViewModel(
-            getInsights = GetDiaryInsightsUseCase(DiaryRepository(broken, io = dispatcher), compute = dispatcher) { today },
-            today = { today }
-        )
+        val vm = viewModel(broken)
         advanceUntilIdle()
 
         assertFalse(vm.state.value.isLoading)
