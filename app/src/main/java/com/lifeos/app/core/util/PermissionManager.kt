@@ -1,0 +1,165 @@
+package com.lifeos.app.core.util
+
+import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+
+/**
+ * Centralized runtime permission handling (Section 6 of the UI/UX pass:
+ * "fix repeated requests"). Requested only by the specific screen that
+ * needs them (Capture -> Camera/Audio), never at app launch.
+ *
+ * ROOT CAUSE of the "keeps asking" feeling: Android silently no-ops the
+ * system dialog once a permission has been denied twice ("permanently
+ * denied") — tapping "Grant" again produces no visible dialog at all,
+ * which reads as the app being broken or stuck in a loop. The fix is to
+ * detect that state explicitly and route the user to system Settings
+ * instead of calling the (now silently ignored) request again.
+ */
+object PermissionManager {
+    fun hasPermission(context: Context, permission: String): Boolean =
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+    fun openAppSettings(context: Context) {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", context.packageName, null)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+
+    /**
+     * Deep-links to Android's Location settings page, where the user can turn
+     * location back on for the device.
+     *
+     * This is a *system service* problem, not a permission problem, and the two
+     * need different destinations: granting the app permission is
+     * [openAppSettings], while switching location on is here. Modelled on
+     * [openExactAlarmSettings] — guarded by SDK, wrapped in a catch, and always
+     * falling back to app details rather than crashing on an OEM build that does
+     * not ship the action. A location fix cannot be obtained at all while
+     * location is off, so this is the only route that can actually fix the
+     * state; offering the permission screen instead would be another dead end.
+     */
+    fun openLocationSettings(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                context.startActivity(
+                    Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+                return
+            } catch (_: Exception) {
+                // Some OEM builds (and some work profiles) lack this action.
+            }
+        } else {
+            // Pre-S: there is no dedicated location source page, so go to
+            // Security, which is where location used to live.
+            try {
+                context.startActivity(
+                    Intent(Settings.ACTION_SECURITY_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+                return
+            } catch (_: Exception) {
+                // Fall through to app details.
+            }
+        }
+        openAppSettings(context)
+    }
+
+    /**
+     * Deep-links to Android's "Alarms & reminders" system page
+     * (`Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM`), where the user can
+     * toggle LifeOS's `SCHEDULE_EXACT_ALARM` special access. Only available
+     * from Android 12 (S) — on older versions the permission does not exist,
+     * so it falls back to the plain app-details settings instead of crashing.
+     */
+    @Suppress("InlinedApi") // ACTION_REQUEST_SCHEDULE_EXACT_ALARM is API 31+; guarded by the SDK check below.
+    fun openExactAlarmSettings(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                context.startActivity(
+                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+                return
+            } catch (_: Exception) {
+                // Some OEM builds lack this action; fall back to app details.
+            }
+        }
+        openAppSettings(context)
+    }
+}
+
+/** The three states the UI actually needs to render distinctly. */
+enum class PermissionStatus { GRANTED, NOT_YET_REQUESTED_OR_DENIABLE, PERMANENTLY_DENIED }
+
+data class PermissionState(
+    val status: PermissionStatus,
+    val isGranted: Boolean,
+    val request: () -> Unit,
+    val openSettings: () -> Unit
+)
+
+/**
+ * Remembers a single permission's live status. Re-checks against the real
+ * OS permission state (not cached app state) every time this enters
+ * composition, so a permission granted via system Settings while the app
+ * was backgrounded is picked up correctly too.
+ */
+@Composable
+fun rememberPermissionState(permission: String): PermissionState {
+    val context = LocalContext.current
+    val activity = context as? Activity
+
+    var granted by remember { mutableStateOf(PermissionManager.hasPermission(context, permission)) }
+    var permanentlyDenied by remember { mutableStateOf(false) }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        granted = isGranted
+        if (!isGranted && activity != null) {
+            // If the rationale can no longer be shown after a denial, the OS has moved
+            // this permission into "permanently denied" — further launch() calls are
+            // silent no-ops, so we must offer "Open Settings" instead of asking again.
+            val canShowRationale = androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
+            permanentlyDenied = !canShowRationale
+        }
+    }
+
+    val status = when {
+        granted -> PermissionStatus.GRANTED
+        permanentlyDenied -> PermissionStatus.PERMANENTLY_DENIED
+        else -> PermissionStatus.NOT_YET_REQUESTED_OR_DENIABLE
+    }
+
+    return remember(status) {
+        PermissionState(
+            status = status,
+            isGranted = granted,
+            request = { if (status != PermissionStatus.PERMANENTLY_DENIED) launcher.launch(permission) },
+            openSettings = { PermissionManager.openAppSettings(context) }
+        )
+    }
+}
+
+
+/** Permission constants used by feature-scoped Capture UI. */
+object LifeOSPermissions {
+    const val CAMERA = Manifest.permission.CAMERA
+    const val RECORD_AUDIO = Manifest.permission.RECORD_AUDIO
+}
