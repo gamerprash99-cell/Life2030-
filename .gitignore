@@ -19,3 +19,7 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+
+# Large design-process mockup renders (not app assets). The small HTML
+# design previews under design/ are tracked; these PNGs are not.
+/design/screens/

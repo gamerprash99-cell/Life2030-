@@ -1,3 +1,81 @@
+# Redesign pass: working voice capture, a real identity, and motion
+
+Branch `redesign/from-zero-2026` — three commits on top of `90a142b`. Everything
+stays native: Kotlin, Compose, Material 3, ViewModels, Room, local media, offline.
+The AURA palette is unchanged; this pass fixes a dead feature, restores the spec's
+navigation, and replaces the off-brand identity with the app's own.
+
+## 1. Voice capture was dead — now it records
+
+The live Capture hub wired its **Audio** tile to a stub that only printed
+*"Voice notes are coming next"*, while the one working recorder lived behind an
+unreachable `CaptureSheet`. So the Audio tile never recorded anything.
+
+- The tile now opens `AudioCaptureScreen`, recorded through the **same tested
+  `AudioRecorder`** the diary composer already uses (live timer + real amplitude
+  from `MediaRecorder`, not a fake animation).
+- On stop, `CaptureViewModel.saveAudio` writes a real `CaptureType.AUDIO` row with
+  its own measured duration and `mimeType "audio/mp4"`.
+- Failures are honest and typed — `START_FAILED` / `TOO_SHORT` / `STOP_FAILED`
+  explain what happened and never silently delete the user's take.
+- `DiaryAudioRecorder` gained an injectable file factory so both callers share one
+  implementation; `CaptureViewModel` now depends on the `LocationProvider`
+  interface so it is testable on the JVM; the dead `CaptureSheet.kt` is gone.
+
+## 2. Insights restored to the bottom bar
+
+`Screen.Insights` and its NavHost route are wired again, so the IA reads
+**Home · Notes · ＋Capture · Insights · Life** as the spec requires (the old "You"
+slot becomes Insights). `InsightsViewModel` reads the on-device
+`LifeOSIntelligenceEngine` (exposed via `ServiceLocator`), so every figure comes
+from stored rows — no placeholders. `BottomNavItemsTest` asserts the new order.
+
+## 3. Identity: launcher mark, start screen, motion
+
+**Colour only on the mark** — the shape is unchanged.
+
+- **Launcher.** The adaptive icon dropped the generic indigo `#6C63FF` tile for
+  the app's own lagoon (deep teal→plum) with a mint→coral ring and a coral
+  "captured moment" bead. Added an Android 13+ **monochrome** layer so themed
+  icons tint correctly.
+- **Start screen.** `LifeOSStartScreen` plays once after Android's native splash:
+  the ring traces in (a 270° arc), the bead springs into its opening, then the
+  wordmark and promise rise over a progress shimmer, before a 320 ms crossfade
+  into the app. It is theme-aware (bright mint→coral on the dark lagoon, deeper
+  brand steps in the light polarity) and honours the system **reduced-motion**
+  setting. The native splash background now uses the same lagoon
+  (`colors.xml` / `values-night/colors.xml`) instead of flat white.
+- **Motion** (calm, decorative-free): the centre Capture action carries a slow
+  breathing halo; the bottom-bar selection pill fades in with a small icon lift
+  (it stays solid clay — the 5.4:1 contrast rationale is kept in a comment); the
+  capture confirmation draws a real animated tick; the Home AI orb breathes
+  gently.
+
+## Verification
+
+```text
+gradle :app:assembleDebug :app:testDebugUnitTest
+  -> BUILD SUCCESSFUL in 10m 27s
+     469 tests across 39 suites, 0 failures, 0 skipped, 0 errors
+       (incl. CaptureViewModelTest: 2 tests, 0 failures)
+     app/build/outputs/apk/debug/app-debug.apk  (46.4 MB)
+```
+
+Design previews used for review are tracked under `design/` and served locally
+with `python3 -m http.server 8787` from the repo root:
+`design/ui-preview.html` (screens) and `design/additions.html` (logo, start
+screen, motion).
+
+## Not verified here
+
+No Android device or emulator is available in this environment, so on-device
+appearance of the launcher icon, the start screen and the motion — real density,
+mask shapes, timed splash handoff, and the recorder with a real microphone — has
+**not** been performed and is not claimed. The build and the JVM test suite are
+the evidence.
+
+---
+
 # Diary on real content, and the Stitch visual pass
 
 Two layers, one branch.

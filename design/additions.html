@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeOS — logo, start screen &amp; motion</title>
+<style>
+  :root{
+    --bg:#070B0B;
+    --ink:#F1F5F2;
+    --muted:#8FA09A;
+    --muted2:#B9C7C3;
+    --coral:#FF9E80;
+    --coral-deep:#FF7A55;
+    --mint:#5EE0B0;
+    --teal:#2FB9C8;
+    --amber:#E9C46A;
+    --plum:#8A6BD1;
+    --glass:rgba(255,255,255,.055);
+    --glass2:rgba(255,255,255,.09);
+    --edge:rgba(255,255,255,.12);
+    --edge2:rgba(255,255,255,.20);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#050707;color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    -webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+  .page{position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(60% 45% at 12% 0%, rgba(94,224,176,.14), transparent 62%),
+      radial-gradient(55% 40% at 92% 8%, rgba(255,126,90,.13), transparent 60%),
+      radial-gradient(70% 55% at 50% 108%, rgba(120,80,190,.12), transparent 65%),
+      linear-gradient(180deg,#070B0B,#050707);}
+  .wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:52px 22px 130px}
+  .topnav{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:34px}
+  .topnav a{font-size:12px;font-weight:650;text-decoration:none;color:#C7D2CE;
+    padding:9px 15px;border-radius:999px;background:var(--glass);
+    border:1px solid var(--edge);backdrop-filter:blur(12px)}
+  .topnav a.on{color:#07110F;background:linear-gradient(120deg,var(--mint),var(--coral));border-color:transparent}
+  h1{font-size:clamp(28px,4.8vw,44px);margin:0 0 12px;letter-spacing:-.03em;font-weight:760}
+  h1 em{font-style:normal;background:linear-gradient(92deg,var(--coral),var(--mint));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:#9AA8A3;font-size:15px;line-height:1.75;max-width:860px;margin:0}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+  .chip{font-size:11.5px;font-weight:600;letter-spacing:.03em;padding:8px 13px;border-radius:999px;
+    background:var(--glass);border:1px solid var(--edge);color:#C7D2CE;backdrop-filter:blur(12px)}
+  .chip b{color:var(--mint)}
+  .note{margin-top:26px;padding:16px 18px;border-radius:20px;max-width:900px;
+    background:linear-gradient(160deg,rgba(94,224,176,.10),rgba(94,224,176,.03));
+    border:1px solid rgba(94,224,176,.28);color:#DCE7E3;font-size:13.5px;line-height:1.7}
+  .note b{color:var(--mint)}
+  .section-label{margin:66px 0 22px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted);font-weight:700;display:flex;align-items:center;gap:14px}
+  .section-label:after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,.16),transparent)}
+
+  /* ---------- LOGO ---------- */
+  .logogrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:26px}
+  @media(max-width:900px){.logogrid{grid-template-columns:1fr}}
+  .variant{padding:26px 22px 22px;border-radius:28px;text-align:center;
+    background:linear-gradient(160deg,var(--glass2),var(--glass));border:1px solid var(--edge);
+    backdrop-filter:blur(20px);box-shadow:0 24px 50px -30px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.08)}
+  .variant.pick{border-color:rgba(94,224,176,.45);
+    box-shadow:0 24px 60px -28px rgba(94,224,176,.5), inset 0 1px 0 rgba(255,255,255,.10)}
+  .vhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .vhead b{font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+  .vhead .tag{font-size:9.5px;font-weight:760;letter-spacing:.09em;text-transform:uppercase;
+    padding:5px 10px;border-radius:999px;background:rgba(94,224,176,.15);color:var(--mint);
+    border:1px solid rgba(94,224,176,.32)}
+  .vhead .tag.alt{background:rgba(255,255,255,.07);color:var(--muted2);border-color:var(--edge)}
+  .icrow{display:flex;align-items:center;justify-content:center;gap:18px;margin:8px 0 18px}
+  .tile{position:relative;border-radius:26%;overflow:hidden;flex:none;
+    box-shadow:0 18px 40px -18px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.10)}
+  .tile:after{content:"";position:absolute;inset:0;border-radius:inherit;
+    background:linear-gradient(180deg,rgba(255,255,255,.10),transparent 42%);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+  .tile svg{position:absolute;inset:0;width:100%;height:100%}
+  .tA{width:104px;height:104px;background:
+    radial-gradient(120% 120% at 82% 6%, #16463B 0%, #0C1A18 46%, #0B0A14 100%)}
+  .tB{width:104px;height:104px;background:
+    radial-gradient(120% 120% at 18% 0%, #0F3438 0%, #081312 52%, #040808 100%)}
+  .tC{width:104px;height:104px;background:
+    radial-gradient(120% 120% at 82% 10%, #331C3C 0%, #170F1C 50%, #0B0810 100%)}
+  .tBefore{width:104px;height:104px;background:#6C63FF}
+  .tBefore svg{opacity:.95}
+  .mini{width:52px;height:52px}
+  .tiny{width:34px;height:34px}
+  .vdesc{color:#9AA8A3;font-size:12.5px;line-height:1.65;text-align:left}
+  .pal{display:flex;gap:7px;justify-content:center;margin-top:16px}
+  .sw{width:22px;height:22px;border-radius:7px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+
+  /* context row */
+  .ctx{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:30px}
+  @media(max-width:900px){.ctx{grid-template-columns:1fr}}
+  .ctxcard{padding:22px;border-radius:26px;background:linear-gradient(160deg,var(--glass2),var(--glass));
+    border:1px solid var(--edge);backdrop-filter:blur(20px)}
+  .ctxcard h4{margin:0 0 4px;font-size:13px;font-weight:700}
+  .ctxcard p{margin:0 0 16px;color:var(--muted);font-size:11.5px;line-height:1.6}
+  .homescreen{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 12px;padding:16px;border-radius:20px;
+    background:
+      radial-gradient(90% 60% at 80% 0%, rgba(94,224,176,.14), transparent 60%),
+      linear-gradient(170deg,#0B1514,#0A0F12 60%,#0C0A12);
+    border:1px solid rgba(255,255,255,.07)}
+  .app{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .app span{font-size:8.5px;color:var(--muted2);letter-spacing:.02em}
+  .appic{width:46px;height:46px;border-radius:26%;position:relative;overflow:hidden;
+    box-shadow:0 8px 18px -8px rgba(0,0,0,.9)}
+  .appic svg{position:absolute;inset:0;width:100%;height:100%}
+  .monoRow{display:flex;gap:16px;align-items:center;justify-content:center}
+  .mono{width:60px;height:60px;border-radius:26%;display:grid;place-items:center}
+  .monoL{background:#F2F5F3;color:#0B1514}
+  .monoD{background:#0B1514;color:#F2F5F2}
+
+  /* ---------- SPLASH ---------- */
+  .splashrow{display:grid;grid-template-columns:400px 1fr;gap:44px;align-items:start}
+  @media(max-width:960px){.splashrow{grid-template-columns:1fr}}
+  .phone{width:100%;max-width:340px;margin:0 auto;border-radius:46px;padding:11px;
+    background:rgba(255,255,255,.035);border:1px solid var(--edge);backdrop-filter:blur(18px);
+    box-shadow:0 50px 90px -34px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.10)}
+  .screen{position:relative;border-radius:38px;overflow:hidden;height:690px;
+    border:1px solid rgba(255,255,255,.07);
+    background:
+      radial-gradient(85% 42% at 82% -6%, rgba(94,224,176,.20), transparent 60%),
+      radial-gradient(80% 40% at 6% 104%, rgba(255,126,90,.16), transparent 62%),
+      linear-gradient(168deg,#0B1514 0%, #0A0F12 52%, #0C0A12 100%)}
+  .splash{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:0;z-index:5;
+    background:
+      radial-gradient(70% 45% at 50% 22%, rgba(94,224,176,.20), transparent 62%),
+      radial-gradient(60% 42% at 50% 88%, rgba(255,126,90,.16), transparent 64%),
+      linear-gradient(168deg,#0B1514,#0A0F12 55%,#0C0A12);
+    animation:splashCycle 5.2s cubic-bezier(.5,.02,.4,1) infinite}
+  @keyframes splashCycle{
+    0%{opacity:1;transform:scale(1)}
+    66%{opacity:1;transform:scale(1)}
+    78%{opacity:0;transform:scale(1.06)}
+    86%{opacity:0;transform:scale(.97)}
+    100%{opacity:1;transform:scale(1)}}
+  .markwrap{position:relative;width:150px;height:150px;display:grid;place-items:center}
+  .markwrap svg{width:130px;height:130px;overflow:visible;
+    animation:markIn 5.2s ease-out infinite}
+  @keyframes markIn{
+    0%{opacity:0;transform:scale(.62) rotate(-8deg)}
+    10%{opacity:1;transform:scale(1.06) rotate(2deg)}
+    18%{transform:scale(1) rotate(0)}
+    66%{transform:scale(1) rotate(0)}
+    78%{opacity:0;transform:scale(1.1)}
+    100%{opacity:0;transform:scale(.62) rotate(-8deg)}}
+  .ringdraw{stroke-dasharray:157;stroke-dashoffset:157;
+    animation:ringDraw 5.2s ease-in-out infinite}
+  @keyframes ringDraw{
+    0%{stroke-dashoffset:157}
+    26%{stroke-dashoffset:0}
+    100%{stroke-dashoffset:0}}
+  .bead{transform-box:fill-box;transform-origin:center;
+    animation:beadPop 5.2s ease-out infinite}
+  @keyframes beadPop{
+    0%,20%{opacity:0;transform:scale(0)}
+    30%{opacity:1;transform:scale(1.35)}
+    38%{transform:scale(1)}
+    66%{opacity:1;transform:scale(1)}
+    78%{opacity:0}
+    100%{opacity:0;transform:scale(0)}}
+  .splword{font-family:Georgia,"Times New Roman",serif;font-size:34px;font-weight:600;
+    letter-spacing:-.02em;margin-top:26px;
+    background:linear-gradient(92deg,var(--ink),#CFE9E1);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    animation:wordUp 5.2s ease-out infinite}
+  @keyframes wordUp{
+    0%,30%{opacity:0;transform:translateY(14px)}
+    44%{opacity:1;transform:translateY(0)}
+    66%{opacity:1;transform:translateY(0)}
+    78%{opacity:0;transform:translateY(-6px)}
+    100%{opacity:0;transform:translateY(14px)}}
+  .spltag{margin-top:9px;color:var(--muted);font-size:12.5px;letter-spacing:.14em;
+    text-transform:uppercase;font-weight:650;
+    animation:wordUp 5.2s ease-out infinite;animation-delay:.18s}
+  .splbar{position:absolute;left:0;right:0;bottom:64px;display:flex;justify-content:center}
+  .splbar i{display:block;height:3px;width:130px;border-radius:999px;
+    background:rgba(255,255,255,.10);overflow:hidden;position:relative}
+  .splbar i:after{content:"";position:absolute;inset:0;width:6%;border-radius:999px;
+    background:linear-gradient(90deg,var(--mint),var(--coral));
+    animation:load 5.2s cubic-bezier(.4,0,.3,1) infinite}
+  @keyframes load{
+    0%{width:5%}
+    10%{width:16%}
+    62%{width:100%}
+    100%{width:100%}}
+  .splfoot{position:absolute;bottom:30px;left:0;right:0;text-align:center;
+    color:rgba(143,160,154,.7);font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+    animation:wordUp 5.2s ease-out infinite;animation-delay:.3s}
+  /* mini home behind */
+  .behind{position:absolute;inset:0;padding:20px;display:flex;flex-direction:column;gap:12px;z-index:1}
+  .behind .gh{height:70px;border-radius:22px;background:linear-gradient(160deg,var(--glass2),var(--glass));
+    border:1px solid var(--edge)}
+  .behind .gl{height:52px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid var(--edge)}
+
+  .splashnotes{display:flex;flex-direction:column;gap:14px}
+  .snote{padding:16px 18px;border-radius:20px;background:linear-gradient(160deg,var(--glass2),var(--glass));
+    border:1px solid var(--edge);backdrop-filter:blur(18px)}
+  .snote b{display:block;font-size:13px;margin-bottom:5px}
+  .snote p{margin:0;color:#9AA8A3;font-size:12.5px;line-height:1.7}
+  .snote .step{font-size:10px;font-weight:760;letter-spacing:.12em;color:var(--mint);
+    text-transform:uppercase;display:block;margin-bottom:7px}
+
+  /* ---------- MOTION ---------- */
+  .motiongrid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  @media(max-width:900px){.motiongrid{grid-template-columns:1fr 1fr}}
+  @media(max-width:620px){.motiongrid{grid-template-columns:1fr}}
+  .demo{padding:20px;border-radius:24px;background:linear-gradient(160deg,var(--glass2),var(--glass));
+    border:1px solid var(--edge);backdrop-filter:blur(18px);min-height:190px;
+    display:flex;flex-direction:column}
+  .demo h4{margin:0 0 3px;font-size:12.5px;font-weight:700}
+  .demo p{margin:0 0 14px;color:var(--muted);font-size:11px;line-height:1.55}
+  .stage{flex:1;display:grid;place-items:center;position:relative}
+
+  /* capture orb */
+  .orb{width:74px;height:74px;border-radius:50%;
+    background:linear-gradient(150deg,var(--mint),var(--coral));
+    box-shadow:0 16px 36px -12px rgba(255,126,90,.7);
+    animation:orbPulse 2.2s ease-in-out infinite}
+  @keyframes orbPulse{0%,100%{transform:scale(1);box-shadow:0 16px 36px -12px rgba(255,126,90,.6)}
+    50%{transform:scale(1.09);box-shadow:0 22px 48px -12px rgba(94,224,176,.75)}}
+  .orbwrap{position:relative}
+  .orbwrap:before,.orbwrap:after{content:"";position:absolute;inset:-14px;border-radius:50%;
+    border:1.6px solid rgba(94,224,176,.45);animation:halo 2.6s ease-out infinite}
+  .orbwrap:after{animation-delay:1.3s}
+  @keyframes halo{0%{transform:scale(.82);opacity:.9}100%{transform:scale(1.5);opacity:0}}
+
+  /* progress ring */
+  .pring{width:78px;height:78px;border-radius:50%;display:grid;place-items:center;position:relative;
+    background:conic-gradient(var(--mint) 0deg, var(--coral) 240deg, rgba(255,255,255,.10) 240deg);
+    animation:spinRing 3.4s linear infinite}
+  @keyframes spinRing{to{transform:rotate(360deg)}}
+  .pring i{width:58px;height:58px;border-radius:50%;background:#0C1514;display:grid;place-items:center;
+    font-style:normal;font-size:13px;font-weight:760;color:var(--ink);animation:spinRing 3.4s linear infinite reverse}
+
+  /* check tick */
+  .tick{width:70px;height:70px;border-radius:50%;
+    background:linear-gradient(150deg,var(--mint),#38C79A);display:grid;place-items:center;
+    animation:tickPop 2.6s ease-in-out infinite}
+  @keyframes tickPop{0%,10%{transform:scale(.7);opacity:0}22%{transform:scale(1.08);opacity:1}
+    30%{transform:scale(1)}80%{transform:scale(1);opacity:1}100%{transform:scale(.7);opacity:0}}
+  .tick svg{width:34px;height:34px}
+  .tick path{fill:none;stroke:#062018;stroke-width:4.2;stroke-linecap:round;stroke-linejoin:round;
+    stroke-dasharray:30;stroke-dashoffset:30;animation:tickDraw 2.6s ease-out infinite}
+  @keyframes tickDraw{0%,14%{stroke-dashoffset:30}34%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}
+
+  /* staggered cards */
+  .stagger{width:100%;display:flex;flex-direction:column;gap:9px}
+  .stagger div{height:34px;border-radius:12px;background:linear-gradient(160deg,var(--glass2),var(--glass));
+    border:1px solid var(--edge);opacity:0;animation:cardIn 2.8s ease-out infinite}
+  .stagger div:nth-child(1){animation-delay:.15s}
+  .stagger div:nth-child(2){animation-delay:.33s}
+  .stagger div:nth-child(3){animation-delay:.51s}
+  @keyframes cardIn{0%{opacity:0;transform:translateY(16px)}
+    16%{opacity:1;transform:translateY(0)}75%{opacity:1}100%{opacity:0}}
+
+  /* nav pill */
+  .mininav{display:flex;gap:8px;padding:8px;border-radius:18px;background:rgba(255,255,255,.05);
+    border:1px solid var(--edge)}
+  .mininav b{width:46px;height:34px;border-radius:12px;position:relative;overflow:hidden}
+  .mininav b:before{content:"";position:absolute;inset:5px 8px;border-radius:6px;
+    background:rgba(255,255,255,.22)}
+  .mininav b:after{content:"";position:absolute;inset:0;border-radius:inherit;
+    background:linear-gradient(140deg,var(--mint),var(--coral));opacity:0;
+    animation:navSel 3.2s ease-in-out infinite}
+  .mininav b:nth-child(1):after{animation-delay:0s}
+  .mininav b:nth-child(2):after{animation-delay:.8s}
+  .mininav b:nth-child(3):after{animation-delay:1.6s}
+  .mininav b:nth-child(4):after{animation-delay:2.4s}
+  @keyframes navSel{0%{opacity:0}8%{opacity:1}25%{opacity:1}33%{opacity:0}100%{opacity:0}}
+
+  /* ai typing */
+  .typing{display:flex;gap:7px;align-items:center}
+  .typing i{width:12px;height:12px;border-radius:50%;background:linear-gradient(150deg,var(--mint),var(--coral));
+    animation:typeBounce 1.4s ease-in-out infinite}
+  .typing i:nth-child(2){animation-delay:.18s}
+  .typing i:nth-child(3){animation-delay:.36s}
+  @keyframes typeBounce{0%,100%{transform:translateY(0);opacity:.5}40%{transform:translateY(-9px);opacity:1}}
+
+  /* recorder level */
+  .lvl{display:flex;align-items:flex-end;gap:5px;height:56px}
+  .lvl i{width:8px;border-radius:6px;background:linear-gradient(180deg,var(--mint),var(--coral));
+    animation:lvlBounce 1.05s ease-in-out infinite}
+  .lvl i:nth-child(1){height:22%;animation-delay:0s}
+  .lvl i:nth-child(2){height:60%;animation-delay:.12s}
+  .lvl i:nth-child(3){height:92%;animation-delay:.24s}
+  .lvl i:nth-child(4){height:48%;animation-delay:.36s}
+  .lvl i:nth-child(5){height:76%;animation-delay:.48s}
+  .lvl i:nth-child(6){height:34%;animation-delay:.6s}
+  .lvl i:nth-child(7){height:64%;animation-delay:.72s}
+  @keyframes lvlBounce{0%,100%{transform:scaleY(.55)}50%{transform:scaleY(1)}}
+
+  /* heatmap */
+  .heat{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .heat i{width:14px;height:14px;border-radius:4px;background:rgba(255,255,255,.08);
+    animation:heatFill 3.4s ease-in-out infinite}
+  @keyframes heatFill{0%,10%{background:rgba(255,255,255,.08)}
+    40%{background:linear-gradient(140deg,var(--mint),var(--coral))}
+    70%{background:linear-gradient(140deg,var(--mint),var(--coral))}
+    100%{background:rgba(255,255,255,.08)}}
+
+  /* fab morph */
+  .fab{width:60px;height:60px;border-radius:50%;
+    background:linear-gradient(150deg,var(--coral),var(--coral-deep));
+    box-shadow:0 18px 40px -14px rgba(255,126,90,.8);
+    animation:fabMorph 3s ease-in-out infinite}
+  @keyframes fabMorph{0%,100%{border-radius:50%;transform:rotate(0)}
+    45%,60%{border-radius:30%;transform:rotate(135deg)}}
+
+  footer{margin-top:80px;color:var(--muted);font-size:12px;line-height:1.9}
+  footer b{color:var(--muted2)}
+</style>
+</head>
+<body>
+<div class="page"></div>
+
+<!-- shared svg defs -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="gA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5EE0B0"/><stop offset="1" stop-color="#FF9E80"/>
+    </linearGradient>
+    <linearGradient id="gB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5EE0B0"/><stop offset="1" stop-color="#2FB9C8"/>
+    </linearGradient>
+    <linearGradient id="gC" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E9C46A"/><stop offset="1" stop-color="#FF7A55"/>
+    </linearGradient>
+    <linearGradient id="gSplash" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5EE0B0"/><stop offset="1" stop-color="#FF9E80"/>
+    </linearGradient>
+  </defs>
+  <!-- the LifeOS ring-and-bead mark, recoloured per variant -->
+  <symbol id="mkA" viewBox="0 0 108 108">
+    <circle cx="54" cy="54" r="25" fill="none" stroke="url(#gA)" stroke-width="10"
+      stroke-linecap="round" stroke-dasharray="118 40"/>
+    <circle class="beaddot" cx="72" cy="36" r="8" fill="#FF9E80"/>
+  </symbol>
+  <symbol id="mkB" viewBox="0 0 108 108">
+    <circle cx="54" cy="54" r="25" fill="none" stroke="url(#gB)" stroke-width="10"
+      stroke-linecap="round" stroke-dasharray="118 40"/>
+    <circle class="beaddot" cx="72" cy="36" r="8" fill="#5EE0B0"/>
+  </symbol>
+  <symbol id="mkC" viewBox="0 0 108 108">
+    <circle cx="54" cy="54" r="25" fill="none" stroke="url(#gC)" stroke-width="10"
+      stroke-linecap="round" stroke-dasharray="118 40"/>
+    <circle class="beaddot" cx="72" cy="36" r="8" fill="#E9C46A"/>
+  </symbol>
+  <symbol id="mkMono" viewBox="0 0 108 108">
+    <circle cx="54" cy="54" r="25" fill="none" stroke="currentColor" stroke-width="10"
+      stroke-linecap="round" stroke-dasharray="118 40"/>
+    <circle class="beaddot" cx="72" cy="36" r="8" fill="currentColor"/>
+  </symbol>
+</svg>
+
+<div class="wrap">
+  <nav class="topnav">
+    <a href="ui-preview.html">Screens preview</a>
+    <a class="on" href="additions.html">Logo · Start screen · Motion</a>
+  </nav>
+
+  <h1>New <em>logo colour</em>, animated <em>start screen</em> &amp; motion</h1>
+  <p class="sub">Everything on this page is additive — it sits on top of the UI you already approved.
+    The palette is untouched (coral · mint · lagoon), the logo shape is untouched, and the only colour
+    that changes is the old generic indigo <code style="color:#A9A2FF">#6C63FF</code> tile underneath it.</p>
+  <div class="chips">
+    <span class="chip">Same shape, <b>new colour</b></span>
+    <span class="chip">Animated <b>start screen</b></span>
+    <span class="chip"><b>Motion</b> added to captures &amp; lists</span>
+    <span class="chip">Audio recording <b>now works</b></span>
+  </div>
+
+  <div class="note">
+    <b>Audio bug — found and fixed.</b> The live Capture hub's <b>Audio</b> tile was a stub that said
+    “Voice notes are coming next”, while the only working recorder was hidden behind an unreachable
+    screen. Tapping <b>Audio</b> now opens a real recorder (mic permission → live timer &amp; level →
+    stop → saved to your timeline with its measured duration). You'll be able to test it on your phone
+    once this build is installed.
+  </div>
+
+  <!-- ============ LOGO ============ -->
+  <div class="section-label">1 · App logo — colour only</div>
+
+  <div class="logogrid">
+    <div class="variant pick">
+      <div class="vhead"><b>A · AURA</b><span class="tag">Recommended</span></div>
+      <div class="icrow">
+        <div class="tile tA"><svg><use href="#mkA"/></svg></div>
+        <div class="tile tA mini"><svg><use href="#mkA"/></svg></div>
+        <div class="tile tA tiny"><svg><use href="#mkA"/></svg></div>
+      </div>
+      <p class="vdesc">Coral→mint ring on a deep lagoon tile — the exact colours your app already uses.
+        It reads as a full day orbiting a captured moment. Warm, alive, and unmistakably yours.</p>
+      <div class="pal">
+        <span class="sw" style="background:#5EE0B0"></span>
+        <span class="sw" style="background:#FF9E80"></span>
+        <span class="sw" style="background:#0C1A18"></span>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="vhead"><b>B · Lagoon depth</b><span class="tag alt">Calm</span></div>
+      <div class="icrow">
+        <div class="tile tB"><svg><use href="#mkB"/></svg></div>
+        <div class="tile tB mini"><svg><use href="#mkB"/></svg></div>
+        <div class="tile tB tiny"><svg><use href="#mkB"/></svg></div>
+      </div>
+      <p class="vdesc">Mint→teal ring on near-black. Quieter and more premium — reads like a deep-teal
+        jewel. A good fit if you want the app to feel calmer and more “instrument” than “glow”.</p>
+      <div class="pal">
+        <span class="sw" style="background:#5EE0B0"></span>
+        <span class="sw" style="background:#2FB9C8"></span>
+        <span class="sw" style="background:#081312"></span>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="vhead"><b>C · Sunset</b><span class="tag alt">Warm</span></div>
+      <div class="icrow">
+        <div class="tile tC"><svg><use href="#mkC"/></svg></div>
+        <div class="tile tC mini"><svg><use href="#mkC"/></svg></div>
+        <div class="tile tC tiny"><svg><use href="#mkC"/></svg></div>
+      </div>
+      <p class="vdesc">Amber→coral ring on plum. The warmest of the three, using the amber accent that
+        already marks streaks in the app. Pairs nicely with the coral capture button.</p>
+      <div class="pal">
+        <span class="sw" style="background:#E9C46A"></span>
+        <span class="sw" style="background:#FF7A55"></span>
+        <span class="sw" style="background:#170F1C"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ctx">
+    <div class="ctxcard">
+      <h4>Before · after</h4>
+      <p>The old icon was a generic indigo tile. Same mark, new colour.</p>
+      <div class="icrow">
+        <div class="tile tBefore"><svg><use href="#mkMono"/></svg></div>
+        <div style="color:var(--muted);font-size:22px">→</div>
+        <div class="tile tA"><svg><use href="#mkA"/></svg></div>
+      </div>
+    </div>
+
+    <div class="ctxcard">
+      <h4>On the home screen</h4>
+      <p>How it sits next to everyday apps — it stays the most “alive” tile in the grid.</p>
+      <div class="homescreen">
+        <div class="app"><div class="appic" style="background:#1B2A3A"></div><span>Maps</span></div>
+        <div class="app"><div class="appic" style="background:#2A1B2E"></div><span>Photos</span></div>
+        <div class="app"><div class="appic" style="background:#1B2E24"></div><span>Mail</span></div>
+        <div class="app"><div class="appic" style="background:#2E2A1B"></div><span>Clock</span></div>
+        <div class="app"><div class="appic" style="background:radial-gradient(120% 120% at 82% 6%,#16463B,#0B0A14)"><svg><use href="#mkA"/></svg></div><span>LifeOS</span></div>
+        <div class="app"><div class="appic" style="background:#241B2E"></div><span>Notes</span></div>
+        <div class="app"><div class="appic" style="background:#1B2E2E"></div><span>Music</span></div>
+        <div class="app"><div class="appic" style="background:#2E1B1B"></div><span>Camera</span></div>
+      </div>
+    </div>
+
+    <div class="ctxcard">
+      <h4>Themed &amp; monochrome</h4>
+      <p>Android can tint the icon to match the wallpaper. The mark keeps its shape in one colour.</p>
+      <div class="monoRow">
+        <div class="mono monoD"><svg width="34" height="34"><use href="#mkMono"/></svg></div>
+        <div class="mono monoL"><svg width="34" height="34"><use href="#mkMono"/></svg></div>
+        <div class="tile tA mini" style="border-radius:50%"><svg><use href="#mkA"/></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ START SCREEN ============ -->
+  <div class="section-label">2 · Start screen — animated</div>
+
+  <div class="splashrow">
+    <div>
+      <div class="phone">
+        <div class="screen">
+          <!-- the home you land on, sitting behind the splash -->
+          <div class="behind">
+            <div class="gh"></div>
+            <div class="gl"></div>
+            <div class="gl"></div>
+            <div class="gl"></div>
+          </div>
+          <!-- the animated splash -->
+          <div class="splash">
+            <div class="markwrap">
+              <svg viewBox="0 0 108 108">
+                <circle class="ringdraw" cx="54" cy="54" r="25" fill="none"
+                  stroke="url(#gSplash)" stroke-width="10" stroke-linecap="round"/>
+                <circle class="bead" cx="72" cy="36" r="8" fill="#FF9E80"/>
+              </svg>
+            </div>
+            <div class="splword">LifeOS</div>
+            <div class="spltag">Capture your life</div>
+            <div class="splbar"><i></i></div>
+            <div class="splfoot">Loading your day</div>
+          </div>
+        </div>
+      </div>
+      <p style="text-align:center;color:var(--muted);font-size:11px;margin-top:12px;letter-spacing:.06em">
+        Looping preview — on device it runs once, ~1.2s.
+      </p>
+    </div>
+
+    <div class="splashnotes">
+      <div class="snote">
+        <span class="step">0.0s · the ring draws itself</span>
+        <b>The mark assembles, it doesn't just appear</b>
+        <p>A soft tile rises and the coral→mint ring traces itself clockwise in about a quarter of a
+          second, so the first thing you see is the brand <em>doing</em> something rather than a static
+          image.</p>
+      </div>
+      <div class="snote">
+        <span class="step">0.4s · the bead lands</span>
+        <b>A captured moment settles into the ring</b>
+        <p>The coral bead springs into the ring's opening — a tiny physical “pop” that hints at capture:
+          a thought, a mood, a photo, a voice note.</p>
+      </div>
+      <div class="snote">
+        <span class="step">0.6s · the wordmark rises</span>
+        <b>Name and promise fade up together</b>
+        <p>“LifeOS” and “Capture your life” slide up under the mark, then a slim progress shimmer runs
+          while the on-device database opens — no dead spinner, no blank white flash.</p>
+      </div>
+      <div class="snote">
+        <span class="step">1.2s · it hands off</span>
+        <b>Blends into Home, no hard cut</b>
+        <p>The splash gently scales and fades as Home fades in beneath it, so cold start feels like one
+          continuous motion instead of two screens.</p>
+      </div>
+      <div class="snote">
+        <span class="step">Notes for the build</span>
+        <b>Replaces the plain system splash</b>
+        <p>The current start is Android's default white splash with the old icon. This keeps the
+          fast native splash covering the encrypted-database open, then plays this animation on top —
+          and respects “reduce motion” by falling straight through to Home. Colours stay in AURA.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MOTION ============ -->
+  <div class="section-label">3 · Motion added across the app</div>
+
+  <div class="motiongrid">
+    <div class="demo">
+      <h4>Capture orb</h4>
+      <p>Breathing halo when you open Capture — invites the tap.</p>
+      <div class="stage"><div class="orbwrap"><div class="orb"></div></div></div>
+    </div>
+
+    <div class="demo">
+      <h4>Daily progress ring</h4>
+      <p>The Home ring sweeps to your real completion instead of appearing filled.</p>
+      <div class="stage"><div class="pring"><i>68%</i></div></div>
+    </div>
+
+    <div class="demo">
+      <h4>Saved confirmation</h4>
+      <p>A tick that draws itself when a capture is stored — a real “done”, not a toast.</p>
+      <div class="stage"><div class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5 L10 17.5 L19 7"/></svg></div></div>
+    </div>
+
+    <div class="demo">
+      <h4>List entrance</h4>
+      <p>Cards on Today &amp; Diary fade and rise in a short stagger, never all at once.</p>
+      <div class="stage" style="width:100%"><div class="stagger"><div></div><div></div><div></div></div></div>
+    </div>
+
+    <div class="demo">
+      <h4>Bottom-bar selection</h4>
+      <p>The active tab glides and lights up in the AURA gradient.</p>
+      <div class="stage">
+        <div class="mininav"><b></b><b></b><b></b><b></b></div>
+      </div>
+    </div>
+
+    <div class="demo">
+      <h4>Recorder level</h4>
+      <p>While recording, the dial breathes with your actual mic level — never a fake wave.</p>
+      <div class="stage">
+        <div class="lvl"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+    </div>
+
+    <div class="demo">
+      <h4>AI thinking</h4>
+      <p>Three dots bounce while a reflection is generated.</p>
+      <div class="stage"><div class="typing"><i></i><i></i><i></i></div></div>
+    </div>
+
+    <div class="demo">
+      <h4>Habit heatmap</h4>
+      <p>Cells fill in on open so a streak feels earned.</p>
+      <div class="stage"><div class="heat">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div></div>
+    </div>
+
+    <div class="demo">
+      <h4>Capture button morph</h4>
+      <p>The centre ＋ rotates as it opens the capture sheet.</p>
+      <div class="stage"><div class="fab"></div></div>
+    </div>
+  </div>
+
+  <footer>
+    <b>What happens next:</b> if you approve this, I'll finish the audio fix build, redraw the launcher
+    icon in the chosen colour, add the animated start screen and the motion above into the Compose app,
+    then open the pull request. Tell me which logo colour you want — <b>A · AURA</b> (recommended),
+    <b>B · Lagoon</b>, or <b>C · Sunset</b>.
+  </footer>
+</div>
+</body>
+</html>

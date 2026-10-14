@@ -1,15 +1,29 @@
 # LifeOS — Design System & UI/UX Specification
 
 **Status:** Production design specification
-**Version:** v5 — "Lumen"
-**Supersedes:** v4 "Prism Glass" (removed)
+**Version:** v6 — "AURA"
+**Supersedes:** v5 "Lumen" (warm matte paper) → now the *dark, frosted-glass* language the spec §53 asks for
 **Platform:** Android (native, Jetpack Compose, minSdk 26)
 **Owner:** LifeOS
 
+> **v6 note.** The visual language is **AURA**: a deep lagoon (teal→plum) canvas
+> behind frosted translucent glass, lit by a warm **coral** signature with
+> **mint** as its calm partner — the "premium glassmorphism, futuristic, calm,
+> Gen-Z" direction of spec §53, and the opposite of generic blue-black glass.
+> The token *names* are unchanged (`ui/theme/*`), only their values moved, so
+> every existing call site adopted the new look without a rewrite.
+>
+> The IA is also restored to the spec (§4): the primary bar is now
+> **Home · Notes · ＋Capture · Insights · Life**, and the Insights tab (§27/§28)
+> is a real screen again, wired to the offline intelligence engine.
+>
+> Sections below that still describe v5 "Lumen" (its warm palette, matte
+> material and "You" tab) are **superseded** and pending a full text refresh;
+> the code in `ui/theme/*` and `ui/components/*` is the authority.
+
 > This document is the single source of truth for how LifeOS looks, moves and
-> behaves. The previous design language has been removed entirely; the app was
-> rebuilt from zero on the system described here. Where a value appears in this
-> document it is the value implemented in code (`ui/theme/*`, `ui/components/*`).
+> behaves. Where a value appears in this document it is the value implemented in
+> code (`ui/theme/*`, `ui/components/*`).
 
 ---
 
@@ -324,12 +338,12 @@ the state applies.
 
 ### The primary bar
 
-A floating matte pill with five slots. Capture is **not** a tab — it is the
+A floating frosted pill with five slots. Capture is **not** a tab — it is the
 raised centre action that opens the full-window Capture hub, so it must not join
 the tab selection model.
 
 ```
-Home   ·   Notes   ·   [ ＋ Capture ]   ·   Life   ·   You
+Home   ·   Notes   ·   [ ＋ Capture ]   ·   Insights   ·   Life
 ```
 
 | Slot | Route | What it is |
@@ -337,29 +351,24 @@ Home   ·   Notes   ·   [ ＋ Capture ]   ·   Life   ·   You
 | **Home** | `home` | The command centre: today's real progress, quick actions, today's tasks, habits, weekly rhythm, spend, recent activity, AI entry |
 | **Notes** | `notes` | Long-form thinking: list, filters, editor |
 | **＋ Capture** | `capture` | Full-window hub: thought, photo, video, audio, mood, location, attach |
+| **Insights** | `insights` | Spec §27/§28 dashboard: weekly/monthly report + all-time stats, every figure from the offline engine |
 | **Life** | `life` | The connected-history hub: timeline, calendar, search, and every module |
-| **You** | `profile` | Profile, App Lock, Local Backup, Settings |
 
 Labels are always visible; icon-only navigation is a UX trap. The active tab is a
-**solid clay pill** (content in `onPrimary`) — loud enough that "where am I" is
-never a guess, but deliberately not the identity gradient: the gradient is
-reserved for Capture, the hero and the AI orb, and solid clay also holds the
-label at 5.4:1 where the gradient's mid-stop would drop it under 4.5:1. The bar
-hides itself on full-window flows (Capture, Note editor, AI, Snap, Global Search,
-App Lock setup) and while the Diary composer owns the window.
+**solid coral pill** (content in `onPrimary`) — loud enough that "where am I" is
+never a guess, and coral holds the label at ~8.9:1 where a bright gradient stop
+would not. The bar hides itself on full-window flows (Capture, Note editor, AI,
+Snap, Global Search, App Lock setup) and while the Diary composer owns the window.
 
 ### What changed from the previous IA
 
-- **The Insights tab was removed.** Its analytics lived only on that screen and
-  duplicated figures the Life hub and the AI assistant already surface. The route,
-  screen, view model and bottom-bar slot were deleted. The underlying analytics
-  (habit stats, weekly rhythm, spend) are unchanged and still appear where they
-  belong.
-- **"You" replaces it** as the fourth slot, so the personal hub (profile, lock,
-  backup, settings) is one tap from anywhere instead of an overlay pushed from
-  Home.
-- The AI assistant's answer chips now point at **Life** instead of the removed
-  Insights screen.
+- **The Insights tab is restored** (spec §4): `insights` is a primary tab again,
+  backed by `ui/insights/InsightsViewModel` over the offline
+  `LifeOSIntelligenceEngine` — weekly and monthly reports plus all-time personal
+  statistics. The route, screen, view model and bar slot all exist.
+- **"You" moved out of the bar.** The personal hub (profile, lock, backup,
+  settings) is reached from Home's avatar and the Life hub, freeing the fourth
+  slot for Insights as the spec requires.
 
 ### Route map
 
@@ -367,8 +376,8 @@ App Lock setup) and while the Diary composer owns the window.
 root_tabs (bottom bar visible)
 ├── home
 ├── notes
-├── life
-└── profile            (You)
+├── insights
+└── life
 
 full-screen / pushed (bar hidden or stacked above tabs)
 ├── capture            ── full-window sheet
@@ -376,6 +385,7 @@ full-screen / pushed (bar hidden or stacked above tabs)
 ├── ai                 ── full-height transcript
 ├── snap               ── camera
 ├── search             ── full-window search
+├── profile            ── personal hub (pushed from Home avatar / Life)
 ├── timeline, tasks, habits, habits/{habitId}, expenses
 ├── diary + diary/search, diary/calendar, diary/insights, diary/{entryId}
 ├── settings, settings/app_lock
@@ -488,3 +498,4 @@ is the paper pole of the design (§3).
 | v3 | Aurora Noir | Cinematic jewel tones, calmer palette |
 | v4 | Prism Glass | Rebuilt from zero: obsidian canvas, painted glass material, single iridescent spectrum, reworked IA (Insights removed, "You" added), new type/shape/motion scales |
 | **v5** | **Lumen** | **Rebuilt from zero again: warm paper canvas, MATTE surfaces (blur, sheen and dual-tone rim removed), clay/sage/amber palette replacing the cool spectrum, Fraunces + Manrope replacing Poppins at a heavier type scale, softer radii, deeper shadows, heavier springs, one deep identity gradient unified behind `prismBrush()`, serif section voice, solid-clay active tab** |
+| **v6** | **AURA** | **Dark, spec-§53 frosted-glass language: deep lagoon (teal→plum) canvas, translucent frosted surfaces, soft borders, large radii, floating layers; warm coral signature + calm mint partner replacing the warm-paper palette; teal→rust→coral identity gradient; WCAG-AA checked in both themes; IA restored to the spec bar (Insights back, "You" moved out). Token names unchanged — a values-only swap behind the same contract.** |

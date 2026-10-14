@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeOS — new UI preview</title>
+<style>
+  :root{
+    --bg:#070B0B;
+    --ink:#F1F5F2;
+    --muted:#8FA09A;
+    --muted2:#B9C7C3;
+    --coral:#FF9E80;
+    --coral-deep:#FF7A55;
+    --mint:#5EE0B0;
+    --amber:#E9C46A;
+    --danger:#FF8F8A;
+    --info:#8FB8E0;
+    --glass:rgba(255,255,255,.055);
+    --glass2:rgba(255,255,255,.09);
+    --edge:rgba(255,255,255,.12);
+    --edge2:rgba(255,255,255,.20);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#050707;color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .page{position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(60% 45% at 12% 0%, rgba(94,224,176,.14), transparent 62%),
+      radial-gradient(55% 40% at 92% 8%, rgba(255,126,90,.13), transparent 60%),
+      radial-gradient(70% 55% at 50% 108%, rgba(120,80,190,.12), transparent 65%),
+      linear-gradient(180deg,#070B0B,#050707);}
+  .wrap{position:relative;z-index:1;max-width:1360px;margin:0 auto;padding:52px 22px 120px}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .logo{width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(150deg,var(--mint),var(--coral));
+    box-shadow:0 12px 30px -10px rgba(94,224,176,.6)}
+  h1{font-size:clamp(27px,4.6vw,42px);margin:0 0 10px;letter-spacing:-.03em;font-weight:750}
+  h1 em{font-style:normal;background:linear-gradient(92deg,var(--coral),var(--mint));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:#9AA8A3;font-size:15px;line-height:1.7;max-width:820px;margin:0}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+  .chip{font-size:11.5px;font-weight:600;letter-spacing:.04em;padding:7px 12px;border-radius:999px;
+    background:var(--glass);border:1px solid var(--edge);color:#C7D2CE;backdrop-filter:blur(12px)}
+  .chip b{color:var(--coral)}
+  .section-label{margin:56px 0 22px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted);font-weight:700}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:30px 26px}
+  @media(max-width:1180px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:640px){.grid{grid-template-columns:1fr;max-width:400px;margin:0 auto}}
+  .cap{text-align:center;margin-top:14px;color:#93A19C;font-size:12px;letter-spacing:.08em;
+    text-transform:uppercase;font-weight:700}
+  .phone{width:100%;max-width:330px;margin:0 auto;border-radius:46px;padding:11px;
+    background:rgba(255,255,255,.035);border:1px solid var(--edge);backdrop-filter:blur(18px);
+    box-shadow:0 50px 90px -34px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.10)}
+  .screen{position:relative;border-radius:38px;overflow:hidden;height:680px;display:flex;
+    flex-direction:column;font-size:13px;
+    background:
+      radial-gradient(85% 42% at 82% -6%, rgba(94,224,176,.20), transparent 60%),
+      radial-gradient(80% 40% at 6% 104%, rgba(255,126,90,.16), transparent 62%),
+      linear-gradient(168deg,#0B1514 0%, #0A0F12 52%, #0C0A12 100%);
+    border:1px solid rgba(255,255,255,.07)}
+  .pad{padding:18px 18px 0;position:relative;z-index:2;display:flex;flex-direction:column;flex:1;min-height:0}
+  .scroll{overflow:hidden}
+  /* frosted card */
+  .g{background:linear-gradient(160deg,var(--glass2),var(--glass));
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+    border:1px solid var(--edge);border-radius:24px;
+    box-shadow:0 12px 30px -14px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.10)}
+  .top{display:flex;align-items:center;justify-content:space-between;padding:4px 2px 0}
+  .eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .greet{font-family:Georgia,"Times New Roman",serif;font-size:22px;font-weight:600;margin-top:5px;
+    letter-spacing:-.015em}
+  .av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:13px;
+    font-weight:750;color:#0A1412;background:linear-gradient(140deg,var(--mint),var(--coral));
+    box-shadow:0 10px 24px -10px rgba(94,224,176,.6);flex:none}
+  .icbtn{width:36px;height:36px;border-radius:13px;display:grid;place-items:center;
+    background:var(--glass);border:1px solid var(--edge);color:var(--muted2);font-size:15px}
+  .iconrow{display:flex;gap:9px;align-items:center}
+  /* hero */
+  .hero{margin-top:16px;padding:18px}
+  .row1{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .big{font-family:Georgia,serif;font-size:48px;line-height:1;font-weight:750;letter-spacing:-.035em}
+  .big i{font-style:normal;font-size:21px;color:var(--coral);margin-left:2px}
+  .lbl{color:var(--muted);font-size:12px;margin-top:7px}
+  .ring{width:70px;height:70px;border-radius:50%;flex:none;
+    background:conic-gradient(var(--coral) 0 68%, rgba(255,255,255,.10) 68% 100%);
+    display:grid;place-items:center}
+  .ring i{width:52px;height:52px;border-radius:50%;background:#0C1514;display:grid;place-items:center;
+    font-style:normal;font-size:12.5px;font-weight:750;color:var(--ink)}
+  .bar{height:9px;border-radius:999px;background:rgba(255,255,255,.09);overflow:hidden;margin-top:16px}
+  .bar>i{display:block;height:100%;border-radius:999px;
+    background:linear-gradient(90deg,var(--mint),var(--coral))}
+  .trio{display:flex;gap:9px;margin-top:16px}
+  .trio>div{flex:1;padding:11px 12px;border-radius:17px;background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.11)}
+  .trio b{font-size:15px;font-weight:750}
+  .trio span{display:block;color:var(--muted);font-size:10px;margin-top:3px;letter-spacing:.04em}
+  /* sections */
+  .sec{display:flex;align-items:baseline;justify-content:space-between;margin:20px 2px 11px}
+  .sec h3{margin:0;font-family:Georgia,serif;font-size:16.5px;font-weight:600;letter-spacing:-.01em}
+  .sec a{color:var(--coral);font-size:11.5px;text-decoration:none;font-weight:650}
+  .row{display:flex;align-items:center;gap:12px;padding:12px 13px;border-radius:18px;margin-bottom:9px;
+    background:linear-gradient(160deg,var(--glass2),var(--glass));border:1px solid var(--edge);
+    backdrop-filter:blur(18px)}
+  .cb{width:21px;height:21px;border-radius:50%;border:1.7px solid rgba(255,255,255,.28);flex:none;
+    position:relative}
+  .cb.on{background:linear-gradient(150deg,var(--mint),#38C79A);border-color:transparent}
+  .cb.on:after{content:"";position:absolute;left:7px;top:4px;width:4px;height:8px;
+    border:solid #062018;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .rt{flex:1;min-width:0}
+  .rt b{font-weight:600;font-size:12.5px;display:block}
+  .rt span{color:var(--muted);font-size:10.5px}
+  .pill{font-size:9.5px;font-weight:750;letter-spacing:.04em;padding:4px 9px;border-radius:999px;
+    background:rgba(255,158,128,.16);color:var(--coral);border:1px solid rgba(255,158,128,.3);
+    white-space:nowrap}
+  .pill.m{background:rgba(94,224,176,.14);color:var(--mint);border-color:rgba(94,224,176,.3)}
+  .pill.a{background:rgba(233,196,106,.14);color:var(--amber);border-color:rgba(233,196,106,.3)}
+  /* quick tiles */
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:4px}
+  .qtile{padding:13px 6px;border-radius:19px;text-align:center;font-size:10px;font-weight:650;
+    color:#DCE6E2;background:linear-gradient(160deg,var(--glass2),var(--glass));
+    border:1px solid var(--edge);backdrop-filter:blur(18px)}
+  .qtile .qi{width:27px;height:27px;border-radius:10px;margin:0 auto 8px;display:grid;place-items:center;
+    font-size:13px}
+  .qi.g{background:rgba(94,224,176,.18);color:var(--mint)}
+  .qi.c{background:rgba(255,158,128,.18);color:var(--coral)}
+  .qi.w{background:rgba(233,196,106,.18);color:var(--amber)}
+  .qi.b{background:rgba(143,184,224,.18);color:var(--info)}
+  /* nav */
+  .nav{margin-top:auto;display:flex;align-items:center;justify-content:space-around;
+    padding:10px 12px 16px;position:relative;z-index:2}
+  .nv{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);
+    font-size:9.5px;font-weight:650;width:56px}
+  .nv .ic{width:22px;height:22px;border-radius:8px;border:1.6px solid rgba(255,255,255,.22)}
+  .nv.act{color:var(--coral)}
+  .nv.act .ic{border-color:var(--coral);background:rgba(255,158,128,.20)}
+  .capb{width:52px;height:52px;border-radius:18px;display:grid;place-items:center;margin-top:-18px;
+    background:linear-gradient(150deg,var(--coral),var(--coral-deep));color:#23100A;font-size:26px;
+    font-weight:400;box-shadow:0 16px 32px -8px rgba(255,122,85,.7),
+    inset 0 1px 0 rgba(255,255,255,.4)}
+  /* misc bits */
+  .searchbar{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:18px;
+    background:var(--glass);border:1px solid var(--edge);color:var(--muted);font-size:12.5px;margin-top:14px}
+  .filterrow{display:flex;gap:8px;margin-top:14px;overflow:hidden}
+  .fchip{font-size:11px;font-weight:650;padding:7px 13px;border-radius:999px;white-space:nowrap;
+    background:var(--glass);border:1px solid var(--edge);color:var(--muted2)}
+  .fchip.on{background:var(--coral);border-color:var(--coral);color:#23100A}
+  .cardgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  .ncard{padding:13px;border-radius:20px;background:linear-gradient(160deg,var(--glass2),var(--glass));
+    border:1px solid var(--edge);backdrop-filter:blur(18px);min-height:92px;display:flex;
+    flex-direction:column;gap:6px}
+  .ncard b{font-size:12px;font-weight:650;line-height:1.3}
+  .ncard span{font-size:10px;color:var(--muted);margin-top:auto}
+  .tag{font-size:9px;font-weight:700;padding:3px 7px;border-radius:7px;align-self:flex-start;
+    background:rgba(94,224,176,.14);color:var(--mint);letter-spacing:.03em}
+  .tag.c{background:rgba(255,158,128,.16);color:var(--coral)}
+  .tag.w{background:rgba(233,196,106,.15);color:var(--amber)}
+  .seg{display:flex;gap:4px;padding:4px;border-radius:15px;background:var(--glass);
+    border:1px solid var(--edge);margin-top:14px}
+  .seg>span{flex:1;text-align:center;font-size:11.5px;font-weight:650;padding:8px;border-radius:12px;
+    color:var(--muted)}
+  .seg>span.on{background:linear-gradient(150deg,var(--coral),var(--coral-deep));color:#23100A}
+  .spark{display:flex;align-items:flex-end;gap:6px;height:80px;margin-top:14px}
+  .spark div{flex:1;border-radius:7px 7px 3px 3px;
+    background:linear-gradient(180deg,var(--mint),rgba(94,224,176,.22))}
+  .spark div.a{background:linear-gradient(180deg,var(--coral),rgba(255,122,85,.22))}
+  .minirow{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:16px;
+    background:var(--glass);border:1px solid var(--edge);margin-bottom:8px}
+  .minirow .rt b{font-size:12px}
+  .track{width:76px;height:8px;border-radius:999px;background:rgba(255,255,255,.09);overflow:hidden}
+  .track>i{display:block;height:100%;border-radius:999px;
+    background:linear-gradient(90deg,var(--mint),var(--coral))}
+  .timeline{position:relative;margin-top:14px;padding-left:22px}
+  .timeline:before{content:"";position:absolute;left:6px;top:6px;bottom:6px;width:1.5px;
+    background:linear-gradient(180deg,rgba(255,158,128,.5),rgba(94,224,176,.35))}
+  .tevent{position:relative;margin-bottom:14px}
+  .tevent:before{content:"";position:absolute;left:-19px;top:5px;width:9px;height:9px;border-radius:50%;
+    background:var(--coral);box-shadow:0 0 0 4px rgba(255,158,128,.15)}
+  .tevent.m:before{background:var(--mint);box-shadow:0 0 0 4px rgba(94,224,176,.15)}
+  .tevent.w:before{background:var(--amber);box-shadow:0 0 0 4px rgba(233,196,106,.15)}
+  .tevent b{font-size:12px;font-weight:650;display:block}
+  .tevent span{font-size:10.5px;color:var(--muted)}
+  .daylabel{font-family:Georgia,serif;font-size:13.5px;font-weight:600;color:var(--muted2);
+    margin:4px 0 10px}
+  .heat{display:grid;grid-template-columns:repeat(14,1fr);gap:3px;margin-top:8px}
+  .heat i{aspect-ratio:1;border-radius:3px;background:rgba(255,255,255,.07);display:block}
+  .heat i.l1{background:rgba(94,224,176,.28)}
+  .heat i.l2{background:rgba(94,224,176,.55)}
+  .heat i.l3{background:var(--mint)}
+  .heat i.c1{background:rgba(255,158,128,.5)}
+  .chat{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+  .bub{max-width:82%;padding:12px 14px;border-radius:19px;font-size:12.5px;line-height:1.5;
+    background:var(--glass);border:1px solid var(--edge)}
+  .bub.me{align-self:flex-end;background:linear-gradient(150deg,var(--coral),var(--coral-deep));
+    color:#23100A;border-color:transparent;font-weight:600}
+  .bub.ai{align-self:flex-start;border-top-left-radius:6px}
+  .bub.ai b{color:var(--mint)}
+  .composer{display:flex;gap:9px;align-items:center;margin-top:14px}
+  .composer .inp{flex:1;padding:13px 15px;border-radius:18px;background:var(--glass);
+    border:1px solid var(--edge);color:var(--muted);font-size:12.5px}
+  .send{width:44px;height:44px;border-radius:15px;display:grid;place-items:center;
+    background:linear-gradient(150deg,var(--coral),var(--coral-deep));color:#23100A;font-size:17px;
+    box-shadow:0 12px 26px -10px rgba(255,122,85,.7)}
+  .orb{width:120px;height:120px;border-radius:50%;margin:2px auto 16px;
+    background:radial-gradient(circle at 34% 30%, rgba(94,224,176,.92), rgba(255,158,128,.72) 55%,
+    rgba(120,80,190,.35));
+    box-shadow:0 0 60px -6px rgba(94,224,176,.5), inset 0 0 30px rgba(255,255,255,.25)}
+  .moods{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .mood{font-size:11px;font-weight:650;padding:8px 12px;border-radius:14px;background:var(--glass);
+    border:1px solid var(--edge);color:var(--muted2)}
+  .mood.on{background:rgba(233,196,106,.18);border-color:rgba(233,196,106,.4);color:var(--amber)}
+  .paper{background:linear-gradient(180deg,#FCF7EA,#F3EAD6);border-radius:22px;padding:18px 16px;
+    color:#3B332A;margin-top:14px;border:1px solid #E2D6BC;
+    box-shadow:0 18px 40px -20px rgba(0,0,0,.7)}
+  .paper .ph{font-family:Georgia,serif;font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+    color:#A08D6E;font-weight:700}
+  .paper .pt{font-family:"Comic Sans MS","Segoe Script",cursive;font-size:19px;color:#2E2A26;
+    margin:8px 0 10px;font-weight:700}
+  .paper p{font-family:"Comic Sans MS","Segoe Script",cursive;font-size:13.5px;line-height:1.85;
+    color:#4A4335;margin:0}
+  .paper .rule{height:1px;background:#D3C4A3;margin:12px 0}
+  .sw{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+  .sw .col{flex:1;min-width:120px}
+  .sw .ch{height:70px;border-radius:18px;border:1px solid var(--edge)}
+  .sw b{display:block;font-size:12px;margin-top:9px}
+  .sw code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;color:var(--muted)}
+  .typebox{margin-top:52px;padding:26px;border-radius:26px;
+    background:linear-gradient(160deg,var(--glass2),var(--glass));border:1px solid var(--edge);
+    backdrop-filter:blur(20px)}
+  .typebox .d{font-family:Georgia,serif;font-size:36px;font-weight:750;letter-spacing:-.03em;margin:0 0 12px}
+  .typebox .e{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--coral);
+    font-weight:750;margin-top:14px}
+  .typebox p{color:#9AA8A3;margin:6px 0;font-size:14px;line-height:1.7}
+  .note{margin-top:34px;padding:20px 22px;border-radius:22px;max-width:940px;
+    background:linear-gradient(160deg,var(--glass2),var(--glass));border:1px solid var(--edge);
+    color:#A7B4AF;font-size:13.5px;line-height:1.7}
+  .note b{color:var(--ink)}
+  .note ul{margin:10px 0 0;padding-left:20px}
+  .note li{margin:5px 0}
+</style>
+</head>
+<body>
+<div class="page"></div>
+<div class="wrap">
+
+  <div class="brand"><div class="logo"></div><div class="eyebrow">LifeOS · new UI</div></div>
+  <h1>LifeOS — <em>the new UI</em></h1>
+  <p class="sub">Same palette you already have (<b style="color:#FF9E80">coral</b> signature,
+  <b style="color:#5EE0B0">mint</b> partner, lagoon teal→plum canvas) — but rebuilt as a modern,
+  frosted-glass, floating-layer interface. Bigger serif voice, calmer spacing, honest data,
+  no blue-grey “AI dark mode”, no hardcoded colours leaking from the theme.</p>
+  <div class="chips">
+    <span class="chip">Frosted glass</span>
+    <span class="chip">Floating layers</span>
+    <span class="chip">Large radii</span>
+    <span class="chip">Serif <b>display</b> voice</span>
+    <span class="chip">Home · Notes · ＋Capture · Insights · Life</span>
+    <span class="chip">WCAG AA</span>
+  </div>
+
+  <div class="section-label">The screens</div>
+  <div class="grid">
+
+    <!-- HOME -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top">
+            <div><div class="eyebrow">Tuesday · 14 Oct</div><div class="greet">Good evening, Pras</div></div>
+            <div class="iconrow"><div class="icbtn">⌕</div><div class="av">P</div></div>
+          </div>
+          <div class="hero g">
+            <div class="row1">
+              <div><div class="big">68<i>%</i></div><div class="lbl">of today's goals</div></div>
+              <div class="ring"><i>4/6</i></div>
+            </div>
+            <div class="bar"><i style="width:68%"></i></div>
+            <div class="trio">
+              <div><b>12<span style="font-size:10px;color:#8FA09A">d</span></b><span>STREAK</span></div>
+              <div><b>₹840</b><span>SPENT</span></div>
+              <div><b>3</b><span>MEMORIES</span></div>
+            </div>
+          </div>
+          <div class="tiles">
+            <div class="qtile"><div class="qi g">✓</div>Tasks</div>
+            <div class="qtile"><div class="qi w">▲</div>Habits</div>
+            <div class="qtile"><div class="qi c">₹</div>Money</div>
+            <div class="qtile"><div class="qi b">✎</div>Diary</div>
+          </div>
+          <div class="sec"><h3>Today</h3><a>See all</a></div>
+          <div class="row"><span class="cb on"></span><span class="rt"><b>Morning review</b>
+            <span>Habit · 9:00</span></span><span class="pill m">done</span></div>
+          <div class="row"><span class="cb"></span><span class="rt"><b>Ship the audit doc</b>
+            <span>Task · today</span></span><span class="pill">now</span></div>
+          <div class="row"><span class="cb"></span><span class="rt"><b>Write in diary</b>
+            <span>Evening · 21:30</span></span></div>
+        </div>
+        <div class="nav">
+          <span class="nv act"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">Home</div>
+    </div>
+
+    <!-- INSIGHTS -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top">
+            <div><div class="eyebrow">LifeOS</div><div class="greet">Insights</div></div>
+            <span class="pill">This week</span>
+          </div>
+          <div class="seg"><span class="on">Week</span><span>Month</span><span>All time</span></div>
+          <div class="hero g">
+            <div class="lbl" style="margin:0 0 6px">Consistency</div>
+            <div style="display:flex;align-items:baseline;gap:9px">
+              <div class="big" style="font-size:40px">82<i>%</i></div>
+              <span style="color:var(--mint);font-size:12px;font-weight:750">▲ 6 pts</span>
+            </div>
+            <div class="spark">
+              <div style="height:44%"></div><div style="height:62%"></div>
+              <div class="a" style="height:38%"></div><div style="height:80%"></div>
+              <div style="height:70%"></div><div style="height:96%"></div>
+              <div style="height:58%"></div>
+            </div>
+          </div>
+          <div class="sec"><h3>By area</h3><a>Details</a></div>
+          <div class="minirow"><span class="rt"><b>Habits</b><span>4 of 5 kept</span></span>
+            <span class="track"><i style="width:80%"></i></span></div>
+          <div class="minirow"><span class="rt"><b>Tasks</b><span>22 of 28 done</span></span>
+            <span class="track"><i style="width:79%"></i></span></div>
+          <div class="minirow"><span class="rt"><b>Diary</b><span>6 of 7 days</span></span>
+            <span class="track"><i style="width:86%"></i></span></div>
+          <div class="row" style="margin-top:6px"><span class="rt"><b>Spent this week</b>
+            <span>vs ₹3,940 last week</span></span><span class="pill a">−12%</span></div>
+        </div>
+        <div class="nav">
+          <span class="nv"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv act"><span class="ic"></span>Insights</span>
+          <span class="nv"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">Insights</div>
+    </div>
+
+    <!-- CAPTURE -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top"><div><div class="eyebrow">Capture</div>
+            <div class="greet">What's on your mind?</div></div></div>
+          <div class="hero g" style="text-align:center;margin-top:18px">
+            <div class="orb"></div>
+            <div style="font-size:12.5px;color:#C7D2CE">Tap to speak, write or shoot a moment</div>
+            <div style="font-size:10.5px;color:var(--muted);margin-top:6px">Saved privately on this device</div>
+          </div>
+          <div class="sec"><h3>Quick capture</h3></div>
+          <div class="tiles">
+            <div class="qtile"><div class="qi c">✎</div>Thought</div>
+            <div class="qtile"><div class="qi g">◉</div>Photo</div>
+            <div class="qtile"><div class="qi b">▶</div>Video</div>
+            <div class="qtile"><div class="qi w">◍</div>Audio</div>
+          </div>
+          <div class="tiles" style="margin-top:9px;grid-template-columns:repeat(2,1fr)">
+            <div class="qtile"><div class="qi c">☺</div>Mood</div>
+            <div class="qtile"><div class="qi g">⌖</div>Place</div>
+          </div>
+        </div>
+        <div class="nav">
+          <span class="nv"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">Capture</div>
+    </div>
+
+    <!-- NOTES -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top"><div><div class="eyebrow">LifeOS</div>
+            <div class="greet">Notes</div></div>
+            <div class="iconrow"><div class="icbtn">⌕</div><div class="icbtn">＋</div></div></div>
+          <div class="filterrow">
+            <span class="fchip on">All</span><span class="fchip">Recent</span>
+            <span class="fchip">Pinned</span><span class="fchip">Favorites</span>
+          </div>
+          <div class="cardgrid">
+            <div class="ncard"><span class="tag">COLLEGE</span><b>Compiler design — final revision</b>
+              <span>Edited 2h ago</span></div>
+            <div class="ncard"><span class="tag c">IDEAS</span><b>App concept: focus timer with streaks</b>
+              <span>Yesterday</span></div>
+            <div class="ncard"><span class="tag w">FINANCE</span><b>October budget plan</b>
+              <span>Mon</span></div>
+            <div class="ncard"><span class="tag">PERSONAL</span><b>Books to read before 2027</b>
+              <span>Sun</span></div>
+          </div>
+          <div class="sec"><h3>Pinned</h3><a>3 notes</a></div>
+          <div class="row"><span class="rt"><b>Weekly goals & reviews</b>
+            <span>Personal · pinned</span></span><span class="pill">★</span></div>
+        </div>
+        <div class="nav">
+          <span class="nv"><span class="ic"></span>Home</span>
+          <span class="nv act"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">Notes</div>
+    </div>
+
+    <!-- LIFE / TIMELINE -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top"><div><div class="eyebrow">LifeOS</div>
+            <div class="greet">Life</div></div><span class="pill">Timeline</span></div>
+          <div class="searchbar">⌕&nbsp; Search your whole life…</div>
+          <div class="timeline">
+            <div class="daylabel">Today · Tuesday 14 Oct</div>
+            <div class="tevent"><b>Wrote in diary</b><span>21:30 · Mood — Calm</span></div>
+            <div class="tevent m"><b>Completed “Morning review”</b><span>09:02 · Habit</span></div>
+            <div class="tevent w"><b>Spent ₹240 · Food</b><span>13:20 · Expense</span></div>
+            <div class="daylabel" style="margin-top:16px">Yesterday</div>
+            <div class="tevent"><b>Captured a memory — “Golden hour”</b><span>18:44 · Photo</span></div>
+            <div class="tevent m"><b>Finished “Ship the audit doc”</b><span>16:10 · Task</span></div>
+          </div>
+        </div>
+        <div class="nav">
+          <span class="nv"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv act"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">Life · Timeline</div>
+    </div>
+
+    <!-- HABITS -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top"><div><div class="eyebrow">LifeOS</div>
+            <div class="greet">Habits</div></div><span class="pill m">4 of 5 kept</span></div>
+          <div class="hero g" style="margin-top:16px">
+            <div class="lbl" style="margin:0 0 4px">This month</div>
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <div class="big" style="font-size:34px">21<span style="font-size:15px;color:#8FA09A">d</span></div>
+              <span style="color:var(--mint);font-size:12px;font-weight:750">best streak</span>
+            </div>
+            <div class="heat">
+              <i class="l3"></i><i class="l2"></i><i class="l3"></i><i class="l1"></i><i class="l3"></i>
+              <i class="l3"></i><i></i><i class="l2"></i><i class="l3"></i><i class="l3"></i>
+              <i class="l1"></i><i class="l3"></i><i class="l2"></i><i class="l3"></i>
+            </div>
+          </div>
+          <div class="sec"><h3>Your habits</h3><a>New</a></div>
+          <div class="row"><span class="rt"><b>Drink water · 6/8</b><span>4-day streak</span></span>
+            <span class="pill m">▲</span></div>
+          <div class="row"><span class="rt"><b>Workout</b><span>9-day streak</span></span>
+            <span class="cb on"></span></div>
+          <div class="row"><span class="rt"><b>Read 20 pages</b><span>2-day streak</span></span>
+            <span class="cb"></span></div>
+        </div>
+        <div class="nav">
+          <span class="nv"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv act"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">Habits</div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top"><div><div class="eyebrow">LifeOS</div>
+            <div class="greet">Money</div></div><span class="pill">October</span></div>
+          <div class="hero g" style="margin-top:16px">
+            <div class="lbl" style="margin:0 0 4px">Spent this month</div>
+            <div class="big" style="font-size:38px">₹18,420</div>
+            <div class="trio">
+              <div><b>₹840</b><span>TODAY</span></div>
+              <div><b>₹4,120</b><span>THIS WEEK</span></div>
+              <div><b>₹2,630</b><span>AVG/DAY</span></div>
+            </div>
+          </div>
+          <div class="sec"><h3>By category</h3><a>Details</a></div>
+          <div class="minirow"><span class="rt"><b>Food</b><span>₹6,450 · 35%</span></span>
+            <span class="track"><i style="width:35%"></i></span></div>
+          <div class="minirow"><span class="rt"><b>Shopping</b><span>₹4,210 · 23%</span></span>
+            <span class="track"><i style="width:23%"></i></span></div>
+          <div class="minirow"><span class="rt"><b>Travel</b><span>₹3,020 · 16%</span></span>
+            <span class="track"><i style="width:16%"></i></span></div>
+        </div>
+        <div class="nav">
+          <span class="nv"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv act"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">Expenses</div>
+    </div>
+
+    <!-- DIARY -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top"><div><div class="eyebrow">LifeOS</div>
+            <div class="greet">Diary</div></div><span class="pill">Today</span></div>
+          <div class="moods">
+            <span class="mood">Great</span><span class="mood on">Calm</span>
+            <span class="mood">Happy</span><span class="mood">Stressed</span>
+            <span class="mood">Loved</span>
+          </div>
+          <div class="paper">
+            <div class="ph">Tuesday, 14 October</div>
+            <div class="pt">A quiet, good day.</div>
+            <div class="rule"></div>
+            <p>Woke up early and finished the audit before lunch. The evening walk
+            felt slow and easy — exactly what I needed. Grateful for a calm one.</p>
+            <div class="rule"></div>
+            <div style="font-size:10.5px;color:#A08D6E;letter-spacing:.06em">#calm · #grateful · #walk</div>
+          </div>
+          <div class="sec"><h3>Recent entries</h3><a>Calendar</a></div>
+          <div class="row"><span class="rt"><b>Monday, 13 Oct</b><span>Mood — Stressed</span></span></div>
+        </div>
+        <div class="nav">
+          <span class="nv"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv act"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">Diary</div>
+    </div>
+
+  </div>
+
+  <!-- AI (full width row) -->
+  <div class="section-label">And the assistant</div>
+  <div class="grid" style="grid-template-columns:repeat(4,1fr)">
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top"><div><div class="eyebrow">On-device</div>
+            <div class="greet">LifeOS AI</div></div><span class="pill m">private</span></div>
+          <div class="chat">
+            <div class="bub me">How was my August?</div>
+            <div class="bub ai">In August you completed <b>41 of 52</b> tasks (79%) and kept
+              your workout habit <b>18 days</b>. Food was your biggest category at
+              <b>₹5,900</b>. <br><br><span style="color:#8FA09A;font-size:11px">
+              From your stored records, 1–31 Aug.</span></div>
+          </div>
+          <div class="composer">
+            <div class="inp">Ask about your own data…</div>
+            <div class="send">↑</div>
+          </div>
+          <div class="sec"><h3>Suggested</h3></div>
+          <div class="bub ai" style="max-width:100%">“Show my unfinished tasks”
+            <br><span style="font-size:11px;color:#8FA09A">I only read data you allow.</span></div>
+        </div>
+        <div class="nav">
+          <span class="nv"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">LifeOS AI</div>
+    </div>
+
+    <div style="grid-column:span 3">
+      <div class="typebox">
+        <div class="e">Display · a modern serif (Georgia → Fraunces in app)</div>
+        <div class="d">Good evening, Pras</div>
+        <div class="e">UI · system sans (Manrope in app)</div>
+        <p>Serif headings give the app a voice; the user's own content sits beneath in a calm sans.
+        Coral marks the one thing that matters on screen; mint means “kept up”. Everything else is
+        ink and glass. Text never leaves the legible range, and touch targets stay ≥ 48 dp.</p>
+
+        <div class="e" style="margin-top:26px">Palette — unchanged from your app</div>
+        <div class="sw">
+          <div class="col"><div class="ch" style="background:#070B0B"></div><b>Canvas</b><code>#070B0B</code></div>
+          <div class="col"><div class="ch" style="background:linear-gradient(160deg,#0B1514,#0C0A12)"></div><b>Glass</b><code>teal→plum</code></div>
+          <div class="col"><div class="ch" style="background:#FF9E80"></div><b>Coral · accent</b><code>#FF9E80</code></div>
+          <div class="col"><div class="ch" style="background:#5EE0B0"></div><b>Mint · calm</b><code>#5EE0B0</code></div>
+          <div class="col"><div class="ch" style="background:#E9C46A"></div><b>Amber</b><code>#E9C46A</code></div>
+          <div class="col"><div class="ch" style="background:#F1F5F2"></div><b>Ink</b><code>#F1F5F2</code></div>
+        </div>
+      </div>
+
+      <div class="note">
+        <b>How to tell me what you think:</b>
+        <ul>
+          <li>Say <b>“go”</b> → I rebuild these screens in Jetpack Compose and open a PR.</li>
+          <li>Say <b>“change &lt;one thing&gt;”</b> (hue, more/less colour, spacing, bigger type) → I re-issue this proof.</li>
+          <li>Say <b>“light theme too”</b> → I add the day-mode version.</li>
+        </ul>
+        <p style="margin-top:12px">Colours are the ones already in your app — I did <b>not</b> change the palette,
+        exactly as you asked. If you'd rather try a different accent, tell me and I'll show it here first.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

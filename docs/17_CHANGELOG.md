@@ -16,6 +16,46 @@ output.
 
 ---
 
+## [Unreleased] — Redesign pass: capture audio, identity, motion
+
+Branch `redesign/from-zero-2026`.
+
+### Fixed
+- **Voice capture was dead.** The Capture hub's Audio tile was a stub that only
+  printed "Voice notes are coming next"; the one working recorder
+  (`AudioCaptureScreen`) lived behind an unreachable `CaptureSheet`. The tile now
+  opens the real recorder, which records through the shared `AudioRecorder`
+  interface (live timer + real amplitude), saves via
+  `CaptureViewModel.saveAudio`, and reports honest failures
+  (`START_FAILED` / `TOO_SHORT` / `STOP_FAILED`). The dead `CaptureSheet.kt` is
+  removed.
+
+### Changed
+- **Launcher mark recoloured to AURA.** The adaptive icon dropped the generic
+  indigo `#6C63FF` for the app's own lagoon tile with a mint→coral ring and a
+  coral "captured moment" bead. The shape is unchanged — only the colour moved
+  onto the real palette. Added an Android 13+ monochrome layer for themed icons.
+- **Insights restored to the bottom bar.** IA is now
+  `Home · Notes · ＋Capture · Insights · Life` as the spec requires (the old
+  "You" slot becomes Insights); `Screen.Insights` and its NavHost route are
+  wired, and `BottomNavItemsTest` asserts the new order.
+
+### Added
+- **Animated start screen.** After Android's native splash, `LifeOSStartScreen`
+  traces the ring in, springs the bead into its opening, then lifts the wordmark
+  and promise over a progress shimmer (~1.6s) before crossfading into the app.
+  It is theme-aware (bright mint→coral on the dark lagoon, deeper brand steps in
+  the light polarity) and honours the system reduced-motion setting.
+- **Micro-motion.** The centre Capture action now carries a slow breathing halo;
+  the bottom-bar selection pill fades in with a small icon lift; the capture
+  confirmation draws a real animated tick; and the Home AI orb breathes gently.
+
+### Fixed (build)
+- Widened `CaptureViewModel`'s dependency from `DeviceLocationProvider` to the
+  `LocationProvider` interface so it can be tested on the JVM.
+
+---
+
 ## [0.2.0] — Hardening pass
 
 ### Security
