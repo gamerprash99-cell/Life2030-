@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeOS — AURA direction</title>
+<style>
+  :root{
+    --bg:#070B0B;
+    --teal:#0E2E29;
+    --plum:#1B0F22;
+    --glass:rgba(255,255,255,.055);
+    --glass2:rgba(255,255,255,.085);
+    --edge:rgba(255,255,255,.12);
+    --edge2:rgba(255,255,255,.20);
+    --ink:#F1F5F2;
+    --muted:#8FA09A;
+    --coral:#FF9E80;      /* signature accent */
+    --coral-deep:#FF7A55;
+    --mint:#5EE0B0;       /* calm partner */
+    --amber:#E9C46A;
+    --danger:#FF6B6B;
+    --info:#8FB8E0;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif}
+  .page{position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(60% 45% at 12% 0%, rgba(94,224,176,.14), transparent 62%),
+      radial-gradient(55% 40% at 92% 8%, rgba(255,126,90,.13), transparent 60%),
+      radial-gradient(70% 55% at 50% 108%, rgba(120,80,190,.12), transparent 65%),
+      linear-gradient(180deg,#070B0B,#060809);}
+  .wrap{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:44px 20px 110px}
+  h1{font-size:clamp(26px,4.4vw,40px);margin:0 0 10px;letter-spacing:-.025em;font-weight:700}
+  h1 em{font-style:normal;
+    background:linear-gradient(92deg,var(--coral),var(--mint));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:#9AA8A3;font-size:15px;line-height:1.65;max-width:780px;margin:0 0 6px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+  .chip{font-size:11.5px;font-weight:600;letter-spacing:.04em;padding:6px 11px;border-radius:999px;
+    background:var(--glass);border:1px solid var(--edge);color:#C7D2CE;backdrop-filter:blur(12px)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin-top:40px}
+  @media(max-width:1000px){.grid{grid-template-columns:1fr;max-width:400px;margin-left:auto;margin-right:auto}}
+  .cap{text-align:center;margin-top:14px;color:#93A19C;font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:600}
+  /* phone */
+  .phone{width:100%;border-radius:46px;padding:12px;background:rgba(255,255,255,.03);
+    border:1px solid var(--edge);backdrop-filter:blur(18px);
+    box-shadow:0 50px 90px -34px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.10)}
+  .screen{position:relative;border-radius:36px;overflow:hidden;height:660px;display:flex;
+    flex-direction:column;font-size:13px;
+    background:
+      radial-gradient(85% 42% at 80% -6%, rgba(94,224,176,.20), transparent 60%),
+      radial-gradient(80% 40% at 6% 104%, rgba(255,126,90,.16), transparent 62%),
+      linear-gradient(168deg,#0B1514 0%, #0A0F12 52%, #0C0A12 100%);
+    border:1px solid rgba(255,255,255,.07)}
+  /* frosted card */
+  .g{background:linear-gradient(160deg,var(--glass2),var(--glass));
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+    border:1px solid var(--edge);border-radius:24px;
+    box-shadow:0 12px 30px -14px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.10)}
+  .pad{padding:18px 18px 0;position:relative;z-index:2;display:flex;flex-direction:column;flex:1}
+  .top{display:flex;align-items:center;justify-content:space-between;padding:4px 2px 0}
+  .eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .greet{font-family:Georgia,"Times New Roman",serif;font-size:21px;font-weight:600;margin-top:5px;letter-spacing:-.01em}
+  .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;
+    color:#0A1412;background:linear-gradient(140deg,var(--mint),var(--coral))}
+  .hero{margin-top:16px;padding:18px}
+  .row1{display:flex;align-items:flex-start;justify-content:space-between}
+  .big{font-family:Georgia,serif;font-size:46px;line-height:1;font-weight:700;letter-spacing:-.03em}
+  .big i{font-style:normal;font-size:20px;color:var(--coral);margin-left:2px}
+  .lbl{color:var(--muted);font-size:12px;margin-top:7px}
+  .ring{width:64px;height:64px;border-radius:50%;flex:none;
+    background:conic-gradient(var(--coral) 0 68%, rgba(255,255,255,.10) 68% 100%);
+    display:grid;place-items:center}
+  .ring i{width:48px;height:48px;border-radius:50%;background:#0C1514;display:grid;place-items:center;
+    font-style:normal;font-size:12px;font-weight:700;color:var(--ink)}
+  .trio{display:flex;gap:9px;margin-top:16px}
+  .trio>div{flex:1;padding:10px 11px;border-radius:16px;background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.10)}
+  .trio b{font-size:15px;font-weight:700}
+  .trio span{display:block;color:var(--muted);font-size:10px;margin-top:3px;letter-spacing:.03em}
+  .sec{display:flex;align-items:baseline;justify-content:space-between;margin:20px 2px 11px}
+  .sec h3{margin:0;font-family:Georgia,serif;font-size:16px;font-weight:600;letter-spacing:-.01em}
+  .sec a{color:var(--coral);font-size:11.5px;text-decoration:none;font-weight:600}
+  .row{display:flex;align-items:center;gap:12px;padding:12px 13px;border-radius:18px;margin-bottom:9px;
+    background:linear-gradient(160deg,var(--glass2),var(--glass));border:1px solid var(--edge);
+    backdrop-filter:blur(18px)}
+  .cb{width:20px;height:20px;border-radius:50%;border:1.7px solid rgba(255,255,255,.28);flex:none;position:relative}
+  .cb.on{background:linear-gradient(150deg,var(--mint),#38C79A);border-color:transparent}
+  .cb.on:after{content:"";position:absolute;left:6.5px;top:3.5px;width:4px;height:8px;
+    border:solid #062018;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .rt{flex:1;min-width:0}
+  .rt b{font-weight:600;font-size:12.5px;display:block}
+  .rt span{color:var(--muted);font-size:10.5px}
+  .pill{font-size:9.5px;font-weight:700;letter-spacing:.04em;padding:4px 8px;border-radius:999px;
+    background:rgba(255,158,128,.16);color:var(--coral);border:1px solid rgba(255,158,128,.3)}
+  .pill.m{background:rgba(94,224,176,.14);color:var(--mint);border-color:rgba(94,224,176,.3)}
+  /* bottom nav */
+  .nav{margin-top:auto;display:flex;align-items:center;justify-content:space-between;
+    padding:11px 12px 15px;position:relative;z-index:2}
+  .nv{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);font-size:9.5px;font-weight:600;width:54px}
+  .nv .ic{width:21px;height:21px;border-radius:7px;border:1.6px solid rgba(255,255,255,.22)}
+  .nv.act{color:var(--coral)}
+  .nv.act .ic{border-color:var(--coral);background:rgba(255,158,128,.20)}
+  .capb{width:50px;height:50px;border-radius:17px;display:grid;place-items:center;margin-top:-16px;
+    background:linear-gradient(150deg,var(--coral),var(--coral-deep));color:#23100A;font-size:24px;font-weight:400;
+    box-shadow:0 14px 30px -8px rgba(255,122,85,.7), inset 0 1px 0 rgba(255,255,255,.4)}
+  /* insights specifics */
+  .bar{height:9px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:7px}
+  .bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--mint),var(--coral))}
+  .spark{display:flex;align-items:flex-end;gap:6px;height:92px;margin-top:16px}
+  .spark div{flex:1;border-radius:6px 6px 3px 3px;background:linear-gradient(180deg,var(--mint),rgba(94,224,176,.25))}
+  .spark div.a{background:linear-gradient(180deg,var(--coral),rgba(255,122,85,.25))}
+  /* capture specifics */
+  .cap-hero{margin-top:14px;padding:18px;text-align:center}
+  .cap-hero .orb{width:110px;height:110px;border-radius:50%;margin:4px auto 14px;
+    background:radial-gradient(circle at 34% 30%, rgba(94,224,176,.9), rgba(255,158,128,.7) 55%, rgba(120,80,190,.35));
+    box-shadow:0 0 60px -6px rgba(94,224,176,.5), inset 0 0 30px rgba(255,255,255,.25)}
+  .tiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px}
+  .tile{padding:14px 8px;border-radius:18px;text-align:center;font-size:10.5px;color:#D6E0DB;
+    background:linear-gradient(160deg,var(--glass2),var(--glass));border:1px solid var(--edge);backdrop-filter:blur(18px)}
+  .tile .ti{width:26px;height:26px;border-radius:9px;margin:0 auto 8px;background:rgba(255,255,255,.12)}
+  /* palette strip */
+  .pal{display:flex;gap:12px;flex-wrap:wrap;margin-top:46px;align-items:flex-start}
+  .sw{width:104px}
+  .sw .ch{height:64px;border-radius:16px;border:1px solid var(--edge)}
+  .sw code{display:block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;color:#8FA09A;margin-top:7px}
+  .sw b{font-size:11px;font-weight:600;color:#C7D2CE}
+  .typebox{margin-top:40px;padding:24px;border-radius:24px;
+    background:linear-gradient(160deg,var(--glass2),var(--glass));border:1px solid var(--edge);backdrop-filter:blur(20px)}
+  .typebox .d{font-family:Georgia,serif;font-size:34px;font-weight:700;letter-spacing:-.02em;margin:0 0 10px}
+  .typebox p{color:#9AA8A3;margin:6px 0;font-size:14px}
+  .typebox .e{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--coral);font-weight:700}
+  .note{margin-top:30px;padding:16px 18px;border-radius:18px;max-width:900px;
+    background:linear-gradient(160deg,var(--glass2),var(--glass));border:1px solid var(--edge);color:#A7B4AF;
+    font-size:13.5px;line-height:1.65}
+  .note b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="page"></div>
+<div class="wrap">
+  <h1>LifeOS — <em>AURA</em></h1>
+  <p class="sub">Glassmorphism done properly: frosted translucent cards over a living lagoon gradient —
+  warm coral signature light, calm mint partner, deep teal canvas. No blue-grey slop, no neon glow,
+  no reuse of Lumen or Aurora Noir. Meets spec §53 (premium · glass · Gen-Z · minimal · futuristic · calm).</p>
+  <div class="chips">
+    <span class="chip">Frosted glass</span><span class="chip">Translucent surfaces</span>
+    <span class="chip">Soft borders</span><span class="chip">Large radii</span>
+    <span class="chip">Floating layers</span><span class="chip">WCAG AA</span>
+    <span class="chip">Insights restored in the bar</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- HOME -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top">
+            <div>
+              <div class="eyebrow">Tuesday · 14 Oct</div>
+              <div class="greet">Good evening, Pras</div>
+            </div>
+            <div class="av">P</div>
+          </div>
+          <div class="hero g">
+            <div class="row1">
+              <div>
+                <div class="big">68<i>%</i></div>
+                <div class="lbl">of today's goals</div>
+              </div>
+              <div class="ring"><i>4/6</i></div>
+            </div>
+            <div class="trio">
+              <div><b>12<span style="font-size:10px;color:#8FA09A">d</span></b><span>streak</span></div>
+              <div><b>₹840</b><span>spent</span></div>
+              <div><b>3</b><span>notes</span></div>
+            </div>
+          </div>
+          <div class="sec"><h3>Today</h3><a>See all</a></div>
+          <div class="row"><span class="cb on"></span><span class="rt"><b>Morning review</b><span>Habit · 9:00</span></span><span class="pill m">done</span></div>
+          <div class="row"><span class="cb"></span><span class="rt"><b>Ship the audit doc</b><span>Task · today</span></span><span class="pill">now</span></div>
+          <div class="row"><span class="cb"></span><span class="rt"><b>Write in diary</b><span>Evening · 21:30</span></span></div>
+        </div>
+        <div class="nav">
+          <span class="nv act"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">Home</div>
+    </div>
+
+    <!-- INSIGHTS -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top">
+            <div>
+              <div class="eyebrow">Insights</div>
+              <div class="greet">This week</div>
+            </div>
+            <span class="pill">7 days</span>
+          </div>
+          <div class="hero g">
+            <div class="lbl" style="margin:0 0 4px">Consistency</div>
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <div class="big" style="font-size:38px">82<i>%</i></div>
+              <span style="color:var(--mint);font-size:12px;font-weight:700">▲ 6 pts</span>
+            </div>
+            <div class="spark">
+              <div style="height:44%"></div><div style="height:62%"></div><div class="a" style="height:38%"></div>
+              <div style="height:80%"></div><div style="height:70%"></div><div style="height:96%"></div>
+              <div style="height:58%"></div>
+            </div>
+          </div>
+          <div class="sec"><h3>By area</h3><a>Details</a></div>
+          <div class="row"><span class="rt"><b>Habits</b><span>4 of 5 kept</span></span>
+            <span style="width:70px"><span class="bar"><i style="width:80%"></i></span></span></div>
+          <div class="row"><span class="rt"><b>Tasks</b><span>22 of 28 done</span></span>
+            <span style="width:70px"><span class="bar"><i style="width:79%"></i></span></span></div>
+          <div class="row"><span class="rt"><b>Diary</b><span>6 of 7 days</span></span>
+            <span style="width:70px"><span class="bar"><i style="width:86%"></i></span></span></div>
+        </div>
+        <div class="nav">
+          <span class="nv"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv act"><span class="ic"></span>Insights</span>
+          <span class="nv"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">Insights</div>
+    </div>
+
+    <!-- CAPTURE -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pad">
+          <div class="top">
+            <div><div class="eyebrow">Capture</div><div class="greet">What's on your mind?</div></div>
+          </div>
+          <div class="cap-hero g">
+            <div class="orb"></div>
+            <div style="font-size:12.5px;color:#C7D2CE">Tap to speak, write or shoot a moment</div>
+            <div style="font-size:10.5px;color:var(--muted);margin-top:5px">Saved privately on this device</div>
+          </div>
+          <div class="sec"><h3>Quick capture</h3></div>
+          <div class="tiles">
+            <div class="tile"><div class="ti"></div>Thought</div>
+            <div class="tile"><div class="ti"></div>Photo</div>
+            <div class="tile"><div class="ti"></div>Video</div>
+            <div class="tile"><div class="ti"></div>Audio</div>
+            <div class="tile"><div class="ti"></div>Mood</div>
+            <div class="tile"><div class="ti"></div>Place</div>
+          </div>
+        </div>
+        <div class="nav">
+          <span class="nv"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="capb">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="cap">Capture</div>
+    </div>
+
+  </div>
+
+  <div class="typebox">
+    <div class="e">Display · Georgia / a modern serif</div>
+    <div class="d">Good evening, Pras</div>
+    <div class="e">UI · system sans</div>
+    <p>Body copy sits on frosted glass at 12.5–14&nbsp;sp and never leaves the legible range. Coral marks the
+    one thing that matters on a screen; mint means "kept up". Everything else is ink and glass.</p>
+  </div>
+
+  <div class="pal">
+    <div class="sw"><div class="ch" style="background:#070B0B"></div><b>Canvas</b><code>#070B0B</code></div>
+    <div class="sw"><div class="ch" style="background:linear-gradient(160deg,#0B1514,#0C0A12)"></div><b>Glass base</b><code>teal→plum</code></div>
+    <div class="sw"><div class="ch" style="background:#FF9E80"></div><b>Coral · accent</b><code>#FF9E80</code></div>
+    <div class="sw"><div class="ch" style="background:#5EE0B0"></div><b>Mint · calm</b><code>#5EE0B0</code></div>
+    <div class="sw"><div class="ch" style="background:#F1F5F2"></div><b>Ink</b><code>#F1F5F2</code></div>
+    <div class="sw"><div class="ch" style="background:#8FA09A"></div><b>Muted</b><code>#8FA09A</code></div>
+    <div class="sw"><div class="ch" style="background:#E9C46A"></div><b>Warning</b><code>#E9C46A</code></div>
+    <div class="sw"><div class="ch" style="background:#FF6B6B"></div><b>Danger</b><code>#FF6B6B</code></div>
+  </div>
+
+  <div class="note">
+    <b>If you like this, say "go" and I build it in Compose</b> — new tokens, the Home · Notes ·
+    ＋Capture · Insights · Life bar, and the frosted-glass material. If not, name any one thing to
+    change (hue, or more/less colour) and I'll re-issue this proof.
+  </div>
+</div>
+</body>
+</html>

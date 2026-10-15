@@ -40,6 +40,8 @@ import com.lifeos.app.ui.expenses.ExpensesScreen
 import com.lifeos.app.ui.habits.HabitDetailScreen
 import com.lifeos.app.ui.habits.HabitsScreen
 import com.lifeos.app.ui.home.HomeScreen
+import com.lifeos.app.ui.insights.InsightsScreen
+import com.lifeos.app.ui.insights.InsightsViewModel
 import com.lifeos.app.ui.life.LifeScreen
 import com.lifeos.app.ui.notes.NoteEditorScreen
 import com.lifeos.app.ui.notes.NotesScreen
@@ -166,7 +168,7 @@ fun LifeOSNavHost() {
                         )
                     }
 
-                    // ---- Primary tabs (Aurora Noir IA) -------------------------
+                    // ---- Primary tabs (AURA IA) --------------------------------
                     composable(Screen.Notes.route) {
                         NotesScreen(
                             onOpenNote = { noteId ->
@@ -185,10 +187,22 @@ fun LifeOSNavHost() {
                         )
                     }
 
+                    // Insights — spec §27/§28. Wired straight to the offline
+                    // intelligence engine, so every figure is computed from rows
+                    // already on device (weekly / monthly report, all-time stats).
+                    composable(Screen.Insights.route) {
+                        val locator = LocalServiceLocator.current
+                        val insightsViewModel: InsightsViewModel = viewModel(
+                            factory = LambdaViewModelFactory {
+                                InsightsViewModel(locator.lifeOSIntelligenceEngine)
+                            }
+                        )
+                        InsightsScreen(viewModel = insightsViewModel)
+                    }
+
                     // You — the personal hub (profile, app lock, backup and
-                    // settings). It replaces the removed Insights tab as the
-                    // bottom bar's fourth slot, so "your space" is one tap from
-                    // anywhere instead of an overlay pushed from Home.
+                    // settings). Reachable from Home's avatar and the Life hub
+                    // now that the Insights tab holds the fourth bar slot.
                     composable(Screen.Profile.route) {
                         ProfileScreen(
                             onOpenSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },

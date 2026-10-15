@@ -3,18 +3,23 @@ package com.lifeos.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // ===========================================================================
-// LifeOS "LUMEN" — the design language (v5, rebuilt from zero).
+// LifeOS "AURA" — the design language (v6, built from the spec §53 direction).
 //
-// A linen desk under a lamp. Warm neutrals carry soft *matte* surfaces that
-// describe depth with a long, low shadow rather than a painted lens; the one
-// loud colour is a muted clay, with sage and gold as its quiet partners. The
-// iridescent spectrum of v4 is gone — colour here is warm, scarce and means
-// something. Nothing is frosted, nothing glows cool.
+// Spec §53 asks for: premium · glassmorphism · Gen-Z · minimal · modern ·
+// futuristic · calm · personal — frosted translucent surfaces, soft borders,
+// soft shadows, large radii, layered surfaces, floating elements — while
+// insisting that readability, accessibility, battery and performance come
+// first and that glass is never overused.
+//
+// AURA answers that with a **lagoon**: a deep teal-to-plum canvas behind
+// frosted glass, lit by one warm signature — **coral** — with **mint** as its
+// calm partner. The previous "blue-black glass" is deliberately avoided: the
+// canvas is teal/plum, never a cold blue-grey.
 //
 // Every public token name from the previous systems is kept, so every existing
 // call site keeps compiling while it silently adopts the new look. The legacy
-// GLASS- and PRISM-named tokens are retained as the matte-surface and identity-
-// gradient slots respectively (see the notes on each block).
+// GLASS- and PRISM-named tokens are retained as the frosted-surface and
+// identity-gradient slots respectively (see the notes on each block).
 //
 // All text/background pairs below are checked against WCAG 2.2 AA (4.5:1 for
 // body, 3:1 for large text and UI components) in both themes.
@@ -22,117 +27,114 @@ import androidx.compose.ui.graphics.Color
 
 // ---- Canvas & surfaces -----------------------------------------------------
 
-/** The page behind everything: warm paper under a lamp. */
-val LifeOSBackgroundLight = Color(0xFFF7F4EF)
-/** Warm coal — the dark canvas surfaces sit on. */
-val LifeOSBackgroundDark = Color(0xFF16130F)
+/** The page behind everything: pale lagoon mist (the "day" polarity of AURA). */
+val LifeOSBackgroundLight = Color(0xFFF1F6F4)
+/** The deep lagoon — the dark canvas everything floats on. */
+val LifeOSBackgroundDark = Color(0xFF070B0B)
 
-val LifeOSSurfaceLight = Color(0xFFFFFDF9)
-val LifeOSSurfaceDark = Color(0xFF221D17)
+val LifeOSSurfaceLight = Color(0xFFFFFFFF)
+val LifeOSSurfaceDark = Color(0xFF0E1514)
 
 /** A recessed surface for wells, insets and secondary panels. */
-val LifeOSSurfaceVariantLight = Color(0xFFEFEAE2)
-val LifeOSSurfaceVariantDark = Color(0xFF2B251E)
+val LifeOSSurfaceVariantLight = Color(0xFFE4EDEA)
+val LifeOSSurfaceVariantDark = Color(0xFF16201E)
 
 /** A raised surface one step above [LifeOSSurfaceLight] (menus, sheets, popovers). */
 val LifeOSSurfaceRaisedLight = Color(0xFFFFFFFF)
-val LifeOSSurfaceRaisedDark = Color(0xFF302921)
+val LifeOSSurfaceRaisedDark = Color(0xFF1B2725)
 
 // ---- Content (text & icons) ------------------------------------------------
 
-/** Warm near-black pen ink. 14.9:1 on [LifeOSSurfaceLight]. */
-val LifeOSTextPrimaryLight = Color(0xFF241D15)
-/** Warm paper-white ink. 13.6:1 on [LifeOSSurfaceDark]. */
-val LifeOSTextPrimaryDark = Color(0xFFF6EFE6)
-/** Supporting copy — sepia grey. 6.4:1 light / 7.1:1 dark. */
-val LifeOSTextSecondaryLight = Color(0xFF6B5F52)
-val LifeOSTextSecondaryDark = Color(0xFFBCAE9D)
+/** Near-black ink. ~16:1 on [LifeOSSurfaceLight]. */
+val LifeOSTextPrimaryLight = Color(0xFF0A1312)
+/** Warm bone ink. ~16:1 on [LifeOSBackgroundDark]. */
+val LifeOSTextPrimaryDark = Color(0xFFF1F5F2)
+/** Supporting copy — slate teal. 6.5:1 light / 6.9:1 dark. */
+val LifeOSTextSecondaryLight = Color(0xFF4C5B58)
+val LifeOSTextSecondaryDark = Color(0xFFB9C7C3)
 
-/** The deepest warm grey — structural labels, dividers and disabled hints. */
-val LifeOSTextMutedLight = Color(0xFF7A6E60)
-val LifeOSTextMutedDark = Color(0xFF9C9083)
+/** The quiet grey-teal — structural labels, dividers and disabled hints. */
+val LifeOSTextMutedLight = Color(0xFF5F6D6A)
+val LifeOSTextMutedDark = Color(0xFF8FA09A)
 
 // ---- Borders & outlines ----------------------------------------------------
 
-/** A warm hairline, tinted from the ink so it never reads as a cold grey rule. */
-val LifeOSBorderLight = Color(0x1F6B5F52)
-val LifeOSBorderDark = Color(0x26F6EFE6)
-val LifeOSOutlineLight = Color(0xFFA99C8C)
-val LifeOSOutlineDark = Color(0xFF5A5044)
+/** A cool hairline lifted from the glass, never a flat neutral rule. */
+val LifeOSBorderLight = Color(0x1A0A3B33)
+val LifeOSBorderDark = Color(0x1FFFFFFF)
+val LifeOSOutlineLight = Color(0xFFA9BDB8)
+val LifeOSOutlineDark = Color(0xFF3D4B48)
 
 // ---- Surface material (legacy "Glass") -------------------------------------
 //
-// v5 is MATTE, not frosted. These slots are kept because the whole component
-// kit reads them by name; their values now describe an opaque warm sheet with
-// a soft top light and a pooled base shadow — no blur, no specular sheen.
+// These slots are kept because the whole component kit reads them by name.
+// Under AURA they describe a *frosted* sheet: translucent enough that the
+// lagoon gradient breathes through it, with a soft top light and one border.
 
-val GlassLight = Color(0xF7FFFDF9)
-val GlassDark = Color(0xF22A241D)
-val GlassBorderLight = Color(0x1F6B5F52)
-val GlassBorderDark = Color(0x26F6EFE6)
+val GlassLight = Color(0xE6FFFFFF)
+val GlassDark = Color(0xA6121C1A)
+val GlassBorderLight = Color(0x1A0A3B33)
+val GlassBorderDark = Color(0x26FFFFFF)
 
 // The rim: a soft top light, a deeper pooled foot.
-val GlassTopEdgeLight = Color(0x40FFFFFF)
-val GlassTopEdgeDark = Color(0x33F6EFE6)
-val GlassBottomEdgeLight = Color(0x1A000000)
+val GlassTopEdgeLight = Color(0x66FFFFFF)
+val GlassTopEdgeDark = Color(0x24FFFFFF)
+val GlassBottomEdgeLight = Color(0x14000000)
 val GlassBottomEdgeDark = Color(0x40000000)
 
-// Reduced to a whisper: a matte sheet has no specular highlight.
-val GlassSheenLight = Color(0x14FFFFFF)
-val GlassSheenDark = Color(0x12FFFFFF)
-val GlassInnerShadowLight = Color(0x143B2F1E)
+// A whisper of upper wash, so the glass catches the light without glinting.
+val GlassSheenLight = Color(0x1AFFFFFF)
+val GlassSheenDark = Color(0x14FFFFFF)
+val GlassInnerShadowLight = Color(0x14002B24)
 val GlassInnerShadowDark = Color(0x33000000)
 
 /**
- * Ambient glow palette — the warm haze a matte surface sits in. Kept very
- * faint (clay, amber, sage) so a glow can never overpower on-surface content.
+ * Ambient glow palette — the coloured light the frosted glass sits in. Kept
+ * faint so a wash can never overpower on-surface content: a cool lagoon mint,
+ * a warm coral, and a deep plum.
  */
-val AmbientGlowLavenderLight = Color(0x4DAD5636) // clay haze
-val AmbientGlowMagentaLight = Color(0x3DD98A45)  // amber haze
-val AmbientGlowSkyLight = Color(0x3D6E7F63)      // sage haze
-val AmbientGlowLavenderDark = Color(0x4D8A4A2E)  // clay haze (dark)
-val AmbientGlowMagentaDark = Color(0x3D6E4A22)   // amber haze (dark)
-val AmbientGlowSkyDark = Color(0x3D3E4A34)       // sage haze (dark)
+val AmbientGlowLavenderLight = Color(0x335EE0B0) // mint haze
+val AmbientGlowMagentaLight = Color(0x33FF9E80)  // coral haze
+val AmbientGlowSkyLight = Color(0x2E7C5CBF)      // plum haze
+val AmbientGlowLavenderDark = Color(0x3D146B5E)  // deep teal haze
+val AmbientGlowMagentaDark = Color(0x3DB7452A)   // deep coral haze
+val AmbientGlowSkyDark = Color(0x3D3A1E4D)       // deep plum haze
 
-// ---- Brand — the Lumen warmth ----------------------------------------------
+// ---- Brand — the AURA lagoon -----------------------------------------------
 
 /**
- * Clay — the primary action / selection colour and the app's only loud hue.
- * 5.1:1 on the light surface and 6.3:1 against its dark-mode ink, so it is
- * safe for both text and filled controls in either theme.
+ * Coral — the primary action / selection colour and the app's signature light,
+ * in its **light-theme** polarity (deep enough for white text on it).
  */
-val LifeOSPrimary = Color(0xFFA8512F)
+val LifeOSPrimary = Color(0xFFC2410C)
 
-/** A deeper clay for pressed states and gradient depth. */
-val LifeOSPrimaryDeep = Color(0xFF8A3F23)
+/** A deeper coral for pressed states and gradient depth. */
+val LifeOSPrimaryDeep = Color(0xFF9A3208)
 
-/** Sage — the gradient's quiet partner and the "informational" second accent. */
-val LifeOSSecondary = Color(0xFF6E7F63)
+/** Mint — the calm partner and the "kept up / success" second accent. */
+val LifeOSSecondary = Color(0xFF1E8E6E)
 
-/** A very soft clay wash, for containers and selected surfaces. */
-val LifeOSAccentLavender = Color(0xFFF6E7DF)
+/** A very soft coral wash, for containers and selected surfaces. */
+val LifeOSAccentLavender = Color(0xFFFFE7DC)
 
 /** Amber — the warm third accent, and the app's "energetic" highlight. */
-val LifeOSTertiary = Color(0xFFC08A3E)
+val LifeOSTertiary = Color(0xFFB8862B)
 
-// The named gradient stops, for the identity gradient. Kept separate from the
-// role tokens above so the gradient stays warm in both themes.
-//
-// Deliberately DEEP: every stop keeps white text and icons at or above WCAG AA
-// (4.5:1) — clay 5.4, amber 4.5, bronze 4.8 — so any filled identity surface
-// (the hero, the Capture disc, a primary button) is legible without auditing
-// each call site. Brightening these would silently break that contract.
-val PrismIndigo = Color(0xFFA8512F) // clay
-val PrismSky = Color(0xFFAD651F)    // amber
-val PrismCoral = Color(0xFF8F6E18)  // bronze gold
+// The named gradient stops, for the identity gradient. A lagoon sunset:
+// deep teal -> rust -> coral. Deliberately DEEP so white text and icons on any
+// filled identity surface (the hero, the Capture disc, a primary button) stay
+// at or above WCAG AA (4.5:1) — brightening them would silently break that.
+val PrismIndigo = Color(0xFF0F6E5F) // deep teal
+val PrismSky = Color(0xFFA84B2E)    // deep rust
+val PrismCoral = Color(0xFFC43D26)  // deep coral
 
-/** The one identity gradient: clay -> amber -> gold. Reserved for the hero, Capture and the AI orb. */
+/** The one identity gradient: teal -> rust -> coral. Hero, Capture and AI orb. */
 val PrismSpectrum = listOf(PrismIndigo, PrismSky, PrismCoral)
 
 // ---- Premium highlight -----------------------------------------------------
 
 /**
- * Amber gold — reserved for premium moments only: streaks, personal records,
+ * Gold — reserved for premium moments only: streaks, personal records,
  * achievements, "best day" badges. Using it anywhere else would rob it of
  * meaning. [LifeOSGoldSoft] is its light-tinted fill on a surface.
  */
@@ -142,24 +144,24 @@ val LifeOSGoldSoft = Color(0x33E8B44A)
 
 // ---- State -----------------------------------------------------------------
 
-val LifeOSSuccess = Color(0xFF3F7D4E)
-val LifeOSWarning = Color(0xFF9A6216)
-val LifeOSDanger = Color(0xFFB23A34)
-val LifeOSInfo = Color(0xFF3A6EA5)
+val LifeOSSuccess = Color(0xFF1E8E6E)
+val LifeOSWarning = Color(0xFF9A6A16)
+val LifeOSDanger = Color(0xFFB4322E)
+val LifeOSInfo = Color(0xFF2F6E8E)
 
-/** The neutral base every soft shadow is mixed from — warm, never a brand hue. */
-val LifeOSShadow = Color(0xFF2A1F14)
+/** The neutral base every soft shadow is mixed from — cool, never a brand hue. */
+val LifeOSShadow = Color(0xFF04100E)
 
 /** A dimming scrim behind modal surfaces and the capture hub. */
-val LifeOSScrim = Color(0x66241D15)
+val LifeOSScrim = Color(0x66101514)
 
 // ===========================================================================
 // Diary — the app's one deliberately non-glass module.
 //
-// A physical paper object: warm paper with a handwriting face. In v4 this was
-// a deliberate *exception* to the obsidian glass system; under Lumen the rest
-// of the app has moved toward it, so these tokens are now the warm pole the
-// whole design leans on rather than a module in exile. Stable, intentional.
+// A physical paper object: warm paper with a handwriting face. It renders on
+// a fixed paper surface and never reads the frosted tokens, so it stays a
+// warm counterpoint inside the cool lagoon rather than flipping with the
+// theme. Stable, intentional.
 // ===========================================================================
 
 val DiaryMoodHappy = Color(0xFFF59E0B)      // goldenrod

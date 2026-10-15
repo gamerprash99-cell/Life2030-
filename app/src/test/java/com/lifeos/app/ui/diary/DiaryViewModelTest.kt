@@ -540,7 +540,7 @@ class DiaryViewModelTest {
                 photoImporter = FakePhotoImporter(),
                 nowMinutes = { clockMinutes },
                 todayEpochDay = { today }
-            )
+            ).also { createdScopes += it.viewModelScope }
             vm.start(null, today)
             advanceUntilIdle()
 

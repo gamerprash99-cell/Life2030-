@@ -6,6 +6,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,7 +37,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LocationOn
@@ -41,6 +46,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,13 +59,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
+import com.lifeos.app.core.media.AudioRecorder
+import com.lifeos.app.core.media.DiaryAudioRecorder
+import com.lifeos.app.core.util.MediaStorage
 import com.lifeos.app.domain.model.DiaryMood
 import com.lifeos.app.domain.model.DiaryMoods
 import com.lifeos.app.ui.components.LifeOSBanner
@@ -95,13 +111,35 @@ fun CaptureHubScreen(
 
     var quickThought by rememberSaveable { mutableStateOf("") }
     var showMoodPicker by rememberSaveable { mutableStateOf(false) }
-    var notice by remember { mutableStateOf<String?>(null) }
+    // Non-null only while the audio recorder flow is open. Creating it on demand
+    // (rather than remembering one instance) guarantees every take starts from
+    // Idle, so a second recording is never blocked by the previous Finished state.
+    var audioRecorder by remember { mutableStateOf<AudioRecorder?>(null) }
     val thoughtFocus = remember { androidx.compose.ui.focus.FocusRequester() }
 
     val locationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { granted ->
         if (granted.values.any { it }) viewModel.saveLocation()
+    }
+
+    // Audio owns the whole window while it is open — a live recorder with its own
+    // controls, exactly like the Snap camera. Recording goes through the same
+    // tested AudioRecorder the diary composer uses, writing to captures/audio.
+    val recorder = audioRecorder
+    if (recorder != null) {
+        AudioCaptureScreen(
+            recorder = recorder,
+            onCaptured = { filePath, durationMillis ->
+                audioRecorder = null
+                viewModel.saveAudio(filePath, durationMillis)
+            },
+            onCancel = {
+                recorder.cancel()
+                audioRecorder = null
+            }
+        )
+        return
     }
 
     Column(
@@ -163,15 +201,6 @@ fun CaptureHubScreen(
                     )
                     Spacer(Modifier.height(LifeOSSpacing.md))
                 }
-                notice?.let {
-                    LifeOSBanner(
-                        icon = Icons.Filled.GraphicEq,
-                        text = it,
-                        action = "Dismiss",
-                        onAction = { notice = null }
-                    )
-                    Spacer(Modifier.height(LifeOSSpacing.md))
-                }
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
@@ -181,7 +210,14 @@ fun CaptureHubScreen(
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                    CaptureTile(Icons.Filled.GraphicEq, "Audio", "Clip a voice note", LocalLifeOSSemanticColors.current.success, { notice = "Voice notes are coming next. Type a thought for now." }, Modifier.weight(1f))
+                    CaptureTile(
+                        Icons.Filled.GraphicEq,
+                        "Audio",
+                        "Clip a voice note",
+                        LocalLifeOSSemanticColors.current.success,
+                        { audioRecorder = DiaryAudioRecorder(locator.appContext, MediaStorage::newCaptureAudioFile) },
+                        Modifier.weight(1f)
+                    )
                     CaptureTile(Icons.Filled.Mood, "Mood", "How are you?", LocalLifeOSSemanticColors.current.gold, { showMoodPicker = !showMoodPicker }, Modifier.weight(1f))
                 }
             }
@@ -315,6 +351,46 @@ private fun MoodChip(mood: DiaryMood, onClick: () -> Unit) {
 }
 
 @Composable
+private fun AnimatedSuccessTick() {
+    // A real "done": the disc springs in and the check draws itself, so a saved
+    // capture is confirmed with motion rather than a static glyph.
+    val pop = remember { Animatable(0f) }
+    val draw = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium))
+        draw.animateTo(1f, tween(durationMillis = 340, easing = FastOutSlowInEasing))
+    }
+    val success = LocalLifeOSSemanticColors.current.success
+    Canvas(
+        Modifier
+            .size(44.dp)
+            .graphicsLayer {
+                val s = 0.6f + 0.4f * pop.value
+                scaleX = s
+                scaleY = s
+                alpha = pop.value
+            }
+    ) {
+        drawCircle(color = success, radius = size.minDimension / 2f)
+        val w = size.width
+        val h = size.height
+        val tick = Path().apply {
+            moveTo(w * 0.28f, h * 0.52f)
+            lineTo(w * 0.44f, h * 0.68f)
+            lineTo(w * 0.74f, h * 0.34f)
+        }
+        val measure = PathMeasure().apply { setPath(tick, false) }
+        val partial = Path()
+        measure.getSegment(0f, measure.length * draw.value, partial, true)
+        drawPath(
+            path = partial,
+            color = Color.White,
+            style = Stroke(width = w * 0.09f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+    }
+}
+
+@Composable
 private fun SuccessPanel(message: String, onDone: () -> Unit, onAgain: () -> Unit) {
     Column(
         Modifier
@@ -325,7 +401,7 @@ private fun SuccessPanel(message: String, onDone: () -> Unit, onAgain: () -> Uni
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
     ) {
-        Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = LocalLifeOSSemanticColors.current.success, modifier = Modifier.size(36.dp))
+        AnimatedSuccessTick()
         Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
         Row(
             horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md),

@@ -12,11 +12,11 @@ private val LightColors = lightColorScheme(
     primary = LifeOSPrimary,
     onPrimary = Color.White,
     primaryContainer = LifeOSAccentLavender,
-    onPrimaryContainer = Color(0xFF4A1F0E),
+    onPrimaryContainer = Color(0xFF4A1A08),
     secondary = LifeOSSecondary,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFDCE5D6),
-    onSecondaryContainer = Color(0xFF25301F),
+    secondaryContainer = Color(0xFFCDEFE3),
+    onSecondaryContainer = Color(0xFF0B2A21),
     tertiary = LifeOSTertiary,
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFFF6E3C4),
@@ -29,23 +29,25 @@ private val LightColors = lightColorScheme(
     onSurfaceVariant = LifeOSTextSecondaryLight,
     surfaceContainerHighest = LifeOSSurfaceVariantLight,
     outline = LifeOSOutlineLight,
-    outlineVariant = Color(0xFFDED5C8),
+    outlineVariant = Color(0xFFCBD9D5),
     error = LifeOSDanger,
     onError = Color.White,
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFE08B62),
-    onPrimary = Color(0xFF331508),
-    primaryContainer = Color(0xFF7A3A20),
-    onPrimaryContainer = Color(0xFFFBE0D2),
-    secondary = Color(0xFF93A588),
-    onSecondary = Color(0xFF1E2A18),
-    secondaryContainer = Color(0xFF3D4A34),
-    onSecondaryContainer = Color(0xFFDCE5D6),
-    tertiary = Color(0xFFE0B070),
+    // Coral is the signature light in the lagoon.
+    primary = Color(0xFFFF9E80),
+    onPrimary = Color(0xFF2A100A),
+    primaryContainer = Color(0xFF7A3418),
+    onPrimaryContainer = Color(0xFFFFDBCE),
+    // Mint is the calm partner.
+    secondary = Color(0xFF5EE0B0),
+    onSecondary = Color(0xFF04231A),
+    secondaryContainer = Color(0xFF154A3B),
+    onSecondaryContainer = Color(0xFFCDEFE3),
+    tertiary = Color(0xFFE9C46A),
     onTertiary = Color(0xFF3A2606),
-    tertiaryContainer = Color(0xFF7A5A22),
+    tertiaryContainer = Color(0xFF6E5320),
     onTertiaryContainer = Color(0xFFF8E4C4),
     background = LifeOSBackgroundDark,
     onBackground = LifeOSTextPrimaryDark,
@@ -55,18 +57,18 @@ private val DarkColors = darkColorScheme(
     onSurfaceVariant = LifeOSTextSecondaryDark,
     surfaceContainerHighest = LifeOSSurfaceVariantDark,
     outline = LifeOSOutlineDark,
-    outlineVariant = Color(0xFF43392E),
-    error = Color(0xFFFF9B8F),
-    onError = Color(0xFF4A0F0B),
+    outlineVariant = Color(0xFF2C3835),
+    error = Color(0xFFFF8F8A),
+    onError = Color(0xFF3A0D0B),
 )
 
 /**
- * All the paints one matte surface needs. [surface] and [border] keep the
+ * All the paints one frosted surface needs. [surface] and [border] keep the
  * original two-field contract alive (existing call sites read them), while the
  * remaining fields carry the soft top light, the faint upper wash and the
- * pooled base shadow that make an opaque sheet read as a warm, physical object
- * rather than a flat rectangle. v5 is matte: there is no backdrop blur and no
- * specular highlight.
+ * pooled base shadow that make a translucent sheet read as glass. Under AURA
+ * [surface] is deliberately translucent so the lagoon gradient breathes
+ * through every card.
  */
 data class GlassColors(
     val surface: Color,
@@ -177,9 +179,9 @@ fun LifeOSTheme(
     }
     val semanticColors = if (darkTheme) {
         LifeOSSemanticColors(
-            success = Color(0xFF7CC48F),
-            onSuccess = Color(0xFF10240F),
-            warning = Color(0xFFE8B45C),
+            success = Color(0xFF5EE0B0),
+            onSuccess = Color(0xFF03211A),
+            warning = Color(0xFFE9C46A),
             onWarning = Color(0xFF2E1C05),
             info = Color(0xFF8FB8E0),
             border = LifeOSBorderDark,

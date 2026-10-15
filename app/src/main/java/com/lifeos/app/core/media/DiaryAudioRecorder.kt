@@ -24,7 +24,16 @@ import java.io.File
  *  - Every failure path releases the recorder and deletes the partial file, so
  *    a failed take can never leave a corrupt clip referenced by an entry.
  */
-class DiaryAudioRecorder(private val context: Context) : AudioRecorder {
+class DiaryAudioRecorder(
+    private val context: Context,
+    /**
+     * Where the finished clip is written. Kept injectable so the same, tested
+     * recorder backs both the diary composer (`diary-audio/`) and the Life
+     * Capture hub (`captures/audio/`) without a second MediaRecorder
+     * implementation drifting out of sync.
+     */
+    private val newFile: (Context) -> File = MediaStorage::newDiaryAudioFile
+) : AudioRecorder {
 
     private val _state = MutableStateFlow<RecordingState>(RecordingState.Idle)
     override val state: StateFlow<RecordingState> = _state.asStateFlow()
@@ -44,7 +53,7 @@ class DiaryAudioRecorder(private val context: Context) : AudioRecorder {
     override fun start(): RecordingState {
         if (_state.value is RecordingState.Recording) return _state.value
 
-        val file = MediaStorage.newDiaryAudioFile(context)
+        val file = newFile(context)
         val created = createRecorder(file)
         if (created == null) {
             _state.value = RecordingState.Failure(RecordingFailure.START_FAILED)

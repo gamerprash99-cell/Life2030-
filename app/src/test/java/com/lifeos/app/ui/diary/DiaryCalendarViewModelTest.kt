@@ -1,11 +1,13 @@
 package com.lifeos.app.ui.diary
 
+import androidx.lifecycle.viewModelScope
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.domain.model.DiaryMoods
 import com.lifeos.app.domain.model.MoodValence
 import com.lifeos.app.domain.usecase.GetDiaryCalendarUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -28,17 +30,33 @@ class DiaryCalendarViewModelTest {
     private val today = LocalDate.of(2026, 10, 14)
     private val dispatcher = StandardTestDispatcher()
 
+    /** ViewModels own Main-scope jobs; clear every test instance so one test cannot leak into the next. */
+    private val createdScopes = mutableListOf<kotlinx.coroutines.CoroutineScope>()
+
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
 
     @After
-    fun tearDown() = Dispatchers.resetMain()
+    fun tearDown() {
+        createdScopes.forEach { it.coroutineContext.cancelChildren() }
+        createdScopes.clear()
+        Dispatchers.resetMain()
+    }
 
     private fun state(month: YearMonth, todayEpochDay: Long = today.toEpochDay()) = DiaryCalendarState(
         year = month.year,
         month = month.monthValue,
         todayEpochDay = todayEpochDay
     )
+
+    /** Builds a calendar ViewModel and tracks its scope so no Main job leaks into the next test. */
+    private fun vm(
+        dao: com.lifeos.app.data.db.dao.DiaryDao = InMemoryDiaryDao(),
+        todayEpochDay: () -> Long = { today.toEpochDay() }
+    ) = DiaryCalendarViewModel(
+        GetDiaryCalendarUseCase(DiaryRepository(dao, io = dispatcher)),
+        todayEpochDay
+    ).also { createdScopes += it.viewModelScope }
 
     // ---- grid alignment --------------------------------------------------
     //
@@ -156,7 +174,7 @@ class DiaryCalendarViewModelTest {
 
     @Test
     fun `selection starts on today, not the first of the month`() = runTest(dispatcher) {
-        val vm = DiaryCalendarViewModel(GetDiaryCalendarUseCase(DiaryRepository(InMemoryDiaryDao(), io = dispatcher))) { today.toEpochDay() }
+        val vm = vm(InMemoryDiaryDao())
         advanceUntilIdle()
 
         // Someone opening the calendar on the 14th is asking about now. Starting
@@ -176,7 +194,8 @@ class DiaryCalendarViewModelTest {
                 diaryEntry("c", content = "ninth", dateEpochDay = day9)
             )
         )
-        val vm = DiaryCalendarViewModel(GetDiaryCalendarUseCase(DiaryRepository(dao, io = dispatcher))) { today.toEpochDay() }
+        val vm = vm(dao)
+
         advanceUntilIdle()
 
         vm.selectDay(day3)
@@ -198,7 +217,7 @@ class DiaryCalendarViewModelTest {
                 diaryEntry("c", dateEpochDay = day3)
             )
         )
-        val vm = DiaryCalendarViewModel(GetDiaryCalendarUseCase(DiaryRepository(dao, io = dispatcher))) { today.toEpochDay() }
+        val vm = vm(dao)
         advanceUntilIdle()
 
         // Three entries on one day is one dot. The day grid has room for exactly
@@ -210,10 +229,7 @@ class DiaryCalendarViewModelTest {
 
     @Test
     fun `next month is refused at the current month`() = runTest(dispatcher) {
-        val vm = DiaryCalendarViewModel(
-            GetDiaryCalendarUseCase(DiaryRepository(InMemoryDiaryDao(), io = dispatcher)),
-            today = { today.toEpochDay() }
-        )
+        val vm = vm(InMemoryDiaryDao(), todayEpochDay = { today.toEpochDay() })
         advanceUntilIdle()
 
         vm.nextMonth()
@@ -227,10 +243,7 @@ class DiaryCalendarViewModelTest {
 
     @Test
     fun `next month is allowed once past the current month`() = runTest(dispatcher) {
-        val vm = DiaryCalendarViewModel(
-            GetDiaryCalendarUseCase(DiaryRepository(InMemoryDiaryDao(), io = dispatcher)),
-            today = { today.toEpochDay() }
-        )
+        val vm = vm(InMemoryDiaryDao(), todayEpochDay = { today.toEpochDay() })
         advanceUntilIdle()
 
         vm.previousMonth()
@@ -245,10 +258,7 @@ class DiaryCalendarViewModelTest {
     fun `paging crosses a year boundary`() = runTest(dispatcher) {
         // January, so stepping back lands in the previous year.
         val january = LocalDate.of(2027, 1, 10)
-        val vm = DiaryCalendarViewModel(
-            GetDiaryCalendarUseCase(DiaryRepository(InMemoryDiaryDao(), io = dispatcher)),
-            today = { january.toEpochDay() }
-        )
+        val vm = vm(InMemoryDiaryDao(), todayEpochDay = { january.toEpochDay() })
         advanceUntilIdle()
 
         vm.previousMonth()
@@ -261,10 +271,7 @@ class DiaryCalendarViewModelTest {
     @Test
     fun `paging forward stops at the current month`() = runTest(dispatcher) {
         val january = LocalDate.of(2027, 1, 10)
-        val vm = DiaryCalendarViewModel(
-            GetDiaryCalendarUseCase(DiaryRepository(InMemoryDiaryDao(), io = dispatcher)),
-            today = { january.toEpochDay() }
-        )
+        val vm = vm(InMemoryDiaryDao(), todayEpochDay = { january.toEpochDay() })
         advanceUntilIdle()
 
         // January 2027 *is* the current month, so forward is already at its
@@ -290,10 +297,7 @@ class DiaryCalendarViewModelTest {
 
     @Test
     fun `jumping to today returns to the current month and clears the selection`() = runTest(dispatcher) {
-        val vm = DiaryCalendarViewModel(
-            GetDiaryCalendarUseCase(DiaryRepository(InMemoryDiaryDao(), io = dispatcher)),
-            today = { today.toEpochDay() }
-        )
+        val vm = vm(InMemoryDiaryDao(), todayEpochDay = { today.toEpochDay() })
         advanceUntilIdle()
         vm.previousMonth()
         vm.selectDay(LocalDate.of(2026, 9, 3).toEpochDay())
@@ -321,7 +325,7 @@ class DiaryCalendarViewModelTest {
                 diaryEntry("3", mood = sad, dateEpochDay = day)
             )
         )
-        val vm = DiaryCalendarViewModel(GetDiaryCalendarUseCase(DiaryRepository(dao, io = dispatcher))) { today.toEpochDay() }
+        val vm = vm(dao)
         advanceUntilIdle()
 
         assertEquals(happy, vm.state.value.moodByDay[day])
@@ -340,7 +344,7 @@ class DiaryCalendarViewModelTest {
                 diaryEntry("2", mood = sad, dateEpochDay = day)
             )
         )
-        val vm = DiaryCalendarViewModel(GetDiaryCalendarUseCase(DiaryRepository(dao, io = dispatcher))) { today.toEpochDay() }
+        val vm = vm(dao)
         advanceUntilIdle()
 
         assertEquals(happy, vm.state.value.moodByDay[day])
@@ -356,7 +360,7 @@ class DiaryCalendarViewModelTest {
                 diaryEntry("2", mood = "", dateEpochDay = day)
             )
         )
-        val vm = DiaryCalendarViewModel(GetDiaryCalendarUseCase(DiaryRepository(dao, io = dispatcher))) { today.toEpochDay() }
+        val vm = vm(dao)
         advanceUntilIdle()
 
         // The day still counts as "has entries" — it is only the colour that is

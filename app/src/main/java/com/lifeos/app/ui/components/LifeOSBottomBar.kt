@@ -1,8 +1,14 @@
 package com.lifeos.app.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -22,11 +28,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +48,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -73,23 +80,18 @@ data class BottomNavItem(
 )
 
 /**
- * Ordered list backing the bottom navigation bar — the app's reworked
- * five-section IA: Home · Notes · (Capture) · Life · You. The old Insights tab
- * was removed (its analytics lived only on that screen and duplicated what the
- * Life hub already surfaces), and in its place the fourth slot is **You** — the
- * personal hub holding profile, app lock, backup and settings.
- *
- * Capture is not a stateful tab; it is the raised centre action that opens the
- * full-window Capture hub, so it is rendered separately (see
- * [CaptureCenterButton]) and must not appear here.
+ * Ordered list backing the bottom navigation bar — the spec's five-section IA:
+ * Home · Notes · (Capture) · Insights · Life. Capture is not a stateful tab; it
+ * is the raised centre action that opens the full-window Capture hub, so it is
+ * rendered separately (see [CaptureCenterButton]) and must not appear here.
  *
  * Labels are always visible: icon-only navigation is a UX trap.
  */
 internal val bottomNavItems = listOf(
     BottomNavItem(Screen.Home, "Home", Icons.Filled.Home, Icons.Outlined.Home),
     BottomNavItem(Screen.Notes, "Notes", Icons.Filled.Description, Icons.Outlined.Description),
-    BottomNavItem(Screen.Life, "Life", Icons.Filled.Timeline, Icons.Outlined.Timeline),
-    BottomNavItem(Screen.Profile, "You", Icons.Filled.Person, Icons.Outlined.Person)
+    BottomNavItem(Screen.Insights, "Insights", Icons.Filled.Insights, Icons.Outlined.Insights),
+    BottomNavItem(Screen.Life, "Life", Icons.Filled.Timeline, Icons.Outlined.Timeline)
 )
 
 @Composable
@@ -180,26 +182,33 @@ private fun BottomNavEntry(
     )
     val entryShape = RoundedCornerShape(LifeOSRadius.large)
 
+    // The pill fades in and the icon lifts a touch when a tab becomes active, so
+    // selection reads as a movement rather than a jump between two stills.
+    //
+    // It stays SOLID clay, deliberately not the identity gradient: that is
+    // reserved for Capture, the hero and the AI orb so it keeps meaning "this is
+    // LifeOS". Solid clay also holds the label at 5.4:1, where the gradient's
+    // gold end would drop white text under 4.5:1.
+    val pillColor by animateColorAsState(
+        targetValue = when {
+            selected -> MaterialTheme.colorScheme.primary
+            pressed -> MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+            else -> Color.Transparent
+        },
+        animationSpec = spring(stiffness = 500f),
+        label = "bottomNavPill"
+    )
+    val iconScale by animateFloatAsState(
+        targetValue = if (selected) 1.1f else 1f,
+        animationSpec = spring(stiffness = 600f),
+        label = "bottomNavIconScale"
+    )
+
     Column(
         modifier = modifier
             .scale(pressedScale)
-            .then(
-                if (selected) {
-                    // The active tab is a solid clay pill — loud enough that
-                    // "where am I" is never a guess, but deliberately NOT the
-                    // identity gradient: that stays reserved for Capture, the
-                    // hero and the AI orb so it keeps meaning "this is LifeOS".
-                    // Solid clay also holds the label at 5.4:1, where the
-                    // gradient's gold end would drop white text under 4.5:1.
-                    Modifier
-                        .clip(entryShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                } else {
-                    Modifier
-                        .clip(entryShape)
-                        .background(if (pressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent)
-                }
-            )
+            .clip(entryShape)
+            .background(pillColor)
             .semantics { this.role = Role.Tab; this.selected = selected }
             .clickable(
                 interactionSource = interaction,
@@ -215,7 +224,9 @@ private fun BottomNavEntry(
             if (selected) item.selectedIcon else item.unselectedIcon,
             contentDescription = null,
             tint = contentColor,
-            modifier = Modifier.size(23.dp)
+            modifier = Modifier
+                .size(23.dp)
+                .scale(iconScale)
         )
         Text(
             item.label,
@@ -243,10 +254,36 @@ private fun CaptureCenterButton(onClick: () -> Unit, modifier: Modifier = Modifi
         animationSpec = spring(stiffness = 900f),
         label = "captureCenterPress"
     )
+    // A slow, calm breath, so the app's one primary action invites a tap instead
+    // of sitting dead still. It fades out as it expands, which reads as a soft
+    // pulse rather than a flicker.
+    val breathTransition = rememberInfiniteTransition(label = "captureBreath")
+    val breath by breathTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "captureBreathLevel"
+    )
     Box(
         modifier = modifier.defaultMinSize(minHeight = 56.dp),
         contentAlignment = Alignment.Center
     ) {
+        // The halo sits behind the disc and never receives the tap.
+        Box(
+            Modifier
+                .size(52.dp)
+                .graphicsLayer {
+                    val s = 1f + 0.45f * breath
+                    scaleX = s
+                    scaleY = s
+                    alpha = 0.40f * (1f - breath)
+                }
+                .clip(CircleShape)
+                .background(prismBrush())
+        )
         Box(
             Modifier
                 .size(52.dp)

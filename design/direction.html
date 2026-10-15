@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeOS — pick a direction</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#08080a;color:#e9e9ec;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif}
+  .wrap{max-width:1280px;margin:0 auto;padding:40px 20px 100px}
+  h1{font-size:clamp(24px,4vw,34px);margin:0 0 8px;letter-spacing:-.02em}
+  .sub{color:#93939d;font-size:15px;line-height:1.6;max-width:760px;margin:0 0 8px}
+  .note{margin-top:18px;padding:14px 16px;border:1px solid #26262c;border-radius:14px;
+    background:#101014;color:#a9a9b4;font-size:13.5px;line-height:1.6;max-width:900px}
+  .note b{color:#e9e9ec}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin-top:34px}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}}
+  .col{display:flex;flex-direction:column;gap:16px}
+  .title{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:650;letter-spacing:-.01em}
+  .tag{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    padding:5px 9px;border-radius:999px;background:#1c1c22;color:#b9b9c4;border:1px solid #2b2b33}
+  .tag.rec{background:#2a2110;color:#f2c76a;border-color:#4a3a14}
+  .why{color:#8f8f9a;font-size:13px;line-height:1.55;min-height:58px}
+  /* phone */
+  .phone{width:100%;max-width:330px;margin:0 auto;border-radius:40px;padding:11px;
+    background:#000;border:1px solid #2b2b31;
+    box-shadow:0 40px 80px -30px rgba(0,0,0,.9), inset 0 0 0 1px rgba(255,255,255,.03)}
+  .screen{border-radius:30px;overflow:hidden;height:640px;display:flex;flex-direction:column;
+    background:var(--bg);color:var(--text);position:relative;font-size:13px}
+  .glow{position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(120% 45% at 85% -8%, var(--glow1), transparent 60%),
+      radial-gradient(90% 40% at 5% 108%, var(--glow2), transparent 62%);}
+  .pad{padding:20px 18px 0;position:relative;z-index:1}
+  .top{display:flex;align-items:center;justify-content:space-between}
+  .greet{color:var(--muted);font-size:11.5px;letter-spacing:.02em}
+  .name{font-size:15px;font-weight:650;margin-top:2px}
+  .av{width:30px;height:30px;border-radius:50%;background:var(--surface2);
+    border:1px solid var(--line);display:grid;place-items:center;font-size:11px;color:var(--muted)}
+  .hero{margin-top:16px;border-radius:20px;padding:16px;background:var(--surface);
+    border:1px solid var(--line);position:relative;overflow:hidden}
+  .hero:after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;
+    border-radius:50%;background:var(--a);opacity:.10;filter:blur(6px)}
+  .big{font-size:40px;font-weight:750;letter-spacing:-.03em;line-height:1}
+  .big i{font-style:normal;color:var(--a);font-size:22px;font-weight:700;margin-left:2px}
+  .cap{color:var(--muted);font-size:12px;margin-top:6px}
+  .bar{height:6px;border-radius:999px;background:var(--surface2);margin-top:12px;overflow:hidden}
+  .bar>i{display:block;height:100%;width:68%;border-radius:999px;background:var(--a)}
+  .mini{display:flex;gap:10px;margin-top:14px}
+  .mini div{flex:1;background:var(--surface2);border:1px solid var(--line);border-radius:12px;
+    padding:9px 10px}
+  .mini b{font-size:14px;font-weight:700}
+  .mini span{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+  .sec{display:flex;align-items:baseline;justify-content:space-between;margin:20px 0 10px}
+  .sec h3{margin:0;font-size:14px;font-weight:650;letter-spacing:-.01em}
+  .sec a{color:var(--a);font-size:11.5px;text-decoration:none}
+  .row{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:14px;
+    background:var(--surface);border:1px solid var(--line);margin-bottom:8px}
+  .cb{width:19px;height:19px;border-radius:50%;border:1.6px solid var(--line);flex:none}
+  .cb.on{background:var(--a);border-color:var(--a);position:relative}
+  .cb.on:after{content:"";position:absolute;left:6px;top:3px;width:4px;height:8px;
+    border:solid var(--onA);border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .rt{flex:1;min-width:0}
+  .rt b{font-weight:550;font-size:12.5px;display:block}
+  .rt span{color:var(--muted);font-size:10.5px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--b);flex:none}
+  /* bottom nav */
+  .nav{margin-top:auto;display:flex;align-items:center;justify-content:space-between;
+    padding:10px 12px 14px;background:transparent;position:relative;z-index:1}
+  .nv{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);
+    font-size:9.5px;font-weight:600;width:52px}
+  .nv .ic{width:20px;height:20px;border-radius:7px;background:var(--surface2);border:1px solid var(--line)}
+  .nv.act{color:var(--onA)}
+  .nv.act .ic{background:var(--a);border-color:var(--a)}
+  .cap-btn{width:46px;height:46px;border-radius:16px;background:var(--a);
+    display:grid;place-items:center;color:var(--onA);font-size:22px;font-weight:400;
+    box-shadow:0 10px 24px -8px var(--a);margin-top:-14px}
+  /* swatches */
+  .sw{display:flex;gap:8px;flex-wrap:wrap}
+  .ch{width:46px;height:46px;border-radius:11px;border:1px solid rgba(255,255,255,.09)}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:#8f8f9a}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>LifeOS — pick a direction</h1>
+  <p class="sub">Three art directions. None of them are blue-black "AI dark mode". You open this
+  file, look at the three phones, and tell me the name (or mix them). I then build that one in
+  Compose — not a copy of Lumen, not the old Aurora Noir.</p>
+  <div class="note">
+    <b>What changed:</b> the screens I had generated were all the same near-black blue-grey
+    (<code>#181828</code>), which is exactly the generic look you called out. These three are
+    deliberately warm-undertoned or single-accent systems so the app has an identity.
+  </div>
+
+  <div class="grid">
+
+    <!-- CITRON -->
+    <div class="col" style="--bg:#120E18;--surface:#1B1524;--surface2:#241C30;--line:#332846;
+        --text:#F1EBF8;--muted:#9C92AE;--a:#C8FF4D;--b:#FF6B9D;--onA:#14160A;
+        --glow1:rgba(200,255,77,.10);--glow2:rgba(255,107,157,.10)">
+      <div class="title">Citron <span class="tag">bold · young</span></div>
+      <div class="why">Plum-black canvas (never blue-black) with one acid-citron accent and coral.
+      High energy, unmistakably designed, reads great on OLED.</div>
+      <div class="phone"><div class="screen">
+        <div class="glow"></div>
+        <div class="pad">
+          <div class="top">
+            <div><div class="greet">Good evening</div><div class="name">Pras</div></div>
+            <div class="av">P</div>
+          </div>
+          <div class="hero">
+            <div class="big">68<i>%</i></div>
+            <div class="cap">of today's goals</div>
+            <div class="bar"><i></i></div>
+            <div class="mini">
+              <div><b>4/6</b><span>tasks</span></div>
+              <div><b>12d</b><span>streak</span></div>
+              <div><b>₹840</b><span>today</span></div>
+            </div>
+          </div>
+          <div class="sec"><h3>Today</h3><a>See all</a></div>
+          <div class="row"><span class="cb on"></span><span class="rt"><b>Morning review</b>
+            <span>Habit · 9:00</span></span><span class="dot"></span></div>
+          <div class="row"><span class="cb"></span><span class="rt"><b>Ship the audit doc</b>
+            <span>Task · today</span></span><span class="dot"></span></div>
+          <div class="row"><span class="cb"></span><span class="rt"><b>Write in diary</b>
+            <span>Evening</span></span><span class="dot"></span></div>
+        </div>
+        <div class="nav">
+          <span class="nv act"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="cap-btn">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="sw">
+        <div class="ch" style="background:#120E18"></div><div class="ch" style="background:#1B1524"></div>
+        <div class="ch" style="background:#C8FF4D"></div><div class="ch" style="background:#FF6B9D"></div>
+        <div class="ch" style="background:#F1EBF8"></div>
+      </div>
+      <code>#120E18 · #C8FF4D · #FF6B9D</code>
+    </div>
+
+    <!-- PHOSPHOR -->
+    <div class="col" style="--bg:#0B0B0C;--surface:#141416;--surface2:#1D1D20;--line:#292930;
+        --text:#EDEDEE;--muted:#8A8A92;--a:#FFB020;--b:#4FA3A0;--onA:#1A1200;
+        --glow1:rgba(255,176,32,.10);--glow2:rgba(79,163,160,.08)">
+      <div class="title">Phosphor <span class="tag rec">recommended</span></div>
+      <div class="why">True neutral black with a single signal-amber accent and quiet teal.
+      Instrument-like, calm, and honest about data — amber is classic, not a glow toy.</div>
+      <div class="phone"><div class="screen">
+        <div class="glow"></div>
+        <div class="pad">
+          <div class="top">
+            <div><div class="greet">Good evening</div><div class="name">Pras</div></div>
+            <div class="av">P</div>
+          </div>
+          <div class="hero">
+            <div class="big">68<i>%</i></div>
+            <div class="cap">of today's goals</div>
+            <div class="bar"><i></i></div>
+            <div class="mini">
+              <div><b>4/6</b><span>tasks</span></div>
+              <div><b>12d</b><span>streak</span></div>
+              <div><b>₹840</b><span>today</span></div>
+            </div>
+          </div>
+          <div class="sec"><h3>Today</h3><a>See all</a></div>
+          <div class="row"><span class="cb on"></span><span class="rt"><b>Morning review</b>
+            <span>Habit · 9:00</span></span><span class="dot"></span></div>
+          <div class="row"><span class="cb"></span><span class="rt"><b>Ship the audit doc</b>
+            <span>Task · today</span></span><span class="dot"></span></div>
+          <div class="row"><span class="cb"></span><span class="rt"><b>Write in diary</b>
+            <span>Evening</span></span><span class="dot"></span></div>
+        </div>
+        <div class="nav">
+          <span class="nv act"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="cap-btn">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="sw">
+        <div class="ch" style="background:#0B0B0C"></div><div class="ch" style="background:#141416"></div>
+        <div class="ch" style="background:#FFB020"></div><div class="ch" style="background:#4FA3A0"></div>
+        <div class="ch" style="background:#EDEDEE"></div>
+      </div>
+      <code>#0B0B0C · #FFB020 · #4FA3A0</code>
+    </div>
+
+    <!-- JADE -->
+    <div class="col" style="--bg:#06120F;--surface:#0D1F1B;--surface2:#143028;--line:#1E3C34;
+        --text:#E6F2EC;--muted:#84A39A;--a:#2FD79B;--b:#E8C97A;--onA:#04170F;
+        --glow1:rgba(47,215,155,.11);--glow2:rgba(232,201,122,.08)">
+      <div class="title">Jade <span class="tag">calm · organic</span></div>
+      <div class="why">Abyssal teal-black with luminous jade and a sand accent. Reads as a private
+      instrument, feels natural rather than "cyber", still unmistakably dark.</div>
+      <div class="phone"><div class="screen">
+        <div class="glow"></div>
+        <div class="pad">
+          <div class="top">
+            <div><div class="greet">Good evening</div><div class="name">Pras</div></div>
+            <div class="av">P</div>
+          </div>
+          <div class="hero">
+            <div class="big">68<i>%</i></div>
+            <div class="cap">of today's goals</div>
+            <div class="bar"><i></i></div>
+            <div class="mini">
+              <div><b>4/6</b><span>tasks</span></div>
+              <div><b>12d</b><span>streak</span></div>
+              <div><b>₹840</b><span>today</span></div>
+            </div>
+          </div>
+          <div class="sec"><h3>Today</h3><a>See all</a></div>
+          <div class="row"><span class="cb on"></span><span class="rt"><b>Morning review</b>
+            <span>Habit · 9:00</span></span><span class="dot"></span></div>
+          <div class="row"><span class="cb"></span><span class="rt"><b>Ship the audit doc</b>
+            <span>Task · today</span></span><span class="dot"></span></div>
+          <div class="row"><span class="cb"></span><span class="rt"><b>Write in diary</b>
+            <span>Evening</span></span><span class="dot"></span></div>
+        </div>
+        <div class="nav">
+          <span class="nv act"><span class="ic"></span>Home</span>
+          <span class="nv"><span class="ic"></span>Notes</span>
+          <span class="cap-btn">+</span>
+          <span class="nv"><span class="ic"></span>Insights</span>
+          <span class="nv"><span class="ic"></span>Life</span>
+        </div>
+      </div></div>
+      <div class="sw">
+        <div class="ch" style="background:#06120F"></div><div class="ch" style="background:#0D1F1B"></div>
+        <div class="ch" style="background:#2FD79B"></div><div class="ch" style="background:#E8C97A"></div>
+        <div class="ch" style="background:#E6F2EC"></div>
+      </div>
+      <code>#06120F · #2FD79B · #E8C97A</code>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

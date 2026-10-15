@@ -1,0 +1,10 @@
+<resources>
+    <!--
+        The native (pre-Compose) splash background. AURA's lagoon in its light
+        "day" polarity. values-night swaps this for the deep lagoon so a
+        dark-mode device never flashes pale before the animated start screen.
+        The old value was plain white with the off-brand indigo icon.
+    -->
+    <color name="lifeos_splash_background">#FFF1F6F4</color>
+    <color name="lifeos_window_background">#FFF1F6F4</color>
+</resources>

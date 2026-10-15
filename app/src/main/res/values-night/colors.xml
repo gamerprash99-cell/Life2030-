@@ -1,0 +1,5 @@
+<resources>
+    <!-- Deep lagoon for a dark-mode device — matches LifeOSBackgroundDark. -->
+    <color name="lifeos_splash_background">#FF070B0B</color>
+    <color name="lifeos_window_background">#FF070B0B</color>
+</resources>

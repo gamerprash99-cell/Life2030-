@@ -2,6 +2,7 @@ package com.lifeos.app.ui.diary
 
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.data.db.dao.DiaryDao
 import com.lifeos.app.data.db.entities.DiaryEntity
@@ -12,7 +13,10 @@ import com.lifeos.app.domain.model.DiaryWeather
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -39,9 +43,11 @@ import org.junit.Test
  *
  * These tests drive that race directly rather than hoping to hit it on a device.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class DiaryDetailViewModelTest {
 
     private val dao = GatedDiaryDao()
+    private val createdScopes = mutableListOf<CoroutineScope>()
 
     @Before
     fun setUp() {
@@ -54,6 +60,8 @@ class DiaryDetailViewModelTest {
 
     @After
     fun tearDown() {
+        createdScopes.forEach { it.coroutineContext.cancelChildren() }
+        createdScopes.clear()
         Dispatchers.resetMain()
     }
 
@@ -78,6 +86,7 @@ class DiaryDetailViewModelTest {
                 DiaryDetailViewModel(id, DiaryRepository(dao), NoWeather)
             }
         )[id, DiaryDetailViewModel::class.java]
+        createdScopes += vm.viewModelScope
         return store to vm
     }
 

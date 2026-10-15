@@ -1,10 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    LifeOS launcher foreground — the AURA mark.
+
+    The ring is the day in progress; the coral bead is the one captured moment
+    that settles into it. The ring is drawn as a 270° arc (not a full circle)
+    so the gap at the top-right stays open for the bead. The stroke carries the
+    mint→coral identity gradient; the bead is solid coral.
+
+    Kept inside the 66dp adaptive-icon safe zone (the mark spans ~24..84 of the
+    108 viewport) so no launcher mask ever clips it.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- The ring: a 270° arc from 3 o'clock clockwise, round caps. -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,30 C40,30 30,40 30,54 C30,68 40,78 54,78 C68,78 78,68 78,54 C78,45 73,38 65,34 L61,42 C65,44 68,49 68,54 C68,62 62,68 54,68 C46,68 40,62 40,54 C40,46 46,40 54,40 C56,40 58,40.5 60,41.3 L64,32.6 C61,31 57.5,30 54,30 Z" />
+        android:pathData="M79,54 A25,25 0 1 1 54,29"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="0.0"
+                android:startY="0.0"
+                android:endX="1.0"
+                android:endY="1.0">
+                <item android:offset="0.0" android:color="#FF5EE0B0" />
+                <item android:offset="1.0" android:color="#FFFF9E80" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- The captured-moment bead, resting in the ring's opening. -->
+    <path
+        android:pathData="M64,36 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 z"
+        android:fillColor="#FFFF9E80" />
 </vector>
