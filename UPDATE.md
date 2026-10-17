@@ -382,3 +382,18 @@ no cloud/AI/telemetry/analytics dependency was introduced.
 
 ### Remaining
 - Calendar still needs its dedicated Figma frame implementation; continue screen-by-screen after this Timeline pass.
+
+
+## 2026-10-17 — Figma parity continuation: Life Calendar
+
+### Changed
+- Replaced the Calendar tab's empty placeholder with a month grid using the existing Figma night-glass tokens, Monday-first weekday labels, month navigation, today/selected-day states, and disabled future-date selection.
+- Selecting a day reuses the existing local timeline flow; entries continue to come from `BuildTimelineUseCase`. Month navigation clamps to valid dates and never selects a future day.
+- No sample data, Room changes, new dependencies, network calls, or navigation architecture changes.
+
+### Verification
+- Source and this log are committed to `feat/figma-parity-final-pass`. GitHub Actions is building the PR head; final result still needs confirmation.
+- Device rendering, accessibility order, large-font and landscape comparisons remain unverified.
+
+### Remaining
+- Calendar event markers are not shown because the current use case loads one selected day at a time; do not imply that the month grid has scanned all dates. Continue to the next unported Figma screen after build verification.
