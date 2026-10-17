@@ -74,6 +74,8 @@ import com.lifeos.app.ui.components.LifeOSTopBar
 import com.lifeos.app.ui.diary.DiaryTheme
 import com.lifeos.app.ui.theme.DiaryHandwriting
 import com.lifeos.app.ui.theme.FigmaAccent
+import com.lifeos.app.ui.theme.FigmaAccentStroke
+import com.lifeos.app.ui.theme.FigmaCard
 import com.lifeos.app.ui.theme.FigmaCanvasBottom
 import com.lifeos.app.ui.theme.FigmaCanvasMid
 import com.lifeos.app.ui.theme.FigmaCanvasTop
