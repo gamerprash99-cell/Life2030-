@@ -367,3 +367,18 @@ no cloud/AI/telemetry/analytics dependency was introduced.
 ### Remaining
 - Continue with Quick Capture, Diary, Timeline/Calendar, and Insights Figma parity.
 - Verify the note editor at small widths, large font scale, and with the IME visible; confirm CI before treating this pass as build-verified.
+
+
+## 2026-10-17 — Figma parity continuation: Life Timeline
+
+### Changed
+- Updated the Life Timeline canvas to the Figma teal/navy gradient and replaced paper/sepia timeline text, rail, node, and empty-state colors with the existing Figma night-glass palette.
+- Preserved the existing Room-backed timeline use case, date navigation, item click routing, and current Timeline/Calendar toggle behavior. No sample timeline data was introduced.
+- No database, navigation architecture, dependency, network, or asset changes.
+
+### Verification
+- Source and documentation commits are on `feat/figma-parity-final-pass`; GitHub Actions build status is being checked separately.
+- Device rendering, accessibility order, large-font and landscape comparisons remain unverified.
+
+### Remaining
+- Calendar still needs its dedicated Figma frame implementation; continue screen-by-screen after this Timeline pass.
