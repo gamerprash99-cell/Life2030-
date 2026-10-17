@@ -52,11 +52,11 @@ sealed class Screen(val route: String) {
     object Life : Screen("life")
 
     /**
-     * Insights — the spec §27/§28 dashboard: weekly and monthly reports plus
-     * all-time personal statistics, every figure computed from stored rows.
-     * A primary tab (see the bottom bar).
+     * Local Backup — the export/restore surface. Reached from Profile's
+     * "Local Backup" row and lands directly on the Backup & Local Storage
+     * section of Settings.
      */
-    object Insights : Screen("insights")
+    object Backup : Screen("backup")
 
     /** The Capture hub — a full-window sheet opened from the centre action. */
     object Capture : Screen("capture")

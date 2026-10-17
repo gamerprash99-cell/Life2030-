@@ -63,7 +63,6 @@ fun LifeScreen(
         item {
             LifeOSPageHeader(
                 eyebrow = "Everything so far",
-                title = "Life",
                 actionIcon = Icons.Outlined.Search,
                 actionDescription = "Search everything",
                 onAction = onOpenSearch

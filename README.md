@@ -112,14 +112,14 @@ is no third-party MVI/Redux framework.
 | **Habits** | Daily/custom schedules, goal counts, streaks, 12-week heatmap. `ui/habits/HabitsScreen.kt`, `HabitDetailScreen.kt` |
 | **Diary** | **Daily Memory**: an editorial memory timeline read one day at a time — a day masthead over a horizontally snapping, centre-keeping date strip (haptic per settled day change, bounded to the last 365 days, no future day), a hairline spine carrying each memory's mood, large leading journal type, an inline `+ Memory` action and a `YOUR STORY STARTS HERE` empty state. Full-screen composer (8 moods) with real photo, voice-note and place attachments and an honest weather-unavailable state; a post-save confirmation naming the stored day and minute with *View memory* / *Add another memory*; and a full-page detail view reusing the same language. Fully offline and Room-backed; no network calls. Search, a month calendar and a local intelligence screen (streak, stats, mood mix, 7-day mood chart, recurring words, reflection prompt) are reached from the header's overflow menu and read only rows already on the device. `ui/diary/`, `domain/intelligence/` |
 | **Notes** | Block-based rich text, pin/favorite/archive/trash, folder chips, local AI actions. `ui/notes/` |
-| **Expenses** | Monthly spend, daily average, a user-set monthly budget with progress, remaining, recent transactions, and **optional on-device capture of payment notifications** into ordinary expenses. `ui/expenses/ExpensesScreen.kt`, `core/transactions/`, `domain/intelligence/` |
+| **Expenses** | Monthly spend, daily average, a user-set monthly budget with progress, remaining, and recent transactions (every entry added by hand). `ui/expenses/ExpensesScreen.kt` |
 | **Timeline** | Day-by-day merge of notes/tasks/habits/expenses/diary/captures. `ui/timeline/TimelineScreen.kt`, `BuildTimelineUseCase.kt` |
 | **Capture** | Photo (CameraX), video (CameraX Recorder), audio (MediaRecorder), quick thought; post-capture confirmation and a detail viewer. `ui/capture/` |
 | **Search** | Cross-feature `LIKE` search (not full-text/semantic). `ui/search/SearchScreen.kt` |
 | **App Lock** | PIN-only gate (`NONE`/`PIN`), salted PBKDF2 hash, recovery + lockout. `ui/security/`, `core/security/` |
-| **Settings** | App Lock, reminders toggle, automatic expense capture (with the notification-access grant flow), Intelligence toggle, backup/export/restore. `ui/settings/SettingsScreen.kt` |
+| **Settings** | App Lock, reminders/exact-alarm status, dark-theme switch, monthly budget, backup/export/restore (also reachable as its own **Local Backup** destination from Profile). `ui/settings/SettingsScreen.kt` |
 | **Profile** | Local display name + profile photo (local content URI). `ui/profile/ProfileScreen.kt` |
-| **Intelligence** | On-device analyzers, reports, assistant chat, insights. `core/intelligence/` |
+| **Intelligence** | On-device analyzers and the local question engine that power the AI assistant and the Diary's mood/stats surfaces. `core/intelligence/`, `core/ai/` |
 | **Backup / Restore** | JSON export (app-private file) + restore via Android SAF. `data/repository/BackupRepository.kt` |
 | **Reminders** | Per-task/habit WorkManager jobs + notification permission on demand. `core/reminders/` |
 | **Onboarding** | 4-page first launch with optional JSON restore. `ui/onboarding/OnboardingScreen.kt` |
@@ -142,29 +142,19 @@ shows:
   separately as an error-coloured over-budget state.
 - **Recent Transactions** — current-month expenses from
   `ExpenseRepository.observeInRange`, each with category emoji, title and amount.
-  Expenses LifeOS filed itself carry an **Automatically detected** marker.
 - **Empty state** — shown when no expenses exist this month.
 - **Purple FAB (+)** — opens the existing Material 3 `ModalBottomSheet`
   "Add expense".
 
-### 5.1 Automatic expense capture (optional, off by default)
+### 5.1 Automatic expense capture — removed
 
-A `NotificationListenerService` (`core/transactions/TransactionCaptureService.kt`)
-can turn payment notifications into expenses entirely on device:
+The former optional payment-notification capture feature (a
+`NotificationListenerService`, its parser/categorizer, the Settings toggle and
+the notification-access grant flow) has been **permanently removed**. Expenses
+are entered by hand. Rows captured by older builds keep their data (the marker
+was stored in the existing `tagsCsv` column, so no schema change is involved)
+and simply appear as ordinary expenses.
 
-- Requires **both** the system notification-access grant (requested from
-  Settings, never at launch) and the in-app toggle in Settings.
-- `domain/intelligence/TransactionParser.kt` reads the amount, merchant, type,
-  payment method and time; only a **high-confidence expense** is recorded.
-  Income, refunds, self-directed transfers, ATM withdrawals and ambiguous
-  amounts are declined.
-- Deduplicated by a deterministic row id derived from the transaction, plus a
-  same-merchant/same-amount rule within a two-minute window. No new column and
-  no migration.
-- Categories come from a whole-word lookup against the categories the app
-  already offers; an unknown merchant becomes `Other`.
-- Notification text is never stored and never logged — only the parsed fields
-  reach the database.
 
 **Adding an expense**
 1. Enter `Amount (INR)` and an optional `Merchant or note`.
@@ -177,7 +167,7 @@ can turn payment notifications into expenses entirely on device:
 **Category selection behavior (current).** A single `selectedCategory` state
 exists inside `AddExpenseSheet`; the default is `Food`. Tapping a chip updates
 that one state. The selected chip is rendered in the theme's
-`colorScheme.primary` (purple/lavender) with `onPrimary` content color, so
+`colorScheme.primary` (lavender) with `onPrimary` content color, so
 exactly one category looks active at a time; all others keep the normal
 glass-chip appearance. The existing "Selected: <name>" line is retained.
 
@@ -219,11 +209,12 @@ See [`docs/05_DATABASE.md`](./docs/05_DATABASE.md) for the full schema.
 Navigation Compose with a single `NavController` in
 `ui/navigation/LifeOSNavHost.kt`:
 
-- Four primary destinations (**Home, Tasks, Habits, Insights**) live in one
-  nested graph (`root_tabs`) with `saveState`/`restoreState`/`launchSingleTop`,
-  so the bottom bar returns to a section's saved state.
-- Secondary screens (Notes, Note Editor, Habit Detail, Expenses, Diary,
-  Timeline, Capture Detail, Search, AI Assistant, Profile, Settings, App Lock
+- Three primary destinations (**Home, Notes, Life**) plus the raised centre
+  Capture action live in one nested graph (`root_tabs`) with
+  `saveState`/`restoreState`/`launchSingleTop`, so the bottom bar returns to a
+  section's saved state.
+- Secondary screens (Note Editor, Habit Detail, Expenses, Diary, Timeline,
+  Capture, Search, AI Assistant, Profile, Settings, Local Backup, App Lock
   Setup) are registered **outside** that graph and stack on top; system Back
   dismisses them one level at a time.
 - Routes are declared in `ui/navigation/Screen.kt`.
@@ -235,8 +226,13 @@ Navigation Compose with a single `NavController` in
 Centralized in `ui/theme/` and `ui/components/`, specified in
 [`docs/DESIGN.md`](./docs/DESIGN.md).
 
-- **Colors** (`ui/theme/Color.kt`): LifeOS violet primary `#7C4DFF`, magenta
-  secondary `#D946EF`, lavender `#EADDFF`, plus category accent colors.
+- **Colors** (`ui/theme/Color.kt`): the **Lavender Dream** palette — light:
+  canvas `#F1EDF7`, surface `#FCFAFF`, primary `#A995D1`, soft `#D8C9EF`,
+  secondary `#8B78B7`, text `#3F3457`, secondary text `#716781`, border
+  `#E4DDF0`; dark: canvas `#17141F`, surface `#24202F`, elevated `#302A3E`,
+  primary `#BBA7E6`, soft `#463956`, secondary `#C8B7EB`, text `#F6F1FC`,
+  secondary text `#C8BED8`, border `#494055`. Diary mood colours are domain
+  semantics and stay stable.
 - **Theme** (`Theme.kt`): light/dark `ColorScheme`s + a `LocalGlassColors`
   CompositionLocal for the glass surfaces. Dynamic color is off by default.
 - **Typography / Shape / Spacing**: Material 3 type scale, large rounded shapes
@@ -247,8 +243,8 @@ Centralized in `ui/theme/` and `ui/components/`, specified in
   `ReminderTimePickerDialog`, `ProfileAvatar`.
 - **Responsive / insets**: `Scaffold` + `WindowInsets`; the app uses
   `adjustResize` (see manifest) so forms stay above the keyboard.
-- **Bottom navigation**: Home, Tasks, Habits, Insights with always-visible
-  labels and a lavender selected pill.
+- **Bottom navigation**: Home, Notes, (Capture), Life — 24dp icons on a
+  soft-lavender selected pill, always-visible labels, ≥48dp touch targets.
 
 ---
 
@@ -398,9 +394,9 @@ See [`docs/21_FILE_STRUCTURE.md`](./docs/21_FILE_STRUCTURE.md) for per-file note
 
 ## 17. Current UI/UX behavior (highlights)
 
-- Three-destination bottom bar (Home, Tasks, Habits) with saved-state
-  restoration; Settings is reached from Profile. Diary, Timeline, Expenses and
-  Capture are Home overlay destinations, not tabs.
+- Bottom bar: Home, Notes, raised centre Capture, Life — saved-state
+  restoration; Profile and Settings (incl. Local Backup) are overlay
+  destinations, not tabs.
 - Home dashboard with animated Daily Momentum and live repository-backed data.
 - Diary (**Daily Memory**): a paper/ink-violet editorial timeline scoped to one
   day — a day masthead over a centre-keeping date strip, a 1dp spine with mood
@@ -419,6 +415,33 @@ See [`docs/21_FILE_STRUCTURE.md`](./docs/21_FILE_STRUCTURE.md) for per-file note
 ---
 
 ## 18. Recent Changes
+
+**2026-10-16 — Lavender Dream redesign + feature cleanup**
+- Full light/dark retheme to the **Lavender Dream** palette (exact hexes in
+  §8) across `ui/theme/` (`Color.kt`, `Theme.kt`, `DiaryColors.kt`), the
+  component kit, the splash/window backgrounds, the launcher icon and the
+  Today widget. Mint/teal identity is gone; every screen reads its colours
+  from the theme tokens (no scattered hardcoded colours). Diary mood colours
+  are untouched (domain semantics).
+- Bottom navigation rebuilt: Home · Notes · (Capture) · Life, 24dp icons,
+  ≥48dp touch targets, lavender selected states, correct window-inset
+  handling.
+- Removed the redundant "You" (Profile) and "Life" page headings — the
+  eyebrow remains.
+- Fixed Profile → **Local Backup** opening Settings generically; it now opens
+  a dedicated `backup` destination that lands directly on the Backup &
+  Local Storage section.
+- **Automatic Expense Capture removed permanently** (notification-listener
+  service, parser, categorizer, use case, Settings toggle, grant flow, tests).
+  Hand entry is the only way expenses are recorded; legacy captured rows
+  remain valid data.
+- **Insights (the weekly/monthly report dashboard) removed permanently**
+  (screen, tab, ViewModel). The shared on-device intelligence engine stays —
+  the AI assistant and the Diary consume it.
+- Room schema, migrations, repositories, use cases and ViewModels are
+  untouched otherwise; backup formats are unchanged.
+- Verified: `assembleDebug`, `testDebugUnitTest`, `lintDebug` in this
+  environment.
 
 **2026-09-24 — Timeline & Diary visual pass from Stitch design system**
 - Timeline (`ui/timeline/TimelineScreen.kt`) redrawn to the Stitch reference:

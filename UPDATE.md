@@ -160,3 +160,70 @@ data was touched; no permission or network path was added.
 - The navigation-graph question of whether tapping an *unvisited* root tab from a
   stacked module should clear the module (currently it stacks the tab above it).
 - Dead-code reachability inventory (audit P2).
+
+## 2026-10-16 — Lavender Dream redesign + Automatic Expense Capture & Insights removal
+
+Branch: `feat/lavender-dream-redesign`. Scope: a full light+dark retheme to the
+" Lavender Dream" direction, bottom-navigation correction, two feature
+removals, and documentation reconciliation. No Room schema, migration,
+repository/use-case/ViewModel contract or user data was touched; no permission
+or network path was added.
+
+### Visual direction — Lavender Dream (light + dark)
+- `ui/theme/Color.kt` rewritten: every existing token name is preserved but
+  remapped to the lavender palette, so the whole app rethemes without a
+  file-by-file rewrite. New tokens: `LifeOSInkOnBrand` (ink used on primary
+  fills for AA contrast), `LifeOSPrimaryTextLight`/`LifeOSPrimaryTextDark`.
+- Light: bg `#F1EDF7`, surface `#FCFAFF`, primary `#A995D1`, soft `#D8C9EF`,
+  secondary `#8B78B7`, text `#3F3457`, secondary text `#716781`, border `#E4DDF0`.
+- Dark: bg `#17141F`, surface `#24202F`, elevated `#302A3E`, primary `#BBA7E6`,
+  soft `#463956`, secondary `#C8B7EB`, text `#F6F1FC`, secondary text `#C8BED8`,
+  border `#494055`.
+- `Theme.kt` light/dark Material schemes rebuilt on those tokens. Functional
+  state colors (success/danger/warning/info) and Diary mood colors keep their
+  semantic values. `DiaryColors.kt` paper palette recolored to lavender-tinted
+  paper (names kept). Prism gradient moved from mint to deep-violet → lavender →
+  periwinkle. Mint is no longer the product's identity color anywhere.
+- Resources: light/dark `colors.xml` (splash/window backgrounds), launcher
+  foreground/background vectors, and the Today-widget background are lavender.
+
+### Bottom navigation (`LifeOSBottomBar.kt`)
+- Now **Home · Notes · Capture (centre action) · Life** — the four-slot contract
+  from `docs/CURRENT_PRODUCT_UI_CONTRACT.md`. Capture stays a centre **action**,
+  not a tab; it does not enter the tab graph.
+- ~24dp icons, 44×32 selected pill, ≥48dp minimum touch targets, correct
+  `WindowInsets` padding. No manual screen switching and no duplicate nav stacks
+  were introduced; `centerAfterIndex` ordering logic is preserved.
+- `BottomNavItemsTest` updated to pin the new order and route uniqueness.
+
+### Feature removal (exclusive-implementation deletion)
+- **Automatic Expense Capture**: deleted `TransactionCaptureService`,
+  `TransactionParser`, `ExpenseCategorizer`, `CaptureTransactionUseCase`,
+  `NotificationAccess`, `ExpenseOrigin`, `Transaction`, the notification-listener
+  manifest service and `<queries>` block, the Settings toggle/card, the
+  "Automatically detected" badge in Expenses, the `SettingsStore` key/flow, the
+  dedup DAO queries (`existsById`, `findSameAmountOnDay`) and the `id` parameter
+  of `addExpense` (now always `IdGenerator.newId()`). Manual expense entry is
+  untouched. No DB migration needed (the capture marker was a `tagsCsv` tag).
+- **Insights**: deleted `InsightsScreen` + `InsightsViewModel`, the
+  `Screen.Insights` route and its NavHost entry. Shared intelligence was
+  **deliberately kept** because Diary insights/weekly review and the on-device
+  AI assistant consume it.
+
+### Other fixes
+- **Local Backup navigation**: new `Screen.Backup` route opens Settings directly
+  at the Backup & Local Storage section (scroll-to-section via
+  `boundsInRoot` anchors). Profile's "Local Backup" row now navigates there.
+- **Headings removed**: the "You" (Profile) and "Life" (Life) page headings are
+  gone; `LifeOSPageHeader.title` is now nullable and the contextual eyebrow
+  remains. Appearance settings copy updated to "Lavender Dream".
+
+### Verification
+- `./gradlew :app:assembleDebug` — **BUILD SUCCESSFUL**.
+- `./gradlew :app:testDebugUnitTest` — **BUILD SUCCESSFUL**, 408 tests,
+  0 failures / 0 errors / 0 skipped (36 test classes; includes the updated
+  `BottomNavItemsTest`).
+- `./gradlew :app:lintDebug` — **BUILD SUCCESSFUL**, 0 errors.
+- No device/emulator was available in this environment, so TalkBack order,
+  200% font scale contrast, touch-target measurement on device and startup
+  timings remain **unverified**.

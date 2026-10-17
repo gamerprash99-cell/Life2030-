@@ -16,7 +16,57 @@ output.
 
 ---
 
-## [Unreleased] — Figma fidelity rebuild
+## [Unreleased] — Lavender Dream redesign + Automatic Expense Capture & Insights removal (2026-10-16)
+
+Branch `feat/lavender-dream-redesign`. A full light+dark retheme to the
+"Lavender Dream" direction, a bottom-navigation correction, two feature
+removals and documentation reconciliation. The data layer, Room schema,
+migrations, ViewModels and user data are unchanged; no permission or network
+path was added.
+
+### Added
+- **`Screen.Backup` route** — opens Settings directly at the Backup & Local
+  Storage section (scroll-to-section via `boundsInRoot` anchors); wired from
+  Profile's "Local Backup" row.
+- **New color tokens** — `LifeOSInkOnBrand` (AA ink on primary fills),
+  `LifeOSPrimaryTextLight` / `LifeOSPrimaryTextDark`.
+
+### Changed
+- **Theme** (`Color.kt`, `Theme.kt`) — every existing token name preserved but
+  remapped to the lavender palette. Light: bg `#F1EDF7`, surface `#FCFAFF`,
+  primary `#A995D1`, soft `#D8C9EF`, secondary `#8B78B7`, text `#3F3457`,
+  secondary text `#716781`, border `#E4DDF0`. Dark: bg `#17141F`, surface
+  `#24202F`, elevated `#302A3E`, primary `#BBA7E6`, soft `#463956`, secondary
+  `#C8B7EB`, text `#F6F1FC`, secondary text `#C8BED8`, border `#494055`.
+  Functional state colors (success/danger/warning/info) keep their semantics;
+  mint is no longer the product identity anywhere.
+- **Bottom bar** (`LifeOSBottomBar.kt`) — now Home · Notes · Capture (centre
+  action) · Life. ~24dp icons, 44×32 selected pill, ≥48dp touch targets, proper
+  `WindowInsets` padding. Capture remains an action, not a tab.
+- **Resources** — light/dark splash and window backgrounds, launcher vectors and
+  the Today-widget background recolored to lavender.
+- **Diary paper palette** (`DiaryColors.kt`) — recolored to lavender-tinted
+  paper; token names kept.
+- **Headings** — the "You" (Profile) and "Life" (Life) page headings removed;
+  `LifeOSPageHeader.title` is now nullable and the contextual eyebrow remains.
+- **Appearance settings copy** — now says "Lavender Dream".
+
+### Removed
+- **Automatic Expense Capture** — `TransactionCaptureService`,
+  `TransactionParser`, `ExpenseCategorizer`, `CaptureTransactionUseCase`,
+  `NotificationAccess`, `ExpenseOrigin`, `Transaction`, the notification-listener
+  manifest service and `<queries>` block, the Settings toggle/card, the
+  "Automatically detected" expense badge, the `SettingsStore` key/flow, the
+  dedup DAO queries (`existsById`, `findSameAmountOnDay`) and the `id`
+  parameter of `addExpense`. Manual expense entry untouched. No migration needed
+  (the capture marker was a `tagsCsv` tag).
+- **Insights** — `InsightsScreen`, `InsightsViewModel`, `Screen.Insights` and
+  its NavHost entry. The shared intelligence engine was **deliberately kept**:
+  Diary insights/weekly review and the on-device AI assistant consume it.
+- Per-feature unit tests for both removed features; `BottomNavItemsTest` updated
+  for the new tab order and route uniqueness.
+
+## [Unreleased — earlier pass] — Figma fidelity rebuild
 
 Branch `redesign/from-zero-2026`. Every screen was rebuilt from zero against the
 supplied Figma file (`ehSpxDfVot6SgPIdd2Tvf4`). The result is a new theme, a new

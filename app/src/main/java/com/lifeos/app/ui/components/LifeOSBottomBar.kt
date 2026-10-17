@@ -22,11 +22,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Insights
-import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -55,12 +54,16 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.lifeos.app.ui.navigation.ROOT_TABS_GRAPH
 import com.lifeos.app.ui.navigation.Screen
+import com.lifeos.app.ui.theme.LifeOSCardStrokeDark
+import com.lifeos.app.ui.theme.LifeOSCardStrokeLight
+import com.lifeos.app.ui.theme.LifeOSAccentLavender
 import com.lifeos.app.ui.theme.LifeOSMint
 import com.lifeos.app.ui.theme.LifeOSMintInk
 import com.lifeos.app.ui.theme.LifeOSNavBarDark
 import com.lifeos.app.ui.theme.LifeOSNavBarLight
 import com.lifeos.app.ui.theme.LifeOSNavPillSelectedDark
 import com.lifeos.app.ui.theme.LifeOSNavPillSelectedLight
+import com.lifeos.app.ui.theme.LifeOSTextPrimaryLight
 
 /**
  * A single item of the primary bottom navigation.
@@ -74,26 +77,25 @@ data class BottomNavItem(
 )
 
 /**
- * Ordered list backing the bottom navigation bar — the spec's five-section IA:
- * Home · Notes · (Capture) · Insights · Life. Capture is not a stateful tab; it
- * is the raised centre action that opens the full-window Capture hub, so it is
- * rendered separately (see [CaptureCenterButton]) and must not appear here.
+ * Ordered list backing the bottom navigation bar — Home · Notes · (Capture) ·
+ * Life. Capture is not a stateful tab; it is the raised centre action that
+ * opens the full-window Capture hub, so it is rendered separately (see
+ * [CaptureCenterButton]) and must not appear here.
  *
  * Labels are always visible: icon-only navigation is a UX trap.
  */
 internal val bottomNavItems = listOf(
     BottomNavItem(Screen.Home, "Home", Icons.Outlined.Home, Icons.Outlined.Home),
-    BottomNavItem(Screen.Notes, "Notes", Icons.Outlined.StickyNote2, Icons.Outlined.StickyNote2),
-    BottomNavItem(Screen.Insights, "Insights", Icons.Outlined.Insights, Icons.Outlined.Insights),
+    BottomNavItem(Screen.Notes, "Notes", Icons.AutoMirrored.Outlined.StickyNote2, Icons.AutoMirrored.Outlined.StickyNote2),
     BottomNavItem(Screen.Life, "Life", Icons.Outlined.Explore, Icons.Outlined.Explore)
 )
 
 /**
- * The rebuilt primary navigation bar, straight from the Figma frames: a
- * full-width 84dp bar (plus the gesture area padding) painted at 94% over the
- * canvas with a hairline top edge, holding five evenly spaced destinations.
- * The selected one gets a dark-mint 40x30 pill behind its icon and a mint
- * label; the centre Capture slot is a solid mint 50x42 tile with dark ink.
+ * The Lavender Dream primary navigation bar: a full-width bar (plus the
+ * gesture-area padding) painted over the canvas with a hairline top edge,
+ * holding the primary destinations around a raised centre Capture action.
+ * The selected one gets a soft-lavender pill behind its 24dp icon; every
+ * entry keeps a ≥48dp touch target. Icons are 24dp per the Material spec.
  */
 @Composable
 fun LifeOSBottomBar(navController: NavHostController) {
@@ -104,7 +106,7 @@ fun LifeOSBottomBar(navController: NavHostController) {
     val isOnTab = destination?.hierarchy?.any { it.route == ROOT_TABS_GRAPH } == true
 
     // Index after which the raised centre action is inserted, so the bar reads
-    // Home · Notes · ＋ · Insights · Life.
+    // Home · Notes · ＋ · Life.
     val centerAfterIndex = bottomNavItems.size / 2 - 1
 
     Box(
@@ -113,7 +115,7 @@ fun LifeOSBottomBar(navController: NavHostController) {
             .background(if (lifeOSIsDark()) LifeOSNavBarDark else LifeOSNavBarLight)
             .border(
                 width = 1.dp,
-                color = if (lifeOSIsDark()) Color(0x1FB6D9E5) else Color(0x140B2A21),
+                color = if (lifeOSIsDark()) LifeOSCardStrokeDark else LifeOSCardStrokeLight,
             )
     ) {
         Row(
@@ -121,7 +123,7 @@ fun LifeOSBottomBar(navController: NavHostController) {
                 .fillMaxWidth()
                 .height(84.dp)
                 .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -155,7 +157,11 @@ fun LifeOSBottomBar(navController: NavHostController) {
     }
 }
 
-/** One tappable bottom-nav entry: a 40x30 icon pill with a 9sp uppercase label. */
+/**
+ * One tappable bottom-nav entry: a lavender pill behind a 24dp icon with a
+ * 9sp uppercase label. The whole column is the hit region and is held to at
+ * least 48x48dp so the touch target never shrinks with the label.
+ */
 @Composable
 private fun BottomNavEntry(
     item: BottomNavItem,
@@ -163,46 +169,52 @@ private fun BottomNavEntry(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val dark = lifeOSIsDark()
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val pillColor by animateColorAsState(
         targetValue = when {
-            selected -> if (lifeOSIsDark()) LifeOSNavPillSelectedDark else LifeOSNavPillSelectedLight
+            selected -> if (dark) LifeOSNavPillSelectedDark else LifeOSNavPillSelectedLight
             pressed -> Color.White.copy(alpha = 0.06f)
             else -> Color.Transparent
         },
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "bottomNavPill"
     )
+    // Selected ink sits ON the pill: dark lavender ink on the light pill, the
+    // soft lavender accent on the dark pill. Unselected keeps the scheme's
+    // quiet on-surface-variant grey.
+    val selectedInk = if (dark) LifeOSAccentLavender else LifeOSTextPrimaryLight
     val iconColor by animateColorAsState(
-        targetValue = if (selected) LifeOSMint else MaterialTheme.colorScheme.onSurfaceVariant,
+        targetValue = if (selected) selectedInk else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "bottomNavColor"
     )
     val labelColor by animateColorAsState(
-        targetValue = if (selected) LifeOSMint else MaterialTheme.colorScheme.onSurfaceVariant,
+        targetValue = if (selected) selectedInk else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "bottomNavLabelColor"
     )
 
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(15.dp))
+            .clip(RoundedCornerShape(16.dp))
             .semantics { this.role = Role.Tab; this.selected = selected }
             .clickable(
                 interactionSource = interaction,
                 indication = null,
                 onClick = onClick
             )
-            .defaultMinSize(minHeight = 56.dp)
-            .padding(horizontal = 4.dp, vertical = 6.dp),
+            // The full 48x48dp minimum touch target (Material accessibility).
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            .padding(horizontal = 6.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Box(
             Modifier
-                .size(width = 40.dp, height = 30.dp)
-                .clip(RoundedCornerShape(15.dp))
+                .size(width = 44.dp, height = 32.dp)
+                .clip(RoundedCornerShape(16.dp))
                 .background(pillColor),
             contentAlignment = Alignment.Center
         ) {
@@ -210,7 +222,7 @@ private fun BottomNavEntry(
                 if (selected) item.selectedIcon else item.unselectedIcon,
                 contentDescription = null,
                 tint = iconColor,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
         Text(
@@ -227,10 +239,10 @@ private fun BottomNavEntry(
 }
 
 /**
- * The centre Capture action: a solid mint 50x42 r15 tile with dark ink —
- * the one filled-mint surface on the bar, so the app's primary action is
- * always the brightest thing on screen. Kept out of [bottomNavItems] on
- * purpose: it navigates rather than selects.
+ * The centre Capture action: a solid lavender 50x42 r16 tile with deep ink —
+ * the one filled surface on the bar, so the app's primary action is always
+ * the most present thing on screen. Kept out of [bottomNavItems] on purpose:
+ * it navigates rather than selects.
  */
 @Composable
 private fun CaptureCenterButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -250,7 +262,7 @@ private fun CaptureCenterButton(onClick: () -> Unit, modifier: Modifier = Modifi
             Modifier
                 .size(width = 50.dp, height = 42.dp)
                 .scale(pressedScale)
-                .clip(RoundedCornerShape(15.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(LifeOSMint)
                 .semantics {
                     role = Role.Button

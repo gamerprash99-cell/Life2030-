@@ -21,7 +21,6 @@ app/src/main/java/com/lifeos/app/
     ├── diary/                   ← Diary list + AI draft flow
     ├── timeline/                ← Unified daily timeline
     ├── capture/                 ← Photo/Video/Audio/Thought capture
-    ├── insights/                ← Weekly AI review
     ├── search/                  ← Global search
     ├── ai/                      ← AI Assistant chat
     ├── settings/                ← Settings screen
@@ -44,17 +43,17 @@ Defined in `ui/navigation/Screen.kt` as a sealed class, wired into a single
 | `expenses` | `ExpensesScreen` | |
 | `diary` | `DiaryScreen` | |
 | `timeline` | `TimelineScreen` | |
-| `insights` | `InsightsScreen` | |
 | `search` | `SearchScreen` | |
 | `ai_assistant` | `AiAssistantScreen` | |
-| `settings` | `SettingsScreen` | |
+| `settings` | `SettingsScreen` | Also hosts the Backup & Local Storage section (`openToBackup` scroll target) |
+| `backup` | `SettingsScreen(openToBackup = true)` | Local Backup entry point, opened from Profile |
 
-Bottom navigation bar (`ui/components/LifeOSBottomBar.kt`) only shows 5 of
-these routes: Home, Timeline, Tasks, Habits, Settings (`Screen.bottomNavItems`).
-The rest (Notes, Expenses, Diary, Insights, Search) are reached via **quick-link
-chips on the Home screen** (`HomeScreen.kt`), not the bottom bar directly —
-worth knowing if a new developer expects them in the bottom nav and doesn't
-find them there.
+Bottom navigation bar (`ui/components/LifeOSBottomBar.kt`) shows three
+destination tabs — Home, Notes, Life — plus a centre **Capture** action
+(`Screen.CaptureSheet`), which opens the capture sheet rather than a tab
+screen. Routes like Tasks, Habits, Expenses, Diary, Timeline, Search, AI
+Assistant and Settings are reached via quick-link chips and in-app entry
+points (`HomeScreen.kt`, the Life hub), not the bottom bar directly.
 
 ## State management
 
@@ -124,15 +123,15 @@ in `NoteEditorViewModel`, `NotesViewModel.kt`), rendered as a
 
 ## API communication
 
-Only `ui/ai/AiAssistantScreen.kt`, `ui/notes/*`, `ui/diary/DiaryScreen.kt`,
-and `ui/insights/InsightsScreen.kt` talk to any external service — and they
+Only `ui/ai/AiAssistantScreen.kt`, `ui/notes/*` and `ui/diary/DiaryScreen.kt`
+talk to any external service — and they
 do so through `core/ai/AiRepository`, which delegates to the local Intelligence Engine. All other screens use the existing repository/domain boundaries
 via repositories.
 
 ## Reusable components
 
 - `GlassCard` / `GlassChip` (`ui/components/GlassCard.kt`)
-- `LifeOSBottomBar` (`ui/components/LifeOSBottomBar.kt`) — Today, Habits, Tasks, Insights, Settings with animated selected pills
+- `LifeOSBottomBar` (`ui/components/LifeOSBottomBar.kt`) — Home, Notes, Life tabs plus a centre Capture action, with an animated selected pill
 - `ReminderTimePickerDialog` (`ui/components/ReminderTimePickerDialog.kt`)
 
 There is currently no dedicated shared component for buttons, text fields,

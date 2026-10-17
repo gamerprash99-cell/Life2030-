@@ -66,7 +66,7 @@ class MoodAnalyzerTest {
 
     /**
      * A tie has no dominant mood, so none is reported. Picking one arbitrarily
-     * would make the Insights headline flip between otherwise identical reads.
+     * would make the Diary insights headline flip between otherwise identical reads.
      */
     @Test
     fun `a tie at the top has no dominant mood`() {

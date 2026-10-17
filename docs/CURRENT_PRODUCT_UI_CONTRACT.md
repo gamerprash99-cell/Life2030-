@@ -1,6 +1,7 @@
 # LifeOS — Current Product & UI Contract
 
-**Status:** authoritative, current as of 2026-10-12
+**Status:** authoritative, current as of 2026-10-16 (Lavender Dream pass — palette
+updated, Insights destination removed, Backup route added)
 **Supersedes (for the areas it covers):** the design-language token table and the
 information-architecture details in `UI_UX_FLOW_NAVIGATION.md`, and the informal
 phase notes in `REDESIGN_PLAN.md`.
@@ -31,22 +32,23 @@ Two product promises are non-negotiable:
 
 ---
 
-## 2. Information architecture (the five destinations)
+## 2. Information architecture (the four destinations)
 
-Primary navigation is exactly five slots: **Home · Notes · (Capture) · Insights ·
-Life**.
+Primary navigation is exactly four slots: **Home · Notes · (Capture) · Life**.
 
 | Slot | Kind | Route |
 |---|---|---|
 | Home | Stateful root tab | `home` |
 | Notes | Stateful root tab | `notes` |
 | Capture | **Action, not a tab** — a raised centre button opening a full-window flow | `capture` |
-| Insights | Stateful root tab | `insights` |
 | Life | Stateful root tab | `life` |
 
-Only `home`, `notes`, `insights` and `life` live inside the `root_tabs` graph and
+Only `home`, `notes` and `life` live inside the `root_tabs` graph and
 are saved/restored per tab. Capture is intentionally *not* a stateful tab: it
-opens the Capture hub overlay and is never a selected destination.
+opens the Capture hub overlay and is never a selected destination. The former
+Insights destination was removed on 2026-10-16 (see §4 and the changelog); the
+shared intelligence it visualised is still consumed by Diary insights and the
+AI assistant.
 
 Every other screen is a **track module**: it stacks on top of the active tab and
 system Back dismisses it one level at a time. Modules are **not** removed from the
@@ -62,8 +64,8 @@ product just because they are not in the bottom bar.
 | Diary | `diary`, `diary/{entryId}`, `diary/search`, `diary/calendar`, `diary/insights` | Home "Diary" quick action · Life hub · AI action · global search |
 | Timeline | `timeline` | Home "Recent activity" See all · Life hub · after posting a Snap |
 | Global search | `search` | Home header search · Life hub · AI action |
-| LifeOS AI | `ai` | Home (last section) · Insights |
-| Profile / Settings / App Lock setup | `profile`, `settings`, `settings/app_lock` | Home avatar · Profile |
+| LifeOS AI | `ai` | Home (last section) |
+| Profile / Settings / App Lock setup | `profile`, `settings`, `settings/app_lock`, `backup` | Home avatar · Profile ("Local Backup" opens `backup`) |
 | Snap / capture viewer | `snap`, `snap/view/{captureId}` | Capture hub (Photo/Video) · Home "Quick capture" · recent-activity item · search · Timeline |
 
 > Correction to `UI_UX_FLOW_NAVIGATION.md` §3.2: there is **no `life_calendar`
@@ -90,31 +92,38 @@ is one testable fact (`shouldShowBottomBar`), not a scattered boolean.
 
 ---
 
-## 3. Design language — "Aurora Noir"
+## 3. Design language — "Lavender Dream"
 
-A cinematic, jewel-toned system: porcelain/obsidian canvas, iris primary, orchid
-secondary, aurora-mint for success, champagne gold reserved for *earned* moments,
-and neutral soft depth. This is the current token direction and matches
-`ui/theme/Color.kt`.
+A calm, luminous lavender system (renamed from "Aurora Noir" in the 2026-10-16
+pass): a light violet-tinted canvas with near-white surfaces in light mode, a
+deep violet canvas with elevated plum surfaces in dark mode, lavender as the
+primary action colour, periwinkle accents, gold reserved for *earned* moments,
+and functional state colours kept legible. This is the current token direction
+and matches `ui/theme/Color.kt`.
 
-> Correction to `UI_UX_FLOW_NAVIGATION.md` §1: the palette table there still lists
-> the older neon `LifeOSPrimary #7C4DFF` / `LifeOSSecondary #D946EF`. Those hex
-> values are **historical**. The live values are below.
+> History: the neon `LifeOSPrimary #7C4DFF` / `LifeOSSecondary #D946EF` values
+> listed in older docs, and the iris/orchid Aurora Noir palette they were
+> replaced by, are both **historical**. The live values are below.
 
 | Role | Light | Dark | Token |
 |---|---|---|---|
-| Canvas | `#F5F3FA` | `#08070D` | `LifeOSBackgroundLight/Dark` |
-| Surface | `#FFFFFF` | `#141220` | `LifeOSSurfaceLight/Dark` |
-| Surface variant (recessed) | `#ECE8F5` | `#201D2E` | `LifeOSSurfaceVariantLight/Dark` |
-| Primary text | `#141118` | `#F2F0FA` | `LifeOSTextPrimary*` |
-| Secondary text | `#5A5470` | `#A9A3C2` | `LifeOSTextSecondary*` |
-| Iris (primary action) | `#5A4BE8` | `#A99CFF` | `LifeOSPrimary` / scheme `primary` |
-| Orchid (gradient partner) | `#8B3DDB` | `#D8A8FF` | `LifeOSSecondary` |
-| Aurora mint (success) | `#0F9E8E` | `#5EEAD4` | `LifeOSTertiary` |
-| Champagne gold (earned only) | `#B8860B` / `#E8B44A` | `#F0C868` | semantic `gold` |
+| Canvas (gradient mid) | `#F1EDF7` | `#17141F` | `LifeOSBackgroundLight/Dark` |
+| Surface | `#FCFAFF` | `#24202F` | `LifeOSSurfaceLight/Dark` |
+| Surface variant (elevated/recessed) | `#EFEAF7` | `#302A3E` | `LifeOSSurfaceVariantLight/Dark` |
+| Primary text | `#3F3457` | `#F6F1FC` | `LifeOSTextPrimary*` |
+| Secondary text | `#716781` | `#C8BED8` | `LifeOSTextSecondary*` |
+| Lavender (primary action) | `#A995D1` | `#BBA7E6` | `LifeOSPrimary` / scheme `primary` |
+| Violet (secondary/gradient partner) | `#8B78B7` | `#C8B7EB` | `LifeOSSecondary` |
+| Soft lavender (pills/selection) | `#D8C9EF` | `#463956` | `LifeOSAccentLavender` / `LifeOSNavPillSelected*` |
+| Border / hairline | `#E4DDF0` | `#494055` | `LifeOSBorder*` |
+| Gold (earned only) | `#8A6A12` / `#E8C978` | `#E8C978` | semantic `gold` |
 | Warning | `#B45309` | `#FBBF24` | semantic `warning` |
 | Danger | `#C81E3A` | `#FF8AA0` | scheme `error` |
-| Outline | `#9A94AE` | `#6C6682` | `LifeOSOutline*` |
+| Ink on primary fills | `#1A1330` | `#1A1330` | `LifeOSInkOnBrand` |
+
+Text placed on lavender fills uses `LifeOSInkOnBrand` (not white) to keep AA
+contrast. Mint/periwinkle (`LifeOSMint #BBA7E6`) is no longer a product identity
+colour; it survives only as a legacy token name remapped to periwinkle.
 
 Non-color tokens: `LifeOSSpacing` (4/8/12/16/24/32/48/64 plus named
 `screenPadding 24`, `sectionSpacing 20`, `minTouchTarget 48`,
@@ -152,7 +161,7 @@ background, not the source colour. See `ui/components/LiquidGlass.kt` and
 
 Diary and the diary-derived Timeline deliberately keep a **paper/handwriting**
 aesthetic (warm paper even in dark mode, pen-ink controls, mood palette) and are
-**not** unified into Aurora Noir. This is an intentional product choice, not a
+**not** unified into the Lavender Dream app palette. This is an intentional product choice, not a
 missed migration. The boundary is *distinct expression, shared rules*: Diary uses
 its own palette but the app's shared behaviour — accessible typography, 48dp
 targets, insets, Back semantics, destructive-action patterns, and data
@@ -169,12 +178,15 @@ Diary module (and the shared timeline that renders diary entries).
   actions. Editor: title + body + tags, explicit Save, unsaved-changes guard.
 - **Capture** — six capture types with an inline quick-thought field; permission
   requested only for the selected capability.
-- **Insights** — on-device analytics over permitted local data; honest "not enough
-  data yet" states; no causation claims.
 - **Life** — connected-history hub: Timeline, search, and quick links to the track
   modules.
 - **Track modules** — Tasks, Habits, Expenses, Diary, Timeline, Search, Profile,
-  Settings, App Lock, Snap. Preserve their existing data paths.
+  Settings (including **Backup & Local Storage**, also reachable directly via the
+  `backup` route from Profile), App Lock, Snap. Preserve their existing data paths.
+
+The former **Insights** screen (on-device analytics + weekly review) was removed
+on 2026-10-16. The data honesty rules above still govern every remaining
+analytics surface (Diary insights/weekly review, Home statistics).
 
 Diary keeps its paper identity (see §3.3). Snap keeps its full-window camera.
 

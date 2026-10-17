@@ -57,12 +57,6 @@ class SettingsStore(private val context: Context) {
         val REMINDERS_ENABLED = booleanPreferencesKey("reminders_enabled")
         val PROFILE_NAME = stringPreferencesKey("profile_name")
 
-        // Phase 1 automatic expense capture. The flag is stored rather than
-        // inferred from the system setting, because the system grant can be
-        // revoked from outside the app at any time: the store records the user's
-        // decision, and the live check below records whether it can be honoured.
-        val AUTO_CAPTURE_EXPENSES = booleanPreferencesKey("auto_capture_expenses")
-
         // Monthly spending budget. Nullable by design - absent means "no budget
         // set", which is a different screen from "budget of zero".
         val MONTHLY_BUDGET = doublePreferencesKey("monthly_budget")
@@ -91,18 +85,15 @@ class SettingsStore(private val context: Context) {
         private const val MAX_LOCKOUT_MS = 16 * 60 * 1000L
     }
 
-    // The LifeOS 2030 redesign is a dark-first system: the reference frames are
-    // all rendered on the deep teal/navy canvas, so a fresh install opens dark.
-    // A user's explicit choice still wins (the key is only read as a default).
+    // The Lavender Dream redesign is dark-capable: a fresh install follows the
+    // system, and a user's explicit choice always wins (the key is only read as
+    // a default).
     val darkThemeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DARK_THEME_ENABLED] ?: true }
     val onboardingComplete: Flow<Boolean> = context.dataStore.data.map { it[Keys.ONBOARDING_COMPLETE] ?: false }
     val autoLockEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_LOCK_ENABLED] ?: true }
     val remindersEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.REMINDERS_ENABLED] ?: true }
     val profileName: Flow<String?> = context.dataStore.data.map { it[Keys.PROFILE_NAME] }
     val profilePhotoUri: Flow<String?> = context.dataStore.data.map { it[Keys.PROFILE_PHOTO_URI] }
-
-    /** Whether the user has asked for payment notifications to become expenses. Off until chosen. */
-    val autoCaptureExpenses: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_CAPTURE_EXPENSES] ?: false }
 
     /** The monthly budget, or null when none has been set. */
     val monthlyBudget: Flow<Double?> = context.dataStore.data.map { prefs ->
@@ -139,9 +130,6 @@ class SettingsStore(private val context: Context) {
     suspend fun setProfileName(name: String) = context.dataStore.edit {
         if (name.isBlank()) it.remove(Keys.PROFILE_NAME) else it[Keys.PROFILE_NAME] = name.trim()
     }
-
-    suspend fun setAutoCaptureExpenses(enabled: Boolean) =
-        context.dataStore.edit { it[Keys.AUTO_CAPTURE_EXPENSES] = enabled }
 
     /**
      * Stores the monthly budget, or clears it when [amount] is null or not

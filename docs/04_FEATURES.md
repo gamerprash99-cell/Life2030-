@@ -110,9 +110,8 @@ Full inventory of every implemented feature, with exact file paths.
 
 **Purpose**: AI-generated summary of the week's tasks/spending/diary activity.
 
-- **Files**: `ui/insights/InsightsScreen.kt`
-- **How it works**: Computes real stats (tasks completed, total spend, diary entry count) for the current week directly from the repositories, then passes that stats block to `AiRepository.generateReviewSummary()`.
-- **Status**: Implemented
+- **Status**: **Removed (2026-10-16)** — the Insights *screen* (`ui/insights/InsightsScreen.kt`, `InsightsViewModel.kt`, the `Screen.Insights` route) was deleted in the Lavender Dream pass (see `UPDATE.md` / `docs/17_CHANGELOG.md`).
+- **Still present**: the underlying shared intelligence (`LifeOSIntelligenceEngine`, `DiaryAnalyzer`/`DiaryInsights`) is deliberately kept — Diary insights/weekly review and the on-device AI assistant (§10) consume it.
 
 ## 12. App Lock
 

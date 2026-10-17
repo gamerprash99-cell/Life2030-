@@ -88,6 +88,7 @@ import kotlinx.coroutines.withContext
 fun ProfileScreen(
     onBack: (() -> Unit)? = null,
     onOpenSettings: () -> Unit,
+    onOpenBackup: () -> Unit = onOpenSettings,
     onOpenAppLock: () -> Unit = onOpenSettings
 ) {
     val locator = LocalServiceLocator.current
@@ -114,7 +115,7 @@ fun ProfileScreen(
     }
 
     Column(Modifier.fillMaxSize().lifeOSCanvas()) {
-        LifeOSPageHeader(eyebrow = "Profile", title = "You", onBack = onBack)
+        LifeOSPageHeader(eyebrow = "Profile", onBack = onBack)
         // Scrollable so the card plus four rows still fit at a large system font
         // scale or on a short window instead of being clipped under the bottom bar.
         Column(
@@ -154,7 +155,7 @@ fun ProfileScreen(
                 photoError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 LifeOSEyebrow("Your space")
                 ProfileRow(Icons.Filled.Lock, "App Lock", "Protect LifeOS with your 4-digit PIN", onOpenAppLock)
-                ProfileRow(Icons.Filled.Backup, "Local Backup", "Your backup stays under your control", onOpenSettings)
+                ProfileRow(Icons.Filled.Backup, "Local Backup", "Your backup stays under your control", onOpenBackup)
                 ProfileRow(Icons.Filled.Settings, "Settings", "Preferences, reminders and privacy", onOpenSettings)
                 ProfileRow(Icons.Filled.Info, "About LifeOS", "Version ${BuildConfig.VERSION_NAME}", { showAboutDialog = true })
             }

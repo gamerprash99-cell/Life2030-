@@ -7,7 +7,7 @@ import com.lifeos.app.domain.model.MoodValence
  * Counts and compares moods.
  *
  * Reads only [DiarySnapshot], and is a pure function of it: the same snapshot
- * always yields the same [MoodAnalysis]. That is what makes the Insights screen
+ * always yields the same [MoodAnalysis]. That is what makes the Diary insights screen
  * safe to recompute on every database emission without the figures flickering.
  *
  * What this class deliberately does **not** do is interpret. It reports how

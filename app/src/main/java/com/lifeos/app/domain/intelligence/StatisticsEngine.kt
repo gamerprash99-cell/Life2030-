@@ -9,7 +9,7 @@ import java.time.LocalDate
  *
  * Every average here is `null` below its own minimum sample size rather than a
  * number produced by dividing by one or two. "Average 1000 words per entry" is
- * true and useless when it comes from a single entry, and the Insights screen
+ * true and useless when it comes from a single entry, and the Diary insights screen
  * would have no way to tell the difference once it is a `Float`.
  */
 object StatisticsEngine {
@@ -77,7 +77,7 @@ object StatisticsEngine {
         for (entry in entries) {
             // Coerce rather than trust the column: the editor clamps to 0..1439,
             // but a restored backup could carry anything, and an out-of-range
-            // index here would be an IndexOutOfBounds on the Insights screen.
+            // index here would be an IndexOutOfBounds on the Diary insights screen.
             val minutes = entry.timeMinutes.coerceIn(0, 1439)
             counts[minutes / MINUTES_PER_BAND]++
         }

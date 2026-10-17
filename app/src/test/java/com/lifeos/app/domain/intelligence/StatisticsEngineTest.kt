@@ -122,7 +122,7 @@ class StatisticsEngineTest {
     /**
      * A restored backup is not guaranteed to hold a sane `timeMinutes`, and the
      * editor's clamp only protects entries written in this build. An
-     * out-of-range value must not be an index error on the Insights screen.
+     * out-of-range value must not be an index error on the Diary insights screen.
      */
     @Test
     fun `an out-of-range time is coerced instead of crashing`() {
@@ -149,7 +149,7 @@ class StatisticsEngineTest {
 
     @Test
     fun `word count reuses the composer's own measure`() {
-        // Must agree with DiaryTextStats exactly, or the Insights figure and the
+        // Must agree with DiaryTextStats exactly, or the Diary insights figure and the
         // entry's own "N words" row would disagree.
         val content = "  spaced   out \n\n words  "
         val stats = StatisticsEngine.analyze(snapshot(entry(1, content = content)))

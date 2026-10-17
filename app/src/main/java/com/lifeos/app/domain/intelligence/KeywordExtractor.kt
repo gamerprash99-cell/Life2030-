@@ -75,7 +75,7 @@ object KeywordExtractor {
      * The [limit] most frequent words across [texts], descending by count and
      * then alphabetically so equal counts never reorder between runs.
      *
-     * The tiebreak is not cosmetic: the Insights screen renders this list, and
+     * The tiebreak is not cosmetic: the Diary insights screen renders this list, and
      * a list that reshuffles on every recomposition reads as a glitch.
      */
     fun topKeywords(texts: Iterable<String>, limit: Int = DEFAULT_LIMIT): List<Pair<String, Int>> {

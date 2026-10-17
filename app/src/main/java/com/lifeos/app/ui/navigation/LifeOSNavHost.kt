@@ -40,8 +40,6 @@ import com.lifeos.app.ui.expenses.ExpensesScreen
 import com.lifeos.app.ui.habits.HabitDetailScreen
 import com.lifeos.app.ui.habits.HabitsScreen
 import com.lifeos.app.ui.home.HomeScreen
-import com.lifeos.app.ui.insights.InsightsScreen
-import com.lifeos.app.ui.insights.InsightsViewModel
 import com.lifeos.app.ui.life.LifeScreen
 import com.lifeos.app.ui.notes.NoteEditorScreen
 import com.lifeos.app.ui.notes.NotesScreen
@@ -187,25 +185,17 @@ fun LifeOSNavHost() {
                         )
                     }
 
-                    // Insights — spec §27/§28. Wired straight to the offline
-                    // intelligence engine, so every figure is computed from rows
-                    // already on device (weekly / monthly report, all-time stats).
-                    composable(Screen.Insights.route) {
-                        val locator = LocalServiceLocator.current
-                        val insightsViewModel: InsightsViewModel = viewModel(
-                            factory = LambdaViewModelFactory {
-                                InsightsViewModel(locator.lifeOSIntelligenceEngine)
-                            }
-                        )
-                        InsightsScreen(viewModel = insightsViewModel)
-                    }
+                    // Insights (the weekly/monthly report dashboard) was
+                    // removed as a feature; the shared intelligence engine it
+                    // was built on stays — the Diary and the AI assistant
+                    // consume it directly.
 
                     // You — the personal hub (profile, app lock, backup and
-                    // settings). Reachable from Home's avatar and the Life hub
-                    // now that the Insights tab holds the fourth bar slot.
+                    // settings). Reachable from Home's avatar and the Life hub.
                     composable(Screen.Profile.route) {
                         ProfileScreen(
                             onOpenSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                            onOpenBackup = { navController.navigate(Screen.Backup.route) { launchSingleTop = true } },
                             onOpenAppLock = { navController.navigate(Screen.AppLockSetup.route) { launchSingleTop = true } }
                         )
                     }
@@ -377,6 +367,15 @@ fun LifeOSNavHost() {
                     SettingsScreen(
                         onOpenAppLockSetup = { navController.navigate(Screen.AppLockSetup.route) { launchSingleTop = true } },
                         onBack = { navController.popBackStack() }
+                    )
+                }
+                composable(Screen.Backup.route) {
+                    // The same export/restore surface, landed directly on the
+                    // Backup & Local Storage section (Profile's Local Backup row).
+                    SettingsScreen(
+                        onOpenAppLockSetup = { navController.navigate(Screen.AppLockSetup.route) { launchSingleTop = true } },
+                        onBack = { navController.popBackStack() },
+                        openToBackup = true
                     )
                 }
                 composable(Screen.AppLockSetup.route) {

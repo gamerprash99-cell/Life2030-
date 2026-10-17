@@ -17,7 +17,6 @@ import com.lifeos.app.data.repository.OfflineOnlyWeatherSource
 import com.lifeos.app.data.repository.WeatherRepository
 import com.lifeos.app.data.repository.WeatherRepositoryImpl
 import com.lifeos.app.domain.usecase.BuildTimelineUseCase
-import com.lifeos.app.domain.usecase.CaptureTransactionUseCase
 import com.lifeos.app.domain.usecase.GetDiaryCalendarUseCase
 import com.lifeos.app.domain.usecase.GetDiaryInsightsUseCase
 import com.lifeos.app.domain.usecase.GetHomeSummaryUseCase
@@ -83,15 +82,6 @@ class ServiceLocator private constructor(context: Context) {
     val diaryRepository: DiaryRepository by lazy { DiaryRepository(database.diaryDao()) }
     val noteRepository: NoteRepository by lazy { NoteRepository(database.noteDao(), database.noteFolderDao()) }
     val captureRepository: CaptureRepository by lazy { CaptureRepository(database.captureDao()) }
-
-    /**
-     * Payment-notification capture. Resolved the same way as everything else —
-     * lazily, on whichever thread asks — because a listener service can be bound
-     * by the system long before the app's own UI has ever run.
-     */
-    val captureTransactionUseCase: CaptureTransactionUseCase by lazy {
-        CaptureTransactionUseCase(expenseRepository)
-    }
 
     /**
      * Weather for diary entries. Backed by [OfflineOnlyWeatherSource] today:
