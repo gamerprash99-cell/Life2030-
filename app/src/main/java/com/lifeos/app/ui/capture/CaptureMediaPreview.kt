@@ -32,11 +32,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
-import com.lifeos.app.ui.components.GlassCard
+import com.lifeos.app.ui.components.LifeOSCard
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -109,7 +108,7 @@ fun AudioPreview(filePath: String, modifier: Modifier = Modifier) {
         }
     }
 
-    GlassCard(modifier = modifier.fillMaxWidth()) {
+    LifeOSCard(modifier = modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(
                 enabled = !isPreparing,
@@ -179,7 +178,7 @@ fun AudioPreview(filePath: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun MissingFileNotice(modifier: Modifier = Modifier) {
-    GlassCard(modifier = modifier.fillMaxWidth()) {
+    LifeOSCard(modifier = modifier.fillMaxWidth()) {
         Text("This file could not be found on the device. It may have been removed outside the app.", style = MaterialTheme.typography.bodySmall)
     }
 }

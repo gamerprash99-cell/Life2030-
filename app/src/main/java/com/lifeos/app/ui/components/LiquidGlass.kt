@@ -13,9 +13,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,18 +33,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.lifeos.app.ui.theme.LifeOSElevation
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalAmbientGlowColors
 import com.lifeos.app.ui.theme.LocalGlassColors
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
-import com.lifeos.app.ui.theme.PrismCoral
 import com.lifeos.app.ui.theme.PrismIndigo
 import com.lifeos.app.ui.theme.PrismSky
 import com.lifeos.app.ui.theme.PrismSpectrum
@@ -77,7 +71,7 @@ import com.lifeos.app.ui.theme.PrismSpectrum
  */
 @Composable
 fun Modifier.liquidGlass(
-    shape: Shape = RoundedCornerShape(LifeOSRadius.xlarge),
+    shape: Shape = RoundedCornerShape(LifeOSRadius.medium),
     tint: Color? = null,
     interactive: Boolean = false,
     pressed: Boolean = false,
@@ -172,7 +166,7 @@ fun Modifier.liquidGlass(
 @Composable
 fun LiquidGlassSurface(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(LifeOSRadius.xlarge),
+    shape: Shape = RoundedCornerShape(LifeOSRadius.medium),
     tint: Color? = null,
     onClick: (() -> Unit)? = null,
     contentPadding: PaddingValues = PaddingValues(20.dp),
@@ -277,68 +271,6 @@ fun LiquidGlassButton(
             text,
             color = if (prominent) Color.White else MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.labelLarge
-        )
-    }
-}
-
-/**
- * The floating primary action. The [prominent] variant is the identity orb —
- * the one place a circular surface wears the gradient. Because it is a matte
- * object it gets no specular sweep and no dual-tone rim (those belonged to the
- * v4 lens): just the gradient, one warm hairline and the shared shadow. The
- * regular variant is the bare matte sheet, tinted with the primary accent.
- * Both press with a spring scale.
- */
-@Composable
-fun LiquidGlassFab(
-    icon: ImageVector,
-    contentDescription: String?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    prominent: Boolean = true
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.92f else 1f,
-        animationSpec = spring(stiffness = 700f, dampingRatio = 0.72f),
-        label = "fabPress"
-    )
-    val shape = CircleShape
-    val glass = LocalGlassColors.current
-    val shadowBase = LocalLifeOSSemanticColors.current.shadow
-
-    val visual = if (prominent) {
-        Modifier
-            .shadow(
-                elevation = if (pressed) LifeOSElevation.floating else LifeOSElevation.raised,
-                shape = shape,
-                ambientColor = shadowBase.copy(alpha = LifeOSElevation.shadowAlphaRest),
-                spotColor = shadowBase.copy(alpha = LifeOSElevation.shadowAlphaLift)
-            )
-            .clip(shape)
-            .background(prismBrush())
-            .drawBehind {
-                val rimPath = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@drawBehind)) }
-                drawPath(rimPath, glass.border, style = Stroke(1.dp.toPx()))
-            }
-    } else {
-        Modifier.liquidGlass(shape = shape, tint = MaterialTheme.colorScheme.primary, interactive = true, pressed = pressed)
-    }
-
-    Box(
-        modifier = modifier
-            .scale(scale)
-            .size(60.dp)
-            .then(visual)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            icon,
-            contentDescription,
-            tint = if (prominent) Color.White else MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(26.dp)
         )
     }
 }

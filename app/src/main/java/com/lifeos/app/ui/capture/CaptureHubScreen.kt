@@ -23,10 +23,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -79,13 +77,15 @@ import com.lifeos.app.core.util.MediaStorage
 import com.lifeos.app.domain.model.DiaryMood
 import com.lifeos.app.domain.model.DiaryMoods
 import com.lifeos.app.ui.components.LifeOSBanner
-import com.lifeos.app.ui.components.LifeOSIconButton
+import com.lifeos.app.ui.components.LifeOSPageHeader
 import com.lifeos.app.ui.components.LifeOSPrimaryButton
-import com.lifeos.app.ui.components.liquidGlass
-import com.lifeos.app.ui.components.prismBrush
+import com.lifeos.app.ui.components.lifeOSCardShape
+import com.lifeos.app.ui.components.lifeOSIsDark
+import com.lifeos.app.ui.theme.LifeOSMint
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
+import com.lifeos.app.ui.theme.lifeOSCanvasBrush
 
 /**
  * The Capture hub — the app's centre action made real. A full-window glass
@@ -142,36 +142,19 @@ fun CaptureHubScreen(
         return
     }
 
+    val dark = lifeOSIsDark()
     Column(
         Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.background.copy(alpha = 0.96f)
-                    )
-                )
-            )
-            .statusBarsPadding()
-            .navigationBarsPadding()
+            .background(lifeOSCanvasBrush(dark))
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("Capture", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
-                Text(
-                    "A moment, saved in seconds",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            LifeOSIconButton(Icons.Filled.Close, contentDescription = "Close capture", onClick = onClose)
-        }
+        LifeOSPageHeader(
+            eyebrow = "Quick capture",
+            title = "Capture",
+            actionIcon = Icons.Filled.Close,
+            actionDescription = "Close capture",
+            onAction = onClose
+        )
 
         AnimatedVisibility(state.confirmation != null, enter = fadeIn(), exit = fadeOut()) {
             SuccessPanel(
@@ -257,7 +240,7 @@ fun CaptureHubScreen(
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.xlarge), tint = MaterialTheme.colorScheme.primary)
+                            .lifeOSCardShape()
                             .padding(horizontal = LifeOSSpacing.lg, vertical = LifeOSSpacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
@@ -281,7 +264,7 @@ fun CaptureHubScreen(
                                 .clip(CircleShape)
                                 .background(
                                     if (quickThought.isBlank()) SolidColor(MaterialTheme.colorScheme.surfaceVariant)
-                                    else prismBrush()
+                                    else SolidColor(LifeOSMint)
                                 )
                                 .clickable(enabled = quickThought.isNotBlank()) {
                                     viewModel.saveThought(quickThought)
@@ -292,7 +275,7 @@ fun CaptureHubScreen(
                             Icon(
                                 Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Save thought",
-                                tint = if (quickThought.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else androidx.compose.ui.graphics.Color.White,
+                                tint = if (quickThought.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -314,8 +297,7 @@ private fun CaptureTile(
 ) {
     Column(
         modifier
-            .clip(RoundedCornerShape(LifeOSRadius.xlarge))
-            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.xlarge), tint = accent, interactive = true)
+            .lifeOSCardShape()
             .clickable(onClick = onClick)
             .padding(LifeOSSpacing.lg),
         verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
@@ -339,7 +321,7 @@ private fun MoodChip(mood: DiaryMood, onClick: () -> Unit) {
     Row(
         Modifier
             .clip(RoundedCornerShape(LifeOSRadius.pill))
-            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.pill), tint = MaterialTheme.colorScheme.primary, interactive = true)
+            .background(LifeOSMint.copy(alpha = 0.12f))
             .clickable(onClick = onClick)
             .padding(horizontal = LifeOSSpacing.lg, vertical = LifeOSSpacing.sm),
         verticalAlignment = Alignment.CenterVertically,
@@ -396,7 +378,7 @@ private fun SuccessPanel(message: String, onDone: () -> Unit, onAgain: () -> Uni
         Modifier
             .fillMaxWidth()
             .padding(horizontal = LifeOSSpacing.screenPadding)
-            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.xlarge), tint = LocalLifeOSSemanticColors.current.success)
+            .lifeOSCardShape()
             .padding(LifeOSSpacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)

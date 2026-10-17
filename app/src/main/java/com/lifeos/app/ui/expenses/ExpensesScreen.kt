@@ -1,10 +1,12 @@
 package com.lifeos.app.ui.expenses
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,17 +17,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -36,11 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -55,12 +50,14 @@ import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.domain.model.BudgetProgress
 import com.lifeos.app.domain.model.ExpenseCategories
 import com.lifeos.app.domain.model.isAutomaticallyCaptured
-import com.lifeos.app.ui.components.GlassCard
-import com.lifeos.app.ui.components.GlassChip
+import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSEmptyState
-import com.lifeos.app.ui.components.LifeOSEyebrow
-import com.lifeos.app.ui.components.LifeOSTopBar
-import com.lifeos.app.ui.components.LiquidGlassFab
+import com.lifeos.app.ui.components.LifeOSFilterPill
+import com.lifeos.app.ui.components.LifeOSPageHeader
+import com.lifeos.app.ui.components.LifeOSProgressTrack
+import com.lifeos.app.ui.components.LifeOSSectionHeader
+import com.lifeos.app.ui.components.lifeOSIsDark
+import com.lifeos.app.ui.theme.lifeOSCanvasBrush
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -121,24 +118,27 @@ fun ExpensesScreen(onBack: () -> Unit = {}) {
     val dailyAverage = if (expenses.isEmpty()) 0.0 else total / java.time.LocalDate.now().lengthOfMonth()
     val progress = BudgetProgress.forMonth(budget = budget, spent = total)
 
-    Scaffold(
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        topBar = { LifeOSTopBar("Expenses", "See where your day is going", onBack = onBack) },
-        floatingActionButton = {
-            LiquidGlassFab(
-                icon = Icons.Filled.Add,
-                contentDescription = "Add expense",
-                onClick = { showAddSheet = true }
-            )
-        }
-    ) { padding ->
+    val dark = lifeOSIsDark()
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(lifeOSCanvasBrush(dark))
+    ) {
+        LifeOSPageHeader(
+            eyebrow = "This month",
+            title = "Expenses",
+            onBack = onBack,
+            actionIcon = Icons.Filled.Add,
+            actionDescription = "Add expense",
+            onAction = { showAddSheet = true }
+        )
         LazyColumn(
-            modifier = Modifier.padding(padding).fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(
-                start = 16.dp, end = 16.dp, top = 10.dp,
+                start = 24.dp, end = 24.dp, top = 12.dp,
                 bottom = com.lifeos.app.ui.theme.LifeOSSpacing.fabContentClearance
             ),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             item {
                 if (progress == null) {
@@ -149,7 +149,7 @@ fun ExpensesScreen(onBack: () -> Unit = {}) {
             }
 
             item {
-                LifeOSEyebrow("Recent transactions", modifier = Modifier.padding(horizontal = 4.dp))
+                LifeOSSectionHeader("Recent transactions")
             }
 
             if (expenses.isEmpty()) {
@@ -158,14 +158,14 @@ fun ExpensesScreen(onBack: () -> Unit = {}) {
                         icon = Icons.Filled.Payments,
                         title = "No expenses yet",
                         body = "Tap ＋ to log your coffee, a grocery run, or a bill payment.",
-                        actionLabel = "Add expense",
+                        actionText = "Add expense",
                         onAction = { showAddSheet = true }
                     )
                 }
             }
 
             items(expenses, key = { it.id }) { expense ->
-                GlassCard(Modifier.fillMaxWidth()) {
+                LifeOSCard(Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
@@ -230,7 +230,7 @@ fun ExpensesScreen(onBack: () -> Unit = {}) {
  */
 @Composable
 private fun FirstBudgetCard(onSetBudget: () -> Unit) {
-    GlassCard(Modifier.fillMaxWidth()) {
+    LifeOSCard(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("This Month", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("₹${"%,.2f".format(0.0)}", style = MaterialTheme.typography.headlineLarge)
@@ -239,13 +239,11 @@ private fun FirstBudgetCard(onSetBudget: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Button(
+            com.lifeos.app.ui.components.LifeOSPrimaryButton(
+                text = "Set monthly budget",
                 onClick = onSetBudget,
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) { Text("Set monthly budget") }
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -267,7 +265,7 @@ private fun BudgetCard(progress: BudgetProgress, dailyAverage: Double, onEdit: (
         "₹${"%,.0f".format(progress.remaining)} left"
     }
 
-    GlassCard(Modifier.fillMaxWidth()) {
+    LifeOSCard(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("This Month", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(
@@ -282,17 +280,17 @@ private fun BudgetCard(progress: BudgetProgress, dailyAverage: Double, onEdit: (
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            LinearProgressIndicator(
-                progress = { progress.fraction },
-                modifier = Modifier
+            Box(
+                Modifier
                     .fillMaxWidth()
-                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
-                    .height(10.dp)
-                    .semantics { contentDescription = "$percent% of monthly budget used, $status" },
-                color = barColor,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                strokeCap = StrokeCap.Round
-            )
+                    .semantics { contentDescription = "$percent% of monthly budget used, $status" }
+            ) {
+                LifeOSProgressTrack(
+                    progress = progress.fraction,
+                    height = 5.dp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 ExpenseStat("Daily avg", "₹${"%.0f".format(dailyAverage)}")
                 ExpenseStat("Budget", "₹${"%,.0f".format(progress.budget)}")
@@ -435,12 +433,11 @@ private fun AddExpenseSheet(
             Text("Category", style = MaterialTheme.typography.labelLarge)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(ExpenseCategories.ALL) { cat ->
-                    GlassChip(
+                    LifeOSFilterPill(
+                        label = "${cat.emoji} ${cat.name}",
                         selected = selectedCategory == cat.name,
-                        modifier = Modifier.clickable { selectedCategory = cat.name }
-                    ) {
-                        Text("${cat.emoji} ${cat.name}", style = MaterialTheme.typography.labelSmall)
-                    }
+                        onClick = { selectedCategory = cat.name }
+                    )
                 }
             }
             Text("Selected: $selectedCategory", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,8 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -49,7 +46,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.lifeos.app.ui.theme.LifeOSElevation
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
@@ -284,49 +280,6 @@ fun LifeOSIconButton(
     ) {
         Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(size * 0.48f))
     }
-}
-
-/**
- * The gradient hero surface — the single loudest card a screen can lead with.
- * A brand-gradient fill, a soft neutral shadow and the app's hero radius.
- */
-@Composable
-fun LifeOSHeroCard(
-    modifier: Modifier = Modifier,
-    brush: Brush = prismBrush(),
-    contentPadding: PaddingValues = PaddingValues(LifeOSSpacing.xl),
-    content: @Composable () -> Unit
-) {
-    val shape = RoundedCornerShape(LifeOSRadius.xlarge)
-    // Depth comes from the shared ladder and the neutral shadow token — never
-    // from a brand-tinted smear, which would stain whatever sits behind it.
-    val shadowColor = LocalLifeOSSemanticColors.current.shadow
-    Box(
-        modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = LifeOSElevation.hero,
-                shape = shape,
-                ambientColor = shadowColor.copy(alpha = LifeOSElevation.shadowAlphaRest),
-                spotColor = shadowColor.copy(alpha = LifeOSElevation.shadowAlphaLift)
-            )
-            .clip(shape)
-            .background(brush)
-            .padding(contentPadding)
-    ) { content() }
-}
-
-/** A small, quiet section eyebrow used above grouped content. */
-@Composable
-fun LifeOSEyebrow(text: String, modifier: Modifier = Modifier, tint: Color = MaterialTheme.colorScheme.primary) {
-    Text(
-        text.uppercase(),
-        modifier = modifier,
-        style = MaterialTheme.typography.labelSmall,
-        color = tint,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis
-    )
 }
 
 /**

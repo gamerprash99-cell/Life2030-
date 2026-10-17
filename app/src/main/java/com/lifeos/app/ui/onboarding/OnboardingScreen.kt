@@ -43,7 +43,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.lifeos.app.ui.components.LifeOSGradientButton
+import com.lifeos.app.ui.components.LifeOSPrimaryButton
 
 private data class OnboardingPage(val title: String, val body: String, val icon: @Composable () -> Unit)
 
@@ -110,7 +110,7 @@ fun OnboardingScreen(
             Spacer(Modifier.weight(1f))
             AnimatedVisibility(visible = true) {
                 Column(Modifier.fillMaxWidth()) {
-                    LifeOSGradientButton(
+                    LifeOSPrimaryButton(
                         text = if (isLast) "Get started" else "Next",
                         modifier = Modifier.fillMaxWidth(),
                         onClick = { if (isLast) onFinish() else pageIndex++ }

@@ -1,223 +1,237 @@
 package com.lifeos.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 
 // ===========================================================================
-// LifeOS "AURA" — the design language (v6, built from the spec §53 direction).
+// LifeOS design language — rebuilt from the Figma source of truth
+// (file ehSpxDfVot6SgPIdd2Tvf4). A deep teal-navy gradient canvas with
+// translucent cards, one mint signature accent, and Inter throughout.
 //
-// Spec §53 asks for: premium · glassmorphism · Gen-Z · minimal · modern ·
-// futuristic · calm · personal — frosted translucent surfaces, soft borders,
-// soft shadows, large radii, layered surfaces, floating elements — while
-// insisting that readability, accessibility, battery and performance come
-// first and that glass is never overused.
+// Dark is the reference polarity (that is what the Figma frames show).
+// Light is a deliberate derived polarity: the same structure on a soft
+// paper-mint canvas with a deepened mint so text keeps AA contrast.
 //
-// AURA answers that with a **lagoon**: a deep teal-to-plum canvas behind
-// frosted glass, lit by one warm signature — **coral** — with **mint** as its
-// calm partner. The previous "blue-black glass" is deliberately avoided: the
-// canvas is teal/plum, never a cold blue-grey.
-//
-// Every public token name from the previous systems is kept, so every existing
-// call site keeps compiling while it silently adopts the new look. The legacy
-// GLASS- and PRISM-named tokens are retained as the frosted-surface and
-// identity-gradient slots respectively (see the notes on each block).
-//
-// All text/background pairs below are checked against WCAG 2.2 AA (4.5:1 for
-// body, 3:1 for large text and UI components) in both themes.
+// All text/background pairs are checked against WCAG 2.2 AA (4.5:1 body,
+// 3:1 large text / UI components) in both themes.
 // ===========================================================================
 
-// ---- Canvas & surfaces -----------------------------------------------------
+// ---- Canvas ----------------------------------------------------------------
+//
+// The page is a three-stop vertical gradient, taken from the Figma frames:
+// a lit teal horizon at the top, deep space through the middle, a slightly
+// bluer deep at the bottom so the canvas never reads as flat black.
 
-/** The page behind everything: pale lagoon mist (the "day" polarity of AURA). */
-val LifeOSBackgroundLight = Color(0xFFF1F6F4)
-/** The deep lagoon — the dark canvas everything floats on. */
-val LifeOSBackgroundDark = Color(0xFF070B0B)
+/** Dark canvas stops. */
+val LifeOSCanvasTopDark = Color(0xFF203D48)
+val LifeOSCanvasMidDark = Color(0xFF0B141C)
+val LifeOSCanvasBottomDark = Color(0xFF101B27)
 
+/** Light canvas stops — the derived polarity: paper with a mint breath. */
+val LifeOSCanvasTopLight = Color(0xFFF3F8F6)
+val LifeOSCanvasMidLight = Color(0xFFE9F1EF)
+val LifeOSCanvasBottomLight = Color(0xFFDFEBE8)
+
+// ---- Surfaces --------------------------------------------------------------
+
+/** Base surface (search fields, wells): opaque, one step above the canvas. */
 val LifeOSSurfaceLight = Color(0xFFFFFFFF)
-val LifeOSSurfaceDark = Color(0xFF0E1514)
+val LifeOSSurfaceDark = Color(0xFF162630)
 
 /** A recessed surface for wells, insets and secondary panels. */
-val LifeOSSurfaceVariantLight = Color(0xFFE4EDEA)
-val LifeOSSurfaceVariantDark = Color(0xFF16201E)
+val LifeOSSurfaceVariantLight = Color(0xFFE1EBE8)
+val LifeOSSurfaceVariantDark = Color(0xFF1E313C)
 
-/** A raised surface one step above [LifeOSSurfaceLight] (menus, sheets, popovers). */
+/** A raised surface one step above the base (menus, sheets, popovers). */
 val LifeOSSurfaceRaisedLight = Color(0xFFFFFFFF)
-val LifeOSSurfaceRaisedDark = Color(0xFF1B2725)
+val LifeOSSurfaceRaisedDark = Color(0xFF1B2C37)
+
+/**
+ * The signature card fill: a translucent sheet the canvas gradient breathes
+ * through (Figma: rgba(31,53,64,0.79)). Light polarity keeps the same
+ * translucency so the mint canvas shows through white cards identically.
+ */
+val LifeOSCardFillLight = Color(0xCCFFFFFF)
+val LifeOSCardFillDark = Color(0xC91F3540)
+
+/** The 1px card hairline (Figma: rgba(182,217,229,0.12)). */
+val LifeOSCardStrokeLight = Color(0x140B2A21)
+val LifeOSCardStrokeDark = Color(0x1FB6D9E5)
+
+/** The floating bottom navigation bar (Figma: rgba(16,32,42,0.94)). */
+val LifeOSNavBarLight = Color(0xF2FFFFFF)
+val LifeOSNavBarDark = Color(0xEF10202A)
+
+/** The selected destination pill behind a bottom-bar icon (Figma: #163D36). */
+val LifeOSNavPillSelectedLight = Color(0xFFCDEFE0)
+val LifeOSNavPillSelectedDark = Color(0xFF163D36)
 
 // ---- Content (text & icons) ------------------------------------------------
 
 /** Near-black ink. ~16:1 on [LifeOSSurfaceLight]. */
-val LifeOSTextPrimaryLight = Color(0xFF0A1312)
-/** Warm bone ink. ~16:1 on [LifeOSBackgroundDark]. */
-val LifeOSTextPrimaryDark = Color(0xFFF1F5F2)
-/** Supporting copy — slate teal. 6.5:1 light / 6.9:1 dark. */
-val LifeOSTextSecondaryLight = Color(0xFF4C5B58)
-val LifeOSTextSecondaryDark = Color(0xFFB9C7C3)
+val LifeOSTextPrimaryLight = Color(0xFF10242C)
+/** Off-white ink. ~15:1 on the dark canvas. */
+val LifeOSTextPrimaryDark = Color(0xFFF2F7F7)
+/** Supporting copy. 7.0:1 light / 7.2:1 dark. */
+val LifeOSTextSecondaryLight = Color(0xFF48626C)
+val LifeOSTextSecondaryDark = Color(0xFFA3B6BF)
 
-/** The quiet grey-teal — structural labels, dividers and disabled hints. */
-val LifeOSTextMutedLight = Color(0xFF5F6D6A)
-val LifeOSTextMutedDark = Color(0xFF8FA09A)
+/** The quiet tertiary — timestamps, captions, disabled hints. */
+val LifeOSTextMutedLight = Color(0xFF64808A)
+val LifeOSTextMutedDark = Color(0xFF7D959F)
 
 // ---- Borders & outlines ----------------------------------------------------
 
-/** A cool hairline lifted from the glass, never a flat neutral rule. */
-val LifeOSBorderLight = Color(0x1A0A3B33)
-val LifeOSBorderDark = Color(0x1FFFFFFF)
-val LifeOSOutlineLight = Color(0xFFA9BDB8)
-val LifeOSOutlineDark = Color(0xFF3D4B48)
+/** The card hairline on opaque (non-translucent) surfaces. */
+val LifeOSBorderLight = Color(0x140B2A21)
+val LifeOSBorderDark = Color(0x1FB6D9E5)
+val LifeOSOutlineLight = Color(0xFFB4C7C1)
+val LifeOSOutlineDark = Color(0xFF3A505C)
 
-// ---- Surface material (legacy "Glass") -------------------------------------
+// ---- Surface material ------------------------------------------------------
 //
-// These slots are kept because the whole component kit reads them by name.
-// Under AURA they describe a *frosted* sheet: translucent enough that the
-// lagoon gradient breathes through it, with a soft top light and one border.
+// The component kit's card slots. Dark values are the Figma card; light
+// values are the derived-polarity card. The top/bottom edge and sheen
+// slots are kept so cards can catch a whisper of top light without
+// reintroducing heavy glassmorphism.
 
-val GlassLight = Color(0xE6FFFFFF)
-val GlassDark = Color(0xA6121C1A)
-val GlassBorderLight = Color(0x1A0A3B33)
-val GlassBorderDark = Color(0x26FFFFFF)
+val GlassLight = LifeOSCardFillLight
+val GlassDark = LifeOSCardFillDark
+val GlassBorderLight = LifeOSCardStrokeLight
+val GlassBorderDark = LifeOSCardStrokeDark
 
-// The rim: a soft top light, a deeper pooled foot.
-val GlassTopEdgeLight = Color(0x66FFFFFF)
-val GlassTopEdgeDark = Color(0x24FFFFFF)
-val GlassBottomEdgeLight = Color(0x14000000)
-val GlassBottomEdgeDark = Color(0x40000000)
+val GlassTopEdgeLight = Color(0x50FFFFFF)
+val GlassTopEdgeDark = Color(0x1EFFFFFF)
+val GlassBottomEdgeLight = Color(0x0A0B2A21)
+val GlassBottomEdgeDark = Color(0x26000000)
 
-// A whisper of upper wash, so the glass catches the light without glinting.
-val GlassSheenLight = Color(0x1AFFFFFF)
-val GlassSheenDark = Color(0x14FFFFFF)
-val GlassInnerShadowLight = Color(0x14002B24)
-val GlassInnerShadowDark = Color(0x33000000)
-
-/**
- * Ambient glow palette — the coloured light the frosted glass sits in. Kept
- * faint so a wash can never overpower on-surface content: a cool lagoon mint,
- * a warm coral, and a deep plum.
- */
-val AmbientGlowLavenderLight = Color(0x335EE0B0) // mint haze
-val AmbientGlowMagentaLight = Color(0x33FF9E80)  // coral haze
-val AmbientGlowSkyLight = Color(0x2E7C5CBF)      // plum haze
-val AmbientGlowLavenderDark = Color(0x3D146B5E)  // deep teal haze
-val AmbientGlowMagentaDark = Color(0x3DB7452A)   // deep coral haze
-val AmbientGlowSkyDark = Color(0x3D3A1E4D)       // deep plum haze
-
-// ---- Brand — the AURA lagoon -----------------------------------------------
+val GlassSheenLight = Color(0x0DFFFFFF)
+val GlassSheenDark = Color(0x0FFFFFFF)
+val GlassInnerShadowLight = Color(0x0A0B2A21)
+val GlassInnerShadowDark = Color(0x26000000)
 
 /**
- * Coral — the primary action / selection colour and the app's signature light,
- * in its **light-theme** polarity (deep enough for white text on it).
+ * Ambient glow palette — faint coloured light the canvas is washed with.
+ * The Figma canvas is a clean gradient, so these stay barely-there teal/mint
+ * hazes used only behind hero moments (welcome, AI), never behind dense text.
  */
-val LifeOSPrimary = Color(0xFFC2410C)
+val AmbientGlowLavenderLight = Color(0x1A14795C) // deep mint haze
+val AmbientGlowMagentaLight = Color(0x142E6099)  // slate-blue haze
+val AmbientGlowSkyLight = Color(0x1478A8A0)      // pale sea haze
+val AmbientGlowLavenderDark = Color(0x331E6E5E)  // teal haze
+val AmbientGlowMagentaDark = Color(0x262E6099)   // slate-blue haze
+val AmbientGlowSkyDark = Color(0x2657A88F)       // sea-mint haze
 
-/** A deeper coral for pressed states and gradient depth. */
-val LifeOSPrimaryDeep = Color(0xFF9A3208)
+// ---- Brand — the mint signature --------------------------------------------
 
-/** Mint — the calm partner and the "kept up / success" second accent. */
-val LifeOSSecondary = Color(0xFF1E8E6E)
+/**
+ * The app's one accent in its **light-polarity** form: a deepened mint that
+ * carries white text at 5.3:1. Filled mint surfaces in light mode use the
+ * brand mint with dark ink instead (see [LifeOSMint]).
+ */
+val LifeOSPrimary = Color(0xFF14795C)
 
-/** A very soft coral wash, for containers and selected surfaces. */
-val LifeOSAccentLavender = Color(0xFFFFE7DC)
+/** A deeper mint for pressed states and gradient depth. */
+val LifeOSPrimaryDeep = Color(0xFF0E5A45)
 
-/** Amber — the warm third accent, and the app's "energetic" highlight. */
-val LifeOSTertiary = Color(0xFFB8862B)
+/** The calm partner: a desaturated sea-teal for secondary chips and tabs. */
+val LifeOSSecondary = Color(0xFF45786B)
 
-// The named gradient stops, for the identity gradient. A lagoon sunset:
-// deep teal -> rust -> coral. Deliberately DEEP so white text and icons on any
-// filled identity surface (the hero, the Capture disc, a primary button) stay
-// at or above WCAG AA (4.5:1) — brightening them would silently break that.
-val PrismIndigo = Color(0xFF0F6E5F) // deep teal
-val PrismSky = Color(0xFFA84B2E)    // deep rust
-val PrismCoral = Color(0xFFC43D26)  // deep coral
+/** A very soft mint wash, for containers and selected surfaces (light). */
+val LifeOSAccentLavender = Color(0xFFD5F0E6)
 
-/** The one identity gradient: teal -> rust -> coral. Hero, Capture and AI orb. */
+/** Amber-gold — the warm third accent (light-polarity value). */
+val LifeOSTertiary = Color(0xFF8A6A12)
+
+/**
+ * The brand mint itself (#A8E8D3 from Figma), used as a *fill* in both
+ * themes: the center Capture pill, progress fills, selected chips. On dark
+ * it sits directly on the canvas; on light it is paired with [LifeOSMintInk].
+ */
+val LifeOSMint = Color(0xFFA8E8D3)
+
+/** Dark ink that goes on mint fills (≈12:1 on [LifeOSMint]). */
+val LifeOSMintInk = Color(0xFF06281F)
+
+// The identity gradient: deep teal -> mint horizon. Hero, Capture, AI orb.
+val PrismIndigo = Color(0xFF0E5A45)
+val PrismSky = Color(0xFF1E8E6E)
+val PrismCoral = Color(0xFFA8E8D3)
 val PrismSpectrum = listOf(PrismIndigo, PrismSky, PrismCoral)
 
 // ---- Premium highlight -----------------------------------------------------
 
 /**
- * Gold — reserved for premium moments only: streaks, personal records,
- * achievements, "best day" badges. Using it anywhere else would rob it of
- * meaning. [LifeOSGoldSoft] is its light-tinted fill on a surface.
+ * Gold — reserved for premium moments: streaks, personal records,
+ * achievements, "best day" badges. [LifeOSGold] is the light-polarity ink,
+ * [LifeOSGoldBright] the dark-canvas gold, [LifeOSGoldSoft] its translucent fill.
  */
-val LifeOSGold = Color(0xFFB8860B)
-val LifeOSGoldBright = Color(0xFFE8B44A)
-val LifeOSGoldSoft = Color(0x33E8B44A)
+val LifeOSGold = Color(0xFF8A6A12)
+val LifeOSGoldBright = Color(0xFFE8C978)
+val LifeOSGoldSoft = Color(0x33E8C978)
 
 // ---- State -----------------------------------------------------------------
 
-val LifeOSSuccess = Color(0xFF1E8E6E)
-val LifeOSWarning = Color(0xFF9A6A16)
-val LifeOSDanger = Color(0xFFB4322E)
-val LifeOSInfo = Color(0xFF2F6E8E)
+/** Light-polarity state inks; dark-polarity values live in Theme.kt. */
+val LifeOSSuccess = Color(0xFF14795C)
+val LifeOSWarning = Color(0xFF8A5B00)
+val LifeOSDanger = Color(0xFFB3261E)
+val LifeOSInfo = Color(0xFF2E6099)
 
-/** The neutral base every soft shadow is mixed from — cool, never a brand hue. */
-val LifeOSShadow = Color(0xFF04100E)
+/** Translucent state fills for chips and soft badges, both themes. */
+val LifeOSSuccessSoft = Color(0x2E14795C)
+val LifeOSWarningSoft = Color(0x2E8A5B00)
+val LifeOSDangerSoft = Color(0x2EB3261E)
+val LifeOSInfoSoft = Color(0x2E2E6099)
+
+/** The neutral base every soft shadow is mixed from — the deep canvas ink. */
+val LifeOSShadow = Color(0xFF06141A)
 
 /** A dimming scrim behind modal surfaces and the capture hub. */
-val LifeOSScrim = Color(0x66101514)
+val LifeOSScrim = Color(0x9906141A)
+
+// ---- Canvas brush ----------------------------------------------------------
+
+/**
+ * The page background: the three-stop vertical gradient every screen sits on.
+ * This is the design's signature — never a flat color.
+ */
+fun lifeOSCanvasBrush(dark: Boolean): Brush =
+    if (dark) {
+        Brush.verticalGradient(
+            colors = listOf(LifeOSCanvasTopDark, LifeOSCanvasMidDark, LifeOSCanvasBottomDark)
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(LifeOSCanvasTopLight, LifeOSCanvasMidLight, LifeOSCanvasBottomLight)
+        )
+    }
 
 // ===========================================================================
-// Diary — the app's one deliberately non-glass module.
+// Diary — mood palette.
 //
-// A physical paper object: warm paper with a handwriting face. It renders on
-// a fixed paper surface and never reads the frosted tokens, so it stays a
-// warm counterpoint inside the cool lagoon rather than flipping with the
-// theme. Stable, intentional.
+// Moods are domain semantics (a mood's colour is part of the user's data),
+// so they are kept stable across the redesign; the diary's paper surfaces
+// are restyled with the app palette instead of their own hexes.
 // ===========================================================================
 
-val DiaryMoodHappy = Color(0xFFF59E0B)      // goldenrod
-val DiaryMoodCalm = Color(0xFF10B981)       // sage green
-val DiaryMoodSad = Color(0xFF6366F1)        // dusty hydrangea
-val DiaryMoodStressed = Color(0xFFF43F5E)   // soft terracotta
-val DiaryMoodExcited = Color(0xFF7D5260)    // dried rose plum
+val DiaryMoodHappy = Color(0xFFF59E0B)
+val DiaryMoodCalm = Color(0xFF10B981)
+val DiaryMoodSad = Color(0xFF6366F1)
+val DiaryMoodStressed = Color(0xFFF43F5E)
+val DiaryMoodExcited = Color(0xFF7D5260)
 
-/**
- * The Diary's *heading* ink: a warm near-black pen ink reserved for text and
- * the timeline spine. Deliberately never used for anything actionable.
- */
-val DiaryInkViolet = Color(0xFF2E2A26)
+val DiaryMoodAngry = Color(0xFFEF6B5E)
+val DiaryMoodAnxious = Color(0xFFF2A65A)
+val DiaryMoodTired = Color(0xFF8B93B8)
+val DiaryMoodNeutral = Color(0xFFB9AFC4)
 
-/** Secondary ink for captions and supporting metadata — a soft sepia grey. */
-val DiaryInkSoft = Color(0xFF6C6357)
-
-/**
- * The Diary's actionable hue: the blue-black of a fountain-pen stroke. Every
- * control the user can press is painted in this ink, so "pressable" and
- * "read this" are told apart by hue alone.
- */
-val DiaryActionViolet = Color(0xFF2E4A6E)
-
-/** Tag-chip text, on the aged-paper chip fill. */
-val DiaryTagInk = Color(0xFF4A4335)
-
-// The paper itself.
-val DiaryPaperBase = Color(0xFFEFE6D2)      // the desk / screen behind the pages
-val DiaryPaperCard = Color(0xFFFCF7EA)      // one fresh page leaf
-val DiaryLavender = Color(0xFFE6DAC0)       // aged-paper wash (chips, surfaces, selection)
-val DiaryHairline = Color(0xFFD8CBB0)       // page border + timeline spine
-val DiaryRuledLine = Color(0xFFD3C4A3)      // the faint horizontal rules on a page
-val DiaryMarginLine = Color(0xFFC4796A)     // the red rule down the page's left margin
-val DiaryRibbon = Color(0xFF9C3A3A)         // fabric bookmark
-val DiarySaveDisabled = Color(0xFFEDE3CE)   // disabled Save pill
-val DiaryPageShadow = Color(0x243B2F1E)     // soft drop shadow under a page
-
-// Pastel mood-pill fills.
+/** Pastel mood-pill fills. */
 val DiaryMoodHappyPastel = Color(0xFFFEF3C7)
 val DiaryMoodCalmPastel = Color(0xFFD1FAE5)
 val DiaryMoodSadPastel = Color(0xFFE0E7FF)
 val DiaryMoodStressedPastel = Color(0xFFFFE4E6)
 val DiaryMoodExcitedPastel = Color(0xFFFCE7F3)
-
-// Second mood wave (Daily Memory redesign). Purely additive.
-val DiaryMoodAngry = Color(0xFFEF6B5E)       // soft coral
-val DiaryMoodAnxious = Color(0xFFF2A65A)     // soft orange
-val DiaryMoodTired = Color(0xFF8B93B8)       // muted lavender-blue
 val DiaryMoodAngryPastel = Color(0xFFFFE3E0)
 val DiaryMoodAnxiousPastel = Color(0xFFFDEBD7)
 val DiaryMoodTiredPastel = Color(0xFFE7E9F5)
-
-/**
- * Marker colour for an entry stored before moods existed (or with an
- * unrecognised custom value). Deliberately desaturated so an absent mood reads
- * as "no signal" rather than as a fifth feeling.
- */
-val DiaryMoodNeutral = Color(0xFFB9AFC4)

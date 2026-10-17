@@ -7,26 +7,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,10 +44,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.data.repository.NoteRepository
-import com.lifeos.app.ui.components.LifeOSIconButton
+import com.lifeos.app.ui.components.LifeOSLinkText
+import com.lifeos.app.ui.components.LifeOSPageHeader
 import com.lifeos.app.ui.components.LifeOSPrimaryButton
+import com.lifeos.app.ui.components.lifeOSIsDark
+import com.lifeos.app.ui.theme.LifeOSMint
 import com.lifeos.app.ui.theme.LifeOSRadius
-import com.lifeos.app.ui.theme.LifeOSSpacing
+import com.lifeos.app.ui.theme.lifeOSCanvasBrush
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -218,9 +216,12 @@ class NoteEditorViewModel(
 }
 
 /**
- * The note editor. A quiet, full-window writing surface: a large title, a
- * borderless body, and a lightweight tag rail. Save is explicit and the screen
- * closes on the one-shot [NoteEditorUiState.saved] signal.
+ * The note editor. A quiet, full-window writing surface on the shared canvas:
+ * the page header, a large borderless title, a lightweight tag rail and a
+ * borderless body, with the mint Save action pinned above the keyboard.
+ *
+ * Leaving is gated on real unsaved work (see [isNoteDirty]); the screen closes
+ * itself on the one-shot [NoteEditorUiState.saved] signal.
  */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -234,6 +235,7 @@ fun NoteEditorScreen(
         factory = LambdaViewModelFactory { NoteEditorViewModel(locator.noteRepository, noteId) }
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val dark = lifeOSIsDark()
 
     // Leaving is gated on real unsaved work. Both the header's Back arrow and the
     // system Back go through the same request, so neither can silently discard a
@@ -259,95 +261,89 @@ fun NoteEditorScreen(
     Column(
         Modifier
             .fillMaxSize()
+            .background(lifeOSCanvasBrush(dark))
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = LifeOSSpacing.screenPadding)
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(vertical = LifeOSSpacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
-        ) {
-            LifeOSIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = requestLeave)
-            Spacer(Modifier.weight(1f))
-            Text(
-                if (state.noteId == null) "New note" else "Editing",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.weight(1f))
-            LifeOSPrimaryButton(
-                text = "Save",
-                onClick = viewModel::save,
-                icon = Icons.Filled.Check
-            )
-        }
-
-        BasicTextField(
-            value = state.title,
-            onValueChange = viewModel::onTitleChange,
-            textStyle = MaterialTheme.typography.headlineLarge.copy(color = MaterialTheme.colorScheme.onBackground),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            modifier = Modifier.fillMaxWidth(),
-            decorationBox = { inner ->
-                Box {
-                    if (state.title.isEmpty()) {
-                        Text("Title", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
-                    }
-                    inner()
-                }
-            }
+        LifeOSPageHeader(
+            eyebrow = "Note",
+            title = if (state.noteId == null) "New note" else "Edit note",
+            onBack = requestLeave,
         )
-        Spacer(Modifier.height(LifeOSSpacing.md))
 
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)) {
-            if (state.tags.isNotEmpty()) {
-                LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)) {
-                    items(state.tags, key = { it }) { tag ->
-                        Row(
-                            Modifier
-                                .clip(RoundedCornerShape(LifeOSRadius.pill))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                                .clickable { viewModel.removeTag(tag) }
-                                .padding(horizontal = 10.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text("#$tag", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                            Text("×", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-            } else Spacer(Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(LifeOSSpacing.sm))
-
-        Box(
+        Column(
             Modifier
-                .fillMaxWidth()
                 .weight(1f)
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 24.dp, top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             BasicTextField(
-                value = state.content,
-                onValueChange = viewModel::onContentChange,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                modifier = Modifier.fillMaxSize(),
+                value = state.title,
+                onValueChange = viewModel::onTitleChange,
+                textStyle = MaterialTheme.typography.headlineLarge.copy(
+                    color = MaterialTheme.colorScheme.onBackground,
+                ),
+                cursorBrush = SolidColor(LifeOSMint),
+                modifier = Modifier.fillMaxWidth(),
                 decorationBox = { inner ->
                     Box {
-                        if (state.content.isEmpty()) {
+                        if (state.title.isEmpty()) {
                             Text(
-                                "Start writing…",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                "Title",
+                                style = MaterialTheme.typography.headlineLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             )
                         }
                         inner()
                     }
                 }
             )
+
+            TagRail(
+                tags = state.tags,
+                onAddTag = viewModel::addTag,
+                onRemoveTag = viewModel::removeTag,
+            )
+
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                BasicTextField(
+                    value = state.content,
+                    onValueChange = viewModel::onContentChange,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    cursorBrush = SolidColor(LifeOSMint),
+                    modifier = Modifier.fillMaxSize(),
+                    decorationBox = { inner ->
+                        Box {
+                            if (state.content.isEmpty()) {
+                                Text(
+                                    "Start writing…",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                )
+                            }
+                            inner()
+                        }
+                    }
+                )
+            }
         }
+
+        LifeOSPrimaryButton(
+            text = "Save note",
+            onClick = viewModel::save,
+            icon = Icons.Filled.Check,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 20.dp),
+        )
     }
 
     if (showDiscardDialog) {
@@ -362,5 +358,73 @@ fun NoteEditorScreen(
                 TextButton(onClick = { showDiscardDialog = false }) { Text("Keep editing") }
             }
         )
+    }
+}
+
+/** The lightweight tag rail: removable mint chips plus an inline add field. */
+@Composable
+private fun TagRail(
+    tags: List<String>,
+    onAddTag: (String) -> Unit,
+    onRemoveTag: (String) -> Unit,
+) {
+    var draft by remember { mutableStateOf("") }
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f, fill = false),
+        ) {
+            items(tags, key = { it }) { tag ->
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(LifeOSRadius.pill))
+                        .background(LifeOSMint.copy(alpha = 0.10f))
+                        .clickable { onRemoveTag(tag) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        "#$tag",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LifeOSMint,
+                    )
+                    Text(
+                        "×",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LifeOSMint,
+                    )
+                }
+            }
+        }
+        if (tags.isEmpty()) {
+            BasicTextField(
+                value = draft,
+                onValueChange = { draft = it },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.labelMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                ),
+                cursorBrush = SolidColor(LifeOSMint),
+                modifier = Modifier.weight(1f),
+                decorationBox = { inner ->
+                    Box {
+                        if (draft.isEmpty()) {
+                            Text(
+                                "#tags",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            )
+                        }
+                        inner()
+                    }
+                }
+            )
+            LifeOSLinkText(text = "Add", onClick = { onAddTag(draft); draft = "" })
+        }
     }
 }

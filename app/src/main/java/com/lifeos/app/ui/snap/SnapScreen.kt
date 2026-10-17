@@ -6,7 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -32,13 +31,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.lifeos.app.core.util.MediaStorage
+import com.lifeos.app.ui.components.lifeOSCanvas
 import com.lifeos.app.ui.components.prismBrush
 import com.lifeos.app.ui.theme.LifeOSRadius
 
@@ -127,7 +126,7 @@ private fun SnapPermissionScreen(
     Box(
         modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .lifeOSCanvas(),
         contentAlignment = Alignment.Center
     ) {
         Column(

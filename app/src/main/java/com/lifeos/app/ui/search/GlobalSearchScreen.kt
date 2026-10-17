@@ -1,16 +1,16 @@
 package com.lifeos.app.ui.search
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.PhotoCamera
@@ -19,13 +19,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -40,12 +37,15 @@ import com.lifeos.app.data.db.entities.NoteEntity
 import com.lifeos.app.data.repository.CaptureRepository
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.data.repository.NoteRepository
+import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSEmptyState
-import com.lifeos.app.ui.components.LifeOSIconButton
-import com.lifeos.app.ui.components.LifeOSSearchBar
-import com.lifeos.app.ui.components.LifeOSSurface
+import com.lifeos.app.ui.components.LifeOSPageHeader
+import com.lifeos.app.ui.components.LifeOSSearchField
+import com.lifeos.app.ui.components.LifeOSSectionHeader
 import com.lifeos.app.ui.components.LifeOSSkeletonList
-import com.lifeos.app.ui.theme.LifeOSSpacing
+import com.lifeos.app.ui.components.lifeOSIsDark
+import com.lifeos.app.ui.theme.LifeOSMint
+import com.lifeos.app.ui.theme.lifeOSCanvasBrush
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -125,57 +125,57 @@ fun GlobalSearchScreen(
         }
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+    val dark = lifeOSIsDark()
 
     LazyColumn(
-        Modifier.fillMaxWidth(),
+        Modifier
+            .fillMaxSize()
+            .background(lifeOSCanvasBrush(dark)),
         contentPadding = PaddingValues(
-            start = LifeOSSpacing.screenPadding,
-            end = LifeOSSpacing.screenPadding,
-            top = LifeOSSpacing.md,
-            bottom = LifeOSSpacing.sectionSpacing
+            start = 24.dp,
+            end = 24.dp,
+            bottom = 140.dp
         ),
-        verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)) {
-                LifeOSIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
-                Column(Modifier.weight(1f)) {
-                    Text("Search", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground)
-                    if (state.searched && !state.loading) {
-                        Text(
-                            "${state.total} result${if (state.total == 1) "" else "s"}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
+            LifeOSPageHeader(
+                eyebrow = "Everything",
+                title = "Search",
+                onBack = onBack
+            )
         }
         item {
-            LifeOSSearchBar(
+            LifeOSSearchField(
                 value = state.query,
                 onValueChange = viewModel::onQueryChange,
                 placeholder = "Notes, diary, memories…",
                 leadingIcon = Icons.Filled.Search
             )
         }
+        if (state.searched && !state.loading) {
+            item {
+                LifeOSSectionHeader(
+                    "Results",
+                    actionLabel = "${state.total} total"
+                )
+            }
+        }
 
         when {
             state.query.isBlank() -> item {
                 LifeOSEmptyState(
-                    icon = Icons.Filled.Search,
                     title = "Search everything",
-                    body = "One field across your notes, diary and captured memories."
+                    body = "One field across your notes, diary and captured memories.",
+                    icon = Icons.Filled.Search
                 )
             }
             state.loading -> item { LifeOSSkeletonList(rows = 4) }
             state.total == 0 -> item {
                 LifeOSEmptyState(
-                    icon = Icons.Filled.Search,
                     title = "No matches",
-                    body = "Nothing stored matches “${state.query}”."
+                    body = "Nothing stored matches “${state.query}”.",
+                    icon = Icons.Filled.Search
                 )
             }
             else -> {
@@ -220,23 +220,20 @@ fun GlobalSearchScreen(
 
 @Composable
 private fun SearchGroupHeader(title: String, count: Int) {
-    Row(Modifier.fillMaxWidth().padding(top = LifeOSSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
-        Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-        Text("  ·  $count", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+    LifeOSSectionHeader(title, actionLabel = "$count")
 }
 
 @Composable
 private fun ResultRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     onClick: () -> Unit,
     leading: String? = null
 ) {
-    LifeOSSurface(Modifier.fillMaxWidth(), onClick = onClick, contentPadding = PaddingValues(LifeOSSpacing.lg)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 2.dp))
+    LifeOSCard(Modifier.fillMaxWidth(), onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(icon, contentDescription = null, tint = LifeOSMint, modifier = Modifier.padding(end = 2.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (subtitle.isNotBlank()) {

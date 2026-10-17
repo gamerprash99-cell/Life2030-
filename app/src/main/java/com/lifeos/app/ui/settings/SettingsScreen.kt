@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -22,10 +23,8 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PrivacyTip
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -40,7 +39,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -63,10 +61,11 @@ import com.lifeos.app.core.util.SettingsStore
 import com.lifeos.app.core.util.rememberPermissionState
 import com.lifeos.app.data.repository.BackupRepository
 import com.lifeos.app.ui.components.LifeOSCard
+import com.lifeos.app.ui.components.LifeOSPageHeader
+import com.lifeos.app.ui.components.LifeOSPrimaryButton
 import com.lifeos.app.ui.components.LifeOSSectionHeader
-import com.lifeos.app.ui.components.LifeOSTopBar
-import com.lifeos.app.ui.theme.LifeOSAccentLavender
-import com.lifeos.app.ui.theme.LifeOSSpacing
+import com.lifeos.app.ui.components.lifeOSIsDark
+import com.lifeos.app.ui.theme.lifeOSCanvasBrush
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -170,97 +169,107 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit, onBack: () -> Unit = {}) {
         }
     }
 
-    Scaffold { padding ->
-        Column(
-            Modifier.fillMaxWidth().padding(padding).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            LifeOSTopBar("Settings & Security", "Preferences, authentication and local privacy", onBack = onBack)
-            Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                LifeOSCard(Modifier.fillMaxWidth(), tint = LifeOSAccentLavender) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(18.dp)) {
-                            Icon(Icons.Filled.PrivacyTip, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(12.dp))
-                        }
-                        Column(Modifier.padding(start = 12.dp)) {
-                            Text("Zero cloud telemetry", style = MaterialTheme.typography.titleMedium)
-                            Text("LifeOS data stays on your device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+    val dark = lifeOSIsDark()
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(lifeOSCanvasBrush(dark))
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        LifeOSPageHeader(
+            eyebrow = "Preferences",
+            title = "Settings & Security",
+            onBack = onBack
+        )
+        Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            LifeOSCard(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(18.dp)) {
+                        Icon(Icons.Filled.PrivacyTip, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(12.dp))
+                    }
+                    Column(Modifier.padding(start = 12.dp)) {
+                        Text("Zero cloud telemetry", style = MaterialTheme.typography.titleMedium)
+                        Text("LifeOS data stays on your device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-
-                LifeOSSectionHeader("Security")
-                SettingsRow(
-                    Icons.Filled.Lock,
-                    "App Lock",
-                    if (appLockType == AppLockType.PIN) "Secure LifeOS PIN" else "Off",
-                    onOpenAppLockSetup
-                )
-                LifeOSCard(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SettingsIcon(Icons.Filled.Lock)
-                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text("Auto-lock", style = MaterialTheme.typography.titleMedium)
-                            Text("Require your PIN after LifeOS sits in the background.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Switch(
-                            checked = autoLockEnabled,
-                            onCheckedChange = vm::setAutoLockEnabled,
-                            enabled = appLockType == AppLockType.PIN
-                        )
-                    }
-                }
-
-                LifeOSSectionHeader("Appearance")
-                LifeOSCard(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SettingsIcon(Icons.Filled.Palette)
-                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text("Slate Night", style = MaterialTheme.typography.titleMedium)
-                            Text(if (darkTheme) "Dark theme enabled" else "Lavender Day Calm", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Switch(checked = darkTheme, onCheckedChange = vm::setDarkThemeEnabled)
-                    }
-                }
-
-                LifeOSSectionHeader("Notifications / Reminders")
-                RemindersCard(enabled = remindersEnabled, onToggle = vm::setRemindersEnabled)
-                ExactAlarmsRemindersRow()
-                AutoCaptureCard(
-                    enabled = autoCaptureExpenses,
-                    accessGranted = notificationAccessGranted,
-                    onToggle = vm::setAutoCaptureExpenses,
-                    onGrantAccess = {
-                        runCatching { context.startActivity(NotificationAccess.appSettingsIntent(context)) }
-                    }
-                )
-
-                LifeOSSectionHeader("Backup & Local Storage")
-                LifeOSCard(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            SettingsIcon(Icons.Filled.Backup)
-                            Column(Modifier.padding(start = 12.dp)) {
-                                Text("LifeOS snapshot", style = MaterialTheme.typography.titleMedium)
-                                Text("Export and restore through Android Storage Access Framework.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                        Button(onClick = { vm.exportBackup(context.filesDir) }, modifier = Modifier.fillMaxWidth()) { Text("Export LifeOS backup") }
-                        TextButton(onClick = { restoreLauncher.launch(arrayOf("application/json")) }, modifier = Modifier.fillMaxWidth()) { Text("Restore LifeOS backup") }
-                        if (exported != null) {
-                            TextButton(onClick = {
-                                val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", exported!!)
-                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "application/json"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, "Share LifeOS backup"))
-                            }, modifier = Modifier.fillMaxWidth()) { Text("Share exported backup") }
-                        }
-                        Text("Exports are plaintext JSON — only share them with people you trust. Restores are validated against the current format.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    }
-                }
-
-                LifeOSSectionHeader("About")
-                Text("LifeOS · Offline-first · Private by default", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 18.dp))
             }
+
+            LifeOSSectionHeader("Security")
+            SettingsRow(
+                Icons.Filled.Lock,
+                "App Lock",
+                if (appLockType == AppLockType.PIN) "Secure LifeOS PIN" else "Off",
+                onOpenAppLockSetup
+            )
+            LifeOSCard(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SettingsIcon(Icons.Filled.Lock)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Auto-lock", style = MaterialTheme.typography.titleMedium)
+                        Text("Require your PIN after LifeOS sits in the background.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked = autoLockEnabled,
+                        onCheckedChange = vm::setAutoLockEnabled,
+                        enabled = appLockType == AppLockType.PIN
+                    )
+                }
+            }
+
+            LifeOSSectionHeader("Appearance")
+            LifeOSCard(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SettingsIcon(Icons.Filled.Palette)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Slate Night", style = MaterialTheme.typography.titleMedium)
+                        Text(if (darkTheme) "Dark theme enabled" else "Lavender Day Calm", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = darkTheme, onCheckedChange = vm::setDarkThemeEnabled)
+                }
+            }
+
+            LifeOSSectionHeader("Notifications / Reminders")
+            RemindersCard(enabled = remindersEnabled, onToggle = vm::setRemindersEnabled)
+            ExactAlarmsRemindersRow()
+            AutoCaptureCard(
+                enabled = autoCaptureExpenses,
+                accessGranted = notificationAccessGranted,
+                onToggle = vm::setAutoCaptureExpenses,
+                onGrantAccess = {
+                    runCatching { context.startActivity(NotificationAccess.appSettingsIntent(context)) }
+                }
+            )
+
+            LifeOSSectionHeader("Backup & Local Storage")
+            LifeOSCard(Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SettingsIcon(Icons.Filled.Backup)
+                        Column(Modifier.padding(start = 12.dp)) {
+                            Text("LifeOS snapshot", style = MaterialTheme.typography.titleMedium)
+                            Text("Export and restore through Android Storage Access Framework.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    LifeOSPrimaryButton(
+                        text = "Export LifeOS backup",
+                        onClick = { vm.exportBackup(context.filesDir) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    TextButton(onClick = { restoreLauncher.launch(arrayOf("application/json")) }, modifier = Modifier.fillMaxWidth()) { Text("Restore LifeOS backup") }
+                    if (exported != null) {
+                        TextButton(onClick = {
+                            val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", exported!!)
+                            context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "application/json"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, "Share LifeOS backup"))
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Share exported backup") }
+                    }
+                    Text("Exports are plaintext JSON — only share them with people you trust. Restores are validated against the current format.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+            }
+
+            LifeOSSectionHeader("About")
+            Text("LifeOS · Offline-first · Private by default", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 18.dp))
         }
     }
 }

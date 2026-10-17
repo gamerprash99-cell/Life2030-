@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -38,7 +37,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -74,11 +72,10 @@ import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.MediaStorage
 import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSEyebrow
-import com.lifeos.app.ui.components.LifeOSTopBar
+import com.lifeos.app.ui.components.LifeOSPageHeader
+import com.lifeos.app.ui.components.lifeOSCanvas
 import com.lifeos.app.ui.components.ProfileAvatar
-import com.lifeos.app.ui.theme.LifeOSAccentLavender
 import com.lifeos.app.ui.theme.LifeOSSpacing
-import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.max
 import kotlin.math.min
@@ -116,24 +113,16 @@ fun ProfileScreen(
         }
     }
 
-    Scaffold(
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        // The parent LifeOSNavHost Scaffold has already inset this destination for
-        // the status bar, the bottom navigation and the system navigation area.
-        // `Modifier.padding` does not *consume* insets, so a nested Scaffold asking
-        // for `systemBars` again added them a second time — a blank band above the
-        // top bar and below the last row.
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { padding ->
+    Column(Modifier.fillMaxSize().lifeOSCanvas()) {
+        LifeOSPageHeader(eyebrow = "Profile", title = "You", onBack = onBack)
         // Scrollable so the card plus four rows still fit at a large system font
         // scale or on a short window instead of being clipped under the bottom bar.
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            LifeOSTopBar("You", "Your LifeOS space", onBack = onBack)
             Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                LifeOSCard(Modifier.fillMaxWidth(), tint = LifeOSAccentLavender) {
+                LifeOSCard(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         ProfileAvatar(
                             size = 72.dp,

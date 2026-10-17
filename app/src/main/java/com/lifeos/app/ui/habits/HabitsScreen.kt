@@ -6,17 +6,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -28,8 +26,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,18 +55,18 @@ import com.lifeos.app.domain.usecase.DayCheck
 import com.lifeos.app.domain.usecase.buildWeeklyRhythm
 import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSEmptyState
-import com.lifeos.app.ui.components.LifeOSProgressBar
+import com.lifeos.app.ui.components.LifeOSPageHeader
+import com.lifeos.app.ui.components.LifeOSProgressTrack
 import com.lifeos.app.ui.components.LifeOSSectionHeader
-import com.lifeos.app.ui.components.LifeOSTopBar
 import com.lifeos.app.ui.components.LifeOSWeeklyRhythm
-import com.lifeos.app.ui.components.LiquidGlassFab
 import com.lifeos.app.ui.components.ReminderPermissionHost
 import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
+import com.lifeos.app.ui.components.lifeOSIsDark
 import com.lifeos.app.ui.components.rememberExactAlarmPermissionHost
 import com.lifeos.app.ui.components.rememberReminderPermissionHost
-import com.lifeos.app.ui.theme.LifeOSAccentLavender
-import com.lifeos.app.ui.theme.LifeOSSpacing
+import com.lifeos.app.ui.theme.LifeOSMint
+import com.lifeos.app.ui.theme.lifeOSCanvasBrush
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -144,6 +140,7 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
     val doneToday = remember(scheduledToday, progressByHabit) {
         scheduledToday.count { habit -> (progressByHabit[habit.id]?.progressCount ?: 0) >= habit.goalCount }
     }
+
     var showAddDialog by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
@@ -155,56 +152,121 @@ fun HabitsScreen(onOpenHabit: (String) -> Unit) {
     // Exact alarms are a system special access (SCHEDULE_EXACT_ALARM); without it the
     // scheduler still warns/degrades, so arming a timed habit reminder waits for the grant.
     val exactAlarmHost = rememberExactAlarmPermissionHost()
-    Scaffold(
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        // The parent LifeOSNavHost Scaffold has already inset this destination for
-        // the status bar, the bottom navigation and the system navigation area.
-        // `Modifier.padding` does not *consume* insets, so a nested Scaffold asking
-        // for `systemBars` again added them a second time — a blank band above the
-        // header and below the last card, and a FAB pushed under the bottom bar.
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        floatingActionButton = { LiquidGlassFab(icon = Icons.Filled.Add, contentDescription = "New habit", onClick = { showAddDialog = true }) }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().padding(padding),
-            contentPadding = PaddingValues(start = LifeOSSpacing.screenPadding, end = LifeOSSpacing.screenPadding, top = 6.dp, bottom = LifeOSSpacing.fabContentClearance),
-            verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
-        ) {
-            item { LifeOSTopBar(title = "Habits & Routines", subtitle = "Build a rhythm that feels sustainable", modifier = Modifier) }
-            // Both summaries are skipped on an empty library: with no routines
-            // there is nothing to report, and the invitation card reads better
-            // directly under the header than under two zeroed statistics.
-            if (habits.isNotEmpty()) {
-                item { LifeOSSectionHeader("Today's progress", "$doneToday of ${scheduledToday.size} done") }
-                item { TodaysProgressCard(done = doneToday, scheduled = scheduledToday.size) }
-                item { LifeOSSectionHeader("Weekly rhythm", "${rhythm.count { it.isDone }} of 7 days") }
-                item { WeeklyRhythmCard(rhythm) }
+
+    val dark = lifeOSIsDark()
+    LazyColumn(
+        Modifier
+            .fillMaxSize()
+            .background(lifeOSCanvasBrush(dark)),
+        contentPadding = PaddingValues(bottom = 140.dp)
+    ) {
+        item {
+            LifeOSPageHeader(
+                eyebrow = "Daily rhythm",
+                title = "Habits",
+                actionIcon = Icons.Filled.Add,
+                actionDescription = "New habit",
+                onAction = { showAddDialog = true }
+            )
+        }
+        item {
+            Column(
+                Modifier.padding(start = 24.dp, end = 24.dp, top = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                // Both summaries are skipped on an empty library: with no routines
+                // there is nothing to report, and the invitation card reads better
+                // directly under the header than under two zeroed statistics.
+                if (habits.isNotEmpty()) {
+                    LifeOSSectionHeader("Today's progress", actionLabel = "$doneToday of ${scheduledToday.size} done")
+                    TodaysProgressCard(done = doneToday, scheduled = scheduledToday.size)
+                    LifeOSSectionHeader(
+                        "Weekly rhythm",
+                        actionLabel = "${rhythm.count { it.isDone }} of 7 days",
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                    WeeklyRhythmCard(rhythm)
+                    LifeOSSectionHeader(
+                        "Active routines",
+                        actionLabel = "${habits.size} total",
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                } else {
+                    LifeOSSectionHeader("Active routines", actionLabel = "0 total")
+                }
+                if (habits.isEmpty()) {
+                    EmptyHabits(onAdd = { showAddDialog = true })
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        habits.forEach { habit ->
+                            HabitCard(habit, locator.habitRepository, onOpenHabit) { progress ->
+                                viewModel.logToday(habit.id, progress, habit.goalCount)
+                            }
+                        }
+                    }
+                }
             }
-            item { LifeOSSectionHeader("Active routines", "${habits.size} total") }
-            if (habits.isEmpty()) item { EmptyHabits(onAdd = { showAddDialog = true }) }
-            else items(habits, key = { it.id }) { habit -> HabitCard(habit, locator.habitRepository, onOpenHabit) { progress -> viewModel.logToday(habit.id, progress, habit.goalCount) } }
         }
     }
     if (showAddDialog) {
-        AlertDialog(onDismissRequest = { showAddDialog = false }, title = { Text("New habit") }, text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Choose an icon", style = MaterialTheme.typography.labelMedium)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(PRESET_HABIT_ICONS) { preset -> Surface(onClick = { icon = preset }, color = if (icon == preset) LifeOSAccentLavender else MaterialTheme.colorScheme.surfaceVariant, shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text(preset, modifier = Modifier.padding(10.dp), style = MaterialTheme.typography.titleMedium) } } }
-                OutlinedTextField(value = name, onValueChange = { name = it }, placeholder = { Text("Habit name") }, singleLine = true)
-                TextButton(onClick = { showTimePicker = true }) { Icon(Icons.Filled.Notifications, contentDescription = null); Text(reminderTime?.let { "Remind at $it" } ?: "Set a daily reminder") }
-                if (reminderTime != null) {
-                    Text("Repeat reminder", style = MaterialTheme.typography.labelMedium)
-                    ReminderRepeatSelector(selected = reminderRepeatType, onSelect = { reminderRepeatType = it })
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text("New habit") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Choose an icon", style = MaterialTheme.typography.labelMedium)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(PRESET_HABIT_ICONS) { preset ->
+                            Box(
+                                Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(
+                                        if (icon == preset) LifeOSMint.copy(alpha = 0.20f)
+                                        else LifeOSMint.copy(alpha = 0.07f)
+                                    ),
+                                contentAlignment = androidx.compose.ui.Alignment.Center,
+                            ) {
+                                TextButton(onClick = { icon = preset }) {
+                                    Text(preset, style = MaterialTheme.typography.titleMedium)
+                                }
+                            }
+                        }
+                    }
+                    OutlinedTextField(value = name, onValueChange = { name = it }, placeholder = { Text("Habit name") }, singleLine = true)
+                    TextButton(onClick = { showTimePicker = true }) {
+                        Icon(Icons.Filled.Notifications, contentDescription = null)
+                        Text(reminderTime?.let { "Remind at $it" } ?: "Set a daily reminder")
+                    }
+                    if (reminderTime != null) {
+                        Text("Repeat reminder", style = MaterialTheme.typography.labelMedium)
+                        ReminderRepeatSelector(selected = reminderRepeatType, onSelect = { reminderRepeatType = it })
+                    }
                 }
-            }
-        }, confirmButton = { TextButton(onClick = {
-                val submit = { viewModel.addHabit(name, icon, reminderTime, reminderRepeatType); name = ""; reminderTime = null; reminderRepeatType = ReminderRepeatType.DAILY; showAddDialog = false }
-                // Habit reminder creation must wait for the notification permission
-                // and, when a timed alarm is being armed, for exact-alarm access.
-                if (reminderTime != null) permissionHost.runProtected { exactAlarmHost.runProtected(submit) } else submit()
-            }) { Text("Add") } }, dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancel") } })
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val submit = {
+                        viewModel.addHabit(name, icon, reminderTime, reminderRepeatType)
+                        name = ""
+                        reminderTime = null
+                        reminderRepeatType = ReminderRepeatType.DAILY
+                        showAddDialog = false
+                    }
+                    // Habit reminder creation must wait for the notification permission
+                    // and, when a timed alarm is being armed, for exact-alarm access.
+                    if (reminderTime != null) permissionHost.runProtected { exactAlarmHost.runProtected(submit) } else submit()
+                }) { Text("Add") }
+            },
+            dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancel") } }
+        )
     }
-    if (showTimePicker) ReminderTimePickerDialog(onDismiss = { showTimePicker = false }, onConfirm = { reminderTime = it; showTimePicker = false })
+    if (showTimePicker) {
+        ReminderTimePickerDialog(
+            onDismiss = { showTimePicker = false },
+            onConfirm = { reminderTime = it; showTimePicker = false }
+        )
+    }
 }
 
 @Composable
@@ -215,52 +277,79 @@ private fun HabitCard(habit: HabitEntity, repository: HabitRepository, onOpen: (
     val progress = completion?.progressCount ?: 0
     val done = progress >= habit.goalCount
     val analytics by produceState<com.lifeos.app.domain.model.HabitAnalytics?>(null, habit.id) { value = runCatching { repository.computeAnalytics(habit) }.getOrNull() }
-    LifeOSCard(Modifier.fillMaxWidth(), onClick = { onOpen(habit.id) }, tint = if (done) LifeOSAccentLavender else MaterialTheme.colorScheme.surface) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(color = if (done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant, shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) { Text(habit.icon, modifier = Modifier.padding(11.dp), style = MaterialTheme.typography.titleLarge) }
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text(habit.name, style = MaterialTheme.typography.titleMedium)
-                Text(buildString { append("${habit.frequency.name.lowercase().replaceFirstChar { it.uppercase() }} · "); append(if (habit.goalCount > 1) "$progress/${habit.goalCount} today" else if (done) "Completed today" else "Tap to check in") }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                analytics?.let { Text("${it.currentStreak} day streak · ${it.longestStreak} best", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp)) }
+    LifeOSCard(Modifier.fillMaxWidth(), onClick = { onOpen(habit.id) }) {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (done) LifeOSMint.copy(alpha = 0.18f) else LifeOSMint.copy(alpha = 0.08f)),
+                contentAlignment = androidx.compose.ui.Alignment.Center,
+            ) {
+                Text(habit.icon, style = MaterialTheme.typography.titleLarge)
             }
-            IconButton(onClick = { onLogToday(progress) }) { Icon(if (done) Icons.Filled.Check else Icons.Filled.RadioButtonUnchecked, contentDescription = if (done) "Completed today" else "Check in today", tint = if (done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline) }
+            Column(
+                Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp)
+            ) {
+                Text(habit.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    buildString {
+                        append("${habit.frequency.name.lowercase().replaceFirstChar { it.uppercase() }} · ")
+                        append(if (habit.goalCount > 1) "$progress/${habit.goalCount} today" else if (done) "Completed today" else "Tap to check in")
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                analytics?.let {
+                    Text(
+                        "${it.currentStreak} day streak · ${it.longestStreak} best",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LifeOSMint,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+            IconButton(onClick = { onLogToday(progress) }) {
+                Icon(
+                    if (done) Icons.Filled.Check else Icons.Filled.RadioButtonUnchecked,
+                    contentDescription = if (done) "Completed today" else "Check in today",
+                    tint = if (done) LifeOSMint else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
 
 /**
- * TODAY'S PROGRESS: the share of today's *scheduled* routines already checked
- * in. Both numbers come from persisted completions and the bar is their exact
- * ratio, so it can never show progress the database does not hold.
+ * TODAY'S PROGRESS: stated against what is *scheduled* for today, so a weekly or
+ * custom-days routine never reads as missed on its rest day.
  */
 @Composable
 private fun TodaysProgressCard(done: Int, scheduled: Int) {
-    val fraction = if (scheduled > 0) done.toFloat() / scheduled else 0f
-    LifeOSCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.surface) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
+    val fraction = if (scheduled == 0) 0f else done.toFloat() / scheduled
+    LifeOSCard(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     Text(
-                        when {
-                            scheduled == 0 -> "Nothing scheduled today"
-                            done >= scheduled -> "Every routine done today"
-                            else -> "$done of $scheduled routines done"
-                        },
-                        style = MaterialTheme.typography.titleMedium
+                        if (scheduled == 0) "Nothing scheduled today" else "$done of $scheduled done",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        "Checked in on this device",
+                        "Today's scheduled routines",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text(
-                    "${(fraction * 100).toInt()}%",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Text("${(fraction * 100).toInt()}%", style = MaterialTheme.typography.titleMedium, color = LifeOSMint)
             }
-            LifeOSProgressBar(progress = fraction)
+            LifeOSProgressTrack(progress = fraction)
         }
     }
 }
@@ -272,22 +361,25 @@ private fun TodaysProgressCard(done: Int, scheduled: Int) {
 @Composable
 private fun WeeklyRhythmCard(days: List<DayCheck>) {
     val doneDays = days.count { it.isDone }
-    LifeOSCard(Modifier.fillMaxWidth(), tint = MaterialTheme.colorScheme.surface) {
+    LifeOSCard(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Last 7 days", style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        "Last 7 days",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
                     Text(
                         "A day counts as done only when every routine scheduled for it reached its goal.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text(
-                    "$doneDays/7",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Text("$doneDays/7", style = MaterialTheme.typography.titleMedium, color = LifeOSMint)
             }
             LifeOSWeeklyRhythm(days)
         }
@@ -300,7 +392,7 @@ private fun EmptyHabits(onAdd: () -> Unit) {
         icon = Icons.Filled.RadioButtonUnchecked,
         title = "No routines yet",
         body = "Create a small daily ritual and LifeOS will track its streak locally.",
-        actionLabel = "Create first habit",
+        actionText = "Create first habit",
         onAction = onAdd
     )
 }

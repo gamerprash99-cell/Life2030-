@@ -53,7 +53,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,7 +68,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -89,24 +87,21 @@ import com.lifeos.app.data.db.entities.ReminderRepeatType
 import com.lifeos.app.data.db.entities.TaskEntity
 import com.lifeos.app.data.db.entities.TaskPriority
 import com.lifeos.app.data.repository.TaskRepository
-import com.lifeos.app.ui.components.ExactAlarmPermissionHost
 import com.lifeos.app.ui.components.LifeOSCard
-import com.lifeos.app.ui.components.LifeOSGradientButton
-import com.lifeos.app.ui.components.LifeOSHeroCard
+import com.lifeos.app.ui.components.LifeOSEyebrow
+import com.lifeos.app.ui.components.LifeOSPageHeader
 import com.lifeos.app.ui.components.LifeOSPill
+import com.lifeos.app.ui.components.LifeOSPrimaryButton
+import com.lifeos.app.ui.components.LifeOSProgressTrack
 import com.lifeos.app.ui.components.LifeOSSegmentedControl
-import com.lifeos.app.ui.components.LifeOSTopBar
-import com.lifeos.app.ui.components.LiquidGlassFab
-import com.lifeos.app.ui.components.LiquidGlassSurface
+import com.lifeos.app.ui.components.lifeOSCanvas
 import com.lifeos.app.ui.components.ReminderPermissionHost
 import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
-import com.lifeos.app.ui.components.rememberExactAlarmPermissionHost
 import com.lifeos.app.ui.components.rememberReminderPermissionHost
-import com.lifeos.app.ui.theme.LifeOSRadius
+import com.lifeos.app.ui.theme.LifeOSMint
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.saveable.rememberSaveable
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -218,36 +213,28 @@ fun TasksScreen() {
     val pending = visible.count { !it.isCompleted }
     val completed = visible.count { it.isCompleted }
 
-    Scaffold(
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        // The parent LifeOSNavHost Scaffold has already inset this destination
-        // for the status bar, the bottom navigation and the system navigation
-        // area. `Modifier.padding` does not *consume* insets, so a nested
-        // Scaffold asking for `systemBars` again added the status bar and the
-        // navigation bar a second time — a blank band above the header and below
-        // the last card, and a FAB pushed down under the bottom navigation.
-        // Zeroing the nested content insets leaves the destination's own real
-        // safe area exactly as the NavHost computed it.
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        floatingActionButton = {
-            LiquidGlassFab(
-                icon = Icons.Filled.Add,
-                contentDescription = "Add task",
-                onClick = { showAddDialog = true }
-            )
-        }
-    ) { padding ->
+    Column(
+        Modifier
+            .fillMaxSize()
+            .lifeOSCanvas()
+    ) {
+        LifeOSPageHeader(
+            eyebrow = "Plan",
+            title = "Tasks",
+            actionIcon = Icons.Filled.Add,
+            actionDescription = "Add task",
+            onAction = { showAddDialog = true },
+        )
         LazyColumn(
-            Modifier.fillMaxWidth().padding(padding),
+            Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(
                 start = LifeOSSpacing.screenPadding,
                 end = LifeOSSpacing.screenPadding,
-                top = 8.dp,
-                bottom = LifeOSSpacing.fabContentClearance
+                top = 4.dp,
+                bottom = LifeOSSpacing.screenPadding
             ),
             verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
         ) {
-            item { TasksHeader(pending = pending, completed = completed) }
             if (pending + completed > 0) {
                 item { TasksProgressHero(pending = pending, completed = completed) }
             }
@@ -360,14 +347,7 @@ fun TasksScreen() {
     }
 }
 
-@Composable
-private fun TasksHeader(pending: Int, completed: Int) {
-    LifeOSTopBar(
-        title = "Tasks & Projects",
-        subtitle = "$pending pending · $completed completed",
-        modifier = Modifier
-    )
-}
+
 
 /**
  * The one thing that leads Tasks: how much of the visible list is cleared, as a
@@ -379,56 +359,31 @@ private fun TasksProgressHero(pending: Int, completed: Int) {
     val total = pending + completed
     val fraction = if (total > 0) completed.toFloat() / total else 0f
     val progress by animateFloatAsState(fraction, tween(600), label = "tasksProgress")
-    LifeOSHeroCard {
-        Column(verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        "IN FOCUS",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.85f)
-                    )
-                    Text(
-                        "$completed of $total",
-                        style = MaterialTheme.typography.displaySmall,
-                        color = Color.White
-                    )
-                    Text(
-                        if (pending == 0) "Every task cleared" else "$pending still open",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.9f)
-                    )
-                }
-                Box(
-                    Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.18f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "${(fraction * 100).toInt()}%",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White
-                    )
-                }
-            }
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(LifeOSRadius.pill))
-                    .background(Color.White.copy(alpha = 0.24f))
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth(progress.coerceIn(0f, 1f))
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(LifeOSRadius.pill))
-                        .background(Color.White)
+    LifeOSCard(Modifier.fillMaxWidth()) {
+        LifeOSEyebrow("In focus")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    "$completed of $total",
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    if (pending == 0) "Every task cleared" else "$pending still open",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            Text(
+                "${(fraction * 100).toInt()}%",
+                style = MaterialTheme.typography.titleMedium,
+                color = LifeOSMint
+            )
         }
+        LifeOSProgressTrack(
+            progress = progress.coerceIn(0f, 1f),
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -524,10 +479,7 @@ private fun TasksSectionHeader(title: String, count: Int) {
 
 @Composable
 private fun EmptyFocusCard(scope: TaskScope, currentFilter: String?, onAddTask: () -> Unit) {
-    LifeOSCard(
-        modifier = Modifier.fillMaxWidth(),
-        tint = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
-    ) {
+    LifeOSCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -566,7 +518,11 @@ private fun EmptyFocusCard(scope: TaskScope, currentFilter: String?, onAddTask: 
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
-            LifeOSGradientButton("Add a task", Modifier.fillMaxWidth(), onClick = onAddTask)
+            LifeOSPrimaryButton(
+                text = "Add a task",
+                onClick = onAddTask,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

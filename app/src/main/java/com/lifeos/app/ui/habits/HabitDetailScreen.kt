@@ -5,20 +5,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,7 +32,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -46,15 +45,17 @@ import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.domain.model.HabitAnalytics
 import com.lifeos.app.domain.model.HeatmapCell
 import com.lifeos.app.domain.model.HeatmapIntensity
-import com.lifeos.app.ui.components.GlassCard
-import com.lifeos.app.ui.components.LifeOSEyebrow
-import com.lifeos.app.ui.components.LifeOSTopBar
+import com.lifeos.app.ui.components.LifeOSCard
+import com.lifeos.app.ui.components.LifeOSPageHeader
+import com.lifeos.app.ui.components.LifeOSPrimaryButton
+import com.lifeos.app.ui.components.LifeOSSectionHeader
 import com.lifeos.app.ui.components.ReminderPermissionHost
 import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
+import com.lifeos.app.ui.components.lifeOSIsDark
 import com.lifeos.app.ui.components.rememberExactAlarmPermissionHost
 import com.lifeos.app.ui.components.rememberReminderPermissionHost
-import com.lifeos.app.ui.theme.LifeOSSpacing
+import com.lifeos.app.ui.theme.lifeOSCanvasBrush
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -113,47 +114,48 @@ fun HabitDetailScreen(habitId: String, onBack: () -> Unit) {
     val analytics by viewModel.analytics.collectAsState()
     val heatmap by viewModel.heatmap.collectAsState()
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        // The parent LifeOSNavHost Scaffold already insets this destination, so
-        // asking for systemBars again would add them a second time.
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxWidth()) {
-            LifeOSTopBar(
-                title = habit?.name ?: "Habit",
-                subtitle = habit?.let { h ->
-                    "${h.frequency.name.lowercase().replaceFirstChar { c -> c.uppercase() }} routine"
-                } ?: "Habit detail",
-                onBack = onBack
-            )
-            Column(
-                modifier = Modifier.padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.md),
-                verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
-            ) {
-                analytics?.let { a ->
-                    GlassCard(modifier = Modifier.fillMaxWidth()) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            StatColumn("🔥 Streak", "${a.currentStreak} days")
-                            StatColumn("🏆 Best", "${a.longestStreak} days")
-                            StatColumn("This month", "${a.completionPercentThisMonth}%")
-                        }
+    val dark = lifeOSIsDark()
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(lifeOSCanvasBrush(dark))
+            .verticalScroll(rememberScrollState())
+    ) {
+        LifeOSPageHeader(
+            eyebrow = "Habit",
+            title = habit?.name ?: "Habit",
+            onBack = onBack
+        )
+        Column(
+            modifier = Modifier.padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            analytics?.let { a ->
+                LifeOSCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        StatColumn("Streak", "${a.currentStreak} days")
+                        StatColumn("Best", "${a.longestStreak} days")
+                        StatColumn("This month", "${a.completionPercentThisMonth}%")
                     }
                 }
+            }
 
-                habit?.let { ReminderCard(it, onSave = viewModel::saveReminder) }
+            habit?.let { ReminderCard(it, onSave = viewModel::saveReminder) }
 
-                LifeOSEyebrow("Last 12 weeks")
+            LifeOSCard(modifier = Modifier.fillMaxWidth()) {
+                LifeOSSectionHeader("Last 12 weeks")
                 LazyVerticalGrid(columns = GridCells.Fixed(12), modifier = Modifier.fillMaxWidth()) {
                     items(heatmap) { cell ->
                         HeatmapDot(cell)
                     }
                 }
-
-                Button(onClick = viewModel::logToday, modifier = Modifier.fillMaxWidth()) {
-                    Text("Log today's progress")
-                }
             }
+
+            LifeOSPrimaryButton(
+                text = "Log today's progress",
+                onClick = viewModel::logToday,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -169,7 +171,7 @@ private fun ReminderCard(habit: HabitEntity, onSave: (Long?, ReminderRepeatType)
     val permissionHost: ReminderPermissionHost = rememberReminderPermissionHost()
     val exactAlarmHost = rememberExactAlarmPermissionHost()
 
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    LifeOSCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(14.dp)) {

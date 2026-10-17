@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.lifeos.app.ui.components.lifeOSCanvas
 import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.sin
@@ -94,7 +95,7 @@ fun LifeOSStartScreen(onFinished: () -> Unit) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .lifeOSCanvas(),
         contentAlignment = Alignment.Center
     ) {
         Column(
