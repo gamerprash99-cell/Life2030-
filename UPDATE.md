@@ -397,3 +397,18 @@ no cloud/AI/telemetry/analytics dependency was introduced.
 
 ### Remaining
 - Calendar event markers are not shown because the current use case loads one selected day at a time; do not imply that the month grid has scanned all dates. Continue to the next unported Figma screen after build verification.
+
+
+## 2026-10-17 — Figma parity continuation: Life Insights
+
+### Changed
+- Applied the Figma teal/navy canvas gradient to Life Insights and aligned its page identity with the reference's “Life Insights” framing.
+- Kept all metrics, reports, recommendations, and range selection backed by the existing offline intelligence engine. Figma's illustrative sample figures were not copied into the product.
+- No schema, data flow, network, dependency, or navigation changes.
+
+### Verification
+- Source and documentation committed on the feature branch; the latest GitHub Actions build remains pending/in progress.
+- No device screenshot comparison, large-font, TalkBack, or landscape verification yet.
+
+### Remaining
+- Continue with the Diary and remaining unported frames after CI feedback; AI consent controls remain blocked until a real consent model exists.
