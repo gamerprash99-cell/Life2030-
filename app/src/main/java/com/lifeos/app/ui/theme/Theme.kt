@@ -9,19 +9,20 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 // ===========================================================================
-// LifeOS theme — Material mapping of the rebuilt (Figma-derived) palette.
-// Dark is the reference polarity; light is the derived paper-mint polarity.
+// LifeOS theme — Material mapping of the Lavender Dream palette.
+// Light: #F1EDF7 canvas / #FCFAFF surface / #A995D1 primary.
+// Dark: #17141F canvas / #24202F surface / #302A3E elevated / #BBA7E6 primary.
 // ===========================================================================
 
 private val LightColors = lightColorScheme(
     primary = LifeOSPrimary,
-    onPrimary = Color.White,
+    onPrimary = LifeOSInkOnBrand,
     primaryContainer = LifeOSAccentLavender,
-    onPrimaryContainer = Color(0xFF06281F),
+    onPrimaryContainer = LifeOSTextPrimaryLight,
     secondary = LifeOSSecondary,
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFD5F0E6),
-    onSecondaryContainer = Color(0xFF06281F),
+    onSecondary = LifeOSInkOnBrand,
+    secondaryContainer = Color(0xFFE7DFF3),
+    onSecondaryContainer = LifeOSTextPrimaryLight,
     tertiary = LifeOSTertiary,
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFFF6E3C4),
@@ -32,29 +33,29 @@ private val LightColors = lightColorScheme(
     onSurface = LifeOSTextPrimaryLight,
     surfaceVariant = LifeOSSurfaceVariantLight,
     onSurfaceVariant = LifeOSTextSecondaryLight,
-    surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Color(0xFFF4F8F6),
-    surfaceContainer = Color(0xFFEDF3F1),
-    surfaceContainerHigh = Color(0xFFE5EDEA),
-    surfaceContainerHighest = LifeOSSurfaceVariantLight,
+    surfaceContainerLowest = Color(0xFFFCFAFF),
+    surfaceContainerLow = Color(0xFFF7F3FB),
+    surfaceContainer = Color(0xFFF1EDF7),
+    surfaceContainerHigh = Color(0xFFEAE4F3),
+    surfaceContainerHighest = Color(0xFFE4DDF0),
     surfaceTint = LifeOSPrimary,
     outline = LifeOSOutlineLight,
-    outlineVariant = Color(0xFFD5E1DD),
+    outlineVariant = LifeOSBorderLight,
     error = LifeOSDanger,
     onError = Color.White,
     scrim = LifeOSScrim,
 )
 
 private val DarkColors = darkColorScheme(
-    // Mint is the signature light in the teal-navy night.
+    // Lavender is the signature light in the plum night.
     primary = LifeOSMint,
-    onPrimary = LifeOSMintInk,
-    primaryContainer = Color(0xFF163D36),
-    onPrimaryContainer = Color(0xFFCDEFE0),
-    secondary = Color(0xFF8FBFB2),
-    onSecondary = LifeOSMintInk,
-    secondaryContainer = Color(0xFF1B3A34),
-    onSecondaryContainer = Color(0xFFCDEFE3),
+    onPrimary = LifeOSInkOnBrand,
+    primaryContainer = Color(0xFF463956),
+    onPrimaryContainer = Color(0xFFD8C9EF),
+    secondary = Color(0xFFC8B7EB),
+    onSecondary = LifeOSInkOnBrand,
+    secondaryContainer = Color(0xFF463956),
+    onSecondaryContainer = Color(0xFFE8E0F6),
     tertiary = LifeOSGoldBright,
     onTertiary = Color(0xFF3A2606),
     tertiaryContainer = Color(0xFF4A3B14),
@@ -65,14 +66,14 @@ private val DarkColors = darkColorScheme(
     onSurface = LifeOSTextPrimaryDark,
     surfaceVariant = LifeOSSurfaceVariantDark,
     onSurfaceVariant = LifeOSTextSecondaryDark,
-    surfaceContainerLowest = Color(0xFF0E1B23),
-    surfaceContainerLow = Color(0xFF131F29),
-    surfaceContainer = Color(0xFF182733),
-    surfaceContainerHigh = Color(0xFF20333F),
-    surfaceContainerHighest = Color(0xFF243946),
+    surfaceContainerLowest = Color(0xFF120F1A),
+    surfaceContainerLow = Color(0xFF1B1725),
+    surfaceContainer = Color(0xFF201C2A),
+    surfaceContainerHigh = Color(0xFF2A2436),
+    surfaceContainerHighest = Color(0xFF302A3E),
     surfaceTint = LifeOSMint,
     outline = LifeOSOutlineDark,
-    outlineVariant = LifeOSCardStrokeDark,
+    outlineVariant = LifeOSBorderDark,
     error = Color(0xFFFF8F8A),
     onError = Color(0xFF3A0D0B),
     scrim = LifeOSScrim,

@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Aurora Noir brand gradient, matching the app's Home hero. -->
+<!--
+    Widget card background in the Lavender Dream family. RemoteViews widgets
+    are inflated outside the app's Compose theme, so it cannot read LifeOS
+    tokens and the colours are literals — the values mirror the dark-polarity
+    soft (#463956) and surface (#24202F) tokens.
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <corners android:radius="24dp" />
     <gradient
         android:angle="315"
-        android:startColor="#5A4BE8"
-        android:endColor="#8B3DDB"
+        android:startColor="#463956"
+        android:endColor="#24202F"
         android:type="linear" />
 </shape>

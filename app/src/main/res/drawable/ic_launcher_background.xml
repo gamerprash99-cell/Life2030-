@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    LifeOS launcher background — the AURA lagoon.
+    LifeOS launcher background — Lavender Dream night.
 
-    Previously a flat generic indigo (#6C63FF). It is now the app's own lagoon:
-    a deep teal at the top-right falling to near-black plum, so the coral→mint
-    ring in the foreground reads as light over water. The mark is unchanged;
-    only the colour moved onto the app's real palette.
+    A deep violet at the top-right falling to the dark canvas (#17141F), so
+    the lavender ring in the foreground reads as light in a lavender sky.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -21,9 +19,9 @@
                 android:startY="0.0"
                 android:endX="0.10"
                 android:endY="1.0">
-                <item android:offset="0.0" android:color="#FF16463B" />
-                <item android:offset="0.45" android:color="#FF0C1A18" />
-                <item android:offset="1.0" android:color="#FF0B0A14" />
+                <item android:offset="0.0" android:color="#FF463956" />
+                <item android:offset="0.45" android:color="#FF24202F" />
+                <item android:offset="1.0" android:color="#FF17141F" />
             </gradient>
         </aapt:attr>
     </path>

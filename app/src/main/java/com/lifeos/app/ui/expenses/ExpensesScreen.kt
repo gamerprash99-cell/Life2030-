@@ -17,7 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -49,7 +48,6 @@ import com.lifeos.app.data.db.entities.ExpenseEntity
 import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.domain.model.BudgetProgress
 import com.lifeos.app.domain.model.ExpenseCategories
-import com.lifeos.app.domain.model.isAutomaticallyCaptured
 import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSEmptyState
 import com.lifeos.app.ui.components.LifeOSFilterPill
@@ -185,9 +183,6 @@ fun ExpensesScreen(onBack: () -> Unit = {}) {
                                 expense.merchant ?: expense.category,
                                 style = MaterialTheme.typography.titleMedium
                             )
-                            if (expense.isAutomaticallyCaptured()) {
-                                AutoDetectedLabel()
-                            }
                             Text(
                                 expense.category,
                                 style = MaterialTheme.typography.bodySmall,
@@ -302,28 +297,6 @@ private fun BudgetCard(progress: BudgetProgress, dailyAverage: Double, onEdit: (
             }
             androidx.compose.material3.TextButton(onClick = onEdit) { Text("Edit budget") }
         }
-    }
-}
-
-/** Marks an expense LifeOS filed from a payment notification. */
-@Composable
-private fun AutoDetectedLabel() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.semantics { contentDescription = "Automatically detected" }
-    ) {
-        Icon(
-            Icons.Filled.AutoAwesome,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.height(13.dp)
-        )
-        Text(
-            "Automatically detected",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary
-        )
     }
 }
 

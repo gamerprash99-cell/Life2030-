@@ -66,7 +66,7 @@ import java.util.Locale
 
 /**
  * Smart Notes — the long-form thinking surface. An editorial list on the shared
- * Figma canvas: the page header, a live search well, the five smart views, an
+ * The page: the header, a live search well, the five smart views, an
  * optional folder rail, then the notes themselves. Pin / favourite / archive
  * live behind each card's overflow so the list stays quiet.
  */

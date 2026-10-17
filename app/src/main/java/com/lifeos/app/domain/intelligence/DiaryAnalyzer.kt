@@ -18,7 +18,7 @@ package com.lifeos.app.domain.intelligence
 object DiaryAnalyzer {
 
     /**
-     * Below this many entries the Insights screen shows an onboarding state
+     * Below this many entries the Diary insights screen shows an onboarding state
      * instead of figures.
      *
      * Not every average guards itself — counts are always meaningful — but a

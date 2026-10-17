@@ -61,7 +61,7 @@ import com.lifeos.app.ui.theme.lifeOSCanvasBrush
 import java.util.Locale
 
 /**
- * Home — the command center, rebuilt to the Figma "Home" frame.
+ * Home — the command center: greeting, the day's summary and the quick actions.
  *
  * Layout, top to bottom: an 86dp page header (uppercase date eyebrow + the
  * greeting, with one 42dp action on the right), the universal search well, the
@@ -71,7 +71,7 @@ import java.util.Locale
  *
  * Every number comes from [HomeSummary], assembled live from persisted rows —
  * nothing here is a placeholder, and there is no "Illustrative data" caption in
- * the shipped UI (that line exists only in the Figma comp).
+ * the shipped UI.
  */
 @Composable
 fun HomeScreen(

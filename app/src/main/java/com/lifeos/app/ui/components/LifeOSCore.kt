@@ -63,9 +63,9 @@ import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
 import com.lifeos.app.ui.theme.lifeOSCanvasBrush
 
 // ===========================================================================
-// The rebuilt component kit — one visual vocabulary taken from the Figma
-// frames: translucent r22 cards with a hairline stroke on the gradient
-// canvas, pill chips, mint primary actions, and a small uppercase eyebrow
+// The Lavender Dream component kit — one visual vocabulary: translucent
+// r22 cards with a hairline stroke on the soft lavender gradient canvas,
+// pill chips, lavender primary actions, and a small uppercase eyebrow
 // that prefixes every page title.
 // ===========================================================================
 
@@ -85,8 +85,8 @@ fun Modifier.lifeOSCanvas(): Modifier =
 // ---- Card ------------------------------------------------------------------
 
 /**
- * The signature surface: a translucent sheet (Figma rgba(31,53,64,0.79)) with
- * a 1px cool hairline and a soft pooled shadow. The canvas gradient breathes
+ * The signature surface: a translucent sheet with a 1px lavender
+ * hairline and a soft pooled shadow. The canvas gradient breathes
  * through it, so it never needs a heavy glass treatment.
  */
 @Composable
@@ -137,8 +137,8 @@ fun LifeOSCard(
 // ---- Page header -----------------------------------------------------------
 
 /**
- * The uppercase mint eyebrow above every page title (Figma: 9sp SemiBold,
- * uppercase, letter-spaced, mint).
+ * The uppercase lavender eyebrow above every page title (9sp SemiBold,
+ * uppercase, letter-spaced, lavender).
  */
 @Composable
 fun LifeOSEyebrow(text: String, modifier: Modifier = Modifier, color: Color = LifeOSMint) {
@@ -157,12 +157,12 @@ fun LifeOSEyebrow(text: String, modifier: Modifier = Modifier, color: Color = Li
 /**
  * The 86dp page header: eyebrow + 24sp title on the leading edge, an optional
  * 42x42 r15 action (or back arrow) on the trailing edge — exactly the header
- * every Figma frame uses.
+ * every screen uses.
  */
 @Composable
 fun LifeOSPageHeader(
     eyebrow: String,
-    title: String,
+    title: String? = null,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     actionIcon: ImageVector? = null,
@@ -189,13 +189,15 @@ fun LifeOSPageHeader(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             LifeOSEyebrow(eyebrow)
-            Text(
-                title,
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (title != null) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         if (actionIcon != null && onAction != null) {
             LifeOSHeaderButton(
@@ -207,7 +209,7 @@ fun LifeOSPageHeader(
     }
 }
 
-/** The 42x42 r15 header action slot (Figma: white 3% fill + hairline). */
+/** The 42x42 r15 header action slot (white 3% fill + hairline). */
 @Composable
 fun LifeOSHeaderButton(
     icon: ImageVector,
@@ -251,7 +253,7 @@ fun LifeOSHeaderButton(
 
 // ---- Section header --------------------------------------------------------
 
-/** A card-title row with an optional trailing mint label (and action). */
+/** A card-title row with an optional trailing lavender label (and action). */
 @Composable
 fun LifeOSSectionHeader(
     title: String,
@@ -288,8 +290,8 @@ fun LifeOSSectionHeader(
 // ---- Pills -----------------------------------------------------------------
 
 /**
- * The pill chip (Figma: r100, 8x12 padding). Selected = dark-mint fill with
- * mint text and a mint-tinted stroke; idle = surface fill with secondary text.
+ * The pill chip (r100, 8x12 padding). Selected = soft-lavender fill with
+ * lavender text and a lavender-tinted stroke; idle = surface fill with secondary text.
  */
 @Composable
 fun LifeOSFilterPill(
@@ -342,7 +344,7 @@ fun LifeOSFilterPill(
 // ---- Buttons ---------------------------------------------------------------
 
 /**
- * The mint primary action (Figma: full-width, 52dp, r16, mint fill, dark ink).
+ * The lavender primary action (full-width, 52dp, r16, lavender fill, dark ink).
  */
 @Composable
 fun LifeOSPrimaryButton(
@@ -399,7 +401,7 @@ fun LifeOSPrimaryButton(
     }
 }
 
-/** A secondary text action in mint (Figma: "Ask LifeOS AI" style link rows). */
+/** A secondary text action in lavender ("Ask LifeOS AI" style link rows). */
 @Composable
 fun LifeOSLinkText(
     text: String,
@@ -422,7 +424,7 @@ fun LifeOSLinkText(
 
 // ---- Search field ----------------------------------------------------------
 
-/** The search well (Figma: #162630, r16, 15dp padding, 18dp leading icon). */
+/** The search well (r16, 15dp padding, 18dp leading icon). */
 @Composable
 fun LifeOSSearchField(
     value: String,
@@ -475,7 +477,7 @@ fun LifeOSSearchField(
 // ---- Progress --------------------------------------------------------------
 
 /**
- * The slim progress track (Figma: 5dp tall, rounded, mint fill over a
+ * The slim progress track (5dp tall, rounded, lavender fill over a
  * translucent surface track).
  */
 @Composable

@@ -1,5 +1,5 @@
 <resources>
-    <!-- Deep lagoon for a dark-mode device — matches LifeOSBackgroundDark. -->
-    <color name="lifeos_splash_background">#FF070B0B</color>
-    <color name="lifeos_window_background">#FF070B0B</color>
+    <!-- The Lavender Dream dark canvas (#17141F) for a dark-mode device. -->
+    <color name="lifeos_splash_background">#FF17141F</color>
+    <color name="lifeos_window_background">#FF17141F</color>
 </resources>
