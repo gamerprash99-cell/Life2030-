@@ -67,13 +67,12 @@ import com.lifeos.app.ui.components.GlassCard
 import com.lifeos.app.ui.components.HeaderActionCircle
 import com.lifeos.app.ui.components.LifeOSTopBar
 import com.lifeos.app.ui.diary.DiaryTheme
-import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryHandwriting
-import com.lifeos.app.ui.theme.DiaryInkSoft
-import com.lifeos.app.ui.theme.DiaryInkViolet
-import com.lifeos.app.ui.theme.DiaryLavender
-import com.lifeos.app.ui.theme.DiaryPaperCard
 import com.lifeos.app.ui.theme.FigmaAccent
+import com.lifeos.app.ui.theme.FigmaCanvasBottom
+import com.lifeos.app.ui.theme.FigmaCanvasMid
+import com.lifeos.app.ui.theme.FigmaCanvasTop
+import com.lifeos.app.ui.theme.FigmaElevated
 import com.lifeos.app.ui.theme.FigmaAccentDark
 import com.lifeos.app.ui.theme.FigmaMuted
 import com.lifeos.app.ui.theme.FigmaStroke
@@ -271,7 +270,7 @@ private fun TimelineHeader(
         }
         Text(
             dateLabel,
-            style = MaterialTheme.typography.titleLarge.copy(fontFamily = DiaryHandwriting),
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = FigmaText,
             textAlign = TextAlign.Center,
