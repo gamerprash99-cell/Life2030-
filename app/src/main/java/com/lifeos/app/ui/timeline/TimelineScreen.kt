@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -66,7 +67,6 @@ import com.lifeos.app.ui.components.GlassCard
 import com.lifeos.app.ui.components.HeaderActionCircle
 import com.lifeos.app.ui.components.LifeOSTopBar
 import com.lifeos.app.ui.diary.DiaryTheme
-import com.lifeos.app.ui.diary.diaryPaperBackground
 import com.lifeos.app.ui.theme.DiaryHairline
 import com.lifeos.app.ui.theme.DiaryHandwriting
 import com.lifeos.app.ui.theme.DiaryInkSoft
@@ -117,7 +117,12 @@ fun TimelineScreen(
 
     DiaryTheme {
         Scaffold { padding ->
-            Column(Modifier.fillMaxSize().diaryPaperBackground().padding(padding)) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .background(Brush.verticalGradient(listOf(FigmaCanvasTop, FigmaCanvasMid, FigmaCanvasBottom)))
+                    .padding(padding)
+            ) {
                 LifePageHeader(
                     title = if (lifeView == LifeView.TIMELINE) "Life Timeline" else "Life Calendar",
                     subtitle = if (lifeView == LifeView.TIMELINE) "The story of your days" else "Life, day by day",
@@ -268,7 +273,7 @@ private fun TimelineHeader(
             dateLabel,
             style = MaterialTheme.typography.titleLarge.copy(fontFamily = DiaryHandwriting),
             fontWeight = FontWeight.SemiBold,
-            color = DiaryInkViolet,
+            color = FigmaText,
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -307,7 +312,7 @@ private fun TimelineSpineRow(item: TimelineItem, isFirst: Boolean, isLast: Boole
                         val x = railX.toPx()
                         val center = nodeCenterY.toPx()
                         drawLine(
-                            color = DiaryHairline,
+                            color = FigmaStroke.copy(alpha = 0.8f),
                             strokeWidth = 2.dp.toPx(),
                             start = Offset(x, if (isFirst) center else 0f),
                             end = Offset(x, if (isLast) center else size.height)
@@ -331,9 +336,9 @@ private fun TimelineSpineRow(item: TimelineItem, isFirst: Boolean, isLast: Boole
 @Composable
 private fun NodeBadge(icon: String) {
     Surface(
-        color = DiaryPaperCard,
+        color = FigmaElevated,
         shape = CircleShape,
-        border = BorderStroke(1.dp, DiaryHairline),
+        border = BorderStroke(1.dp, FigmaStroke),
         shadowElevation = 1.dp,
         modifier = Modifier.size(30.dp)
     ) {
@@ -354,9 +359,9 @@ private fun TimelineEntryCard(item: TimelineItem, onClick: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         item.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontFamily = DiaryHandwriting),
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = DiaryInkViolet,
+                        color = FigmaText,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -365,7 +370,7 @@ private fun TimelineEntryCard(item: TimelineItem, onClick: () -> Unit) {
                     Text(
                         it,
                         style = MaterialTheme.typography.bodySmall,
-                        color = DiaryInkSoft,
+                        color = FigmaMuted,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -373,13 +378,13 @@ private fun TimelineEntryCard(item: TimelineItem, onClick: () -> Unit) {
             }
             Spacer(Modifier.width(12.dp))
             Surface(
-                color = DiaryLavender.copy(alpha = 0.55f),
+                color = FigmaElevated,
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
                     DateTimeUtils.formatMinutes(item.timeMinutes),
                     style = MaterialTheme.typography.labelSmall,
-                    color = DiaryInkViolet,
+                    color = FigmaText,
                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                 )
             }
@@ -401,19 +406,19 @@ private fun TimelineEmptyState(modifier: Modifier = Modifier) {
                 .background(DiaryLavender.copy(alpha = 0.55f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Filled.Timeline, contentDescription = null, tint = DiaryInkViolet, modifier = Modifier.size(36.dp))
+            Icon(Icons.Filled.Timeline, contentDescription = null, tint = FigmaAccent, modifier = Modifier.size(36.dp))
         }
         Text(
             "No timeline entries",
-            style = MaterialTheme.typography.titleMedium.copy(fontFamily = DiaryHandwriting),
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = DiaryInkViolet,
+            color = FigmaText,
             modifier = Modifier.padding(top = 18.dp)
         )
         Text(
             "Tasks, habits, expenses and diary entries from this day will appear here.",
             style = MaterialTheme.typography.bodySmall,
-            color = DiaryInkSoft,
+            color = FigmaMuted,
             modifier = Modifier.padding(top = 6.dp, start = 32.dp, end = 32.dp),
             textAlign = TextAlign.Center
         )
