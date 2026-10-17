@@ -428,3 +428,19 @@ This tracker is additive; prior UPDATE.md history above is intentionally retaine
 - [ ] AI access/privacy controls — do not ship inert consent switches; a real consent model is required first.
 
 No screen is considered production-verified until the latest PR-head CI succeeds and device/accessibility checks are completed where available.
+
+
+## 2026-10-17 — Figma parity continuation: Diary reflection/detail
+
+### Changed
+- Applied the Figma dark teal/navy gradient to the existing Diary detail screen, added the “PERSONAL DIARY” eyebrow and “A moment to reflect” hierarchy, and switched the reflection, metadata, tags, and cards to the existing Figma night-glass palette.
+- Kept the entry's actual date/time, mood, body, tags, attachments, local weather/location, word count, favorite, share/copy/delete actions, Room-backed observation, and existing edit overlay. No sample diary content or hardcoded Figma date/mood was inserted into user data.
+- Kept the separate diary composer and its keyboard, recording, attachment, save, and Back behavior unchanged.
+- No schema, migration, dependency, network, or navigation changes.
+
+### Verification
+- Diary detail source change and this documentation update are committed to `feat/figma-parity-final-pass`.
+- GitHub Actions build for the current PR head must complete before this screen can be considered build-verified. Device rendering, large-font, TalkBack, and landscape comparisons remain unverified.
+
+### Remaining
+- Continue the remaining Figma frames one by one. The diary detail is styled toward the reference, but is not yet pixel-verified against the Figma screenshot.
