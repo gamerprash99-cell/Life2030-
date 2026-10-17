@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -84,6 +83,7 @@ import com.lifeos.app.ui.theme.FigmaAccentDark
 import com.lifeos.app.ui.theme.FigmaMuted
 import com.lifeos.app.ui.theme.FigmaStroke
 import com.lifeos.app.ui.theme.FigmaSurface
+import com.lifeos.app.ui.theme.FigmaWash
 import com.lifeos.app.ui.theme.FigmaText
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -510,7 +510,7 @@ private fun TimelineEmptyState(modifier: Modifier = Modifier) {
         Box(
             modifier = Modifier
                 .size(84.dp)
-                .background(DiaryLavender.copy(alpha = 0.55f), CircleShape),
+                .background(FigmaElevated, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Filled.Timeline, contentDescription = null, tint = FigmaAccent, modifier = Modifier.size(36.dp))
