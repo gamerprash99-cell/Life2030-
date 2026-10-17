@@ -444,3 +444,10 @@ No screen is considered production-verified until the latest PR-head CI succeeds
 
 ### Remaining
 - Continue the remaining Figma frames one by one. The diary detail is styled toward the reference, but is not yet pixel-verified against the Figma screenshot.
+
+
+### CI follow-up — Timeline compiler errors fixed
+
+- The completed GitHub Actions run for commit `153a6429` failed in `TimelineScreen.kt`: an explicit import of the internal `weight` extension, missing `FigmaWash` import, and stale `DiaryLavender` reference in the empty state.
+- Removed the invalid explicit import, added the existing Figma token import, and switched the empty-state surface to `FigmaElevated`.
+- Fix committed as `ec476dfcf5c2705f40aa36d8835bdea53a622141`. A fresh CI run is required; this does not yet establish a passing build.
