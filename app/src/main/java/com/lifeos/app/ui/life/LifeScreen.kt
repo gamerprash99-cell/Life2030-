@@ -1,39 +1,47 @@
 package com.lifeos.app.ui.life
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.lifeos.app.ui.components.LifeOSActionTile
-import com.lifeos.app.ui.components.LifeOSEyebrow
-import com.lifeos.app.ui.components.LifeOSHeroCard
+import com.lifeos.app.ui.components.LifeOSCard
+import com.lifeos.app.ui.components.LifeOSPageHeader
 import com.lifeos.app.ui.components.LifeOSPrimaryButton
-import com.lifeos.app.ui.components.LifeOSSearchBar
-import com.lifeos.app.ui.theme.LifeOSSpacing
-import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
+import com.lifeos.app.ui.components.LifeOSSectionHeader
+import com.lifeos.app.ui.components.lifeOSIsDark
+import com.lifeos.app.ui.theme.LifeOSMint
+import com.lifeos.app.ui.theme.lifeOSCanvasBrush
 
 /**
- * Life — the hub for everything that has already happened. A quiet command
- * centre: search one field, jump into the Life Timeline, or step into any track
- * module (Diary, Tasks, Habits, Expenses) and the memory library.
+ * Life — the connected-history hub. A calm centre on the shared canvas: one
+ * search entry, the Life Timeline, then every track module (Diary, Tasks,
+ * Habits, Expenses) and the memory library.
  */
 @Composable
 fun LifeScreen(
@@ -44,68 +52,158 @@ fun LifeScreen(
     onOpenHabits: () -> Unit,
     onOpenExpenses: () -> Unit
 ) {
+    val dark = lifeOSIsDark()
+
     LazyColumn(
-        Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(
-            start = LifeOSSpacing.screenPadding,
-            end = LifeOSSpacing.screenPadding,
-            top = LifeOSSpacing.sm,
-            bottom = LifeOSSpacing.sectionSpacing
-        ),
-        verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
+        Modifier
+            .fillMaxSize()
+            .background(lifeOSCanvasBrush(dark)),
+        contentPadding = PaddingValues(bottom = 140.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.xs)) {
-                Text("Life", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
-                Text("Your whole story, in one place", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        item {
-            LifeOSSearchBar(
-                value = "",
-                onValueChange = {},
-                placeholder = "Search notes, diary, memories…",
-                onClick = onOpenSearch
+            LifeOSPageHeader(
+                eyebrow = "Everything so far",
+                title = "Life",
+                actionIcon = Icons.Outlined.Search,
+                actionDescription = "Search everything",
+                onAction = onOpenSearch
             )
         }
+
         item {
-            LifeOSHeroCard {
-                Column(verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)) {
-                    Text("THE LIFE TIMELINE", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.85f))
-                    Text("Every day, connected", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+            Column(
+                Modifier.padding(start = 24.dp, end = 24.dp, top = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                SearchWell(onClick = onOpenSearch)
+
+                LifeOSCard {
                     Text(
-                        "Tasks, habits, spending, diary and captures merged into one scrollable history.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.9f)
+                        "Life Timeline",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(Modifier.height(LifeOSSpacing.xs))
-                    LifeOSPrimaryButton(text = "Open timeline", onClick = onOpenTimeline, icon = Icons.Filled.Timeline)
+                    Text(
+                        "Notes, memories, tasks, habits and spending merged into one scrollable history.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    LifeOSPrimaryButton(
+                        text = "Open timeline",
+                        onClick = onOpenTimeline,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
+
+                LifeOSSectionHeader(title = "Your modules", modifier = Modifier.padding(top = 6.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ModuleTile(
+                            icon = Icons.Filled.Book,
+                            title = "Diary",
+                            caption = "Daily memory",
+                            onClick = onOpenDiary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ModuleTile(
+                            icon = Icons.Filled.CheckCircle,
+                            title = "Tasks",
+                            caption = "What to do",
+                            onClick = onOpenTasks,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ModuleTile(
+                            icon = Icons.Filled.LocalFireDepartment,
+                            title = "Habits",
+                            caption = "Daily rhythm",
+                            onClick = onOpenHabits,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ModuleTile(
+                            icon = Icons.Filled.Payments,
+                            title = "Spending",
+                            caption = "Money",
+                            onClick = onOpenExpenses,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                LifeOSSectionHeader(title = "Memory", modifier = Modifier.padding(top = 6.dp))
+
+                ModuleTile(
+                    icon = Icons.Filled.PhotoLibrary,
+                    title = "Memory library",
+                    caption = "Photos, voice and everything you kept",
+                    onClick = onOpenSearch,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
-        item { LifeOSEyebrow("Your modules") }
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                LifeOSActionTile(Icons.Filled.Book, "Diary", onOpenDiary, Modifier.weight(1f), accent = MaterialTheme.colorScheme.primary, caption = "Daily memory")
-                LifeOSActionTile(Icons.Filled.CheckCircle, "Tasks", onOpenTasks, Modifier.weight(1f), accent = LocalLifeOSSemanticColors.current.success, caption = "What to do")
-            }
-        }
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                LifeOSActionTile(Icons.Filled.LocalFireDepartment, "Habits", onOpenHabits, Modifier.weight(1f), accent = LocalLifeOSSemanticColors.current.warning, caption = "Streaks")
-                LifeOSActionTile(Icons.AutoMirrored.Filled.ReceiptLong, "Spending", onOpenExpenses, Modifier.weight(1f), accent = MaterialTheme.colorScheme.secondary, caption = "Money")
-            }
-        }
-        item { LifeOSEyebrow("Memory") }
-        item {
-            LifeOSActionTile(
-                Icons.Filled.PhotoLibrary,
-                "Memories & search",
-                onOpenSearch,
-                Modifier.fillMaxWidth(),
-                accent = MaterialTheme.colorScheme.primary,
-                caption = "Photos, thoughts, places and everything you captured"
+    }
+}
+
+/** The search well: a card that looks like the field but opens the real search. */
+@Composable
+private fun SearchWell(onClick: () -> Unit) {
+    LifeOSCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        contentPadding = 15.dp,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                Icons.Outlined.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                "Search everything",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+private fun ModuleTile(
+    icon: ImageVector,
+    title: String,
+    caption: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LifeOSCard(modifier = modifier, onClick = onClick) {
+        Box(
+            Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(LifeOSMint.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = LifeOSMint, modifier = Modifier.size(20.dp))
+        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            caption,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

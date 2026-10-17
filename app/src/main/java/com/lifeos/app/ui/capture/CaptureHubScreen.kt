@@ -11,10 +11,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,24 +23,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Mood
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -70,9 +66,6 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -83,23 +76,16 @@ import com.lifeos.app.core.media.DiaryAudioRecorder
 import com.lifeos.app.core.util.MediaStorage
 import com.lifeos.app.domain.model.DiaryMood
 import com.lifeos.app.domain.model.DiaryMoods
-import com.lifeos.app.ui.components.HeaderActionCircle
 import com.lifeos.app.ui.components.LifeOSBanner
+import com.lifeos.app.ui.components.LifeOSPageHeader
 import com.lifeos.app.ui.components.LifeOSPrimaryButton
-import com.lifeos.app.ui.components.LifeOSTopBar
-import com.lifeos.app.ui.components.liquidGlass
-import com.lifeos.app.ui.theme.FigmaAccent
-import com.lifeos.app.ui.theme.FigmaCard
-import com.lifeos.app.ui.theme.FigmaElevated
-import com.lifeos.app.ui.theme.FigmaMuted
-import com.lifeos.app.ui.theme.FigmaOnAccent
-import com.lifeos.app.ui.theme.FigmaStroke
-import com.lifeos.app.ui.theme.FigmaSurface
-import com.lifeos.app.ui.theme.FigmaTertiary
-import com.lifeos.app.ui.theme.FigmaText
+import com.lifeos.app.ui.components.lifeOSCardShape
+import com.lifeos.app.ui.components.lifeOSIsDark
+import com.lifeos.app.ui.theme.LifeOSMint
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
+import com.lifeos.app.ui.theme.lifeOSCanvasBrush
 
 /**
  * The Capture hub — the app's centre action made real. A full-window glass
@@ -156,26 +142,18 @@ fun CaptureHubScreen(
         return
     }
 
+    val dark = lifeOSIsDark()
     Column(
         Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.background.copy(alpha = 0.96f)
-                    )
-                )
-            )
-            .statusBarsPadding()
-            .navigationBarsPadding()
+            .background(lifeOSCanvasBrush(dark))
     ) {
-        LifeOSTopBar(
-            title = "Keep this moment",
-            subtitle = "Life Capture",
-            actions = {
-                HeaderActionCircle(Icons.Filled.Close, "Close capture", onClick = onClose)
-            }
+        LifeOSPageHeader(
+            eyebrow = "Quick capture",
+            title = "Capture",
+            actionIcon = Icons.Filled.Close,
+            actionDescription = "Close capture",
+            onAction = onClose
         )
 
         AnimatedVisibility(state.confirmation != null, enter = fadeIn(), exit = fadeOut()) {
@@ -208,40 +186,32 @@ fun CaptureHubScreen(
                 }
             }
             item {
-                Text(
-                    "It doesn’t have to be extraordinary to be worth remembering.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = FigmaMuted
-                )
-            }
-            item {
-                // Figma group "Visual capture" (#5:36792).
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                    CaptureTile(Icons.Filled.CameraAlt, "Photo", "Open camera", onOpenCamera, Modifier.weight(1f))
-                    CaptureTile(Icons.Filled.Videocam, "Video", "A little slice of life", onOpenCamera, Modifier.weight(1f))
+                    CaptureTile(Icons.Filled.CameraAlt, "Photo", "Take one now", MaterialTheme.colorScheme.primary, onOpenCamera, Modifier.weight(1f))
+                    CaptureTile(Icons.Filled.Videocam, "Video", "From the camera", MaterialTheme.colorScheme.secondary, onOpenCamera, Modifier.weight(1f))
                 }
             }
             item {
-                // Figma group "Personal capture" (#5:36805).
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
                     CaptureTile(
                         Icons.Filled.GraphicEq,
                         "Audio",
-                        "Hold a thought",
+                        "Clip a voice note",
+                        LocalLifeOSSemanticColors.current.success,
                         { audioRecorder = DiaryAudioRecorder(locator.appContext, MediaStorage::newCaptureAudioFile) },
                         Modifier.weight(1f)
                     )
-                    CaptureTile(Icons.Filled.Edit, "Thought", "Write it down", { thoughtFocus.requestFocus() }, Modifier.weight(1f))
+                    CaptureTile(Icons.Filled.Mood, "Mood", "How are you?", LocalLifeOSSemanticColors.current.gold, { showMoodPicker = !showMoodPicker }, Modifier.weight(1f))
                 }
             }
             item {
-                // Figma group "Context capture" (#5:36818).
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                    CaptureTile(Icons.Filled.Mood, "Mood", "How’s your day?", { showMoodPicker = !showMoodPicker }, Modifier.weight(1f))
+                    CaptureTile(Icons.Filled.Lightbulb, "Thought", "Write it down", MaterialTheme.colorScheme.secondary, { thoughtFocus.requestFocus() }, Modifier.weight(1f))
                     CaptureTile(
                         Icons.Filled.LocationOn,
                         "Location",
-                        "Choose to attach",
+                        "Where you are",
+                        LocalLifeOSSemanticColors.current.info,
                         {
                             if (viewModel.hasLocationPermission()) viewModel.saveLocation()
                             else locationPermission.launch(
@@ -265,85 +235,51 @@ fun CaptureHubScreen(
                 }
             }
             item {
-                // Figma "Card" (#5:36831): FigmaCard fill over the hairline stroke,
-                // radius 22, 18dp pad — the quick thought sits inside it rather than
-                // under a bare label.
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(LifeOSRadius.large))
-                        .background(FigmaCard, RoundedCornerShape(LifeOSRadius.large))
-                        .border(BorderStroke(1.dp, FigmaStroke), RoundedCornerShape(LifeOSRadius.large))
-                        .padding(LifeOSSpacing.cardPadding),
-                    verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)) {
+                    Text("QUICK THOUGHT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(
-                        Modifier.fillMaxWidth(),
+                        Modifier
+                            .fillMaxWidth()
+                            .lifeOSCardShape()
+                            .padding(horizontal = LifeOSSpacing.lg, vertical = LifeOSSpacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
                     ) {
-                        Icon(Icons.Filled.Edit, contentDescription = null, tint = FigmaTertiary, modifier = Modifier.size(20.dp))
                         Box(Modifier.weight(1f)) {
                             if (quickThought.isEmpty()) {
-                                Text(
-                                    "What’s on your mind?",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = FigmaMuted
-                                )
+                                Text("＋  quick thought…", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             BasicTextField(
                                 value = quickThought,
                                 onValueChange = { quickThought = it },
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = FigmaText),
-                                cursorBrush = SolidColor(FigmaAccent),
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                 maxLines = 3,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .focusRequester(thoughtFocus)
+                                modifier = Modifier.fillMaxWidth().focusRequester(thoughtFocus)
                             )
                         }
                         Box(
                             Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(LifeOSRadius.small))
-                                .background(FigmaAccent)
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (quickThought.isBlank()) SolidColor(MaterialTheme.colorScheme.surfaceVariant)
+                                    else SolidColor(LifeOSMint)
+                                )
                                 .clickable(enabled = quickThought.isNotBlank()) {
                                     viewModel.saveThought(quickThought)
                                     quickThought = ""
-                                }
-                                .semantics { contentDescription = "Save thought" },
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                Icons.Filled.ArrowUpward,
-                                contentDescription = null,
-                                tint = FigmaOnAccent,
-                                modifier = Modifier.size(18.dp)
+                                Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Save thought",
+                                tint = if (quickThought.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
-                    Text(
-                        "Saved to this device & linked to your timeline.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = FigmaMuted
-                    )
-                }
-            }
-            item {
-                // Permission note (#5:36838) — true of this app: every permission is
-                // requested when its own tile is used, never at launch.
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
-                ) {
-                    Icon(Icons.Filled.Shield, contentDescription = null, tint = FigmaTertiary, modifier = Modifier.size(17.dp))
-                    Text(
-                        "Camera, mic and location access are requested only when you choose to use them.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = FigmaMuted,
-                        modifier = Modifier.weight(1f)
-                    )
                 }
             }
         }
@@ -355,38 +291,28 @@ private fun CaptureTile(
     icon: ImageVector,
     title: String,
     caption: String,
+    accent: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Figma "Capture choice" (#5:36793): FigmaSurface fill, hairline stroke,
-    // radius 20, 18dp pad; the 42x42 icon tile inside is FigmaElevated with the
-    // same stroke at radius 14. Both radii round to the shared LifeOSRadius
-    // scale rather than inventing one-off values.
-    val cardShape = RoundedCornerShape(LifeOSRadius.xlarge - 2.dp)
-    val iconShape = RoundedCornerShape(LifeOSRadius.medium - 2.dp)
     Column(
         modifier
-            .clip(cardShape)
-            .background(FigmaSurface, cardShape)
-            .border(BorderStroke(1.dp, FigmaStroke), cardShape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(LifeOSSpacing.cardPadding),
+            .lifeOSCardShape()
+            .clickable(onClick = onClick)
+            .padding(LifeOSSpacing.lg),
         verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
     ) {
         Box(
             Modifier
-                .size(42.dp)
-                .clip(iconShape)
-                .background(FigmaElevated, iconShape)
-                .border(BorderStroke(1.dp, FigmaStroke), iconShape),
+                .size(46.dp)
+                .clip(RoundedCornerShape(LifeOSRadius.medium))
+                .background(Brush.linearGradient(listOf(accent.copy(alpha = 0.28f), accent.copy(alpha = 0.12f)))),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = FigmaText, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(24.dp))
         }
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = FigmaText)
-            Text(caption, style = MaterialTheme.typography.labelSmall, color = FigmaMuted)
-        }
+        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+        Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -395,7 +321,7 @@ private fun MoodChip(mood: DiaryMood, onClick: () -> Unit) {
     Row(
         Modifier
             .clip(RoundedCornerShape(LifeOSRadius.pill))
-            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.pill), tint = MaterialTheme.colorScheme.primary, interactive = true)
+            .background(LifeOSMint.copy(alpha = 0.12f))
             .clickable(onClick = onClick)
             .padding(horizontal = LifeOSSpacing.lg, vertical = LifeOSSpacing.sm),
         verticalAlignment = Alignment.CenterVertically,
@@ -452,7 +378,7 @@ private fun SuccessPanel(message: String, onDone: () -> Unit, onAgain: () -> Uni
         Modifier
             .fillMaxWidth()
             .padding(horizontal = LifeOSSpacing.screenPadding)
-            .liquidGlass(shape = RoundedCornerShape(LifeOSRadius.xlarge), tint = LocalLifeOSSemanticColors.current.success)
+            .lifeOSCardShape()
             .padding(LifeOSSpacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)

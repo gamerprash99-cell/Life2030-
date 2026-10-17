@@ -8,81 +8,82 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-/**
- * The redesign's one accent is **mint** (`#A8E8D3`). On the light adaptation
- * that accent is too pale to carry white ink, so the light theme keeps the same
- * *system* — mint signature, slate support tones, teal canvas — but pulls the
- * accent down to a legible depth and lifts the canvas to a cool mist. The
- * light theme is a faithful adaptation of the same tokens, never a different
- * design; the 15 Figma frames are dark, so dark is the reference rendition.
- */
+// ===========================================================================
+// LifeOS theme — Material mapping of the rebuilt (Figma-derived) palette.
+// Dark is the reference polarity; light is the derived paper-mint polarity.
+// ===========================================================================
+
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF1F7D68),
+    primary = LifeOSPrimary,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFCDEFE4),
-    onPrimaryContainer = Color(0xFF06372C),
-    secondary = Color(0xFF3C6E62),
+    primaryContainer = LifeOSAccentLavender,
+    onPrimaryContainer = Color(0xFF06281F),
+    secondary = LifeOSSecondary,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFD6E7E3),
-    onSecondaryContainer = Color(0xFF14251F),
-    tertiary = Color(0xFF8A6A2A),
+    secondaryContainer = Color(0xFFD5F0E6),
+    onSecondaryContainer = Color(0xFF06281F),
+    tertiary = LifeOSTertiary,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFF3E4C6),
-    onTertiaryContainer = Color(0xFF3A2A08),
-    background = Color(0xFFEEF4F3),
-    onBackground = Color(0xFF0C1A18),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF0C1A18),
-    surfaceVariant = Color(0xFFE0EAE8),
-    onSurfaceVariant = Color(0xFF41514E),
-    surfaceContainerHighest = Color(0xFFE0EAE8),
-    outline = Color(0xFF7D959F),
-    outlineVariant = Color(0xFFC9D8D5),
-    error = Color(0xFFB4322E),
+    tertiaryContainer = Color(0xFFF6E3C4),
+    onTertiaryContainer = Color(0xFF3E2A08),
+    background = LifeOSCanvasMidLight,
+    onBackground = LifeOSTextPrimaryLight,
+    surface = LifeOSSurfaceLight,
+    onSurface = LifeOSTextPrimaryLight,
+    surfaceVariant = LifeOSSurfaceVariantLight,
+    onSurfaceVariant = LifeOSTextSecondaryLight,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = Color(0xFFF4F8F6),
+    surfaceContainer = Color(0xFFEDF3F1),
+    surfaceContainerHigh = Color(0xFFE5EDEA),
+    surfaceContainerHighest = LifeOSSurfaceVariantLight,
+    surfaceTint = LifeOSPrimary,
+    outline = LifeOSOutlineLight,
+    outlineVariant = Color(0xFFD5E1DD),
+    error = LifeOSDanger,
     onError = Color.White,
+    scrim = LifeOSScrim,
 )
 
-/**
- * The dark theme is the Figma reference rendition, token-for-token: the mint
- * signature (`#A8E8D3`), ink `#F2F7F7`, the deep teal/navy canvas
- * (`#0B141C` core), slate surfaces (`#162630` / `#1C303A`) and the hairline
- * stroke `rgba(182,217,229,0.12)`. Values are lifted verbatim from the Figma
- * global variables (see `Color.kt`), so Compose and the design share one source
- * of truth.
- */
 private val DarkColors = darkColorScheme(
-    primary = FigmaAccent,
-    onPrimary = FigmaOnAccent,
-    primaryContainer = FigmaAccentDark,
-    onPrimaryContainer = FigmaAccent,
-    secondary = FigmaHeatmap,
-    onSecondary = FigmaOnAccent,
-    secondaryContainer = FigmaElevated,
-    onSecondaryContainer = FigmaText,
-    tertiary = FigmaWarning,
-    onTertiary = Color(0xFF2E1C05),
-    tertiaryContainer = Color(0xFF3A2E18),
-    onTertiaryContainer = FigmaWarning,
-    background = FigmaCanvasMid,
-    onBackground = FigmaText,
-    surface = FigmaSurface,
-    onSurface = FigmaText,
-    surfaceVariant = FigmaElevated,
-    onSurfaceVariant = FigmaMuted,
-    surfaceContainerHighest = FigmaElevated,
-    outline = FigmaTertiary,
-    outlineVariant = FigmaStroke,
-    error = Color(0xFFFFB4AB),
+    // Mint is the signature light in the teal-navy night.
+    primary = LifeOSMint,
+    onPrimary = LifeOSMintInk,
+    primaryContainer = Color(0xFF163D36),
+    onPrimaryContainer = Color(0xFFCDEFE0),
+    secondary = Color(0xFF8FBFB2),
+    onSecondary = LifeOSMintInk,
+    secondaryContainer = Color(0xFF1B3A34),
+    onSecondaryContainer = Color(0xFFCDEFE3),
+    tertiary = LifeOSGoldBright,
+    onTertiary = Color(0xFF3A2606),
+    tertiaryContainer = Color(0xFF4A3B14),
+    onTertiaryContainer = Color(0xFFF8E4C4),
+    background = LifeOSCanvasMidDark,
+    onBackground = LifeOSTextPrimaryDark,
+    surface = LifeOSSurfaceDark,
+    onSurface = LifeOSTextPrimaryDark,
+    surfaceVariant = LifeOSSurfaceVariantDark,
+    onSurfaceVariant = LifeOSTextSecondaryDark,
+    surfaceContainerLowest = Color(0xFF0E1B23),
+    surfaceContainerLow = Color(0xFF131F29),
+    surfaceContainer = Color(0xFF182733),
+    surfaceContainerHigh = Color(0xFF20333F),
+    surfaceContainerHighest = Color(0xFF243946),
+    surfaceTint = LifeOSMint,
+    outline = LifeOSOutlineDark,
+    outlineVariant = LifeOSCardStrokeDark,
+    error = Color(0xFFFF8F8A),
     onError = Color(0xFF3A0D0B),
+    scrim = LifeOSScrim,
 )
 
 /**
- * All the paints one frosted surface needs. [surface] and [border] keep the
- * original two-field contract alive (existing call sites read them), while the
- * remaining fields carry the soft top light, the faint upper wash and the
- * pooled base shadow that make a translucent sheet read as glass. Under AURA
- * [surface] is deliberately translucent so the lagoon gradient breathes
- * through every card.
+ * All the paints one translucent card needs. [surface] and [border] keep the
+ * original two-field contract alive (existing call sites read them), while
+ * the remaining fields carry the soft top light, the faint upper wash and the
+ * pooled base shadow that let a sheet sit on the gradient without looking
+ * like a flat rectangle.
  */
 data class GlassColors(
     val surface: Color,
@@ -104,7 +105,7 @@ val LocalGlassColors = staticCompositionLocalOf {
     )
 }
 
-/** The three ambient colour clouds that float behind every screen. */
+/** The ambient colour clouds that can float behind hero moments. */
 data class AmbientGlowColors(val primary: Color, val secondary: Color, val tertiary: Color)
 
 val LocalAmbientGlowColors = staticCompositionLocalOf {
@@ -117,17 +118,24 @@ val LocalAmbientGlowColors = staticCompositionLocalOf {
 
 /**
  * Semantic colours the Material scheme does not carry but the LifeOS UI needs
- * by name: success / warning / info states, the hairline border colour used on
- * opaque (non-glass) surfaces, the muted tertiary text, and the premium gold
- * used for streaks, records and achievements. Screens read these instead of
- * reaching for a raw hex, so a future palette change is a one-file edit.
+ * by name: success / warning / info / danger states (with soft translucent
+ * fills for chips and badges), the hairline border colour, the muted tertiary
+ * text, and the premium gold used for streaks, records and achievements.
+ * Screens read these instead of reaching for a raw hex, so a future palette
+ * change is a one-file edit.
  */
 data class LifeOSSemanticColors(
     val success: Color,
     val onSuccess: Color,
+    val successSoft: Color,
     val warning: Color,
     val onWarning: Color,
+    val warningSoft: Color,
     val info: Color,
+    val infoSoft: Color,
+    val danger: Color,
+    val onDanger: Color,
+    val dangerSoft: Color,
     val border: Color,
     val muted: Color,
     val gold: Color,
@@ -140,9 +148,15 @@ val LocalLifeOSSemanticColors = staticCompositionLocalOf {
     LifeOSSemanticColors(
         success = LifeOSSuccess,
         onSuccess = Color.White,
+        successSoft = LifeOSSuccessSoft,
         warning = LifeOSWarning,
         onWarning = Color.White,
+        warningSoft = LifeOSWarningSoft,
         info = LifeOSInfo,
+        infoSoft = LifeOSInfoSoft,
+        danger = LifeOSDanger,
+        onDanger = Color.White,
+        dangerSoft = LifeOSDangerSoft,
         border = LifeOSBorderLight,
         muted = LifeOSTextMutedLight,
         gold = LifeOSGold,
@@ -160,25 +174,22 @@ fun LifeOSTheme(
     // Dynamic Material colors remain opt-in so the LifeOS brand palette is stable.
     val colorScheme = if (darkTheme) DarkColors else LightColors
     val glassColors = if (darkTheme) {
-        // The Figma card material: a translucent slate sheet `rgba(31,53,64,0.79)`
-        // with the hairline stroke `rgba(182,217,229,0.12)`, a whisper of top
-        // light and a pooled foot shadow — flat and engineered, not frosted.
         GlassColors(
-            surface = FigmaCard,
-            border = FigmaStroke,
-            topEdge = Color(0x14FFFFFF),
-            bottomEdge = Color(0x33000000),
-            sheen = Color(0x0AFFFFFF),
-            innerShadow = Color(0x1F000000)
+            surface = GlassDark,
+            border = GlassBorderDark,
+            topEdge = GlassTopEdgeDark,
+            bottomEdge = GlassBottomEdgeDark,
+            sheen = GlassSheenDark,
+            innerShadow = GlassInnerShadowDark
         )
     } else {
         GlassColors(
-            surface = Color(0xFCFFFFFF),
-            border = Color(0x140A3B33),
+            surface = GlassLight,
+            border = GlassBorderLight,
             topEdge = GlassTopEdgeLight,
-            bottomEdge = Color(0x0F000000),
-            sheen = Color(0x0FFFFFFF),
-            innerShadow = Color(0x0F002B24)
+            bottomEdge = GlassBottomEdgeLight,
+            sheen = GlassSheenLight,
+            innerShadow = GlassInnerShadowLight
         )
     }
     val ambientGlowColors = if (darkTheme) {
@@ -196,24 +207,36 @@ fun LifeOSTheme(
     }
     val semanticColors = if (darkTheme) {
         LifeOSSemanticColors(
-            success = FigmaHeatmap,
-            onSuccess = FigmaOnAccent,
-            warning = FigmaWarning,
-            onWarning = Color(0xFF2E1C05),
-            info = Color(0xFF9FC6DC),
-            border = FigmaStroke,
-            muted = FigmaTertiary,
-            gold = FigmaWarning,
-            goldSoft = Color(0x33E9C997),
+            success = Color(0xFF86E0BE),
+            onSuccess = Color(0xFF06281F),
+            successSoft = Color(0x2E86E0BE),
+            warning = Color(0xFFE9C46A),
+            onWarning = Color(0xFF3A2606),
+            warningSoft = Color(0x2EE9C46A),
+            info = Color(0xFF8FB8E0),
+            infoSoft = Color(0x2E8FB8E0),
+            danger = Color(0xFFFF8F8A),
+            onDanger = Color(0xFF3A0D0B),
+            dangerSoft = Color(0x2EFF8F8A),
+            border = LifeOSBorderDark,
+            muted = LifeOSTextMutedDark,
+            gold = LifeOSGoldBright,
+            goldSoft = LifeOSGoldSoft,
             shadow = Color.Black,
         )
     } else {
         LifeOSSemanticColors(
             success = LifeOSSuccess,
             onSuccess = Color.White,
+            successSoft = LifeOSSuccessSoft,
             warning = LifeOSWarning,
             onWarning = Color.White,
+            warningSoft = LifeOSWarningSoft,
             info = LifeOSInfo,
+            infoSoft = LifeOSInfoSoft,
+            danger = LifeOSDanger,
+            onDanger = Color.White,
+            dangerSoft = LifeOSDangerSoft,
             border = LifeOSBorderLight,
             muted = LifeOSTextMutedLight,
             gold = LifeOSGold,

@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -28,22 +27,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lifeos.app.core.intelligence.HabitAnalysisSummary
-import com.lifeos.app.core.intelligence.PatternInsight
 import com.lifeos.app.core.intelligence.PeriodReport
 import com.lifeos.app.core.intelligence.PersonalStatistics
-import com.lifeos.app.core.intelligence.Recommendation
 import com.lifeos.app.core.intelligence.TrendDirection
 import com.lifeos.app.core.intelligence.TrendResult
 import com.lifeos.app.ui.components.LifeOSBanner
 import com.lifeos.app.ui.components.LifeOSEyebrow
 import com.lifeos.app.ui.components.LifeOSMetric
+import com.lifeos.app.ui.components.LifeOSPageHeader
 import com.lifeos.app.ui.components.LifeOSPill
 import com.lifeos.app.ui.components.LifeOSProgressRing
-import com.lifeos.app.ui.components.LifeOSScreenHeader
 import com.lifeos.app.ui.components.LifeOSSectionTitle
 import com.lifeos.app.ui.components.LifeOSSegmentedControl
 import com.lifeos.app.ui.components.LifeOSStatTile
 import com.lifeos.app.ui.components.LifeOSSurface
+import com.lifeos.app.ui.components.lifeOSCanvas
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
 import kotlin.math.abs
@@ -63,12 +61,10 @@ fun InsightsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    Column(modifier.fillMaxSize()) {
-        LifeOSScreenHeader(
-            title = "Insights",
+    Column(modifier.fillMaxSize().lifeOSCanvas()) {
+        LifeOSPageHeader(
             eyebrow = "LifeOS",
-            subtitle = "How your life is actually going",
-            modifier = Modifier.padding(top = LifeOSSpacing.sm)
+            title = "Insights",
         )
 
         LazyColumn(
@@ -76,7 +72,7 @@ fun InsightsScreen(
             contentPadding = PaddingValues(
                 start = LifeOSSpacing.screenPadding,
                 end = LifeOSSpacing.screenPadding,
-                top = LifeOSSpacing.lg,
+                top = LifeOSSpacing.md,
                 bottom = LifeOSSpacing.sectionSpacing
             ),
             verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)

@@ -4,8 +4,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.ui.graphics.toArgb
-import com.lifeos.app.ui.theme.LifeOSBackgroundDark
-import com.lifeos.app.ui.theme.LifeOSBackgroundLight
+import com.lifeos.app.ui.theme.LifeOSCanvasMidDark
+import com.lifeos.app.ui.theme.LifeOSCanvasMidLight
 
 /**
  * Declares the system-bar appearance from **LifeOS's own resolved theme**,
@@ -35,7 +35,7 @@ import com.lifeos.app.ui.theme.LifeOSBackgroundLight
  * navigation or inset architecture.
  */
 fun ComponentActivity.enableLifeOSEdgeToEdge(darkTheme: Boolean) {
-    val scrim = (if (darkTheme) LifeOSBackgroundDark else LifeOSBackgroundLight).toArgb()
+    val scrim = (if (darkTheme) LifeOSCanvasMidDark else LifeOSCanvasMidLight).toArgb()
     val style = if (darkTheme) SystemBarStyle.dark(scrim) else SystemBarStyle.light(scrim, scrim)
     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
 }

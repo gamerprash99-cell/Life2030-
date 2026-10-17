@@ -13,16 +13,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,26 +30,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.lifeos.app.ui.theme.FigmaAccent
-import com.lifeos.app.ui.theme.FigmaElevated
-import com.lifeos.app.ui.theme.FigmaOnAccent
-import com.lifeos.app.ui.theme.FigmaText
-import com.lifeos.app.ui.theme.LifeOSElevation
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
@@ -85,58 +74,11 @@ fun LifeOSSurface(
 ) {
     LiquidGlassSurface(
         modifier = modifier,
-        shape = RoundedCornerShape(LifeOSRadius.xlarge),
+        shape = RoundedCornerShape(LifeOSRadius.medium),
         tint = tint,
         onClick = onClick,
         contentPadding = contentPadding
     ) { content() }
-}
-
-/**
- * The large header that leads a root screen. One thing leads each screen, and
- * on root screens that thing is this: a small eyebrow (e.g. the date), a large
- * title, an optional subtitle, and a row of trailing actions.
- */
-@Composable
-fun LifeOSScreenHeader(
-    title: String,
-    modifier: Modifier = Modifier,
-    eyebrow: String? = null,
-    subtitle: String? = null,
-    actions: @Composable RowScope.() -> Unit = {}
-) {
-    Column(modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                eyebrow?.let {
-                    Text(
-                        it.uppercase(),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(Modifier.height(LifeOSSpacing.xs))
-                }
-                Text(
-                    title,
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                subtitle?.let {
-                    Spacer(Modifier.height(LifeOSSpacing.xs))
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, content = actions)
-        }
-    }
 }
 
 /** A section label that introduces a block of content, with an optional action. */
@@ -340,39 +282,7 @@ fun LifeOSProgressRing(
     }
 }
 
-/** The primary action: a flat **mint** fill with dark on-accent ink. */
-@Composable
-fun LifeOSPrimaryButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    icon: ImageVector? = null,
-    enabled: Boolean = true
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.975f else 1f, spring(stiffness = 800f), label = "btn")
-    val shape = RoundedCornerShape(LifeOSRadius.medium)
-    val fill = if (enabled) FigmaAccent else MaterialTheme.colorScheme.surfaceVariant
-    val ink = if (enabled) FigmaOnAccent else MaterialTheme.colorScheme.onSurfaceVariant
-    Box(
-        modifier = modifier
-            .scale(scale)
-            .clip(shape)
-            .background(fill)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
-            .heightIn(min = 52.dp)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            icon?.let { Icon(it, null, tint = ink, modifier = Modifier.size(19.dp)) }
-            Text(text, style = MaterialTheme.typography.labelLarge, color = ink)
-        }
-    }
-}
-
-/** A quieter secondary action: the flat slate `#1C303A` panel. */
+/** A quieter, glass-outlined button for secondary actions. */
 @Composable
 fun LifeOSSecondaryButton(
     text: String,
@@ -384,105 +294,19 @@ fun LifeOSSecondaryButton(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.975f else 1f, spring(stiffness = 800f), label = "btn2")
-    val shape = RoundedCornerShape(LifeOSRadius.medium)
+    val shape = RoundedCornerShape(LifeOSRadius.pill)
     Box(
         modifier = modifier
             .scale(scale)
-            .clip(shape)
-            .background(FigmaElevated)
+            .liquidGlass(shape = shape, tint = MaterialTheme.colorScheme.primary, interactive = true, pressed = pressed, elevation = 2.dp)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
-            .heightIn(min = 52.dp)
+            .defaultMinSize(minHeight = LifeOSSpacing.minTouchTarget)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         contentAlignment = Alignment.Center
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            icon?.let { Icon(it, null, tint = FigmaAccent, modifier = Modifier.size(19.dp)) }
-            Text(text, style = MaterialTheme.typography.labelLarge, color = FigmaText)
-        }
-    }
-}
-
-/**
- * A large, tappable action tile — a big icon over a label — used by the
- * Capture hub and the Home quick actions. [accent] tints the icon badge.
- */
-@Composable
-fun LifeOSActionTile(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    accent: Color = MaterialTheme.colorScheme.primary,
-    caption: String? = null
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.96f else 1f, spring(stiffness = 800f), label = "tile")
-    Box(
-        modifier
-            .scale(scale)
-            .liquidGlass(
-                shape = RoundedCornerShape(LifeOSRadius.large),
-                tint = accent,
-                interactive = true,
-                pressed = pressed
-            )
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            .padding(LifeOSSpacing.lg)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-            LifeOSIconBadge(icon, contentDescription = null, tint = accent, size = 48.dp)
-            Column {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                caption?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * The honest empty state: an icon, a title, a sentence of guidance and one
- * primary action. Never a fabricated counter.
- */
-@Composable
-fun LifeOSEmptyState(
-    icon: ImageVector,
-    title: String,
-    body: String,
-    modifier: Modifier = Modifier,
-    actionLabel: String? = null,
-    onAction: (() -> Unit)? = null
-) {
-    Column(
-        modifier
-            .fillMaxWidth()
-            .padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.xxl),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
-    ) {
-        LifeOSIconBadge(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, size = 64.dp)
-        Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
-        Text(
-            body,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        if (actionLabel != null && onAction != null) {
-            Spacer(Modifier.height(LifeOSSpacing.xs))
-            LifeOSPrimaryButton(actionLabel, onAction)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            icon?.let { Icon(it, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) }
+            Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
     }
 }

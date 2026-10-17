@@ -2,9 +2,7 @@ package com.lifeos.app.ui.tasks
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +42,8 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -53,7 +53,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,14 +68,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.ViewModel
@@ -90,36 +87,22 @@ import com.lifeos.app.data.db.entities.ReminderRepeatType
 import com.lifeos.app.data.db.entities.TaskEntity
 import com.lifeos.app.data.db.entities.TaskPriority
 import com.lifeos.app.data.repository.TaskRepository
-import com.lifeos.app.ui.components.ExactAlarmPermissionHost
-import com.lifeos.app.ui.components.HeaderActionCircle
 import com.lifeos.app.ui.components.LifeOSCard
-import com.lifeos.app.ui.components.LifeOSGradientButton
+import com.lifeos.app.ui.components.LifeOSEyebrow
+import com.lifeos.app.ui.components.LifeOSPageHeader
+import com.lifeos.app.ui.components.LifeOSPill
 import com.lifeos.app.ui.components.LifeOSPrimaryButton
-import com.lifeos.app.ui.components.LifeOSTopBar
-import com.lifeos.app.ui.components.LiquidGlassSurface
+import com.lifeos.app.ui.components.LifeOSProgressTrack
+import com.lifeos.app.ui.components.LifeOSSegmentedControl
+import com.lifeos.app.ui.components.lifeOSCanvas
 import com.lifeos.app.ui.components.ReminderPermissionHost
 import com.lifeos.app.ui.components.ReminderRepeatSelector
 import com.lifeos.app.ui.components.ReminderTimePickerDialog
-import com.lifeos.app.ui.components.rememberExactAlarmPermissionHost
 import com.lifeos.app.ui.components.rememberReminderPermissionHost
-import com.lifeos.app.ui.theme.FigmaAccent
-import com.lifeos.app.ui.theme.FigmaAccentStroke
-import com.lifeos.app.ui.theme.FigmaCard
-import com.lifeos.app.ui.theme.FigmaOnAccent
-import com.lifeos.app.ui.theme.FigmaStroke
-import com.lifeos.app.ui.theme.FigmaText
-import com.lifeos.app.ui.theme.FigmaTertiary
-import com.lifeos.app.ui.theme.FigmaTrack
-import com.lifeos.app.ui.theme.FigmaWash
-import com.lifeos.app.ui.theme.LifeOSRadius
+import com.lifeos.app.ui.theme.LifeOSMint
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -128,7 +111,6 @@ import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.Instant
-import kotlin.math.roundToInt
 
 class TasksViewModel(private val taskRepository: TaskRepository) : ViewModel() {
     private val today = DateTimeUtils.today().toEpochDay()
@@ -187,14 +169,6 @@ class TasksViewModel(private val taskRepository: TaskRepository) : ViewModel() {
 /** The three scopes the task list can be viewed through. */
 private enum class TaskScope(val label: String) { ALL("All"), TODAY("Today"), UPCOMING("Upcoming") }
 
-/** The wording the Figma scope tags use, which reads better than the bare label. */
-private val TaskScope.tagLabel: String
-    get() = when (this) {
-        TaskScope.TODAY -> "Today"
-        TaskScope.UPCOMING -> "Upcoming"
-        TaskScope.ALL -> "All tasks"
-    }
-
 @Composable
 fun TasksScreen() {
     val locator = LocalServiceLocator.current
@@ -239,43 +213,32 @@ fun TasksScreen() {
     val pending = visible.count { !it.isCompleted }
     val completed = visible.count { it.isCompleted }
 
-    Scaffold(
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        // The parent LifeOSNavHost Scaffold has already inset this destination
-        // for the status bar, the bottom navigation and the system navigation
-        // area. `Modifier.padding` does not *consume* insets, so a nested
-        // Scaffold asking for `systemBars` again added the status bar and the
-        // navigation bar a second time — a blank band above the header and below
-        // the last card, and a FAB pushed down under the bottom navigation.
-        // Zeroing the nested content insets leaves the destination's own real
-        // safe area exactly as the NavHost computed it.
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { padding ->
+    Column(
+        Modifier
+            .fillMaxSize()
+            .lifeOSCanvas()
+    ) {
+        LifeOSPageHeader(
+            eyebrow = "Plan",
+            title = "Tasks",
+            actionIcon = Icons.Filled.Add,
+            actionDescription = "Add task",
+            onAction = { showAddDialog = true },
+        )
         LazyColumn(
-            Modifier.fillMaxWidth().padding(padding),
+            Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(
                 start = LifeOSSpacing.screenPadding,
                 end = LifeOSSpacing.screenPadding,
-                top = 0.dp,
+                top = 4.dp,
                 bottom = LifeOSSpacing.screenPadding
             ),
             verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
         ) {
-            item { TasksHeader(onAddTask = { showAddDialog = true }) }
             if (pending + completed > 0) {
                 item { TasksProgressHero(pending = pending, completed = completed) }
             }
-            item {
-                TaskScopeRow(
-                    selected = scope,
-                    counts = mapOf(
-                        TaskScope.TODAY to today.count { !it.isCompleted },
-                        TaskScope.UPCOMING to upcoming.count { !it.isCompleted },
-                        TaskScope.ALL to (today + upcoming + overdue).distinctBy { it.id }.count { !it.isCompleted }
-                    ),
-                    onSelect = { scope = it }
-                )
-            }
+            item { TaskScopeRow(selected = scope, onSelect = { scope = it }) }
             // The category chips only earn their row once there is more than one
             // real category to switch between; with none, they duplicated the
             // scope row and made a single "All" chip look like a broken filter.
@@ -350,14 +313,6 @@ fun TasksScreen() {
                     )
                 }
             }
-            item {
-                LifeOSPrimaryButton(
-                    text = "Add a task",
-                    icon = Icons.Filled.Add,
-                    onClick = { showAddDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
         }
     }
 
@@ -392,119 +347,60 @@ fun TasksScreen() {
     }
 }
 
-@Composable
-private fun TasksHeader(onAddTask: () -> Unit) {
-    val today = remember { DateTimeUtils.today() }
-    LifeOSTopBar(
-        title = "Make room for focus",
-        subtitle = "Tasks / ${DateTimeUtils.formatDayOfWeek(today)}, ${DateTimeUtils.formatFullDate(today)}",
-        actions = {
-            // The Figma frame places a 42×42 action circle here. It carries the
-            // add affordance because Tasks has no calendar destination to open;
-            // the bottom "Add a task" primary is the second, equally working entry.
-            HeaderActionCircle(Icons.Filled.Add, "Add a task", onClick = onAddTask)
-        }
-    )
-}
+
 
 /**
- * The one thing that leads Tasks: the Figma "Today's focus" card. `N done. M to
- * go.` states the visible list's progress, and the row of segments below is that
- * same ratio drawn one segment per visible task — so the card's words and its
- * bar are the same two numbers the list is built from and can never disagree.
+ * The one thing that leads Tasks: how much of the visible list is cleared, as a
+ * single animated ratio. Both numbers are the same counts the header states, so
+ * the hero can never disagree with the list beneath it.
  */
 @Composable
 private fun TasksProgressHero(pending: Int, completed: Int) {
     val total = pending + completed
     val fraction = if (total > 0) completed.toFloat() / total else 0f
     val progress by animateFloatAsState(fraction, tween(600), label = "tasksProgress")
-    // One segment per task, capped so a long list stays a readable meter. Above
-    // the cap the segments track the exact fraction instead of the raw count.
-    val segments = total.coerceIn(1, 10)
-    val filled = if (total <= 10) completed else (fraction * segments).roundToInt()
-    LifeOSCard(Modifier.fillMaxWidth(), tint = FigmaCard) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        "TODAY'S FOCUS",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 1.sp
-                        ),
-                        color = FigmaTertiary
-                    )
-                    Text(
-                        when {
-                            pending == 0 && completed > 0 -> "Every task cleared."
-                            completed == 0 -> "$pending to go today."
-                            else -> "$completed done. $pending to go."
-                        },
-                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
-                        color = FigmaText
-                    )
-                }
+    LifeOSCard(Modifier.fillMaxWidth()) {
+        LifeOSEyebrow("In focus")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    "${(progress.coerceIn(0f, 1f) * 100).roundToInt()}%",
-                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 21.sp, fontWeight = FontWeight.SemiBold),
-                    color = FigmaAccent
+                    "$completed of $total",
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    if (pending == 0) "Every task cleared" else "$pending still open",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                repeat(segments) { index ->
-                    Box(
-                        Modifier
-                            .weight(1f)
-                            .height(5.dp)
-                            .clip(RoundedCornerShape(LifeOSRadius.pill))
-                            .background(if (index < filled) FigmaAccent else FigmaTrack)
-                    )
-                }
-            }
+            Text(
+                "${(fraction * 100).toInt()}%",
+                style = MaterialTheme.typography.titleMedium,
+                color = LifeOSMint
+            )
         }
+        LifeOSProgressTrack(
+            progress = progress.coerceIn(0f, 1f),
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
 /**
- * Scope tags, restyled to the Figma pills: the selected scope is a mint-tinted
- * plate with mint ink, the others sit on the faint wash with tertiary ink. A
- * scope that has work carries its live open count, read from the same lists the
- * screen renders, so a tag's number is never decorative.
+ * Scope chips. Given zero horizontal content padding of its own: the chips live
+ * inside the screen's padded LazyColumn, and a LazyRow that also padded itself
+ * pushed the row that far right and made it look misaligned against the header
+ * and the section titles above it.
  */
 @Composable
-private fun TaskScopeRow(
-    selected: TaskScope,
-    counts: Map<TaskScope, Int>,
-    onSelect: (TaskScope) -> Unit
-) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        TaskScope.entries.forEach { scope ->
-            val isSelected = scope == selected
-            val shape = RoundedCornerShape(LifeOSRadius.pill)
-            val count = counts[scope] ?: 0
-            val label = scope.tagLabel + if (count > 0) " $count" else ""
-            Box(
-                Modifier
-                    .clip(shape)
-                    .background(if (isSelected) FigmaAccent.copy(alpha = 0.16f) else FigmaWash)
-                    .border(BorderStroke(1.dp, if (isSelected) FigmaAccentStroke else FigmaStroke), shape)
-                    .clickable(role = Role.Button) { onSelect(scope) }
-                    .semantics { contentDescription = label; role = Role.Button }
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (isSelected) FigmaAccent else FigmaTertiary,
-                    maxLines = 1
-                )
-            }
-        }
-    }
+private fun TaskScopeRow(selected: TaskScope, onSelect: (TaskScope) -> Unit) {
+    LifeOSSegmentedControl(
+        options = TaskScope.entries.toList(),
+        selected = selected,
+        onSelect = onSelect,
+        label = { it.label }
+    )
 }
 
 @Composable
@@ -571,26 +467,19 @@ private fun TasksSectionHeader(title: String, count: Int) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             title,
-            style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
-            color = FigmaText,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        Text(
-            "$count",
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = FigmaAccent
-        )
+        LifeOSPill(text = "$count")
     }
 }
 
 @Composable
 private fun EmptyFocusCard(scope: TaskScope, currentFilter: String?, onAddTask: () -> Unit) {
-    LifeOSCard(
-        modifier = Modifier.fillMaxWidth(),
-        tint = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
-    ) {
+    LifeOSCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -629,7 +518,11 @@ private fun EmptyFocusCard(scope: TaskScope, currentFilter: String?, onAddTask: 
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
-            LifeOSGradientButton("Add a task", Modifier.fillMaxWidth(), onClick = onAddTask)
+            LifeOSPrimaryButton(
+                text = "Add a task",
+                onClick = onAddTask,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -641,47 +534,35 @@ private fun TaskCard(
     onKeepForTomorrow: () -> Unit,
     onEditReminder: () -> Unit
 ) {
-    LifeOSCard(Modifier.fillMaxWidth(), tint = FigmaCard) {
+    LifeOSCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Top) {
-            // The Figma row leads with a circular check/empty marker rather than
-            // a boxed checkbox. The visible 24dp circle keeps a 44dp target.
-            Box(
-                Modifier
-                    .size(44.dp)
-                    .clickable(role = Role.Checkbox) { onToggle(!task.isCompleted) }
-                    .semantics {
-                        contentDescription = if (task.isCompleted) "Mark ${task.title} not done" else "Mark ${task.title} done"
-                        role = Role.Checkbox
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(if (task.isCompleted) FigmaAccent else Color.Transparent)
-                        .border(BorderStroke(1.dp, if (task.isCompleted) FigmaAccent else FigmaStroke), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (task.isCompleted) {
-                        Icon(Icons.Filled.Check, contentDescription = null, tint = FigmaOnAccent, modifier = Modifier.size(15.dp))
-                    }
-                }
-            }
-            Spacer(Modifier.width(6.dp))
+            Checkbox(
+                checked = task.isCompleted,
+                onCheckedChange = onToggle,
+                colors = CheckboxDefaults.colors(
+                    checkedColor = MaterialTheme.colorScheme.primary,
+                    checkmarkColor = MaterialTheme.colorScheme.onPrimary,
+                    uncheckedColor = MaterialTheme.colorScheme.outlineVariant
+                )
+            )
+            Spacer(Modifier.width(2.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     task.title,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (task.isCompleted) FigmaText.copy(alpha = 0.55f) else FigmaText,
+                    color = if (task.isCompleted) {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                     textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
                 )
                 if (!task.description.isNullOrBlank()) {
                     Text(
                         task.description!!,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = FigmaText.copy(alpha = 0.55f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = 2.dp)
@@ -698,7 +579,7 @@ private fun TaskCard(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Move to tomorrow",
-                        tint = FigmaText.copy(alpha = 0.6f)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

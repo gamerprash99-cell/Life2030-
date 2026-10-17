@@ -71,3 +71,36 @@ finer rim, a softer sheen) so content leads, and motion uses one spring family.
       (refine-only per user choice), not unified into Aurora Noir.
 - [x] Phase 6 (partial) — removed speculative `LifeOSRowGap` and newly-unused
       imports. Broader sweep still pending after Phase 5 completes.
+
+---
+
+## Superseding pass — Figma fidelity rebuild (v4)
+
+The direction changed. Rather than hand-authoring a house language ("Aurora
+Noir"), every screen was rebuilt from the supplied Figma file
+(`ehSpxDfVot6SgPIdd2Tvf4`), which is now the single source of truth for colour,
+type, spacing and layout. Nothing below is discarded — the data layer,
+ViewModels, routes and features are untouched; this is presentation only.
+
+What that means for the phases above:
+
+- **Tokens (Phase 1)** are now *derived* from the Figma frame rather than
+  invented: canvas top ≈ `#1F3B46`, mid ≈ `#0D161F`, bottom / nav `#102029`,
+  card `#1C303A`, mint `#A8E8D3`. Values were sampled from the exported frame
+  renders in `design/figma/`, not eyeballed.
+- **Type (Phase 1)** is single-voice Inter (one variable font). The Fraunces /
+  Manrope / Kalam files and their families are gone.
+- **The kit (Phase 3)** is replaced by `ui/components/LifeOSCore.kt`.
+  `LifeOSDesignComponents.kt`, `LifeOSTopBar.kt` and the superseded kit pieces
+  were deleted; screens now compose from the new kit only.
+- **Screens (Phase 5)** were rebuilt, not restyled: each uses the Figma page
+  header (86dp: 9sp mint eyebrow + 24sp title + 42dp action), the canvas, the
+  24dp/gap-18 content rhythm and the r22 card. No destination applies its own
+  system insets — `LifeOSNavHost`'s `Scaffold` does that once for all of them.
+- **Diary / Timeline still stand apart on purpose.** The design's Diary frame is
+  a page, not a card, so the paper palette (`theme/DiaryColors.kt`) and
+  `GlassCard` are kept; the app chrome around them is the only thing rebuilt.
+- **Dead-code sweep (Phase 6)** is now complete for the app chrome.
+
+Reference renders live in `design/figma/` (git-ignored, 5 MB — design process,
+not shipped assets).

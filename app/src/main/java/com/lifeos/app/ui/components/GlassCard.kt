@@ -1,7 +1,6 @@
 package com.lifeos.app.ui.components
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -30,7 +29,7 @@ fun Modifier.glassSurface(
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
-    cornerRadius: androidx.compose.ui.unit.Dp = LifeOSRadius.xlarge,
+    cornerRadius: androidx.compose.ui.unit.Dp = LifeOSRadius.medium,
     content: @Composable () -> Unit
 ) {
     LiquidGlassSurface(
