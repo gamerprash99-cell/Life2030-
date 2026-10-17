@@ -1,5 +1,6 @@
 package com.lifeos.app.ui.insights
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,6 +47,9 @@ import com.lifeos.app.ui.components.LifeOSSegmentedControl
 import com.lifeos.app.ui.components.LifeOSStatTile
 import com.lifeos.app.ui.components.LifeOSSurface
 import com.lifeos.app.ui.theme.LifeOSSpacing
+import com.lifeos.app.ui.theme.FigmaCanvasBottom
+import com.lifeos.app.ui.theme.FigmaCanvasMid
+import com.lifeos.app.ui.theme.FigmaCanvasTop
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
 import kotlin.math.abs
 
@@ -63,11 +68,13 @@ fun InsightsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    Column(modifier.fillMaxSize()) {
+    Column(
+        modifier.fillMaxSize().background(Brush.verticalGradient(listOf(FigmaCanvasTop, FigmaCanvasMid, FigmaCanvasBottom)))
+    ) {
         LifeOSScreenHeader(
-            title = "Insights",
-            eyebrow = "LifeOS",
-            subtitle = "How your life is actually going",
+            title = "Life Insights",
+            eyebrow = "LIFE INSIGHTS",
+            subtitle = "Patterns from your days, grounded in your data",
             modifier = Modifier.padding(top = LifeOSSpacing.sm)
         )
 
