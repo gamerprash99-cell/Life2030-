@@ -120,13 +120,14 @@ val LifeOSAccentLavender = Color(0xFFFFE7DC)
 /** Amber — the warm third accent, and the app's "energetic" highlight. */
 val LifeOSTertiary = Color(0xFFB8862B)
 
-// The named gradient stops, for the identity gradient. A lagoon sunset:
-// deep teal -> rust -> coral. Deliberately DEEP so white text and icons on any
-// filled identity surface (the hero, the Capture disc, a primary button) stay
-// at or above WCAG AA (4.5:1) — brightening them would silently break that.
+// The named gradient stops for the identity gradient, retuned to the redesign's
+// teal/mint family (the old lagoon sunset is gone — mint is now the one
+// signature). Deliberately kept DEEP so white text and icons on any filled
+// identity surface stay at or above WCAG AA (4.5:1); the bright `FigmaAccent`
+// mint is only ever used as a flat fill with dark `FigmaOnAccent` ink.
 val PrismIndigo = Color(0xFF0F6E5F) // deep teal
-val PrismSky = Color(0xFFA84B2E)    // deep rust
-val PrismCoral = Color(0xFFC43D26)  // deep coral
+val PrismSky = Color(0xFF2E8C77)    // mid teal-mint
+val PrismCoral = Color(0xFF15564A)  // deep mint-teal
 
 /** The one identity gradient: teal -> rust -> coral. Hero, Capture and AI orb. */
 val PrismSpectrum = listOf(PrismIndigo, PrismSky, PrismCoral)
@@ -221,3 +222,84 @@ val DiaryMoodTiredPastel = Color(0xFFE7E9F5)
  * as "no signal" rather than as a fifth feeling.
  */
 val DiaryMoodNeutral = Color(0xFFB9AFC4)
+
+// ===========================================================================
+// LifeOS 2030 — the Figma redesign palette.
+//
+// The 15 redesigned frames are a single dark, calm "night glass" system: a
+// deep teal-to-navy canvas behind translucent slate cards, lit by one mint
+// signature (#A8E8D3) with slate/steel support tones. Every value here is
+// lifted verbatim from the Figma file's global variables (see the frame dump),
+// so the Compose theme and the design share one source of truth.
+//
+// These tokens are additive: the historical AURA names above are untouched, so
+// every existing call site keeps compiling while the theme below adopts these
+// values for the redesign.
+// ===========================================================================
+
+// ---- Canvas gradients ------------------------------------------------------
+
+/** The app canvas: `linear-gradient(140deg, #203D48 0%, #0B141C 38%, #101B27 100%)`. */
+val FigmaCanvasTop = Color(0xFF203D48)
+val FigmaCanvasMid = Color(0xFF0B141C)
+val FigmaCanvasBottom = Color(0xFF101B27)
+
+/** The welcome frame's `linear-gradient(135deg, #24454D 0%, #101D29 50%, #0B141C 100%)`. */
+val FigmaWelcomeTop = Color(0xFF24454D)
+val FigmaWelcomeMid = Color(0xFF101D29)
+val FigmaWelcomeBottom = Color(0xFF0B141C)
+
+// ---- Content (text & icons) ------------------------------------------------
+
+/** Primary ink — `#F2F7F7` (fill_08897ac8). */
+val FigmaText = Color(0xFFF2F7F7)
+/** Secondary/supporting ink — `#A3B6BF` (fill_978a75fa). */
+val FigmaMuted = Color(0xFFA3B6BF)
+/** Tertiary / timestamps — `#7D959F` (fill_0c5c5f09). */
+val FigmaTertiary = Color(0xFF7D959F)
+
+// ---- Brand — the mint signature -------------------------------------------
+
+/** The one accent — `#A8E8D3` (fill_a48f85b1). Primary actions, selection, kickers. */
+val FigmaAccent = Color(0xFFA8E8D3)
+/** Ink on a mint surface — `#0A2622` (fill_fd78fd65). */
+val FigmaOnAccent = Color(0xFF0A2622)
+/** A deep mint-tinted container — `#163D36` (fill_a3e883f4). */
+val FigmaAccentDark = Color(0xFF163D36)
+/** The active-tag hairline — `rgba(168, 232, 211, 0.3)`. */
+val FigmaAccentStroke = Color(0x4DA8E8D3)
+
+// ---- Surfaces --------------------------------------------------------------
+
+/** The solid raised surface — `#162630` (fill_fd05e050). Cards, search, sheets. */
+val FigmaSurface = Color(0xFF162630)
+/** The deeper inset surface — `#1C303A` (fill_23b8e791). Secondary buttons, wells. */
+val FigmaElevated = Color(0xFF1C303A)
+/** The translucent card sheet — `rgba(31, 53, 64, 0.79)` (fill_8b5bd4d4). */
+val FigmaCard = Color(0xC91F3540)
+/** The card / hairline stroke — `rgba(182, 217, 229, 0.12)` (fill_c3f102cb). */
+val FigmaStroke = Color(0x1FB6D9E5)
+/** A faint white fill for chips and header-action discs — `rgba(255,255,255,0.03)`. */
+val FigmaWash = Color(0x08FFFFFF)
+/** A progress / meter track — `rgba(255,255,255,0.07)` (fill_4f6956c5). */
+val FigmaTrack = Color(0x12FFFFFF)
+
+// ---- Semantic accents ------------------------------------------------------
+
+/** The warm "careful" tone — `#E9C997`. */
+val FigmaWarning = Color(0xFFE9C997)
+/** The habit heatmap fill — `#578E80`. */
+val FigmaHeatmap = Color(0xFF578E80)
+/** A softer heat tone — `#558D82`. */
+val FigmaHeatSoft = Color(0xFF558D82)
+/** The expense chart palette. */
+val FigmaExpensePlum = Color(0xFFC6C0F1)
+val FigmaExpenseSteel = Color(0xFF668396)
+val FigmaExpenseBlue = Color(0xFF7898AF)
+/** The diary paper gradients (the redesign's one light surface). */
+val FigmaPaperTop = Color(0xFFF4E8DF)
+val FigmaPaperBottom = Color(0xFFE6DFD9)
+/** The Android gesture handle — `#DAE7EC`. */
+val FigmaGestureHandle = Color(0xFFDAE7EC)
+/** The bottom navigation bar fill — `rgba(16, 32, 42, 0.94)`. */
+val FigmaBottomNav = Color(0xF010202A)

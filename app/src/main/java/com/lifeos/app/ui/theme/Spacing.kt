@@ -5,7 +5,19 @@ import androidx.compose.ui.unit.dp
 object LifeOSSpacing {
     val screenPadding = 24.dp
     val compactPadding = 16.dp
-    val sectionSpacing = 20.dp
+
+    /**
+     * Vertical gap between blocks of content on a scroll surface. The redesign's
+     * page rhythm is 18dp, so a stack of cards reads as a deliberate column
+     * rather than an arbitrary pile.
+     */
+    val sectionSpacing = 18.dp
+
+    /** Inner padding of a card / grouped panel — the redesign's 18dp card pad. */
+    val cardPadding = 18.dp
+
+    /** Gap between the rows inside one card. */
+    val cardGap = 12.dp
 
     /**
      * The base 4dp rhythm scale. New layouts snap to these steps so vertical
@@ -22,6 +34,23 @@ object LifeOSSpacing {
     val xxl = 32.dp
     val xxxl = 48.dp
     val huge = 64.dp
+
+    // ---- Chrome geometry (redesign) ---------------------------------------
+    //
+    // The page header, the status strip and the gesture area are stated once
+    // here and shared by every screen's chrome so the app's frame cannot drift
+    // from screen to screen.
+
+    /** The system status strip kept clear above the page (the design's 40dp). */
+    val statusStripHeight = 40.dp
+    /** The page-header band under the status strip (back / kicker+title / action). */
+    val pageHeaderHeight = 86.dp
+    /** The gesture area under the content (handle + breathing room). */
+    val gestureAreaHeight = 22.dp
+    /** The bottom navigation bar's own height. */
+    val bottomNavHeight = 84.dp
+    /** A 42x42 page-header action circle. */
+    val headerActionSize = 42.dp
 
     /**
      * Trailing clearance a scrollable reserves for a `Scaffold`-hosted FAB.
@@ -128,20 +157,6 @@ object LifeOSSpacing {
     /**
      * Minimum touch height of each half of the composer's date/time strip. It is
      * what sets the strip's whole height, so raising it raises the strip.
-     *
-     * This was 38dp — chosen in Phase 1 only to keep the strip as short as the
-     * 26dp-content row it replaced. Phase 5 raised it to the app's own
-     * [minTouchTarget], because these two halves are the *only* way to change a
-     * memory's date or time, and by this file's own standard a 38dp target is
-     * the same defect Phase 3 fixed on the add-tag control: a control the user
-     * can see and want to press, sized below the minimum.
-     *
-     * Cost: the strip is 10dp taller, so the writing surface gives up 10dp of
-     * its resting height. That is affordable because the surface is a
-     * `weight(1f)` share of the card and floors itself at 132dp, so it absorbs
-     * the loss without moving the card, the footer hairline or the pinned
-     * actions — and the date half already wraps to two lines at large font
-     * scales, where this floor was being exceeded anyway.
      */
     val diaryDateStripMinTouch = 48.dp
 }

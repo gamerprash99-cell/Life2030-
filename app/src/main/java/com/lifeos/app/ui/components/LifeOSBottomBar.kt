@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -55,17 +56,25 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.lifeos.app.ui.navigation.ROOT_TABS_GRAPH
 import com.lifeos.app.ui.navigation.Screen
+import com.lifeos.app.ui.theme.FigmaAccent
+import com.lifeos.app.ui.theme.FigmaBottomNav
+import com.lifeos.app.ui.theme.FigmaMuted
+import com.lifeos.app.ui.theme.FigmaOnAccent
+import com.lifeos.app.ui.theme.FigmaStroke
 import com.lifeos.app.ui.theme.LifeOSElevation
 import com.lifeos.app.ui.theme.LifeOSRadius
+import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
 
 /**
@@ -102,29 +111,26 @@ fun LifeOSBottomBar(navController: NavHostController) {
     // an overlay stacked above the tabs (Profile, Habit Detail, Expenses, …).
     val isOnTab = destination?.hierarchy?.any { it.route == ROOT_TABS_GRAPH } == true
 
-    val pillShape = RoundedCornerShape(LifeOSRadius.xlarge)
     // Index after which the raised centre action is inserted, so the bar reads
-    // Home · Notes · ＋ · Life · You.
+    // Home · Notes · ＋ · Insights · Life.
     val centerAfterIndex = bottomNavItems.size / 2 - 1
 
-    // Transparent outer slot: only the pill itself is painted, so it floats on
-    // the page background with margin from the screen edges.
-    Surface(color = Color.Transparent) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
-        ) {
+    // The redesign's nav is a full-width slate plate with a single 1px top
+    // hairline (not a floating pill): `rgba(16,32,42,0.94)` over the canvas.
+    Surface(color = FigmaBottomNav) {
+        Column(Modifier.fillMaxWidth()) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(FigmaStroke)
+            )
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .liquidGlass(
-                        shape = pillShape,
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.30f),
-                        elevation = 16.dp
-                    )
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .navigationBarsPadding()
+                    .height(LifeOSSpacing.bottomNavHeight)
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -160,7 +166,7 @@ fun LifeOSBottomBar(navController: NavHostController) {
     }
 }
 
-/** One tappable bottom-nav entry: stacked icon + label, with a pill when selected. */
+/** One tappable bottom-nav entry: the 40×30 icon plate over a 9px uppercase label. */
 @Composable
 private fun BottomNavEntry(
     item: BottomNavItem,
@@ -169,7 +175,7 @@ private fun BottomNavEntry(
     modifier: Modifier = Modifier
 ) {
     val contentColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        targetValue = if (selected) FigmaAccent else FigmaMuted,
         animationSpec = spring(stiffness = 500f),
         label = "bottomNavColor"
     )
@@ -180,35 +186,16 @@ private fun BottomNavEntry(
         animationSpec = spring(stiffness = 900f),
         label = "bottomNavPress"
     )
-    val entryShape = RoundedCornerShape(LifeOSRadius.large)
-
-    // The pill fades in and the icon lifts a touch when a tab becomes active, so
-    // selection reads as a movement rather than a jump between two stills.
-    //
-    // It stays SOLID clay, deliberately not the identity gradient: that is
-    // reserved for Capture, the hero and the AI orb so it keeps meaning "this is
-    // LifeOS". Solid clay also holds the label at 5.4:1, where the gradient's
-    // gold end would drop white text under 4.5:1.
-    val pillColor by animateColorAsState(
-        targetValue = when {
-            selected -> MaterialTheme.colorScheme.primary
-            pressed -> MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-            else -> Color.Transparent
-        },
+    // The selected destination wears the mint plate; unselected ones are bare.
+    val plateColor by animateColorAsState(
+        targetValue = if (selected) FigmaAccent.copy(alpha = 0.14f) else Color.Transparent,
         animationSpec = spring(stiffness = 500f),
-        label = "bottomNavPill"
-    )
-    val iconScale by animateFloatAsState(
-        targetValue = if (selected) 1.1f else 1f,
-        animationSpec = spring(stiffness = 600f),
-        label = "bottomNavIconScale"
+        label = "bottomNavPlate"
     )
 
     Column(
         modifier = modifier
             .scale(pressedScale)
-            .clip(entryShape)
-            .background(pillColor)
             .semantics { this.role = Role.Tab; this.selected = selected }
             .clickable(
                 interactionSource = interaction,
@@ -216,21 +203,31 @@ private fun BottomNavEntry(
                 onClick = onClick
             )
             .defaultMinSize(minHeight = 56.dp)
-            .padding(horizontal = 4.dp, vertical = 8.dp),
+            .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(3.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Icon(
-            if (selected) item.selectedIcon else item.unselectedIcon,
-            contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier
-                .size(23.dp)
-                .scale(iconScale)
-        )
+        Box(
+            Modifier
+                .size(width = 40.dp, height = 30.dp)
+                .clip(RoundedCornerShape(15.dp))
+                .background(plateColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                if (selected) item.selectedIcon else item.unselectedIcon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(20.dp)
+            )
+        }
         Text(
-            item.label,
-            style = MaterialTheme.typography.labelMedium,
+            item.label.uppercase(),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 9.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.6.sp
+            ),
             color = contentColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -241,62 +238,29 @@ private fun BottomNavEntry(
 }
 
 /**
- * The raised centre action. A lit gradient disc, sized like a tab slot so it
- * lines up with the surrounding labels, opening the full-screen Capture hub.
- * Kept out of [bottomNavItems] on purpose: it navigates rather than selects.
+ * The centre action. A flat **mint** 50×42 plate (radius 15) with dark on-accent
+ * ink, opening the full-screen Capture hub. Kept out of [bottomNavItems] on
+ * purpose: it navigates rather than selects.
  */
 @Composable
 private fun CaptureCenterButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val pressedScale by animateFloatAsState(
-        targetValue = if (pressed) 0.9f else 1f,
+        targetValue = if (pressed) 0.94f else 1f,
         animationSpec = spring(stiffness = 900f),
         label = "captureCenterPress"
-    )
-    // A slow, calm breath, so the app's one primary action invites a tap instead
-    // of sitting dead still. It fades out as it expands, which reads as a soft
-    // pulse rather than a flicker.
-    val breathTransition = rememberInfiniteTransition(label = "captureBreath")
-    val breath by breathTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "captureBreathLevel"
     )
     Box(
         modifier = modifier.defaultMinSize(minHeight = 56.dp),
         contentAlignment = Alignment.Center
     ) {
-        // The halo sits behind the disc and never receives the tap.
         Box(
             Modifier
-                .size(52.dp)
-                .graphicsLayer {
-                    val s = 1f + 0.45f * breath
-                    scaleX = s
-                    scaleY = s
-                    alpha = 0.40f * (1f - breath)
-                }
-                .clip(CircleShape)
-                .background(prismBrush())
-        )
-        Box(
-            Modifier
-                .size(52.dp)
+                .size(width = 50.dp, height = 42.dp)
                 .scale(pressedScale)
-                .shadow(
-                    elevation = LifeOSElevation.floating,
-                    shape = CircleShape,
-                    clip = false,
-                    ambientColor = LocalLifeOSSemanticColors.current.shadow.copy(alpha = LifeOSElevation.shadowAlphaRest),
-                    spotColor = LocalLifeOSSemanticColors.current.shadow.copy(alpha = LifeOSElevation.shadowAlphaLift)
-                )
-                .clip(CircleShape)
-                .background(prismBrush())
+                .clip(RoundedCornerShape(15.dp))
+                .background(FigmaAccent)
                 .semantics {
                     role = Role.Button
                     contentDescription = "Open capture"
@@ -307,8 +271,8 @@ private fun CaptureCenterButton(onClick: () -> Unit, modifier: Modifier = Modifi
             Icon(
                 Icons.Filled.Add,
                 contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(28.dp)
+                tint = FigmaOnAccent,
+                modifier = Modifier.size(22.dp)
             )
         }
     }

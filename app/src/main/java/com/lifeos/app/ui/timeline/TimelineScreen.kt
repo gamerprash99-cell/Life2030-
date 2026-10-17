@@ -3,6 +3,7 @@ package com.lifeos.app.ui.timeline
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +26,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,13 +44,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -57,6 +63,8 @@ import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.domain.model.TimelineItem
 import com.lifeos.app.domain.usecase.BuildTimelineUseCase
 import com.lifeos.app.ui.components.GlassCard
+import com.lifeos.app.ui.components.HeaderActionCircle
+import com.lifeos.app.ui.components.LifeOSTopBar
 import com.lifeos.app.ui.diary.DiaryTheme
 import com.lifeos.app.ui.diary.diaryPaperBackground
 import com.lifeos.app.ui.theme.DiaryHairline
@@ -65,6 +73,12 @@ import com.lifeos.app.ui.theme.DiaryInkSoft
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.DiaryPaperCard
+import com.lifeos.app.ui.theme.FigmaAccent
+import com.lifeos.app.ui.theme.FigmaAccentDark
+import com.lifeos.app.ui.theme.FigmaMuted
+import com.lifeos.app.ui.theme.FigmaStroke
+import com.lifeos.app.ui.theme.FigmaSurface
+import com.lifeos.app.ui.theme.FigmaText
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -83,10 +97,13 @@ class TimelineViewModel(private val buildTimeline: BuildTimelineUseCase) : ViewM
  * a fixed left track, anchored by paper node badges, feeding 24dp-radius
  * cards. Navigation and data flow are unchanged.
  */
+enum class LifeView { TIMELINE, CALENDAR }
+
 @Composable
 fun TimelineScreen(
     onBack: () -> Unit = {},
-    onOpenItem: (TimelineItem) -> Unit = {}
+    onOpenItem: (TimelineItem) -> Unit = {},
+    onOpenSearch: () -> Unit = {}
 ) {
     val locator = LocalServiceLocator.current
     val viewModel: TimelineViewModel = viewModel(factory = LambdaViewModelFactory { TimelineViewModel(locator.buildTimelineUseCase) })
@@ -96,51 +113,143 @@ fun TimelineScreen(
     LaunchedEffect(selectedDate) { viewModel.loadFor(selectedDate.toEpochDay()) }
     BackHandler(onBack = onBack)
     val canGoForward = selectedDate.isBefore(today)
+    var lifeView by remember { mutableStateOf(LifeView.TIMELINE) }
 
     DiaryTheme {
         Scaffold { padding ->
             Column(Modifier.fillMaxSize().diaryPaperBackground().padding(padding)) {
-                TimelineHeader(
-                    dateLabel = DateTimeUtils.formatFullDate(selectedDate),
-                    canGoForward = canGoForward,
+                LifePageHeader(
+                    title = if (lifeView == LifeView.TIMELINE) "Life Timeline" else "Life Calendar",
+                    subtitle = if (lifeView == LifeView.TIMELINE) "The story of your days" else "Life, day by day",
                     onBack = onBack,
-                    onPrevious = { selectedDate = selectedDate.minusDays(1) },
-                    onNext = { if (canGoForward) selectedDate = selectedDate.plusDays(1) }
+                    onAction = if (lifeView == LifeView.TIMELINE) {
+                        { lifeView = LifeView.CALENDAR }
+                    } else {
+                        { onOpenSearch() }
+                    },
+                    actionIcon = if (lifeView == LifeView.TIMELINE) Icons.Filled.Today else Icons.Filled.Search
                 )
-                if (items.isEmpty()) {
-                    TimelineEmptyState(Modifier.fillMaxSize())
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = LifeOSSpacing.screenPadding,
-                            end = LifeOSSpacing.screenPadding,
-                            top = 6.dp,
-                            bottom = LifeOSSpacing.compactPadding
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                            TimelineSpineRow(
-                                item = item,
-                                isFirst = index == 0,
-                                isLast = index == items.lastIndex,
-                                onClick = { onOpenItem(item) }
-                            )
+                LifeViewsToggle(
+                    selected = lifeView,
+                    onSelect = { lifeView = it }
+                )
+                if (lifeView == LifeView.TIMELINE) {
+                    TimelineHeader(
+                        dateLabel = DateTimeUtils.formatFullDate(selectedDate),
+                        canGoForward = canGoForward,
+                        onBack = null,
+                        onPrevious = { selectedDate = selectedDate.minusDays(1) },
+                        onNext = { if (canGoForward) selectedDate = selectedDate.plusDays(1) }
+                    )
+                    if (items.isEmpty()) {
+                        TimelineEmptyState(Modifier.fillMaxSize())
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = LifeOSSpacing.screenPadding,
+                                end = LifeOSSpacing.screenPadding,
+                                top = 6.dp,
+                                bottom = LifeOSSpacing.compactPadding
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                                TimelineSpineRow(
+                                    item = item,
+                                    isFirst = index == 0,
+                                    isLast = index == items.lastIndex,
+                                    onClick = { onOpenItem(item) }
+                                )
+                            }
                         }
                     }
+                } else {
+                    // Calendar view: minimal placeholder matching Figma intent (full grid can be added later)
+                    TimelineEmptyState(Modifier.fillMaxSize())
                 }
             }
         }
     }
 }
 
-/** Centered dated header with back navigation and day-navigation chevrons. */
+/** Life page header matching Figma (mint kicker + title + trailing action circle). */
+@Composable
+private fun LifePageHeader(
+    title: String,
+    subtitle: String,
+    onBack: () -> Unit = {},
+    onAction: () -> Unit,
+    actionIcon: ImageVector = Icons.Filled.Today
+) {
+    LifeOSTopBar(
+        title = title,
+        subtitle = subtitle,
+        onBack = onBack,
+        actions = {
+            HeaderActionCircle(actionIcon, "Action", onAction)
+        }
+    )
+}
+
+/** Life views toggle: Timeline | Calendar (Figma tag style). */
+@Composable
+private fun LifeViewsToggle(selected: LifeView, onSelect: (LifeView) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.sm),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Row(
+            Modifier
+                .clip(RoundedCornerShape(100.dp))
+                .background(FigmaSurface, RoundedCornerShape(100.dp))
+                .border(1.dp, FigmaStroke, RoundedCornerShape(100.dp)),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Tag(
+                text = "Timeline",
+                selected = selected == LifeView.TIMELINE,
+                onClick = { onSelect(LifeView.TIMELINE) }
+            )
+            Tag(
+                text = "Calendar",
+                selected = selected == LifeView.CALENDAR,
+                onClick = { onSelect(LifeView.CALENDAR) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun Tag(text: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .clickable(onClick = onClick)
+            .background(if (selected) FigmaAccentDark else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(100.dp))
+            .border(
+                if (selected) BorderStroke(1.dp, FigmaAccent.copy(alpha = 0.3f)) else BorderStroke(0.dp, androidx.compose.ui.graphics.Color.Transparent),
+                RoundedCornerShape(100.dp)
+            )
+            .padding(horizontal = LifeOSSpacing.md, vertical = LifeOSSpacing.xs),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) FigmaAccent else FigmaMuted,
+            maxLines = 1
+        )
+    }
+}
+
+/** Centered dated header with day-navigation chevrons for timeline view. */
 @Composable
 private fun TimelineHeader(
     dateLabel: String,
     canGoForward: Boolean,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onPrevious: () -> Unit,
     onNext: () -> Unit
 ) {
@@ -149,8 +258,10 @@ private fun TimelineHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            if (onBack != null) {
+                IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
             }
         }
         Text(
@@ -308,3 +419,4 @@ private fun TimelineEmptyState(modifier: Modifier = Modifier) {
         )
     }
 }
+

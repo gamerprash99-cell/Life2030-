@@ -91,7 +91,10 @@ class SettingsStore(private val context: Context) {
         private const val MAX_LOCKOUT_MS = 16 * 60 * 1000L
     }
 
-    val darkThemeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DARK_THEME_ENABLED] ?: false }
+    // The LifeOS 2030 redesign is a dark-first system: the reference frames are
+    // all rendered on the deep teal/navy canvas, so a fresh install opens dark.
+    // A user's explicit choice still wins (the key is only read as a default).
+    val darkThemeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DARK_THEME_ENABLED] ?: true }
     val onboardingComplete: Flow<Boolean> = context.dataStore.data.map { it[Keys.ONBOARDING_COMPLETE] ?: false }
     val autoLockEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_LOCK_ENABLED] ?: true }
     val remindersEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.REMINDERS_ENABLED] ?: true }

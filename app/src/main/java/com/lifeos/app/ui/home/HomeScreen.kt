@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
@@ -56,15 +58,21 @@ import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.data.db.entities.TaskEntity
 import com.lifeos.app.domain.usecase.HabitSummaryRow
 import com.lifeos.app.domain.usecase.HomeSummary
+import com.lifeos.app.ui.components.HeaderActionCircle
 import com.lifeos.app.ui.components.LifeOSBanner
 import com.lifeos.app.ui.components.LifeOSHeroCard
 import com.lifeos.app.ui.components.LifeOSIconButton
 import com.lifeos.app.ui.components.LifeOSPill
+import com.lifeos.app.ui.components.LifeOSSearchBar
 import com.lifeos.app.ui.components.LifeOSSurface
 import com.lifeos.app.ui.components.LifeOSWeeklyRhythm
 import com.lifeos.app.ui.components.ProfileAvatar
 import com.lifeos.app.ui.components.liquidGlass
 import com.lifeos.app.ui.components.prismBrush
+import com.lifeos.app.ui.theme.FigmaAccent
+import com.lifeos.app.ui.theme.FigmaMuted
+import com.lifeos.app.ui.theme.FigmaText
+import com.lifeos.app.ui.theme.FigmaTrack
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
@@ -110,6 +118,15 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
     ) {
         item { HomeHeader(summary, onOpenSearch, onOpenProfile) }
+
+        item {
+            LifeOSSearchBar(
+                value = "",
+                onValueChange = {},
+                onClick = onOpenSearch,
+                placeholder = "Search your life…"
+            )
+        }
 
         item { DailyUpdateHero(summary) }
 
@@ -245,22 +262,37 @@ fun HomeScreen(
 
 @Composable
 private fun HomeHeader(summary: HomeSummary?, onOpenSearch: () -> Unit, onOpenProfile: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    // The redesign's page header: a mint date kicker over the greeting, with the
+    // search and profile actions as the shared 42×42 circles.
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = LifeOSSpacing.pageHeaderHeight),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                (summary?.dateLabel ?: "").uppercase(),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp
+                ),
+                color = FigmaAccent,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
             Text(
                 summary?.greeting ?: "Hello",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                summary?.dateLabel ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, lineHeight = 28.sp),
+                color = FigmaText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
-        LifeOSIconButton(Icons.Filled.Search, contentDescription = "Search", onClick = onOpenSearch)
-        Spacer(Modifier.size(LifeOSSpacing.sm))
-        ProfileAvatar(size = 44.dp, onClick = onOpenProfile)
+        HeaderActionCircle(Icons.Filled.Search, "Search", onOpenSearch)
+        ProfileAvatar(size = 42.dp, onClick = onOpenProfile)
     }
 }
 
@@ -268,52 +300,64 @@ private fun HomeHeader(summary: HomeSummary?, onOpenSearch: () -> Unit, onOpenPr
 private fun DailyUpdateHero(summary: HomeSummary?) {
     val percent = summary?.dailyUpdatePercent ?: 0
     val progress by animateFloatAsState(percent / 100f, tween(600), label = "dailyUpdate")
-    val onSurface = MaterialTheme.colorScheme.onSurface
 
-    LifeOSHeroCard {
-        Column(verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-            Row(verticalAlignment = Alignment.Top) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    val tasksDone = summary?.tasksCompletedToday ?: 0
+    val tasksTotal = summary?.tasksTotalToday ?: 0
+    val habitsDone = summary?.habitsToday?.count { it.isDone } ?: 0
+    val habitsTotal = summary?.habitsToday?.size ?: 0
+    val summaryLine = if (tasksTotal == 0 && habitsTotal == 0) {
+        "Nothing scheduled yet — add a task or a habit to start."
+    } else {
+        "$tasksDone of $tasksTotal tasks · $habitsDone of $habitsTotal habits complete"
+    }
+
+    // The redesign's "Daily progress" card: a kicker, a promise, the big number,
+    // a slim mint track and one honest summary line. A standard card, not a
+    // gradient hero — mint is the only lit colour in the frame.
+    LifeOSSurface(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        (summary?.dayStatusLabel ?: "Day starting").uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = onSurface.copy(alpha = 0.85f)
+                        "TODAY, AT YOUR PACE",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.sp
+                        ),
+                        color = FigmaAccent
                     )
                     Text(
-                        "$percent%",
-                        style = MaterialTheme.typography.displayMedium,
-                        color = onSurface
-                    )
-                    Text(
-                        "of today's goals",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = onSurface.copy(alpha = 0.9f)
+                        "Small steps still count.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = FigmaMuted
                     )
                 }
-                BoltDisc()
+                Text(
+                    "$percent%",
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 26.sp, fontWeight = FontWeight.SemiBold),
+                    color = FigmaText
+                )
             }
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(LifeOSRadius.pill))
-                    .background(onSurface.copy(alpha = 0.08f))
+                    .height(5.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(FigmaTrack)
             ) {
                 Box(
                     Modifier
                         .fillMaxWidth(progress.coerceIn(0f, 1f))
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(LifeOSRadius.pill))
-                        .background(onSurface)
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(FigmaAccent)
                 )
             }
-            val done = (summary?.tasksCompletedToday ?: 0) + (summary?.habitsToday?.count { it.isDone } ?: 0)
-            val total = (summary?.tasksTotalToday ?: 0) + (summary?.habitsToday?.size ?: 0)
             Text(
-                if (total == 0) "Nothing scheduled yet — add a task or a habit to start."
-                else "$done of $total goals done today",
-                style = MaterialTheme.typography.bodySmall,
-                color = onSurface.copy(alpha = 0.9f)
+                summaryLine,
+                style = MaterialTheme.typography.labelSmall,
+                color = FigmaMuted
             )
         }
     }

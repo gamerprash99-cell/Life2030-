@@ -1,6 +1,8 @@
 package com.lifeos.app.ui.ai
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Lock
@@ -40,10 +41,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,9 +63,18 @@ import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.data.repository.TaskRepository
-import com.lifeos.app.ui.components.LifeOSBanner
-import com.lifeos.app.ui.components.LifeOSIconButton
-import com.lifeos.app.ui.components.prismBrush
+import com.lifeos.app.ui.components.LifeOSCard
+import com.lifeos.app.ui.components.LifeOSTopBar
+import com.lifeos.app.ui.theme.FigmaAccent
+import com.lifeos.app.ui.theme.FigmaAccentStroke
+import com.lifeos.app.ui.theme.FigmaCard
+import com.lifeos.app.ui.theme.FigmaOnAccent
+import com.lifeos.app.ui.theme.FigmaStroke
+import com.lifeos.app.ui.theme.FigmaSurface
+import com.lifeos.app.ui.theme.FigmaText
+import com.lifeos.app.ui.theme.FigmaTertiary
+import com.lifeos.app.ui.theme.FigmaTrack
+import com.lifeos.app.ui.theme.FigmaWash
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -269,46 +286,32 @@ fun AiAssistantScreen(
             .navigationBarsPadding()
             .imePadding()
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
-        ) {
-            LifeOSIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
-            Box(
-                Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(prismBrush()),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-            }
-            Column(Modifier.weight(1f)) {
-                Text("LifeOS AI", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
-                Text("On-device · private", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        LifeOSTopBar(
+            title = "LifeOS AI",
+            subtitle = "Helpful, on your terms",
+            onBack = onBack
+        )
 
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.sm),
-            verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
+            contentPadding = PaddingValues(
+                start = LifeOSSpacing.screenPadding,
+                end = LifeOSSpacing.screenPadding,
+                top = LifeOSSpacing.sm,
+                bottom = LifeOSSpacing.sm
+            ),
+            verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
         ) {
-            item {
-                LifeOSBanner(
-                    icon = Icons.Filled.Lock,
-                    text = "Answers are computed on this phone from your own records. Nothing is sent anywhere."
-                )
-            }
+            item { AssistantIntro() }
+            item { OnDeviceContextCard() }
             items(state.messages, key = { it.id }) { message -> MessageBubble(message, onAction = onAction) }
             if (state.thinking) {
                 item {
                     Text(
                         "Thinking…",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = FigmaTertiary,
                         modifier = Modifier.padding(start = LifeOSSpacing.sm)
                     )
                 }
@@ -320,18 +323,7 @@ fun AiAssistantScreen(
             horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm),
             contentPadding = PaddingValues(vertical = LifeOSSpacing.sm)
         ) {
-            items(starters) { starter ->
-                Text(
-                    starter,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(LifeOSRadius.pill))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
-                        .clickable { viewModel.ask(starter) }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                )
-            }
+            items(starters) { starter -> SuggestionTag(starter) { viewModel.ask(starter) } }
         }
 
         Row(
@@ -341,48 +333,145 @@ fun AiAssistantScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
         ) {
-            Box(
+            val composerShape = RoundedCornerShape(18.dp)
+            Row(
                 Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(LifeOSRadius.pill))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                    .padding(horizontal = LifeOSSpacing.lg, vertical = LifeOSSpacing.md)
+                    .clip(composerShape)
+                    .background(FigmaWash)
+                    .border(BorderStroke(1.dp, FigmaStroke), composerShape)
+                    .padding(horizontal = LifeOSSpacing.md, vertical = LifeOSSpacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
             ) {
-                if (input.isEmpty()) {
-                    Text("Ask about your life…", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = FigmaTertiary, modifier = Modifier.size(18.dp))
+                Box(Modifier.weight(1f)) {
+                    if (input.isEmpty()) {
+                        Text("Ask about your life…", style = MaterialTheme.typography.bodyLarge, color = FigmaTertiary)
+                    }
+                    BasicTextField(
+                        value = input,
+                        onValueChange = { input = it },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = FigmaText),
+                        cursorBrush = SolidColor(FigmaAccent),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-                BasicTextField(
-                    value = input,
-                    onValueChange = { input = it },
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
             Box(
                 Modifier
-                    .size(48.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (input.isBlank()) SolidColor(MaterialTheme.colorScheme.surfaceVariant)
-                        else prismBrush()
-                    )
+                    .background(if (input.isBlank()) FigmaTrack else FigmaAccent)
                     .clickable(enabled = input.isNotBlank()) {
                         viewModel.ask(input)
                         input = ""
+                    }
+                    .semantics {
+                        contentDescription = "Send question"
+                        role = Role.Button
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Send",
-                    tint = if (input.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else Color.White,
+                    contentDescription = null,
+                    tint = if (input.isBlank()) FigmaTertiary else FigmaOnAccent,
                     modifier = Modifier.size(20.dp)
                 )
             }
         }
     }
+}
+
+/**
+ * The assistant introduction from the frame: the 58dp mint-to-deep orb and the
+ * invitation copy. The orb is drawn with a real radial gradient of the redesign's
+ * mint into the surface, not an image asset.
+ */
+@Composable
+private fun AssistantIntro() {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            Modifier
+                .size(58.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(FigmaAccent, Color(0xFF5E9B8A), FigmaSurface),
+                        center = Offset(0.3f, 0.2f),
+                        radius = 340f
+                    )
+                )
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                "A little clarity?",
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 21.sp, fontWeight = FontWeight.Medium),
+                color = FigmaText
+            )
+            Text(
+                "Ask about the parts of life you choose to share.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = FigmaTertiary
+            )
+        }
+    }
+}
+
+/**
+ * The frame's context card, written honestly. The redesign shows a scope editor
+ * ("Selected modules · Notes, tasks & habits only"), but this build's assistant
+ * has no per-category consent model and in fact answers questions about spending
+ * and diary too — so the card states what is true: everything runs on-device over
+ * the user's own records, and nothing is uploaded.
+ */
+@Composable
+private fun OnDeviceContextCard() {
+    LifeOSCard(Modifier.fillMaxWidth(), tint = FigmaCard) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Icon(Icons.Filled.Lock, contentDescription = null, tint = FigmaAccent, modifier = Modifier.size(16.dp))
+                Text(
+                    "On-device assistant",
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                    color = FigmaText
+                )
+            }
+            Text(
+                "Answers are computed on this phone from your own tasks, habits, spending, diary and captured moments.",
+                style = MaterialTheme.typography.bodySmall,
+                color = FigmaTertiary
+            )
+            Text(
+                "Nothing is sent anywhere — no account, no API key, no upload.",
+                style = MaterialTheme.typography.bodySmall,
+                color = FigmaTertiary
+            )
+        }
+    }
+}
+
+/** A suggested-question tag: mint on the faint wash, matching the frame's pills. */
+@Composable
+private fun SuggestionTag(text: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(LifeOSRadius.pill)
+    Text(
+        text,
+        style = MaterialTheme.typography.labelMedium,
+        color = FigmaAccent,
+        modifier = Modifier
+            .clip(shape)
+            .background(FigmaAccent.copy(alpha = 0.12f))
+            .border(BorderStroke(1.dp, FigmaAccentStroke), shape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    )
 }
 
 @Composable
@@ -394,35 +483,35 @@ private fun MessageBubble(message: AiMessage, onAction: (AiAction) -> Unit) {
     ) {
         Column(
             Modifier
-                .fillMaxWidth(0.86f)
+                .fillMaxWidth(0.88f)
                 .clip(
                     RoundedCornerShape(
-                        topStart = LifeOSRadius.large,
-                        topEnd = LifeOSRadius.large,
-                        bottomStart = if (isUser) LifeOSRadius.large else LifeOSRadius.small,
-                        bottomEnd = if (isUser) LifeOSRadius.small else LifeOSRadius.large
+                        topStart = 20.dp,
+                        topEnd = 20.dp,
+                        bottomStart = if (isUser) 20.dp else 6.dp,
+                        bottomEnd = if (isUser) 6.dp else 20.dp
                     )
                 )
-                .background(
-                    if (isUser) prismBrush()
-                    else SolidColor(MaterialTheme.colorScheme.surface)
-                )
+                .background(if (isUser) FigmaAccent else FigmaCard)
                 .padding(LifeOSSpacing.lg),
             verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
         ) {
             Text(
                 message.text,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface
+                color = if (isUser) FigmaOnAccent else FigmaText
             )
             message.action?.let { action ->
                 Text(
                     action.label,
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (isUser) Color.White else MaterialTheme.colorScheme.primary,
+                    color = if (isUser) FigmaOnAccent else FigmaAccent,
                     modifier = Modifier
                         .clip(RoundedCornerShape(LifeOSRadius.pill))
-                        .background(if (isUser) Color.White.copy(alpha = 0.16f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
+                        .background(
+                            if (isUser) FigmaOnAccent.copy(alpha = 0.14f)
+                            else FigmaAccent.copy(alpha = 0.12f)
+                        )
                         .clickable { onAction(action) }
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 )

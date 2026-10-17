@@ -78,7 +78,7 @@ fun LifeOSSearchBar(
     onClick: (() -> Unit)? = null,
     leadingIcon: ImageVector = Icons.Filled.Search
 ) {
-    val shape = RoundedCornerShape(LifeOSRadius.pill)
+    val shape = RoundedCornerShape(LifeOSRadius.medium)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed && onClick != null) 0.985f else 1f, spring(stiffness = 800f), label = "searchPress")
