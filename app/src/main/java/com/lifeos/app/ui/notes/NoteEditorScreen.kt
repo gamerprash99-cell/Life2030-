@@ -265,18 +265,23 @@ fun NoteEditorScreen(
             .padding(horizontal = LifeOSSpacing.screenPadding)
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(vertical = LifeOSSpacing.md),
+            Modifier.fillMaxWidth().padding(top = LifeOSSpacing.md, bottom = LifeOSSpacing.lg),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
         ) {
             LifeOSIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = requestLeave)
-            Spacer(Modifier.weight(1f))
-            Text(
-                if (state.noteId == null) "New note" else "Editing",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.weight(1f))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    "SMART NOTES / PERSONAL",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    if (state.noteId == null) "New note" else "Edit note",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
             LifeOSPrimaryButton(
                 text = "Save",
                 onClick = viewModel::save,
@@ -284,16 +289,33 @@ fun NoteEditorScreen(
             )
         }
 
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = LifeOSSpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                if (state.loading) "Loading note…" else if (viewModel.hasUnsavedChanges()) "Unsaved changes" else "Saved on this device",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text("• On device", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        }
+
         BasicTextField(
             value = state.title,
             onValueChange = viewModel::onTitleChange,
-            textStyle = MaterialTheme.typography.headlineLarge.copy(color = MaterialTheme.colorScheme.onBackground),
+            textStyle = MaterialTheme.typography.headlineMedium.copy(color = MaterialTheme.colorScheme.onBackground),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             modifier = Modifier.fillMaxWidth(),
             decorationBox = { inner ->
                 Box {
                     if (state.title.isEmpty()) {
-                        Text("Title", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                        Text(
+                            "A title for this thought",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                        )
                     }
                     inner()
                 }
@@ -301,33 +323,42 @@ fun NoteEditorScreen(
         )
         Spacer(Modifier.height(LifeOSSpacing.md))
 
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)) {
-            if (state.tags.isNotEmpty()) {
-                LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)) {
-                    items(state.tags, key = { it }) { tag ->
-                        Row(
-                            Modifier
-                                .clip(RoundedCornerShape(LifeOSRadius.pill))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                                .clickable { viewModel.removeTag(tag) }
-                                .padding(horizontal = 10.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text("#$tag", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                            Text("×", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                        }
+        if (state.tags.isNotEmpty()) {
+            LazyRow(
+                Modifier.fillMaxWidth().padding(bottom = LifeOSSpacing.md),
+                horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
+            ) {
+                items(state.tags, key = { it }) { tag ->
+                    Row(
+                        Modifier
+                            .clip(RoundedCornerShape(LifeOSRadius.pill))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                            .clickable { viewModel.removeTag(tag) }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("#$tag", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Text("×", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     }
                 }
-            } else Spacer(Modifier.weight(1f))
+            }
         }
-        Spacer(Modifier.height(LifeOSSpacing.sm))
 
-        Box(
+        Column(
             Modifier
                 .fillMaxWidth()
                 .weight(1f)
+                .clip(RoundedCornerShape(22.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f))
+                .padding(LifeOSSpacing.md)
         ) {
+            Text(
+                "YOUR NOTE",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(LifeOSSpacing.sm))
             BasicTextField(
                 value = state.content,
                 onValueChange = viewModel::onContentChange,
@@ -338,9 +369,9 @@ fun NoteEditorScreen(
                     Box {
                         if (state.content.isEmpty()) {
                             Text(
-                                "Start writing…",
+                                "Start writing… Your notes stay on this device.",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
                         }
                         inner()
