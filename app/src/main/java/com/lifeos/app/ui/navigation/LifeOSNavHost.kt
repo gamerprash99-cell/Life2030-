@@ -177,13 +177,19 @@ fun LifeOSNavHost() {
                         )
                     }
                     composable(Screen.Life.route) {
-                        LifeScreen(
-                            onOpenTimeline = { navController.navigate(Screen.Timeline.route) { launchSingleTop = true } },
-                            onOpenSearch = { navController.navigate(Screen.GlobalSearch.route) { launchSingleTop = true } },
-                            onOpenDiary = { navController.navigate(Screen.Diary.route) { launchSingleTop = true } },
-                            onOpenTasks = { navController.navigate(Screen.Tasks.route) { launchSingleTop = true } },
-                            onOpenHabits = { navController.navigate(Screen.Habits.route) { launchSingleTop = true } },
-                            onOpenExpenses = { navController.navigate(Screen.Expenses.route) { launchSingleTop = true } }
+                        com.lifeos.app.ui.timeline.TimelineScreen(
+                            onBack = { navController.popBackStack(ROOT_TABS_GRAPH, inclusive = false) },
+                            onOpenItem = { item ->
+                                val route = when (item.type) {
+                                    com.lifeos.app.domain.model.TimelineItemType.DIARY -> Screen.DiaryDetail.createRoute(item.sourceId)
+                                    com.lifeos.app.domain.model.TimelineItemType.TASK_COMPLETED -> Screen.Tasks.route
+                                    com.lifeos.app.domain.model.TimelineItemType.HABIT_COMPLETED -> Screen.Habits.route
+                                    com.lifeos.app.domain.model.TimelineItemType.EXPENSE -> Screen.Expenses.route
+                                    com.lifeos.app.domain.model.TimelineItemType.SNAP -> Screen.SnapView.createRoute(item.sourceId)
+                                }
+                                navController.navigate(route) { launchSingleTop = true }
+                            },
+                            onOpenSearch = { navController.navigate(Screen.GlobalSearch.route) { launchSingleTop = true } }
                         )
                     }
 
@@ -370,7 +376,8 @@ fun LifeOSNavHost() {
                                     Screen.SnapView.createRoute(item.sourceId)
                             }
                             navController.navigate(route) { launchSingleTop = true }
-                        }
+                        },
+                        onOpenSearch = { navController.navigate(Screen.GlobalSearch.route) { launchSingleTop = true } }
                     )
                 }
                 composable(Screen.Settings.route) {

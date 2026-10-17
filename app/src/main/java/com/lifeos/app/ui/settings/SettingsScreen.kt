@@ -4,24 +4,36 @@ import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,15 +47,21 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
@@ -63,13 +81,24 @@ import com.lifeos.app.core.util.SettingsStore
 import com.lifeos.app.core.util.rememberPermissionState
 import com.lifeos.app.data.repository.BackupRepository
 import com.lifeos.app.ui.components.LifeOSCard
+import com.lifeos.app.ui.components.LifeOSPrimaryButton
 import com.lifeos.app.ui.components.LifeOSSectionHeader
 import com.lifeos.app.ui.components.LifeOSTopBar
-import com.lifeos.app.ui.theme.LifeOSAccentLavender
+import com.lifeos.app.ui.theme.FigmaAccent
+import com.lifeos.app.ui.theme.FigmaCard
+import com.lifeos.app.ui.theme.FigmaOnAccent
+import com.lifeos.app.ui.theme.FigmaStroke
+import com.lifeos.app.ui.theme.FigmaText
+import com.lifeos.app.ui.theme.FigmaTertiary
+import com.lifeos.app.ui.theme.FigmaTrack
+import com.lifeos.app.ui.theme.FigmaWarning
+import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class SettingsViewModel(
@@ -173,57 +202,51 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit, onBack: () -> Unit = {}) {
     Scaffold { padding ->
         Column(
             Modifier.fillMaxWidth().padding(padding).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
         ) {
-            LifeOSTopBar("Settings & Security", "Preferences, authentication and local privacy", onBack = onBack)
-            Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                LifeOSCard(Modifier.fillMaxWidth(), tint = LifeOSAccentLavender) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(18.dp)) {
-                            Icon(Icons.Filled.PrivacyTip, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(12.dp))
-                        }
-                        Column(Modifier.padding(start = 12.dp)) {
-                            Text("Zero cloud telemetry", style = MaterialTheme.typography.titleMedium)
-                            Text("LifeOS data stays on your device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
+            LifeOSTopBar(
+                title = "Your space, protected",
+                subtitle = "Settings / Your life. Your data.",
+                onBack = onBack
+            )
+            Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)) {
+                StoredOnDeviceCard()
 
-                LifeOSSectionHeader("Security")
-                SettingsRow(
-                    Icons.Filled.Lock,
-                    "App Lock",
-                    if (appLockType == AppLockType.PIN) "Secure LifeOS PIN" else "Off",
-                    onOpenAppLockSetup
-                )
-                LifeOSCard(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SettingsIcon(Icons.Filled.Lock)
-                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text("Auto-lock", style = MaterialTheme.typography.titleMedium)
-                            Text("Require your PIN after LifeOS sits in the background.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Switch(
-                            checked = autoLockEnabled,
-                            onCheckedChange = vm::setAutoLockEnabled,
-                            enabled = appLockType == AppLockType.PIN
+                LifeOSSectionHeader("Security & privacy")
+                LifeOSCard(Modifier.fillMaxWidth(), tint = FigmaCard) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        SettingsRow(
+                            icon = Icons.Filled.Lock,
+                            title = "App lock",
+                            subtitle = if (appLockType == AppLockType.PIN) "PIN required to open LifeOS" else "Off · tap to set a PIN",
+                            onClick = onOpenAppLockSetup
+                        )
+                        SettingsRow(
+                            icon = Icons.Filled.Lock,
+                            title = "Auto-lock",
+                            subtitle = "Require your PIN after LifeOS sits in the background.",
+                            trail = {
+                                Switch(
+                                    checked = autoLockEnabled,
+                                    onCheckedChange = vm::setAutoLockEnabled,
+                                    enabled = appLockType == AppLockType.PIN
+                                )
+                            }
                         )
                     }
                 }
 
                 LifeOSSectionHeader("Appearance")
-                LifeOSCard(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SettingsIcon(Icons.Filled.Palette)
-                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text("Slate Night", style = MaterialTheme.typography.titleMedium)
-                            Text(if (darkTheme) "Dark theme enabled" else "Lavender Day Calm", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Switch(checked = darkTheme, onCheckedChange = vm::setDarkThemeEnabled)
-                    }
+                LifeOSCard(Modifier.fillMaxWidth(), tint = FigmaCard) {
+                    SettingsRow(
+                        icon = Icons.Filled.Palette,
+                        title = "Slate Night",
+                        subtitle = if (darkTheme) "Dark theme enabled" else "Lavender Day Calm",
+                        trail = { Switch(checked = darkTheme, onCheckedChange = vm::setDarkThemeEnabled) }
+                    )
                 }
 
-                LifeOSSectionHeader("Notifications / Reminders")
+                LifeOSSectionHeader("Notifications & automation")
                 RemindersCard(enabled = remindersEnabled, onToggle = vm::setRemindersEnabled)
                 ExactAlarmsRemindersRow()
                 AutoCaptureCard(
@@ -235,55 +258,226 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit, onBack: () -> Unit = {}) {
                     }
                 )
 
-                LifeOSSectionHeader("Backup & Local Storage")
-                LifeOSCard(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            SettingsIcon(Icons.Filled.Backup)
-                            Column(Modifier.padding(start = 12.dp)) {
-                                Text("LifeOS snapshot", style = MaterialTheme.typography.titleMedium)
-                                Text("Export and restore through Android Storage Access Framework.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                        Button(onClick = { vm.exportBackup(context.filesDir) }, modifier = Modifier.fillMaxWidth()) { Text("Export LifeOS backup") }
-                        TextButton(onClick = { restoreLauncher.launch(arrayOf("application/json")) }, modifier = Modifier.fillMaxWidth()) { Text("Restore LifeOS backup") }
-                        if (exported != null) {
-                            TextButton(onClick = {
-                                val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", exported!!)
-                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "application/json"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, "Share LifeOS backup"))
-                            }, modifier = Modifier.fillMaxWidth()) { Text("Share exported backup") }
-                        }
-                        Text("Exports are plaintext JSON — only share them with people you trust. Restores are validated against the current format.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                LifeOSSectionHeader("Backup & restore", if (exported != null) "Snapshot ready" else "No backup yet")
+                BackupRestoreCard(
+                    status = status,
+                    backupFile = exported,
+                    onCreate = { vm.exportBackup(context.filesDir) },
+                    onRestore = { restoreLauncher.launch(arrayOf("application/json")) },
+                    onShare = { file ->
+                        val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                        context.startActivity(
+                            Intent.createChooser(
+                                Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/json"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                },
+                                "Share LifeOS backup"
+                            )
+                        )
                     }
-                }
+                )
+                BackupWarningCard()
 
                 LifeOSSectionHeader("About")
-                Text("LifeOS · Offline-first · Private by default", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 18.dp))
+                Text(
+                    "LifeOS ${BuildConfig.VERSION_NAME} · Offline-first · Private by default",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = FigmaTertiary,
+                    modifier = Modifier.padding(bottom = 18.dp)
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SettingsRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onClick: (() -> Unit)? = null) {
-    LifeOSCard(Modifier.fillMaxWidth(), onClick = onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SettingsIcon(icon)
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (onClick != null) Text("›", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun SettingsRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: (() -> Unit)? = null,
+    trail: (@Composable () -> Unit)? = null
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .then(
+                if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        SettingsIcon(icon)
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                color = FigmaText
+            )
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = FigmaTertiary)
+        }
+        when {
+            trail != null -> trail()
+            onClick != null -> Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = FigmaTertiary,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
 
+/** The 42dp feature plate: a faint wash, radius 14, mint glyph. */
 @Composable
-private fun SettingsIcon(icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Box(Modifier.background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(14.dp)).padding(10.dp)) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+private fun SettingsIcon(icon: ImageVector) {
+    Box(
+        Modifier
+            .size(42.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(FigmaTrack),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = FigmaAccent, modifier = Modifier.size(20.dp))
     }
+}
+
+/**
+ * STORED ON THIS DEVICE — the Figma storage card. The size is a real walk of the
+ * app's own internal directories (databases, files, preferences), measured off
+ * the main thread. The redesign's usage *bar* is deliberately not drawn: there is
+ * no honest per-app capacity to fill to, and a made-up denominator would be a
+ * decoration pretending to be a measurement.
+ */
+@Composable
+private fun StoredOnDeviceCard() {
+    val context = LocalContext.current
+    val sizeBytes by produceState<Long?>(initialValue = null) {
+        value = withContext(Dispatchers.IO) { internalDataSize(context) }
+    }
+    LifeOSCard(Modifier.fillMaxWidth(), tint = FigmaCard) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Icon(Icons.Filled.Storage, contentDescription = null, tint = FigmaTertiary, modifier = Modifier.size(16.dp))
+                Text(
+                    "Stored on this device",
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                    color = FigmaText
+                )
+            }
+            Text(
+                sizeBytes?.let(::formatBytes) ?: "Measuring…",
+                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 26.sp, fontWeight = FontWeight.Medium),
+                color = FigmaAccent
+            )
+            Text("Internal app storage · databases, files and preferences", style = MaterialTheme.typography.bodySmall, color = FigmaTertiary)
+            Text("No automatic uploads · Core features work offline", style = MaterialTheme.typography.bodySmall, color = FigmaTertiary)
+        }
+    }
+}
+
+/**
+ * BACKUP & RESTORE — the Figma card. "Create backup" runs the existing export,
+ * "Restore backup" opens the existing Storage Access Framework picker, and the
+ * share row appears only once a snapshot exists. The wording keeps the app's
+ * honest "plaintext JSON" caveat rather than the frame's "password-protected",
+ * which this build does not provide.
+ */
+@Composable
+private fun BackupRestoreCard(
+    status: String?,
+    backupFile: File?,
+    onCreate: () -> Unit,
+    onRestore: () -> Unit,
+    onShare: (File) -> Unit
+) {
+    LifeOSCard(Modifier.fillMaxWidth(), tint = FigmaCard) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(
+                "Keep a copy of your records, media and settings somewhere safe. Exports are plaintext JSON — only share them with people you trust.",
+                style = MaterialTheme.typography.bodySmall,
+                color = FigmaTertiary
+            )
+            LifeOSPrimaryButton(
+                text = "Create backup",
+                icon = Icons.Filled.Backup,
+                onClick = onCreate,
+                modifier = Modifier.fillMaxWidth()
+            )
+            SettingsRow(
+                icon = Icons.Filled.Restore,
+                title = "Restore backup",
+                subtitle = "Choose a LifeOS backup file · reviewed before replacing",
+                onClick = onRestore
+            )
+            if (backupFile != null) {
+                SettingsRow(
+                    icon = Icons.Filled.Backup,
+                    title = "Share exported backup",
+                    subtitle = "Send the last snapshot to another app",
+                    onClick = { onShare(backupFile) }
+                )
+            }
+            Text(
+                "Restores are validated against the current format before anything is replaced.",
+                style = MaterialTheme.typography.bodySmall,
+                color = FigmaTertiary
+            )
+            status?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = FigmaAccent)
+            }
+        }
+    }
+}
+
+/** The Figma warning note, in the amber the frame uses, with its local-data caveat. */
+@Composable
+private fun BackupWarningCard() {
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(FigmaWarning.copy(alpha = 0.05f))
+            .border(BorderStroke(1.dp, FigmaWarning.copy(alpha = 0.16f)), shape)
+            .padding(17.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Icons.Filled.Warning, contentDescription = null, tint = FigmaWarning, modifier = Modifier.size(16.dp))
+            Text(
+                "Local doesn't mean loss-proof.",
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                color = FigmaWarning
+            )
+        }
+        Text(
+            "Device loss, failure, factory reset or uninstall can erase local data. Save a backup outside this device.",
+            style = MaterialTheme.typography.bodySmall,
+            color = FigmaTertiary
+        )
+    }
+}
+
+/** Recursively sums a directory tree, tolerating anything unreadable. */
+private fun internalDataSize(context: android.content.Context): Long {
+    fun dirSize(dir: File?): Long =
+        if (dir == null || !dir.exists()) 0L
+        else dir.walkBottomUp().filter { it.isFile }.sumOf { it.length() }
+    val parent = context.filesDir.parentFile
+    return dirSize(context.filesDir) +
+        dirSize(parent?.let { File(it, "databases") }) +
+        dirSize(parent?.let { File(it, "shared_prefs") })
+}
+
+/** Human-readable byte size, using binary units. */
+private fun formatBytes(bytes: Long): String = when {
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024L * 1024 -> "%.0f KB".format(bytes / 1024.0)
+    bytes < 1024L * 1024 * 1024 -> "%.1f MB".format(bytes / (1024.0 * 1024))
+    else -> "%.2f GB".format(bytes / (1024.0 * 1024 * 1024))
 }
 
 @Composable

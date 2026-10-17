@@ -160,3 +160,194 @@ data was touched; no permission or network path was added.
 - The navigation-graph question of whether tapping an *unvisited* root tab from a
   stacked module should clear the module (currently it stacks the tab above it).
 - Dead-code reachability inventory (audit P2).
+
+## 2026-10-16 — Figma design-system integration (Welcome + Home + foundation)
+
+Scope: a **foundation + first-screens** slice of the supplied Figma redesign
+(file `ehSpxDfVot6SgPIdd2Tvf4`, "Page 1", 15 frames). Token values were changed
+while token **names** were kept, so every existing screen, component, ViewModel
+and data layer continues to compile and behave. No Room schema, migration,
+entity, repository contract, user data, permission, or network path was touched;
+no cloud/AI/telemetry/analytics dependency was introduced.
+
+### What Figma supplied
+- 15 target frames: Welcome, Home, Smart Notes, Note detail, Tasks, Habits,
+  Expenses, Quick Capture, Diary, Life Timeline, Life Calendar, Life Insights,
+  LifeOS AI, AI privacy controls, Settings.
+- An exact dark palette (`#0B141C`/`#162630`/`#1C303A` surfaces, `#A8E8D3`
+  accent, `#162630` on-accent, `#F2F7F7` text, `#1F3540` card, `rgba(182,217,229,
+  0.12)` strokes), Inter typography, and a precise metric spec (frame 412, radius
+  30, status 40, header 86, content pad `12/24/24` gap 18, card pad 18 radius 22,
+  actions 52h radius 16, bottom nav 84h, gesture area 22h).
+
+### Foundation (token + chrome) changes
+- `Color.kt`: appended the exact Figma palette as `Figma*` tokens (`FigmaCanvas*`,
+  `FigmaText/Muted/Tertiary/Accent/OnAccent/AccentDark/Surface/Elevated/Card/
+  Stroke/Wash/Track`, warning/heatmap/expense/paper/gesture/nav values). Kept
+  existing token names so all call-sites still resolve. Retuned the `Prism`
+  brush to teal/mint.
+- `Theme.kt`: `DarkColors` is now Figma-exact (primary `FigmaAccent`, onPrimary
+  `FigmaOnAccent`, background `FigmaCanvasMid`, surface `FigmaSurface`,
+  surfaceVariant `FigmaElevated`, outlineVariant `FigmaStroke`). `LightColors`
+  is a matching light adaptation. Dark `GlassColors` = Figma card
+  (`surface=FigmaCard`, `border=FigmaStroke`); dark `LifeOSSemanticColors` =
+  Figma warning/heatmap/stroke/tertiary.
+- `Shape.kt` / `Spacing.kt`: radii (12/16/22/22/30/pill) and spacing scale aligned
+  to Figma (section 18, card pad 18, gap 12, status strip 40, page header 86,
+  gesture area 22, bottom nav 84, header action 42). Diary tokens preserved.
+- `LiquidGlass.kt`: `LifeOSAmbientBackground` now paints the Figma 140° gradient
+  (`#203D48 → #0B141C → #101B27`; light fallback kept). `Modifier.liquidGlass`
+  default elevation → 8dp, softer shadow alphas.
+- `LifeOSKit.kt`: `LifeOSPrimaryButton` = flat mint, radius 16, min-height 52,
+  19dp icon, `FigmaOnAccent` ink; `LifeOSSecondaryButton` = flat `FigmaElevated`,
+  radius 16, `FigmaText` ink. `LifeOSGradientButton` delegates to the primary, so
+  it inherits mint automatically.
+- `LifeOSKitExtras.kt`: `LifeOSSearchBar` radius pill → 16 (medium).
+- `LifeOSBottomBar.kt`: full-width `FigmaBottomNav` plate + 1px top hairline,
+  height 84, per-destination 40×30 radius-15 plate (mint-tinted when selected),
+  9sp SB uppercase labels; `CaptureCenterButton` = flat mint 50×42 radius 15 with
+  a dark plus (pulse halo removed).
+- `LifeOSTopBar.kt`: rewritten as the Figma page header — `HeaderActionCircle`
+  42×42 (`FigmaWash` + `FigmaStroke`, radius 15, 22dp icon, 48dp touch target),
+  uppercase 9 SB mint kicker, 24 SB `FigmaText` title.
+
+### Screens implemented to Figma
+- `OnboardingScreen.kt` → the "Welcome to LifeOS" hero: own welcome gradient,
+  `WelcomeUniverse` canvas (orbits + atmosphere + 3 satellite tiles), message,
+  privacy row, mint "Get started", footer, restore-backup link. `onFinish`,
+  `onRestoreBackup`, `restoreStatus` behaviour preserved.
+- `HomeScreen.kt` → the Figma Home: page header (date kicker + greeting +
+  search/profile), `LifeOSSearchBar` ("Search your life…"), the "Daily progress"
+  card (kicker, promise, big %, 5px mint track on `FigmaTrack`, summary line).
+  Existing sections (quick actions, priorities, habits, rhythm, activity,
+  LifeOS AI) are retained and inherit the new tokens so no functionality was
+  dropped.
+
+### Typography decision (disclosed substitution)
+- Figma specifies **Inter** (body/UI) and **Lora** (Diary paper). To keep the
+  app fully offline and avoid introducing new binary font assets, the bundled
+  **Manrope/Fraunces** were retained. This is a visual difference, not a token or
+  layout difference, and is the primary known fidelity gap.
+
+### Accessibility
+- Interactive targets kept at ≥48dp (42dp visual inside a 48dp touch wrapper).
+- Mint surfaces use dark `FigmaOnAccent` ink (AA). `prismBrush` was deliberately
+  kept dark so white-ink surfaces (Capture hub, AI bubbles, Snap) stay AA.
+
+### Verification
+- `:app:compileDebugKotlin` — **BUILD SUCCESSFUL** (twice: a 7m51s run and a final
+  2m45s incremental run after the Home/search edits). Only pre-existing
+  deprecation warnings; no new errors, no suppressions, no stubs.
+- `assembleDebug` resources/manifest steps passed under the QEMU `aapt2`
+  toolchain on this aarch64 host; full APK dexing/packaging was **not** run to
+  completion (memory-constrained host).
+- `testDebugUnitTest`, `lintDebug`, emulator/device runs, and pixel-level
+  comparison against Figma were **not** executed in that first pass. (The unit
+  tests and lint were executed in the continuation below.)
+
+### Remaining
+- Screens not yet ported to the Figma frames: Note detail, Diary, Life timeline,
+  Life Calendar, Life Insights, LifeOS AI, AI privacy controls, Quick Capture.
+  (Tasks, Habits, Expenses, Notes and Settings were completed in the continuation
+  section below.)
+- Unused untracked files `ui/search/SearchScreen.kt` and
+  `ui/notes/NotesListScreen.kt` are dead (nav uses `GlobalSearchScreen` /
+  `NotesScreen`); they were **not** deleted because they are untracked and may be
+  in-progress work.
+- Device verification: startup, 200% font scale, TalkBack order, landscape,
+  pixel comparison, and a full unit-test/lint run.
+- All changes are uncommitted on `main` (`afebc19`); no commit, PR, or push was
+  made.
+
+## 2026-10-16 (continued) — Figma screen batch 2 + verification gate
+
+### Verification gate results (final tree)
+- `:app:testDebugUnitTest` — **BUILD SUCCESSFUL**. Aggregated from the JUnit XML:
+  **39 suites, 469 tests, 0 failures, 0 errors, 0 skipped** (re-run on the final
+  tree that includes Tasks, Habits, Expenses, Notes, Settings and LifeOS AI).
+- `:app:compileDebugKotlin` — **BUILD SUCCESSFUL** (first Tasks + Habits pass
+  3m55s; final full pass 2m20s).
+- `:app:testDebugUnitTest :app:lintDebug` — **BUILD SUCCESSFUL** in 6m44s on the
+  complete tree.
+- `:app:lintDebug` (forced fresh run after the last source edit) —
+  **BUILD SUCCESSFUL**, **0 errors**, 30 warnings, 6 information (36 total);
+  `lint-results-debug.{html,xml,txt}` rewritten. **No lint issue is located in
+  any file changed by this pass**: the only two `ModifierParameter` warnings are
+  in `TasksScreen.LavenderTextField` (line 1129, untouched here) and
+  `LifeOSTopBar` (line 58, same parameter order at `HEAD`). The remaining
+  warnings are `GradleDependency` (22 — newer versions available; deliberately
+  not upgraded), `AutoboxingStateCreation` (5), `UnusedAttribute` (2),
+  `ObsoleteSdkInt` (2), and informational checks.
+
+### Screens implemented to Figma (this batch)
+- `HabitsScreen.kt` → "Habits · Daily rhythm" (`#5:36536`): page header
+  ("HABITS / <day>" kicker + "Your daily rhythm" + add action), the week strip
+  with today picked out in mint, the "Today's habits" row card (46dp feature
+  icon, name, streak/frequency meta, live progress that logs the next step), a
+  "Weekly rhythm" card over the shared `buildWeeklyRhythm`, and a secondary
+  "Create a habit". The add dialog, reminder + repeat selector, notification and
+  exact-alarm gating, `onOpenHabit`, `logToday` and the empty state are preserved.
+- `TasksScreen.kt` → "Tasks · Today" (`#5:36460`): page header ("TASKS / <day>"
+  + "Make room for focus" + add action), the "Today's focus" card with the
+  segmented ratio bar, mint scope tags carrying live open counts, Figma section
+  headings, restyled circular-check task rows, and a mint "Add a task". The FAB
+  was removed (the frame has none) — both the header action and the bottom button
+  open the unchanged add dialog, so no path was lost.
+- `ExpensesScreen.kt` → "Expenses · Spending overview" (`#5:36687`): page header
+  ("EXPENSES / <month>" + "Room for what matters" + add action), real period tags
+  (This month · Week · Today, computed as client-side slices of the existing month
+  query — no extra Room subscription), the "Spent so far" hero with
+  Today/This-week/Daily-average snapshots, the category breakdown card, Figma
+  transaction rows (time · category · method), and a mint "Add expense". The
+  budget card, both sheets and the ViewModel are unchanged.
+- `NotesScreen.kt` → "Smart Notes · Library" (`#5:36299`): page header
+  ("THINK IT. KEEP IT." kicker + "Smart Notes" + sort action), the search field,
+  the smart views, the folder rail (restyled pills), a "Pinned for you" shelf,
+  "Your notes" with the live sort label, Figma note cards, and a mint "New note".
+  The sort action and the section trailing label are the same toggle; pin,
+  favorite, archive and trash are preserved behind each card's overflow.
+- `SettingsScreen.kt` → "Settings · Backup & Restore" (`#5:37502`): page header
+  ("SETTINGS / YOUR LIFE. YOUR DATA." + "Your space, protected"), the "Stored on
+  this device" card with a **real** measure of the app's internal databases,
+  files and preferences (off the main thread), a "Security & privacy" card
+  (App lock → existing setup flow; Auto-lock switch), Appearance, the existing
+  Notifications/reminders + auto-capture cards, a "Backup & restore" card
+  (Create backup / Restore backup / Share when a snapshot exists), the amber
+  local-data warning note, and an About footer.
+- `AiAssistantScreen.kt` → "LifeOS AI · Scoped assistant" (`#5:37337`): the Figma
+  page header ("HELPFUL, ON YOUR TERMS" + "LifeOS AI"), the 58dp mint-to-deep
+  radial orb and "A little clarity?" introduction, an honest on-device context
+  card, the suggestion tags (the real starters), Figma chat bubbles, and the
+  framed composer (sparkles glyph + circular mint send). The ViewModel and its
+  real, data-grounded `answer()` (which reads local task/habit/expense/diary/
+  capture repositories) are unchanged — only the presentation changed.
+
+### Deliberate deviations (disclosed)
+- Settings' "Stored on this device" omits Figma's usage **bar**: there is no
+  honest per-app capacity to fill to, so only the measured size is shown.
+- Settings' backup copy says "plaintext JSON" (the build's real behaviour) rather
+  than the frame's "password-protected copy".
+- Figma "calendar-days" / "sliders-horizontal" header actions with no destination
+  in the app were mapped to working affordances (add / sort) instead of shipping
+  dead controls.
+- **"AI access · Privacy controls" (`#5:37409`) is deliberately NOT built.** The
+  frame is eight per-category consent switches (Notes / Tasks / Habits /
+  Expenses / Diary / Photos / Audio / Location). The app's assistant has **no
+  scope model** — `AiAssistantScreen` computes answers directly from the local
+  repositories (`core/intelligence/`, `AiRepository`) with no consent layer and
+  no AI preference key in `SettingsStore`. Rendering those switches would create
+  eight controls that change nothing, and printing the frame's "Notes, tasks &
+  habits only … No access to diary, expenses, media or location" would be
+  **false**, because the assistant does answer about spending and diary. So the
+  AI frame's context card was rewritten to state what is true (on-device, reads
+  your own records, nothing uploaded) and the consent screen was left unbuilt
+  rather than faked. Building it honestly would require adding a real consent
+  model to the engine first — a feature change, not a restyle.
+
+### Still remaining
+- Screens not yet ported: Note detail (`#5:36393`), Quick Capture (`#5:36776`),
+  Diary (`#5:36865`), Life timeline (`#5:36914`), Life Calendar (`#5:37037`),
+  Life Insights (`#5:37224`), AI access / privacy controls (`#5:37409`, see
+  above — blocked on a consent model, not on design).
+- Visual/pixel comparison, contrast at 200% font scale, TalkBack order, and
+  landscape remain unverified (no device/emulator on this host).

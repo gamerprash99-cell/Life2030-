@@ -37,9 +37,13 @@ import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.lifeos.app.ui.theme.FigmaCanvasBottom
+import com.lifeos.app.ui.theme.FigmaCanvasMid
+import com.lifeos.app.ui.theme.FigmaCanvasTop
 import com.lifeos.app.ui.theme.LifeOSElevation
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
@@ -81,7 +85,7 @@ fun Modifier.liquidGlass(
     tint: Color? = null,
     interactive: Boolean = false,
     pressed: Boolean = false,
-    elevation: Dp = 6.dp
+    elevation: Dp = 8.dp
 ): Modifier {
     val glass = LocalGlassColors.current
     // Depth is neutral; the material, not the shadow, carries the brand.
@@ -91,8 +95,8 @@ fun Modifier.liquidGlass(
         .shadow(
             elevation = if (pressed) elevation * 1.35f else elevation,
             shape = shape,
-            ambientColor = shadowBase.copy(alpha = 0.14f + 0.05f * lift),
-            spotColor = shadowBase.copy(alpha = 0.22f + 0.08f * lift)
+            ambientColor = shadowBase.copy(alpha = 0.10f + 0.05f * lift),
+            spotColor = shadowBase.copy(alpha = 0.15f + 0.08f * lift)
         )
         .clip(shape)
         .drawBehind {
@@ -368,13 +372,13 @@ fun prismBrush(horizontal: Boolean = false, alpha: Float = 1f): Brush {
 }
 
 /**
- * The warm wash behind the whole app — the light the matte surfaces sit in.
- * Paints the theme background, three soft clay / amber / sage hazes and a
- * gentle vignette that keeps the edges calm so content never floats against a
- * hot border.
+ * The canvas behind the whole app — the redesign's single **140° teal → navy
+ * sweep** (`#203D48 → #0B141C → #101B27`). There are no separate glow clouds in
+ * the redesign: one calm diagonal gradient carries the whole frame, so cards
+ * read as the only lit objects on the page.
  *
- * Washes are painted with DrawScope radial gradients, not image assets, so they
- * cost no downloads, scale to any screen and sub-pixel smoothly in both themes.
+ * In the light adaptation the same slot paints a cool mist so the frame stays
+ * legible; the two renditions stay one system.
  */
 @Composable
 fun LifeOSAmbientBackground(
@@ -382,83 +386,35 @@ fun LifeOSAmbientBackground(
     content: @Composable BoxScope.() -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
-    val glow = LocalAmbientGlowColors.current
-    val baseTop = scheme.background
-    val baseBottom = lerp(scheme.background, scheme.primaryContainer, 0.22f)
-
+    val dark = scheme.background.luminance() < 0.5f
     Box(
         modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(colors = listOf(baseTop, baseBottom)))
-    ) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .drawBehind {
-                    val w = size.width
-                    val h = size.height
-                    // Indigo glow, top-left.
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colorStops = arrayOf(
-                                0f to glow.primary,
-                                1f to glow.primary.copy(alpha = 0f)
-                            ),
-                            center = Offset(w * 0.06f, h * 0.02f),
-                            radius = w * 0.85f
-                        ),
-                        radius = w * 0.85f,
-                        center = Offset(w * 0.06f, h * 0.02f)
-                    )
-                    // Violet glow, top-right.
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colorStops = arrayOf(
-                                0f to glow.secondary,
-                                1f to glow.secondary.copy(alpha = 0f)
-                            ),
-                            center = Offset(w * 1.00f, h * 0.12f),
-                            radius = w * 0.72f
-                        ),
-                        radius = w * 0.72f,
-                        center = Offset(w * 1.00f, h * 0.12f)
-                    )
-                    // Sky glow, bottom centre.
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colorStops = arrayOf(
-                                0f to glow.tertiary,
-                                1f to glow.tertiary.copy(alpha = 0f)
-                            ),
-                            center = Offset(w * 0.55f, h * 1.06f),
-                            radius = h * 0.72f
-                        ),
-                        radius = h * 0.72f,
-                        center = Offset(w * 0.55f, h * 1.06f)
-                    )
-                }
-        )
-        // Vignette: settle the edges back toward the background colour so the
-        // glows never reach the system bars hot.
-        Box(
-            Modifier
-                .fillMaxSize()
-                .drawBehind {
-                    val w = size.width
-                    val h = size.height
+            .drawBehind {
+                if (dark) {
                     drawRect(
-                        brush = Brush.radialGradient(
+                        brush = Brush.linearGradient(
                             colorStops = arrayOf(
-                                0f to Color.Transparent,
-                                0.72f to Color.Transparent,
-                                1f to baseTop.copy(alpha = 0.35f)
+                                0f to FigmaCanvasTop,
+                                0.38f to FigmaCanvasMid,
+                                1f to FigmaCanvasBottom
                             ),
-                            center = Offset(w * 0.5f, h * 0.5f),
-                            radius = (w.coerceAtLeast(h) * 0.72f)
+                            start = Offset.Zero,
+                            end = Offset(size.width, size.height)
+                        )
+                    )
+                } else {
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                scheme.background,
+                                lerp(scheme.background, scheme.primaryContainer, 0.45f)
+                            )
                         )
                     )
                 }
-        )
+            }
+    ) {
         content()
     }
 }

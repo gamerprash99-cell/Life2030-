@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,6 +48,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.lifeos.app.ui.theme.FigmaAccent
+import com.lifeos.app.ui.theme.FigmaElevated
+import com.lifeos.app.ui.theme.FigmaOnAccent
+import com.lifeos.app.ui.theme.FigmaText
 import com.lifeos.app.ui.theme.LifeOSElevation
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
@@ -335,7 +340,7 @@ fun LifeOSProgressRing(
     }
 }
 
-/** The primary, gradient hero button. */
+/** The primary action: a flat **mint** fill with dark on-accent ink. */
 @Composable
 fun LifeOSPrimaryButton(
     text: String,
@@ -347,52 +352,27 @@ fun LifeOSPrimaryButton(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.975f else 1f, spring(stiffness = 800f), label = "btn")
-    val shape = RoundedCornerShape(LifeOSRadius.pill)
-    val fill = if (enabled) {
-        prismBrush(horizontal = true)
-    } else {
-        Brush.horizontalGradient(
-            listOf(
-                MaterialTheme.colorScheme.surfaceVariant,
-                MaterialTheme.colorScheme.surfaceVariant
-            )
-        )
-    }
+    val shape = RoundedCornerShape(LifeOSRadius.medium)
+    val fill = if (enabled) FigmaAccent else MaterialTheme.colorScheme.surfaceVariant
+    val ink = if (enabled) FigmaOnAccent else MaterialTheme.colorScheme.onSurfaceVariant
     Box(
         modifier = modifier
             .scale(scale)
-            .shadow(
-                elevation = if (enabled) LifeOSElevation.raised else 0.dp,
-                shape = shape,
-                ambientColor = LocalLifeOSSemanticColors.current.shadow.copy(alpha = LifeOSElevation.shadowAlphaRest),
-                spotColor = LocalLifeOSSemanticColors.current.shadow.copy(alpha = LifeOSElevation.shadowAlphaLift)
-            )
             .clip(shape)
             .background(fill)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
-            .defaultMinSize(minHeight = LifeOSSpacing.minTouchTarget)
-            .padding(horizontal = 22.dp, vertical = 14.dp),
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
         contentAlignment = Alignment.Center
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            icon?.let {
-                Icon(
-                    it,
-                    null,
-                    tint = if (enabled) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            Text(
-                text,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (enabled) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            icon?.let { Icon(it, null, tint = ink, modifier = Modifier.size(19.dp)) }
+            Text(text, style = MaterialTheme.typography.labelLarge, color = ink)
         }
     }
 }
 
-/** A quieter, glass-outlined button for secondary actions. */
+/** A quieter secondary action: the flat slate `#1C303A` panel. */
 @Composable
 fun LifeOSSecondaryButton(
     text: String,
@@ -404,19 +384,20 @@ fun LifeOSSecondaryButton(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.975f else 1f, spring(stiffness = 800f), label = "btn2")
-    val shape = RoundedCornerShape(LifeOSRadius.pill)
+    val shape = RoundedCornerShape(LifeOSRadius.medium)
     Box(
         modifier = modifier
             .scale(scale)
-            .liquidGlass(shape = shape, tint = MaterialTheme.colorScheme.primary, interactive = true, pressed = pressed, elevation = 2.dp)
+            .clip(shape)
+            .background(FigmaElevated)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
-            .defaultMinSize(minHeight = LifeOSSpacing.minTouchTarget)
+            .heightIn(min = 52.dp)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         contentAlignment = Alignment.Center
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            icon?.let { Icon(it, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) }
-            Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            icon?.let { Icon(it, null, tint = FigmaAccent, modifier = Modifier.size(19.dp)) }
+            Text(text, style = MaterialTheme.typography.labelLarge, color = FigmaText)
         }
     }
 }

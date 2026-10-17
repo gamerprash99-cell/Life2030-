@@ -1,21 +1,27 @@
 package com.lifeos.app.ui.expenses
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.IconButton
@@ -33,16 +39,22 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -57,14 +69,34 @@ import com.lifeos.app.domain.model.ExpenseCategories
 import com.lifeos.app.domain.model.isAutomaticallyCaptured
 import com.lifeos.app.ui.components.GlassCard
 import com.lifeos.app.ui.components.GlassChip
+import com.lifeos.app.ui.components.HeaderActionCircle
+import com.lifeos.app.ui.components.LifeOSCard
 import com.lifeos.app.ui.components.LifeOSEmptyState
-import com.lifeos.app.ui.components.LifeOSEyebrow
+import com.lifeos.app.ui.components.LifeOSPrimaryButton
+import com.lifeos.app.ui.components.LifeOSSectionHeader
 import com.lifeos.app.ui.components.LifeOSTopBar
-import com.lifeos.app.ui.components.LiquidGlassFab
+import com.lifeos.app.ui.theme.FigmaAccent
+import com.lifeos.app.ui.theme.FigmaAccentStroke
+import com.lifeos.app.ui.theme.FigmaCard
+import com.lifeos.app.ui.theme.FigmaExpenseBlue
+import com.lifeos.app.ui.theme.FigmaExpensePlum
+import com.lifeos.app.ui.theme.FigmaExpenseSteel
+import com.lifeos.app.ui.theme.FigmaHeatmap
+import com.lifeos.app.ui.theme.FigmaStroke
+import com.lifeos.app.ui.theme.FigmaText
+import com.lifeos.app.ui.theme.FigmaTertiary
+import com.lifeos.app.ui.theme.FigmaTrack
+import com.lifeos.app.ui.theme.FigmaWash
+import com.lifeos.app.ui.theme.LifeOSRadius
+import com.lifeos.app.ui.theme.LifeOSSpacing
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlin.math.roundToInt
 
 class ExpensesViewModel(
     private val expenseRepository: ExpenseRepository,
@@ -113,33 +145,62 @@ fun ExpensesScreen(onBack: () -> Unit = {}) {
     )
 
     val expenses by viewModel.expensesThisMonth.collectAsState()
-    val total by viewModel.totalThisMonth.collectAsState()
+    val monthTotal by viewModel.totalThisMonth.collectAsState()
     val budget by viewModel.monthlyBudget.collectAsState()
     var showAddSheet by remember { mutableStateOf(false) }
     var showBudgetSheet by remember { mutableStateOf(false) }
+    var period by rememberSaveable { mutableStateOf(ExpensePeriod.MONTH) }
 
-    val dailyAverage = if (expenses.isEmpty()) 0.0 else total / java.time.LocalDate.now().lengthOfMonth()
-    val progress = BudgetProgress.forMonth(budget = budget, spent = total)
+    val today = remember { LocalDate.now() }
+    val todayEpoch = today.toEpochDay()
+    val weekStart = todayEpoch - 6
+
+    // The month query already returns every expense in the month, so Today and
+    // Week are exact client-side slices of it. A period filter therefore never
+    // costs another Room subscription, and the tag's number is the same list the
+    // transactions below it are drawn from.
+    val periodExpenses = remember(expenses, period, todayEpoch, weekStart) {
+        when (period) {
+            ExpensePeriod.MONTH -> expenses
+            ExpensePeriod.WEEK -> expenses.filter { it.dateEpochDay in weekStart..todayEpoch }
+            ExpensePeriod.TODAY -> expenses.filter { it.dateEpochDay == todayEpoch }
+        }
+    }
+    val periodTotal = remember(periodExpenses) { periodExpenses.sumOf { it.amount } }
+    val todayTotal = remember(expenses, todayEpoch) { expenses.filter { it.dateEpochDay == todayEpoch }.sumOf { it.amount } }
+    val weekTotal = remember(expenses, weekStart, todayEpoch) { expenses.filter { it.dateEpochDay in weekStart..todayEpoch }.sumOf { it.amount } }
+    val dailyAverage = if (expenses.isEmpty()) 0.0 else monthTotal / today.lengthOfMonth()
+    val progress = BudgetProgress.forMonth(budget = budget, spent = monthTotal)
 
     Scaffold(
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        topBar = { LifeOSTopBar("Expenses", "See where your day is going", onBack = onBack) },
-        floatingActionButton = {
-            LiquidGlassFab(
-                icon = Icons.Filled.Add,
-                contentDescription = "Add expense",
-                onClick = { showAddSheet = true }
+        containerColor = Color.Transparent,
+        topBar = {
+            LifeOSTopBar(
+                title = "Room for what matters",
+                subtitle = "Expenses / ${today.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))}",
+                onBack = onBack,
+                actions = { HeaderActionCircle(Icons.Filled.Add, "Add expense", onClick = { showAddSheet = true }) }
             )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.padding(padding).fillMaxWidth(),
             contentPadding = PaddingValues(
-                start = 16.dp, end = 16.dp, top = 10.dp,
-                bottom = com.lifeos.app.ui.theme.LifeOSSpacing.fabContentClearance
+                start = LifeOSSpacing.screenPadding, end = LifeOSSpacing.screenPadding,
+                top = 0.dp, bottom = LifeOSSpacing.screenPadding
             ),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.sectionSpacing)
         ) {
+            item { ExpensePeriodRow(selected = period, onSelect = { period = it }) }
+            item {
+                SpendingHeroCard(
+                    total = periodTotal,
+                    period = period,
+                    todayTotal = todayTotal,
+                    weekTotal = weekTotal,
+                    dailyAverage = dailyAverage
+                )
+            }
             item {
                 if (progress == null) {
                     FirstBudgetCard(onSetBudget = { showBudgetSheet = true })
@@ -147,56 +208,45 @@ fun ExpensesScreen(onBack: () -> Unit = {}) {
                     BudgetCard(progress = progress, dailyAverage = dailyAverage, onEdit = { showBudgetSheet = true })
                 }
             }
-
-            item {
-                LifeOSEyebrow("Recent transactions", modifier = Modifier.padding(horizontal = 4.dp))
+            if (periodExpenses.isNotEmpty()) {
+                item { LifeOSSectionHeader("Where it went", "All categories") }
+                item { CategoryBreakdownCard(slices = categorySlices(periodExpenses), total = periodTotal) }
             }
-
-            if (expenses.isEmpty()) {
+            item {
+                LifeOSSectionHeader(
+                    title = when (period) {
+                        ExpensePeriod.TODAY -> "Today's transactions"
+                        ExpensePeriod.WEEK -> "This week's transactions"
+                        ExpensePeriod.MONTH -> "This month's transactions"
+                    },
+                    action = "₹${"%,.0f".format(periodTotal)} total"
+                )
+            }
+            if (periodExpenses.isEmpty()) {
                 item {
                     LifeOSEmptyState(
                         icon = Icons.Filled.Payments,
                         title = "No expenses yet",
-                        body = "Tap ＋ to log your coffee, a grocery run, or a bill payment.",
+                        body = "Tap Add expense to log your coffee, a grocery run, or a bill payment.",
                         actionLabel = "Add expense",
                         onAction = { showAddSheet = true }
                     )
                 }
-            }
-
-            items(expenses, key = { it.id }) { expense ->
-                GlassCard(Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                    ) {
-                        androidx.compose.material3.Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
-                        ) {
-                            Text(
-                                ExpenseCategories.emojiFor(expense.category),
-                                modifier = Modifier.padding(10.dp),
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
-                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text(
-                                expense.merchant ?: expense.category,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            if (expense.isAutomaticallyCaptured()) {
-                                AutoDetectedLabel()
-                            }
-                            Text(
-                                expense.category,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Text("₹${"%.0f".format(expense.amount)}", style = MaterialTheme.typography.titleMedium)
-                    }
+            } else {
+                items(
+                    periodExpenses.sortedWith(compareByDescending<ExpenseEntity> { it.dateEpochDay }.thenByDescending { it.timeMinutes }),
+                    key = { it.id }
+                ) { expense ->
+                    TransactionRow(expense)
                 }
+            }
+            item {
+                LifeOSPrimaryButton(
+                    text = "Add expense",
+                    icon = Icons.Filled.Add,
+                    onClick = { showAddSheet = true },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }
@@ -221,6 +271,181 @@ fun ExpensesScreen(onBack: () -> Unit = {}) {
             }
         )
     }
+}
+
+/** The Figma period tags. Each is a real slice of the month list, never decorative. */
+private enum class ExpensePeriod(val label: String) { MONTH("This month"), WEEK("Week"), TODAY("Today") }
+
+@Composable
+private fun ExpensePeriodRow(selected: ExpensePeriod, onSelect: (ExpensePeriod) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        ExpensePeriod.entries.forEach { period ->
+            val isSelected = period == selected
+            val shape = RoundedCornerShape(LifeOSRadius.pill)
+            Box(
+                Modifier
+                    .clip(shape)
+                    .background(if (isSelected) FigmaAccent.copy(alpha = 0.16f) else FigmaWash)
+                    .border(BorderStroke(1.dp, if (isSelected) FigmaAccentStroke else FigmaStroke), shape)
+                    .clickable(role = Role.Button) { onSelect(period) }
+                    .semantics { contentDescription = period.label; role = Role.Button }
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    period.label,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (isSelected) FigmaAccent else FigmaTertiary,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+/**
+ * SPENT SO FAR — the Figma hero: a muted kicker, the period total at 43sp, and a
+ * three-up snapshot (Today · This week · Daily average). Every figure is summed
+ * from the persisted month list, so the card cannot invent a rupee.
+ */
+@Composable
+private fun SpendingHeroCard(total: Double, period: ExpensePeriod, todayTotal: Double, weekTotal: Double, dailyAverage: Double) {
+    LifeOSCard(Modifier.fillMaxWidth(), tint = FigmaCard) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                "SPENT SO FAR · ${period.label.uppercase()}",
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp),
+                color = FigmaTertiary
+            )
+            Text(
+                "₹${"%,.0f".format(total)}",
+                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 43.sp, fontWeight = FontWeight.Medium),
+                color = FigmaText
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SnapshotStat("Today", "₹${"%,.0f".format(todayTotal)}", Modifier.weight(1f))
+                SnapshotStat("This week", "₹${"%,.0f".format(weekTotal)}", Modifier.weight(1f))
+                SnapshotStat("Daily average", "₹${"%,.0f".format(dailyAverage)}", Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SnapshotStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = FigmaTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(value, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = FigmaAccent, maxLines = 1)
+    }
+}
+
+/** One grouped category: its name, summed total and share of the period. */
+private data class CategorySlice(val name: String, val emoji: String, val total: Double, val color: Color)
+
+/** Groups the period's transactions by category, largest first. Pure arithmetic. */
+private fun categorySlices(expenses: List<ExpenseEntity>): List<CategorySlice> {
+    val palette = listOf(FigmaAccent, FigmaHeatmap, FigmaExpenseBlue, FigmaExpensePlum, FigmaExpenseSteel)
+    return expenses.groupBy { it.category }
+        .map { (category, list) -> category to list.sumOf { it.amount } }
+        .filter { it.second > 0 }
+        .sortedByDescending { it.second }
+        .take(5)
+        .mapIndexed { index, (category, sum) ->
+            CategorySlice(
+                name = category,
+                emoji = ExpenseCategories.emojiFor(category),
+                total = sum,
+                color = palette[index % palette.size]
+            )
+        }
+}
+
+@Composable
+private fun CategoryBreakdownCard(slices: List<CategorySlice>, total: Double) {
+    LifeOSCard(Modifier.fillMaxWidth(), tint = FigmaCard) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            slices.forEach { slice ->
+                val share = if (total > 0) (slice.total / total).toFloat() else 0f
+                val percent = (share * 100).roundToInt()
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "${slice.emoji}  ${slice.name}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = FigmaText,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1
+                        )
+                        Text(
+                            "₹${"%,.0f".format(slice.total)} · $percent%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FigmaTertiary,
+                            maxLines = 1
+                        )
+                    }
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(5.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(FigmaTrack)
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth(share.coerceIn(0f, 1f))
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(slice.color)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One transaction: category emoji, merchant/note, time · category · method, amount. */
+@Composable
+private fun TransactionRow(expense: ExpenseEntity) {
+    LifeOSCard(Modifier.fillMaxWidth(), tint = FigmaCard) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(FigmaTrack),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(ExpenseCategories.emojiFor(expense.category), style = MaterialTheme.typography.titleMedium)
+            }
+            Column(Modifier.weight(1f).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(expense.merchant ?: expense.category, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = FigmaText, maxLines = 1)
+                Text(
+                    buildString {
+                        append(DateTimeUtils.formatMinutes(expense.timeMinutes))
+                        append(" · ")
+                        append(expense.category)
+                        append(" · ")
+                        append(methodLabel(expense))
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = FigmaTertiary,
+                    maxLines = 1
+                )
+                if (expense.isAutomaticallyCaptured()) AutoDetectedLabel()
+            }
+            Text(
+                "₹${"%,.0f".format(expense.amount)}",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = FigmaText
+            )
+        }
+    }
+}
+
+/** "UPI" stays uppercase; longer method names read as a word ("Card", "Other"). */
+private fun methodLabel(expense: ExpenseEntity): String {
+    val name = expense.paymentMethod.name
+    return if (name.length <= 3) name.uppercase() else name.lowercase().replaceFirstChar { it.uppercase() }
 }
 
 /**
