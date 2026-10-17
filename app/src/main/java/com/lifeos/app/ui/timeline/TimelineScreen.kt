@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -54,6 +55,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.TextStyle
+import java.util.Locale
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -169,14 +174,115 @@ fun TimelineScreen(
                         }
                     }
                 } else {
-                    // Calendar view: minimal placeholder matching Figma intent (full grid can be added later)
-                    TimelineEmptyState(Modifier.fillMaxSize())
+                    CalendarMonthCard(
+                        selectedDate = selectedDate,
+                        today = today,
+                        onSelectDate = { selectedDate = it },
+                        onPreviousMonth = {
+                            val previous = YearMonth.from(selectedDate).minusMonths(1)
+                            selectedDate = previous.atDay(minOf(selectedDate.dayOfMonth, previous.lengthOfMonth()))
+                        },
+                        onNextMonth = {
+                            val next = YearMonth.from(selectedDate).plusMonths(1)
+                            selectedDate = next.atDay(minOf(selectedDate.dayOfMonth, next.lengthOfMonth())).coerceAtMost(today)
+                        }
+                    )
+                    if (items.isEmpty()) {
+                        TimelineEmptyState(Modifier.weight(1f).fillMaxWidth())
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            contentPadding = PaddingValues(
+                                start = LifeOSSpacing.screenPadding,
+                                end = LifeOSSpacing.screenPadding,
+                                top = 8.dp,
+                                bottom = LifeOSSpacing.compactPadding
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                                TimelineSpineRow(
+                                    item = item,
+                                    isFirst = index == 0,
+                                    isLast = index == items.lastIndex,
+                                    onClick = { onOpenItem(item) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+/** Figma-style month grid; selecting a date loads its real local timeline entries. */
+@Composable
+private fun CalendarMonthCard(
+    selectedDate: LocalDate,
+    today: LocalDate,
+    onSelectDate: (LocalDate) -> Unit,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit
+) {
+    val month = YearMonth.from(selectedDate)
+    val currentMonth = YearMonth.from(today)
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.sm),
+        color = FigmaCard,
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(1.dp, FigmaStroke),
+        shadowElevation = 4.dp
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onPreviousMonth, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous month", tint = FigmaMuted)
+                }
+                Text(
+                    text = "${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${month.year}",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = FigmaText,
+                    fontWeight = FontWeight.SemiBold
+                )
+                IconButton(onClick = onNextMonth, enabled = month.isBefore(currentMonth), modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Filled.ChevronRight, contentDescription = "Next month", tint = if (month.isBefore(currentMonth)) FigmaMuted else FigmaMuted.copy(alpha = 0.35f))
+                }
+            }
+            Row(Modifier.fillMaxWidth()) {
+                listOf("M", "T", "W", "T", "F", "S", "S").forEach { day ->
+                    Text(day, modifier = Modifier.weight(1f).padding(vertical = 4.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall, color = FigmaMuted)
+                }
+            }
+            val firstOffset = month.atDay(1).dayOfWeek.value - 1
+            repeat(6) { week ->
+                Row(Modifier.fillMaxWidth()) {
+                    repeat(7) { weekday ->
+                        val dayNumber = week * 7 + weekday - firstOffset + 1
+                        val date = dayNumber.takeIf { it in 1..month.lengthOfMonth() }?.let { month.atDay(it) }
+                        val isSelected = date == selectedDate
+                        val isToday = date == today
+                        Box(
+                            Modifier.weight(1f).height(40.dp).padding(2.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(when { isSelected -> FigmaAccentDark; isToday -> FigmaWash; else -> androidx.compose.ui.graphics.Color.Transparent })
+                                .then(if (isSelected) Modifier.border(1.dp, FigmaAccentStroke, RoundedCornerShape(12.dp)) else Modifier)
+                                .clickable(enabled = date != null && !date.isAfter(today)) { date?.let(onSelectDate) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (date != null) Text(
+                                dayNumber.toString(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = when { isSelected -> FigmaAccent; date.isAfter(today) -> FigmaMuted.copy(alpha = 0.35f); else -> FigmaText },
+                                fontWeight = if (isSelected || isToday) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 /** Life page header matching Figma (mint kicker + title + trailing action circle). */
 @Composable
 private fun LifePageHeader(
