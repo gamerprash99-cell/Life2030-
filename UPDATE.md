@@ -412,3 +412,19 @@ no cloud/AI/telemetry/analytics dependency was introduced.
 
 ### Remaining
 - Continue with the Diary and remaining unported frames after CI feedback; AI consent controls remain blocked until a real consent model exists.
+
+
+## Figma 15-screen rollout tracker — current pass
+
+This tracker is additive; prior UPDATE.md history above is intentionally retained.
+
+- [x] Note editor / review extracted tasks — source updated; build/device verification pending.
+- [x] Life Timeline — Figma dark canvas and typography palette applied; build/device verification pending.
+- [x] Life Calendar — month grid and selected-day flow implemented with local data; build/device verification pending.
+- [x] Life Insights — Figma canvas and page identity applied; real offline report values preserved; build/device verification pending.
+- [x] Quick Capture — existing screen reviewed; it already contains the current Figma-style capture layout and controls, so no duplicate rewrite was made in this pass.
+- [ ] Diary reflection/editor — next candidate; preserve recording, attachment, save, and keyboard/back behavior.
+- [ ] Remaining Figma frames — continue individually after current CI feedback.
+- [ ] AI access/privacy controls — do not ship inert consent switches; a real consent model is required first.
+
+No screen is considered production-verified until the latest PR-head CI succeeds and device/accessibility checks are completed where available.
