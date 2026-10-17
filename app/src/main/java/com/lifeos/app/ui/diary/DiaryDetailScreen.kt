@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -91,6 +94,15 @@ import com.lifeos.app.ui.theme.DiaryInkSoft
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.DiaryTagInk
+import com.lifeos.app.ui.theme.FigmaAccent
+import com.lifeos.app.ui.theme.FigmaAccentDark
+import com.lifeos.app.ui.theme.FigmaCanvasBottom
+import com.lifeos.app.ui.theme.FigmaCanvasMid
+import com.lifeos.app.ui.theme.FigmaCanvasTop
+import com.lifeos.app.ui.theme.FigmaCard
+import com.lifeos.app.ui.theme.FigmaMuted
+import com.lifeos.app.ui.theme.FigmaStroke
+import com.lifeos.app.ui.theme.FigmaText
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.data.repository.WeatherRepository
 import com.lifeos.app.core.location.LocationProvider
@@ -167,7 +179,7 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
     // padding this destination is laid out with, so padding it again left a dead
     // band of one status-bar height above the header — and a second one above the
     // editor, which is drawn inside this same box.
-    Box(Modifier.fillMaxSize().diaryPaperBackground()) {
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(FigmaCanvasTop, FigmaCanvasMid, FigmaCanvasBottom)))) {
         entry?.let { current ->
             val date = DateTimeUtils.epochDayToLocalDate(current.dateEpochDay)
             val attachments = remember(current.id, current.attachmentsJson) { DiaryAttachments.decode(current.attachmentsJson) }
@@ -176,11 +188,11 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
             val place = remember(attachments) { DiaryAttachments.place(attachments) }
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = LifeOSSpacing.scrollBottomBreathingRoom)) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = DiaryInkViolet) }
+                    IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = FigmaText) }
                     Box(Modifier.weight(1f))
-                    IconButton(onClick = viewModel::startEdit, modifier = Modifier.size(48.dp)) { Icon(Icons.Filled.Edit, contentDescription = "Edit memory", tint = DiaryActionViolet) }
+                    IconButton(onClick = viewModel::startEdit, modifier = Modifier.size(48.dp)) { Icon(Icons.Filled.Edit, contentDescription = "Edit memory", tint = FigmaAccent) }
                     Box {
-                        IconButton(onClick = { showMore = true }, modifier = Modifier.size(48.dp)) { Icon(Icons.Filled.MoreVert, contentDescription = "Memory options", tint = DiaryInkViolet) }
+                        IconButton(onClick = { showMore = true }, modifier = Modifier.size(48.dp)) { Icon(Icons.Filled.MoreVert, contentDescription = "Memory options", tint = FigmaText) }
                         DropdownMenu(expanded = showMore, onDismissRequest = { showMore = false }) {
                             DropdownMenuItem(text = { Text(if (current.isFavorite) "Remove favorite" else "Favorite") }, onClick = { showMore = false; viewModel.toggleFavorite() })
                             DropdownMenuItem(text = { Text("Share memory") }, onClick = { showMore = false; shareEntry(context, current, photos) })
@@ -190,20 +202,23 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                 }
 
                 Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding)) {
-                    Text(DateTimeUtils.formatDayOfWeek(date), style = MaterialTheme.typography.labelLarge.copy(fontFamily = DiaryHandwriting), color = DiaryInkSoft)
-                    Text(DateTimeUtils.formatFullDate(date), style = MaterialTheme.typography.headlineLarge.copy(fontFamily = DiaryHandwriting), fontWeight = FontWeight.Bold, color = DiaryInkViolet)
+                    Text("PERSONAL DIARY", style = MaterialTheme.typography.labelSmall, color = FigmaAccent, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(6.dp))
+                    Text("A moment to reflect", style = MaterialTheme.typography.headlineMedium, color = FigmaText, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(10.dp))
+                    Text(DateTimeUtils.formatDayOfWeek(date) + " · " + DateTimeUtils.formatFullDate(date), style = MaterialTheme.typography.labelLarge, color = FigmaMuted)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(DateTimeUtils.formatMinutes(current.timeMinutes), style = MaterialTheme.typography.labelMedium.copy(fontFamily = DiaryHandwriting), color = DiaryInkSoft)
+                        Text(DateTimeUtils.formatMinutes(current.timeMinutes), style = MaterialTheme.typography.labelMedium.copy(fontFamily = DiaryHandwriting), color = FigmaMuted)
                         Spacer(Modifier.size(8.dp))
                         current.mood?.takeIf { it.isNotBlank() }?.let { mood ->
-                            Box(Modifier.clip(CircleShape).background(DiaryMoodVisuals.haloOf(mood)).padding(horizontal = 10.dp, vertical = 6.dp)) { Text(DiaryMoods.fromStored(mood)?.let { it.emoji + " " + it.label } ?: mood, style = MaterialTheme.typography.labelMedium, color = DiaryTagInk, fontWeight = FontWeight.SemiBold) }
+                            Box(Modifier.clip(CircleShape).background(DiaryMoodVisuals.haloOf(mood)).padding(horizontal = 10.dp, vertical = 6.dp)) { Text(DiaryMoods.fromStored(mood)?.let { it.emoji + " " + it.label } ?: mood, style = MaterialTheme.typography.labelMedium, color = FigmaAccent, fontWeight = FontWeight.SemiBold) }
                         }
                     }
                 }
 
                 Spacer(Modifier.height(16.dp))
-                DiaryPanel(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), cornerRadius = 10) {
-                    Text(current.content, style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 30.sp, fontFamily = DiaryHandwriting), color = DiaryInkViolet)
+                FigmaDiaryPanel(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), cornerRadius = 10) {
+                    Text(current.content, style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 30.sp), color = FigmaText)
                     if (photos.isNotEmpty()) {
                         Spacer(Modifier.height(16.dp))
                         DetailPhotoRow(photos = photos, onAddMore = viewModel::startEdit)
@@ -215,14 +230,14 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
 
                 if (place != null || weather !is DiaryWeather.Unavailable) {
                     Spacer(Modifier.height(14.dp))
-                    DiaryPanel(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), cornerRadius = 10) {
+                    FigmaDiaryPanel(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), cornerRadius = 10) {
                         if (place != null) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.LocationOn, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(22.dp))
+                                Icon(Icons.Filled.LocationOn, contentDescription = null, tint = FigmaAccent, modifier = Modifier.size(22.dp))
                                 Spacer(Modifier.size(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(place.placeName.takeIf { it.isNotBlank() } ?: "Saved location", fontWeight = FontWeight.SemiBold, color = DiaryInkViolet)
-                                    Text("Current location", style = MaterialTheme.typography.labelSmall, color = DiaryInkSoft)
+                                    Text(place.placeName.takeIf { it.isNotBlank() } ?: "Saved location", fontWeight = FontWeight.SemiBold, color = FigmaText)
+                                    Text("Current location", style = MaterialTheme.typography.labelSmall, color = FigmaMuted)
                                 }
                             }
                             if (weather !is DiaryWeather.Unavailable) Spacer(Modifier.height(10.dp))
@@ -234,22 +249,22 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
                 val tags = remember(current.id, current.tagsCsv) { current.tagsCsv.split(',').map { it.trim() }.filter { it.isNotBlank() } }
                 if (tags.isNotEmpty()) {
                     Spacer(Modifier.height(14.dp))
-                    DiaryPanel(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), cornerRadius = 10) {
+                    FigmaDiaryPanel(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), cornerRadius = 10) {
                         DiarySectionLabel("Tags")
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            tags.forEach { tag -> Box(Modifier.clip(CircleShape).background(DiaryLavender.copy(alpha = 0.66f)).padding(horizontal = 11.dp, vertical = 7.dp)) { Text(tag, style = MaterialTheme.typography.labelMedium, color = DiaryTagInk) } }
+                            tags.forEach { tag -> Box(Modifier.clip(CircleShape).background(FigmaAccentDark.copy(alpha = 0.8f)).padding(horizontal = 11.dp, vertical = 7.dp)) { Text(tag, style = MaterialTheme.typography.labelMedium, color = FigmaAccent) } }
                         }
                     }
                 }
 
                 Spacer(Modifier.height(14.dp))
-                DiaryPanel(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), cornerRadius = 10) {
-                    DiaryMetaRow({ Icon(Icons.Filled.DateRange, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp)) }, "Date", DateTimeUtils.formatFullDate(date))
+                FigmaDiaryPanel(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), cornerRadius = 10) {
+                    DiaryMetaRow({ Icon(Icons.Filled.DateRange, contentDescription = null, tint = FigmaAccent, modifier = Modifier.size(18.dp)) }, "Date", DateTimeUtils.formatFullDate(date))
                     Spacer(Modifier.height(14.dp))
-                    DiaryMetaRow({ Icon(Icons.Filled.AccessTime, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp)) }, "Time", DateTimeUtils.formatMinutes(current.timeMinutes))
+                    DiaryMetaRow({ Icon(Icons.Filled.AccessTime, contentDescription = null, tint = FigmaAccent, modifier = Modifier.size(18.dp)) }, "Time", DateTimeUtils.formatMinutes(current.timeMinutes))
                     Spacer(Modifier.height(14.dp))
-                    DiaryMetaRow({ Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = DiaryActionViolet, modifier = Modifier.size(18.dp)) }, "Word count", "${DiaryTextStats.wordCount(current.content)} words")
+                    DiaryMetaRow({ Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = FigmaAccent, modifier = Modifier.size(18.dp)) }, "Word count", "${DiaryTextStats.wordCount(current.content)} words")
                 }
 
                 Spacer(Modifier.height(18.dp))
@@ -272,6 +287,22 @@ fun DiaryDetailScreen(entryId: String, onBack: () -> Unit) {
     }
 
     entry?.let { current -> if (confirmDelete) MemoryDeleteDialog(dayEpochDay = current.dateEpochDay, timeMinutes = current.timeMinutes, onConfirm = { confirmDelete = false; viewModel.delete(entryId); onBack() }, onDismiss = { confirmDelete = false }) }
+}
+
+@Composable
+private fun FigmaDiaryPanel(
+    modifier: Modifier = Modifier,
+    cornerRadius: Int = 22,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
+) {
+    androidx.compose.foundation.layout.Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(cornerRadius.dp))
+            .background(FigmaCard)
+            .border(BorderStroke(1.dp, FigmaStroke), RoundedCornerShape(cornerRadius.dp))
+            .padding(LifeOSSpacing.compactPadding),
+        content = content
+    )
 }
 
 @Composable
