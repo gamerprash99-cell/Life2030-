@@ -351,3 +351,19 @@ no cloud/AI/telemetry/analytics dependency was introduced.
   above — blocked on a consent model, not on design).
 - Visual/pixel comparison, contrast at 200% font scale, TalkBack order, and
   landscape remain unverified (no device/emulator on this host).
+
+
+## 2026-10-17 — Figma parity continuation: Note editor
+
+### Changed
+- Updated `NoteEditorScreen.kt` toward the Figma “Note · Review extracted tasks” writing surface: SMART NOTES header hierarchy, device-local save status, larger title field, refined removable tag chips, and a rounded writing surface.
+- Kept the existing `NoteEditorViewModel`, Room-backed `NoteRepository`, save semantics, unsaved-change guard, discard confirmation, and keyboard/system Back handling unchanged.
+- No remote assets, new dependencies, network access, or database changes were introduced.
+
+### Verification
+- GitHub Contents API confirmed the source change was committed to `feat/figma-parity-final-pass`.
+- Kotlin compilation, unit tests, lint, emulator/device rendering, and pixel-level Figma comparison have **not yet been run for this change**.
+
+### Remaining
+- Continue with Quick Capture, Diary, Timeline/Calendar, and Insights Figma parity.
+- Verify the note editor at small widths, large font scale, and with the IME visible; confirm CI before treating this pass as build-verified.
