@@ -127,7 +127,7 @@ fun TimelineScreen(
                     } else {
                         { onOpenSearch() }
                     },
-                    actionIcon = if (lifeView == LifeView.TIMELINE) androidx.compose.material.icons.filled.Today else androidx.compose.material.icons.filled.Search
+                    actionIcon = if (lifeView == LifeView.TIMELINE) Icons.Filled.Today else Icons.Filled.Search
                 )
                 LifeViewsToggle(
                     selected = lifeView,
@@ -180,7 +180,7 @@ private fun LifePageHeader(
     subtitle: String,
     onBack: () -> Unit = {},
     onAction: () -> Unit,
-    actionIcon: ImageVector = androidx.compose.material.icons.filled.Today
+    actionIcon: ImageVector = Icons.Filled.Today
 ) {
     LifeOSTopBar(
         title = title,
