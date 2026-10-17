@@ -1,3 +1,94 @@
+# Figma fidelity rebuild — every screen rebuilt from the design file
+
+Branch `redesign/from-zero-2026`, newest work (the earlier passes below are kept
+for context). Everything stays native: Kotlin, Compose, Material 3, ViewModels,
+Room, local media, offline. This is **presentation only** — the data layer, the
+ViewModels, the navigation routes and the Diary's paper module are untouched, so
+no feature lost behaviour and no fake data was introduced.
+
+The supplied Figma file (`ehSpxDfVot6SgPIdd2Tvf4`) is now the single source of
+truth for colour, type, spacing and layout.
+
+## 1. A new kit, built from the frame
+
+`ui/components/LifeOSCore.kt` is the new vocabulary — `LifeOSCard`,
+`LifeOSPageHeader`, `LifeOSEyebrow`, `LifeOSSectionHeader`, `LifeOSPrimaryButton`,
+`LifeOSProgressTrack`, `LifeOSEmptyState`, `LifeOSFilterPill`, `LifeOSLinkText`,
+`LifeOSSearchField`, `LifeOSHeaderButton` — with `lifeOSCanvas()`,
+`lifeOSCanvasBrush()`, `lifeOSCardShape()` and `lifeOSIsDark()` for the page
+surface.
+
+`LifeOSDesignComponents.kt` and `LifeOSTopBar.kt` are deleted, along with the
+pieces the new kit superseded (`LifeOSScreenHeader`, `LifeOSActionTile`,
+`LifeOSHeroCard`, the `Legacy*` duplicates and `LiquidGlassFab`).
+
+## 2. The recipe, applied to every screen
+
+- **Header** — 86dp: a 9sp mint uppercase eyebrow, a 24sp SemiBold title and a
+  42×42 r15 action.
+- **Content** — 24dp padding, an 18dp gap between blocks, the `#162630` r16
+  search well and the r22 translucent card (18dp padding, 12dp inner gap).
+- **The canvas** — one brush paints the frame's gradient so every page sits in
+  the same light: top `#1F3B46` → mid `#0D161F`, nav `#102029`, card `#1C303A`,
+  mint `#A8E8D3` (dark mode has its own variant). The values were sampled from
+  the exported frame renders, not chosen by eye.
+
+Rebuilt: Home, Notes, Note Editor, Tasks, Habits, Habit Detail, Expenses,
+Insights, Life, Capture hub, Capture media preview, Global search, AI assistant,
+Profile, Settings, App Lock setup, Onboarding, Snap, Snap viewer and Start.
+
+## 3. Type is one voice
+
+Inter, as a single variable font (`inter_variable.ttf`). The bundled Fraunces,
+Manrope and Kalam files are deleted — the app no longer ships three type
+families it barely used. `DiaryHandwriting` stays as an alias so the diary keeps
+compiling.
+
+## 4. Insets are applied once
+
+`LifeOSNavHost`'s `Scaffold` already insets every destination, so the rebuild
+removed the per-screen `statusBarsPadding()` / `navigationBarsPadding()` calls
+that were applying them a second time. The only places that still inset
+themselves are the ones that should: the App Lock gate (it replaces the NavHost),
+dialogs with `decorFitsSystemWindows = false`, the bottom bar and the diary
+editor.
+
+## 5. The Diary keeps its paper
+
+The design's Diary frame is a page, not a card. `GlassCard`, the paper palette
+(now `ui/theme/DiaryColors.kt`) and the diary's own layout are kept as-is; what
+was rebuilt is the app chrome around the notebook.
+
+## Verification
+
+```text
+gradle :app:testDebugUnitTest :app:assembleDebug
+  -> BUILD SUCCESSFUL
+     469 tests across 39 suites, 0 failures, 0 skipped, 0 errors
+     app/build/outputs/apk/debug/app-debug.apk  (46.4 MB)
+```
+
+`gradle :app:compileDebugKotlin` is warning-clean apart from pre-existing
+deprecations in the diary (the auto-mirrored `ArrowBack` / `MenuBook` icons and
+the old `LocalLifecycleOwner` import in Settings).
+
+## Not verified here
+
+No Android device or emulator is available in this environment, so the rebuild
+has **not** been seen on a screen: real density, the header and canvas
+proportions at each width, dark-mode contrast in the hand and every interactive
+state are not claimed. The evidence is the green build, the 469-test JVM suite,
+and the frame renders under `design/figma/` (git-ignored reference PNGs — design
+process, not shipped assets).
+
+## Known, deliberately not changed
+
+`CameraCaptureScreen` and `VideoCaptureScreen` are unreachable today (they are
+named only in a doc comment) — pre-existing dead code, left alone because this
+pass is presentation-only and deleting working feature code is a separate call.
+
+---
+
 # Redesign pass: working voice capture, a real identity, and motion
 
 Branch `redesign/from-zero-2026` — three commits on top of `90a142b`. Everything

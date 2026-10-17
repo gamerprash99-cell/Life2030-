@@ -16,6 +16,66 @@ output.
 
 ---
 
+## [Unreleased] — Figma fidelity rebuild
+
+Branch `redesign/from-zero-2026`. Every screen was rebuilt from zero against the
+supplied Figma file (`ehSpxDfVot6SgPIdd2Tvf4`). The result is a new theme, a new
+component kit and one canvas/page-header layout shared by the whole app. The
+data layer, ViewModels, navigation routes and the Diary's paper module are
+unchanged, so no feature lost behaviour: the work is presentation only.
+
+### Added
+- **New component kit** (`ui/components/LifeOSCore.kt`) — `LifeOSCard`,
+  `LifeOSPageHeader`, `LifeOSEyebrow`, `LifeOSSectionHeader`, `LifeOSPrimaryButton`,
+  `LifeOSProgressTrack`, `LifeOSEmptyState`, `LifeOSFilterPill`, `LifeOSLinkText`,
+  `LifeOSSearchField`, `LifeOSHeaderButton`, plus `lifeOSCanvas()` /
+  `lifeOSCanvasBrush()` / `lifeOSCardShape()` / `lifeOSIsDark()`.
+- **The canvas** — the Figma frame's background gradient (a single brush that
+  runs from the lighter top of the frame to the near-black bottom, with a
+  dark-mode variant), so every page sits in the same light instead of flattening
+  to one hue.
+- **`DiaryColors.kt`** — the Diary module's paper palette, split out of `Color.kt`
+  so the app palette and the paper palette stay legible as separate things.
+
+### Changed
+- **Every screen rebuilt to the Figma recipe**: an 86dp page header (9sp mint
+  uppercase eyebrow + 24sp SemiBold title + 42×42 r15 action), 24dp content
+  padding with an 18dp gap, the `#162630` r16 search well, an r22 translucent
+  card (18dp padding, 12dp inner gap), a mint section-action label and an r22
+  selected pill. Screens rebuilt: Home, Notes, Note editor, Tasks, Habits,
+  Habit detail, Expenses, Insights, Life, Capture hub, Capture media preview,
+  Global search, AI assistant, Profile, Settings, App-Lock setup, Onboarding,
+  Snap, Snap viewer and the start screen.
+- **Theme** (`Color.kt`, `Theme.kt`, `Type.kt`) — the app's tokens, schemes and
+  type scale now come from the Figma file; the type is single-voice **Inter**
+  (one variable font) instead of three families across eight files.
+- **One status-bar rule** — destinations no longer apply their own
+  `statusBarsPadding()` / `navigationBarsPadding()`; the `LifeOSNavHost`
+  `Scaffold` owns the insets for every destination.
+- The shared radius default for `LifeOSSurface` / `GlassCard` / `LiquidGlass` is
+  the card radius (22dp), so no screen has to pass its own shape.
+
+### Fixed
+- `SettingsScreen` failed to compile: a missing `fillMaxSize` import and a
+  stray top-level brace left by the rebuild.
+
+### Removed
+- Dead components: `LifeOSTopBar.kt`, `LifeOSDesignComponents.kt`, and the
+  superseded `LifeOSScreenHeader` / `LifeOSActionTile` / `LifeOSHeroCard` /
+  `Legacy*` / `LiquidGlassFab` definitions they left behind.
+- Superseded screens: `ui/notes/NotesListScreen.kt` and `ui/search/SearchScreen.kt`
+  (both unreachable — `NotesScreen` and `GlobalSearchScreen` do their jobs).
+- The bundled Fraunces / Manrope / Kalam font files, replaced by the single
+  Inter variable font the design uses.
+
+### Kept deliberately
+- **The Diary and Timeline keep their paper aesthetic.** The design's Diary
+  frame is a page, not a card, so `GlassCard`, the paper palette and the diary's
+  insets stay as they are — this pass is a rebuild of the *app* chrome, not the
+  notebook inside it.
+
+---
+
 ## [Unreleased] — Redesign pass: capture audio, identity, motion
 
 Branch `redesign/from-zero-2026`.
