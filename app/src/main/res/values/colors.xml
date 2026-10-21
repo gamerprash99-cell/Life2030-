@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- LifeOS light palette: background #F5EDE5 -->
-    <color name="window_background_light">#F5EDE5</color>
-    <color name="ic_launcher_background">#F5EDE5</color>
-    <!-- Default for the dark window background so the resource always resolves;
-         values-night overrides it with the dark palette value. -->
-    <color name="window_background_dark">#29201F</color>
-</resources>
