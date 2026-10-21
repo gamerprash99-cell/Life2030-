@@ -1,0 +1,28 @@
+# Build artifacts
+*.apk
+*.aab
+*.ap_
+*.dex
+build/
+.gradle/
+.kotlin/
+local.properties
+
+# IDE / OS
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing material must never be committed
+*.keystore
+*.jks
+*.pepk
+.env
+.env.*
+!.env.example
+
+# Local logs
+*.log
