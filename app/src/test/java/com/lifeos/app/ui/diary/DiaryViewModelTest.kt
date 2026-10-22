@@ -1,0 +1,1007 @@
+package com.lifeos.app.ui.diary
+
+import com.lifeos.app.core.location.LocationFailure
+import com.lifeos.app.core.location.LocationOutcome
+import com.lifeos.app.core.location.LocationProvider
+import com.lifeos.app.core.media.AudioPlayback
+import com.lifeos.app.core.media.AudioRecorder
+import com.lifeos.app.core.media.PhotoImporter
+import com.lifeos.app.core.media.PlaybackState
+import com.lifeos.app.core.media.RecordingState
+import com.lifeos.app.data.db.dao.DiaryDao
+import com.lifeos.app.data.db.entities.DiaryEntity
+import com.lifeos.app.data.repository.DiaryRepository
+import com.lifeos.app.data.repository.WeatherRepository
+import com.lifeos.app.domain.model.DiaryAttachment
+import com.lifeos.app.domain.model.DiaryWeather
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.test.runTest
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import java.time.LocalDate
+
+/**
+ * The Diary's timestamp and day-selection rules.
+ *
+ * The behaviour this pins down: a save used to read the clock *at save time*,
+ * so opening the composer at 8:04, writing for twenty minutes and saving filed
+ * the memory at 8:24 — and the time shown while writing was a value that
+ * changed under the user's hands. The minute is now captured when the composer
+ * opens; these tests hold it there.
+ *
+ * The timestamp and save rules now live in [DiaryEditorViewModel] (which owns the
+ * draft and the write) while day selection and the day list live in
+ * [DiaryViewModel], so both are covered here.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class DiaryViewModelTest {
+
+    private val today = LocalDate.of(2026, 9, 26).toEpochDay()
+
+    /**
+     * One dispatcher shared by `Dispatchers.Main` and every `runTest`, so
+     * `advanceUntilIdle()` actually drives the ViewModel's coroutines instead of
+     * a second, unrelated scheduler.
+     */
+    private val dispatcher = StandardTestDispatcher()
+    private lateinit var dao: FakeDiaryDao
+    /** ViewModels own Main-scope jobs; clear every test instance so one test cannot leak into the next. */
+    private val createdScopes = mutableListOf<kotlinx.coroutines.CoroutineScope>()
+
+    /** The wall clock, moved explicitly by the test rather than by wall time. */
+    private var clockMinutes = 8 * 60 + 4
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(dispatcher)
+        dao = FakeDiaryDao()
+    }
+
+    @After
+    fun tearDown() {
+        createdScopes.forEach { it.coroutineContext.cancelChildren() }
+        createdScopes.clear()
+        Dispatchers.resetMain()
+    }
+
+    /**
+     * The repository does its row reads, JSON work and file unlinking on an IO
+     * dispatcher rather than on the caller's thread, because every production
+     * caller is a `viewModelScope`. Handed the shared test scheduler here so
+     * `advanceUntilIdle()` still governs the storage work — pointing it at the
+     * real `Dispatchers.IO` would make these tests race a live thread pool.
+     */
+    private fun diaryRepository() = DiaryRepository(dao, io = dispatcher)
+
+    private fun viewModel() = DiaryViewModel(
+        diaryRepository = diaryRepository(),
+        todayEpochDay = { today }
+    ).also { createdScopes += it.viewModelScope }
+
+    /**
+     * The composer. The platform collaborators are fakes, which is only possible
+     * because the view model depends on the `AudioRecorder` / `AudioPlayback` /
+     * `LocationProvider` / `PhotoImporter` interfaces rather than on the Android
+     * implementations.
+     */
+    /** An editor whose load has deliberately not been allowed to land yet. */
+    private fun rawEditor(entryId: String? = null, defaultDay: Long = today) =
+        DiaryEditorViewModel(
+            diaryRepository = diaryRepository(),
+            weatherRepository = FakeWeatherRepository(),
+            locationProvider = FakeLocationProvider(),
+            recorder = FakeRecorder(),
+            player = FakePlayback(),
+            photoImporter = FakePhotoImporter(),
+            nowMinutes = { clockMinutes },
+            todayEpochDay = { today }
+        ).also { createdScopes += it.viewModelScope }.apply { start(entryId, defaultDay) }
+
+    private suspend fun TestScope.editor(
+        entryId: String? = null,
+        defaultDay: Long = today
+    ): DiaryEditorViewModel = DiaryEditorViewModel(
+        diaryRepository = diaryRepository(),
+        weatherRepository = FakeWeatherRepository(),
+        locationProvider = FakeLocationProvider(),
+        recorder = FakeRecorder(),
+        player = FakePlayback(),
+        photoImporter = FakePhotoImporter(),
+        nowMinutes = { clockMinutes },
+        todayEpochDay = { today }
+    ).also { createdScopes += it.viewModelScope }.apply {
+        start(entryId, defaultDay)
+        // Let the row load land, so what the test types into is the real draft.
+        advanceUntilIdle()
+    }
+
+    private fun entry(id: String, day: Long = today, timeMinutes: Int = 480) = DiaryEntity(
+        id = id,
+        content = "content of $id",
+        dateEpochDay = day,
+        timeMinutes = timeMinutes,
+        createdAt = 0L,
+        updatedAt = 0L
+    )
+
+    // ---- timestamp capture -------------------------------------------------
+
+    @Test
+    fun `a new entry keeps the minute the composer was opened at, not the minute it was saved at`() =
+        runTest(dispatcher) {
+            val vm = editor()
+
+            // The user writes. Twenty minutes pass; the clock moves on.
+            clockMinutes = 8 * 60 + 24
+            vm.onContentChange("a long thought")
+            vm.save()
+            advanceUntilIdle()
+
+            assertEquals(8 * 60 + 4, dao.saved.single().timeMinutes)
+        }
+
+    @Test
+    fun `the minute shown while writing does not drift as the clock moves`() =
+        runTest(dispatcher) {
+            val vm = editor()
+            val captured = vm.state.value.timeMinutes
+
+            clockMinutes = 23 * 60 + 59
+
+            assertEquals(captured, vm.state.value.timeMinutes)
+        }
+
+    @Test
+    fun `each new entry is stamped with its own open time`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("morning")
+        vm.save()
+        advanceUntilIdle()
+
+        clockMinutes = 21 * 60 + 15
+        vm.start(null, today)
+        vm.onContentChange("evening")
+        vm.save()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(8 * 60 + 4, 21 * 60 + 15),
+            dao.saved.map { it.timeMinutes }.sorted()
+        )
+    }
+
+    @Test
+    fun `reopening the composer starts a fresh draft rather than keeping the last one`() =
+        runTest(dispatcher) {
+            val vm = editor()
+
+            vm.onContentChange("a half-written thought")
+            vm.onMoodChange("calm")
+            vm.start(null, today)
+
+            assertEquals("", vm.state.value.content)
+            assertNull(vm.state.value.mood)
+        }
+
+    @Test
+    fun `editing an existing memory never moves its timestamp`() = runTest(dispatcher) {
+        val original = entry("a", timeMinutes = 7 * 60 + 30)
+        dao.seed(original)
+        val vm = editor("a")
+
+        clockMinutes = 19 * 60
+        vm.onContentChange("revised wording")
+        vm.onMoodChange("calm")
+        vm.save()
+        advanceUntilIdle()
+
+        val saved = dao.saved.single()
+        assertEquals(7 * 60 + 30, saved.timeMinutes)
+        assertEquals(original.createdAt, saved.createdAt)
+        assertEquals("revised wording", saved.content)
+    }
+
+    @Test
+    fun `saving before the edited row finishes loading cannot create a duplicate`() =
+        runTest(dispatcher) {
+            dao.seed(entry("a", timeMinutes = 7 * 60 + 30))
+
+            // The composer opens and the user starts typing while the read is
+            // still in flight. The draft has no id yet, so an unguarded save
+            // would insert a second row rather than update the first.
+            val vm = rawEditor("a")
+            vm.onContentChange("typed straight away")
+            assertFalse(vm.state.value.canSave)
+
+            vm.save()
+            advanceUntilIdle()
+
+            assertEquals(1, dao.saved.size)
+            assertEquals("a", dao.saved.single().id)
+        }
+
+    @Test
+    fun `a new memory is filed under the day being read, not today`() = runTest(dispatcher) {
+        val vm = editor(defaultDay = today - 5)
+
+        vm.onContentChange("a memory from last week")
+        vm.save()
+        advanceUntilIdle()
+
+        assertEquals(today - 5, dao.saved.single().dateEpochDay)
+    }
+
+    // ---- day selection bounds ---------------------------------------------
+
+    @Test
+    fun `selecting today keeps today`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.selectDay(today)
+        assertEquals(today, vm.selectedDay.value)
+    }
+
+    @Test
+    fun `selecting a future day is refused because there is no tomorrow to journal`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.selectDay(today + 1)
+            assertEquals(today, vm.selectedDay.value)
+        }
+
+    @Test
+    fun `selecting beyond the strip's history window is clamped to its oldest day`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.selectDay(today - HISTORY_DAYS - 40)
+            assertEquals(today - HISTORY_DAYS, vm.selectedDay.value)
+        }
+
+    // ---- day content -------------------------------------------------------
+
+    @Test
+    fun `only the selected day's memories are shown, newest first`() = runTest(dispatcher) {
+        dao.seed(
+            entry("older", timeMinutes = 9 * 60),
+            entry("newer", timeMinutes = 21 * 60),
+            entry("other-day", day = today - 1, timeMinutes = 12 * 60)
+        )
+        val vm = viewModel()
+
+        // This is a WhileSubscribed state flow, so it only produces a value once
+        // something is actually collecting — read through `first`.
+        val shown = vm.memoriesForSelectedDay.first { it.isNotEmpty() }
+        assertEquals(listOf("newer", "older"), shown.map { it.id })
+    }
+
+    @Test
+    fun `days holding memories are reported for the strip's markers`() = runTest(dispatcher) {
+        dao.seed(
+            entry("a", day = today),
+            entry("b", day = today - 2),
+            entry("c", day = today - 2)
+        )
+        val vm = viewModel()
+
+        val marked = vm.daysWithMemories.first { it.isNotEmpty() }
+        assertEquals(setOf(today, today - 2), marked)
+    }
+
+    // ---- save guards and confirmation --------------------------------------
+
+    @Test
+    fun `a blank memory is never written`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("   ")
+        vm.save()
+        advanceUntilIdle()
+
+        assertEquals(0, dao.saved.size)
+    }
+
+    // ---- the 1000-character limit -----------------------------------------
+
+    @Test
+    fun `a draft may be typed up to the limit`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("x".repeat(1000))
+
+        assertEquals(1000, vm.state.value.content.length)
+        assertTrue(vm.state.value.canSave)
+    }
+
+    @Test
+    fun `typing past the limit is cut at the limit, not rejected`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("x".repeat(1200))
+
+        assertEquals(1000, vm.state.value.content.length)
+    }
+
+    @Test
+    fun `the limit counts characters of a long mixed draft`() = runTest(dispatcher) {
+        val vm = editor()
+
+        val draft = buildString { repeat(120) { append("a long thought, and then some more. ") } }
+        vm.onContentChange(draft)
+        val stored = draft.take(1000)
+        assertEquals(1000, stored.length)
+        assertEquals(stored, vm.state.value.content)
+    }
+
+    @Test
+    fun `saving a full-length draft stores the whole entry`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("y".repeat(1000))
+        vm.save()
+        advanceUntilIdle()
+
+        assertEquals(1, dao.saved.size)
+        assertEquals(1000, dao.saved.single().content.length)
+    }
+
+    @Test
+    fun `a rejected blank save emits no confirmation event`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("first")
+        vm.save()
+        advanceUntilIdle()
+        assertEquals(1, vm.state.value.saveCount)
+
+        vm.start(null, today)
+        vm.onContentChange("   ")
+        vm.save()
+        advanceUntilIdle()
+
+        // A rejected blank save must not produce another success event.
+        assertEquals(1, vm.state.value.saveCount)
+    }
+
+    @Test
+    fun `saving the same memory twice fires the confirmation twice`() = runTest(dispatcher) {
+        dao.seed(entry("a"))
+        val vm = editor("a")
+
+        vm.onContentChange("first revision")
+        vm.save()
+        advanceUntilIdle()
+        vm.onContentChange("second revision")
+        vm.save()
+        advanceUntilIdle()
+
+        // A monotonic counter, not the id: the second write of the same row is a
+        // distinct event the UI still has to acknowledge.
+        assertEquals(2, vm.state.value.saveCount)
+    }
+
+    @Test
+    fun `the save action is released after a write`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("first")
+        vm.save()
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isSaving)
+    }
+
+    @Test
+    fun `the day view closes the composer once the editor reports a committed write`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.startNewEntry()
+            assertEquals(true, vm.showEditor.value)
+
+            vm.onEditorSaved("a")
+
+            assertFalse(vm.showEditor.value)
+            assertNull(vm.editingEntry.value)
+        }
+
+    // ---- the post-save confirmation ----------------------------------------
+
+    @Test
+    fun `a committed write is confirmed with the entry it produced`() = runTest(dispatcher) {
+        dao.seed(entry("a", timeMinutes = 8 * 60 + 2))
+        val vm = viewModel()
+
+        vm.startNewEntry()
+        vm.onEditorSaved("a")
+
+        assertEquals("a", vm.savedEntryId.value)
+        // A WhileSubscribed flow, so read it through `first` rather than `.value`.
+        val confirmed = vm.savedEntry.first { it != null }!!
+        assertEquals("a", confirmed.id)
+    }
+
+    @Test
+    fun `the confirmation names the real stored minute, not the minute of the save`() =
+        runTest(dispatcher) {
+            // The row carries the minute it was originally filed under. An edit
+            // re-saves without moving it, and the sheet must report that minute
+            // rather than whatever the clock says now.
+            dao.seed(entry("a", timeMinutes = 7 * 60 + 30))
+            val vm = viewModel()
+
+            clockMinutes = 21 * 60
+            vm.onEditorSaved("a")
+
+            assertEquals(7 * 60 + 30, vm.savedEntry.first { it != null }!!.timeMinutes)
+        }
+
+    @Test
+    fun `a commit that produced no id does not show an empty confirmation`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+
+            vm.startNewEntry()
+            vm.onEditorSaved(null)
+
+            assertNull(vm.savedEntryId.value)
+            // Nothing to name, so the sheet must stay hidden: the screen gates it
+            // on a resolvable entry, and an id-less commit leaves nothing to
+            // resolve.
+            assertNull(vm.savedEntry.first())
+        }
+
+    @Test
+    fun `dismissing the confirmation retires it`() = runTest(dispatcher) {
+        dao.seed(entry("a"))
+        val vm = viewModel()
+
+        vm.onEditorSaved("a")
+        assertEquals("a", vm.savedEntryId.value)
+
+        vm.dismissSavedConfirmation()
+
+        assertNull(vm.savedEntryId.value)
+    }
+
+    @Test
+    fun `moving to another day retires the confirmation`() = runTest(dispatcher) {
+        dao.seed(entry("a", day = today), entry("b", day = today - 1))
+        val vm = viewModel()
+
+        vm.onEditorSaved("a")
+        vm.selectDay(today - 1)
+
+        assertNull(vm.savedEntryId.value)
+    }
+
+    @Test
+    fun `add another memory retires the confirmation and reopens the composer empty`() =
+        runTest(dispatcher) {
+            dao.seed(entry("a"))
+            val vm = viewModel()
+            vm.onEditorSaved("a")
+
+            // What the sheet's second action calls.
+            vm.startNewEntry()
+
+            assertNull(vm.savedEntryId.value)
+            assertEquals(true, vm.showEditor.value)
+            // A second memory must be a new draft, never the one just written.
+            assertNull(vm.editingEntry.value)
+        }
+
+    @Test
+    fun `a second save of the same memory confirms again`() = runTest(dispatcher) {
+        dao.seed(entry("a"))
+        val vm = viewModel()
+
+        vm.onEditorSaved("a")
+        vm.dismissSavedConfirmation()
+        vm.onEditorSaved("a")
+
+        assertEquals("a", vm.savedEntryId.value)
+    }
+
+    // ---- voice note --------------------------------------------------------
+
+    @Test
+    fun `a running recording's live duration and level reach the state the row renders`() =
+        runTest(dispatcher) {
+            // The composer's timer and level dot are rendered from
+            // `state.recording`, which the UI advances only by calling
+            // tickRecording(). That call was never made, so a take used to sit on
+            // the 0:00 / zero-amplitude reading `start()` wrote for its whole
+            // length. This pins the contract the poll depends on.
+            val recorder = FakeRecorder()
+            val vm = DiaryEditorViewModel(
+                diaryRepository = diaryRepository(),
+                weatherRepository = FakeWeatherRepository(),
+                locationProvider = FakeLocationProvider(),
+                recorder = recorder,
+                player = FakePlayback(),
+                photoImporter = FakePhotoImporter(),
+                nowMinutes = { clockMinutes },
+                todayEpochDay = { today }
+            )
+            vm.start(null, today)
+            advanceUntilIdle()
+
+            vm.startRecording()
+            val atStart = vm.state.value.recording
+            assertTrue("expected a running take, was $atStart", atStart is RecordingState.Recording)
+            assertEquals(0L, (atStart as RecordingState.Recording).elapsedMillis)
+
+            recorder.elapsedMillis = 4_500L
+            recorder.amplitude = 9_000
+            vm.tickRecording()
+
+            val live = vm.state.value.recording as RecordingState.Recording
+            assertEquals(4_500L, live.elapsedMillis)
+            assertEquals(9_000, live.amplitude)
+        }
+
+    @Test
+    fun `ticking with no take running reports idle rather than inventing a recording`() =
+        runTest(dispatcher) {
+            val vm = editor()
+
+            vm.tickRecording()
+
+            assertEquals(RecordingState.Idle, vm.state.value.recording)
+        }
+
+    @Test
+    fun `a memory cannot be saved while a take is still running`() = runTest(dispatcher) {
+        val vm = editor()
+        vm.onContentChange("words with a take still open")
+
+        vm.startRecording()
+        vm.tickRecording()
+
+        assertFalse("a running take must block the save", vm.state.value.canSave)
+    }
+
+    // ---- the Save button's own contract ------------------------------------
+    //
+    // The composable no longer re-derives "is Save live?" for itself; it reads
+    // `DiaryEditorState.canSave`. So every guard in that property is now also a
+    // promise about what the user sees on screen, and each one is pinned here.
+
+    @Test
+    fun `an entry that is still loading reports itself as not saveable`() =
+        runTest(dispatcher) {
+            dao.seed(entry("slow"))
+            // `rawEditor` deliberately does not let the load land, so the draft
+            // is still in its `isLoading` window.
+            val vm = rawEditor("slow")
+            advanceUntilIdle()
+
+            // Whatever the row turned out to hold, the guard held for the whole
+            // time the load was outstanding.
+            assertFalse(
+                "an un-loaded row must not offer Save",
+                loadWasNeverSaveable(vm)
+            )
+            assertFalse("and the load must have finished", vm.state.value.isLoading)
+        }
+
+    @Test
+    fun `a blank memory is not saveable, so the button is never live on empty words`() =
+        runTest(dispatcher) {
+            val vm = editor()
+
+            assertFalse(vm.state.value.canSave)
+
+            vm.onContentChange("   ")
+            assertFalse("whitespace is not a memory", vm.state.value.canSave)
+
+            vm.onContentChange("real words")
+            assertTrue(vm.state.value.canSave)
+        }
+
+    @Test
+    fun `a memory is not saveable while its own write is in flight`() = runTest(dispatcher) {
+        dao.seed(entry("busy"))
+        val vm = editor("busy")
+        vm.onContentChange("first revision")
+
+        vm.save()
+        advanceUntilIdle()
+
+        // And it comes back once the write settles, so the button is reusable.
+        assertTrue(vm.state.value.canSave)
+    }
+
+    /**
+     * The composer with a configurable location provider, for the state-machine
+     * tests. The platform collaborators stay fakes, which is only possible
+     * because the view model depends on the `LocationProvider` interface rather
+     * than on the Android implementation.
+     */
+    private suspend fun TestScope.editorWithLocation(
+        outcome: LocationOutcome = LocationOutcome.Failure(LocationFailure.NO_FIX),
+        hasPermission: Boolean = true
+    ): DiaryEditorViewModel = DiaryEditorViewModel(
+        diaryRepository = diaryRepository(),
+        weatherRepository = FakeWeatherRepository(),
+        locationProvider = FakeLocationProvider(outcome, hasPermission),
+        recorder = FakeRecorder(),
+        player = FakePlayback(),
+        photoImporter = FakePhotoImporter(),
+        nowMinutes = { clockMinutes },
+        todayEpochDay = { today }
+    ).also { createdScopes += it.viewModelScope }.apply {
+        start(null, today)
+        advanceUntilIdle()
+    }
+
+    /** Walks the load window and reports whether Save was ever offered inside it. */
+    private suspend fun loadWasNeverSaveable(vm: DiaryEditorViewModel): Boolean {
+        vm.onContentChange("typed before the row arrived")
+        return !vm.state.value.canSave
+    }
+
+    // ---- location state --------------------------------------------------
+    //
+    // The Phase 4 bug: location being switched off in the OS produced the same
+    // state as "nothing has been requested yet", and the row responded by
+    // offering a tappable "Add current location" that could not work. These
+    // tests pin the mapping that fixed it.
+
+    @Test
+    fun `location starts idle, with the normal add action available`() = runTest(dispatcher) {
+        val vm = editor()
+
+        assertEquals(LocationStatus.IDLE, vm.state.value.locationStatus)
+        assertNull(vm.state.value.place)
+    }
+
+    @Test
+    fun `a refused permission reports a permission problem, not a generic failure`() = runTest(dispatcher) {
+        val vm = editorWithLocation(hasPermission = false)
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        assertEquals(LocationStatus.PERMISSION_DENIED, vm.state.value.locationStatus)
+    }
+
+    @Test
+    fun `a permanently refused permission is distinguished from a plain denial`() = runTest(dispatcher) {
+        val vm = editorWithLocation(hasPermission = false)
+
+        vm.attachLocation(isPermanentlyDenied = true)
+        advanceUntilIdle()
+
+        // These need different destinations: one can still prompt, the other
+        // has to go to Settings because the prompt is now a silent no-op.
+        assertEquals(LocationStatus.PERMISSION_PERMANENTLY_DENIED, vm.state.value.locationStatus)
+    }
+
+    @Test
+    fun `location switched off in the system is its own state, not a generic failure`() = runTest(dispatcher) {
+        val vm = editorWithLocation(outcome = LocationOutcome.Failure(LocationFailure.PROVIDERS_DISABLED))
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        assertEquals(LocationStatus.SERVICE_DISABLED, vm.state.value.locationStatus)
+        // The whole point: this state must not read as an ordinary idle add.
+        assertTrue(locationRowOffer(vm.state.value.locationStatus).action != LocationRowAction.REQUEST)
+    }
+
+    @Test
+    fun `a device with no location service is reported honestly`() = runTest(dispatcher) {
+        val vm = editorWithLocation(outcome = LocationOutcome.Failure(LocationFailure.NO_PROVIDER))
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        assertEquals(LocationStatus.NO_PROVIDER, vm.state.value.locationStatus)
+        assertEquals(LocationRowAction.NONE, locationRowOffer(vm.state.value.locationStatus).action)
+    }
+
+    @Test
+    fun `a missing fix is retryable rather than an error`() = runTest(dispatcher) {
+        val vm = editorWithLocation(outcome = LocationOutcome.Failure(LocationFailure.NO_FIX))
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        assertEquals(LocationStatus.NO_FIX, vm.state.value.locationStatus)
+        assertEquals(LocationRowTone.NEUTRAL, locationRowOffer(vm.state.value.locationStatus).tone)
+    }
+
+    @Test
+    fun `a location failure is explained by the row, not by the shared error slot`() = runTest(dispatcher) {
+        val vm = editorWithLocation(outcome = LocationOutcome.Failure(LocationFailure.PROVIDERS_DISABLED))
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        // `errorMessage` is shared with photo, voice, save and load errors and
+        // renders at the foot of the whole attachments column — which is how a
+        // location problem used to be explained hundreds of dp below the control
+        // that caused it, in red, and then erased by the next keystroke.
+        assertNull(vm.state.value.errorMessage)
+        assertNotNull(locationRowOffer(vm.state.value.locationStatus).detail)
+    }
+
+    @Test
+    fun `the title is capped like the body`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onTitleChange("x".repeat(400))
+        assertEquals("an unbounded title becomes a pasted paragraph", 120, vm.state.value.title.length)
+
+        vm.onTitleChange("a real title")
+        assertEquals("a short title is never truncated", "a real title", vm.state.value.title)
+    }
+
+    @Test
+    fun `the body cap is unchanged`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.onContentChange("y".repeat(5000))
+        assertEquals(1000, vm.state.value.content.length)
+    }
+
+    @Test
+    fun `a tag is capped and still deduplicated`() = runTest(dispatcher) {
+        val vm = editor()
+
+        vm.addTag("z".repeat(100))
+        assertEquals(32, vm.state.value.tags.single().length)
+
+        vm.addTag(vm.state.value.tags.single())
+        assertEquals("a duplicate is still refused after truncation", 1, vm.state.value.tags.size)
+    }
+
+    @Test
+    fun `title and mood reach the saved entry`() = runTest(dispatcher) {
+        val vm = editor()
+        val happy = com.lifeos.app.domain.model.DiaryMoods.OPTIONS.first { it.label == "Happy" }
+
+        vm.onTitleChange("The day the garden came back")
+        vm.onContentChange("It rained all week and then this.")
+        vm.onMoodChange(happy.key)
+        vm.save()
+        advanceUntilIdle()
+
+        // The point of the whole wiring: these two handlers had no caller, so
+        // nothing could ever set them. Assert it lands in the row.
+        val saved = dao.saved.last()
+        assertEquals("The day the garden came back", saved.title)
+        assertEquals(happy.key, saved.mood)
+    }
+
+    @Test
+    fun `a mood can be set and then cleared before saving`() = runTest(dispatcher) {
+        val vm = editor()
+        val happy = com.lifeos.app.domain.model.DiaryMoods.OPTIONS.first { it.label == "Happy" }
+
+        vm.onContentChange("Draft text")
+        vm.onMoodChange(happy.key)
+        vm.onMoodChange(null)
+        vm.save()
+        advanceUntilIdle()
+
+        // Mood is optional by design — the column is nullable and most existing
+        // entries have none — so clearing has to be as easy as setting.
+        assertNull(dao.saved.last().mood)
+    }
+
+    fun `typing does not erase a blocked location state`() = runTest(dispatcher) {
+        val vm = editorWithLocation(outcome = LocationOutcome.Failure(LocationFailure.PROVIDERS_DISABLED))
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        vm.onContentChange("still blocked, and the row must still say so")
+
+        // The reason lives in the location state, not in the shared error slot,
+        // so a keystroke cannot silently wipe the explanation.
+        assertEquals(LocationStatus.SERVICE_DISABLED, vm.state.value.locationStatus)
+    }
+
+    @Test
+    fun `a successful fix attaches the place and returns to idle`() = runTest(dispatcher) {
+        val vm = editorWithLocation(
+            outcome = LocationOutcome.Success(
+                place = DiaryAttachment.Place(latitude = 51.5, longitude = -0.12, placeName = "", accuracyMeters = 12f),
+                placeName = "Somewhere"
+            )
+        )
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        assertEquals("Somewhere", vm.state.value.place?.placeName)
+        assertEquals(LocationStatus.IDLE, vm.state.value.locationStatus)
+    }
+
+    @Test
+    fun `clearing a place returns the row to the idle add action`() = runTest(dispatcher) {
+        val vm = editorWithLocation(
+            outcome = LocationOutcome.Success(
+                place = DiaryAttachment.Place(latitude = 51.5, longitude = -0.12, placeName = "Somewhere"),
+                placeName = "Somewhere"
+            )
+        )
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        vm.clearLocation()
+
+        assertNull(vm.state.value.place)
+        assertEquals(LocationStatus.IDLE, vm.state.value.locationStatus)
+        assertEquals(LocationRowAction.REQUEST, locationRowOffer(vm.state.value.locationStatus).action)
+    }
+
+    @Test
+    fun `attaching a place does not disturb a long draft`() = runTest(dispatcher) {
+        val vm = editorWithLocation(
+            outcome = LocationOutcome.Success(
+                place = DiaryAttachment.Place(latitude = 51.5, longitude = -0.12, placeName = "Somewhere"),
+                placeName = "Somewhere"
+            )
+        )
+        val long = "a".repeat(1000)
+        vm.onContentChange(long)
+
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        // A location round trip is async; it must not truncate or reorder text.
+        assertEquals(long, vm.state.value.content)
+        assertEquals(1000, vm.state.value.content.length)
+    }
+
+    @Test
+    fun `a memory with a place still saves`() = runTest(dispatcher) {
+        val vm = editorWithLocation(
+            outcome = LocationOutcome.Success(
+                place = DiaryAttachment.Place(latitude = 51.5, longitude = -0.12, placeName = "Somewhere"),
+                placeName = "Somewhere"
+            )
+        )
+        vm.onContentChange("a memory worth placing")
+        vm.attachLocation()
+        advanceUntilIdle()
+
+        vm.save()
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.canSave)
+        assertNull(vm.state.value.errorMessage)
+    }
+}
+
+/**
+ * Minimal in-memory stand-in for the Room DAO — a real database cannot be opened
+ * in a JVM unit test, and the ViewModels only ever need the six methods below.
+ */
+private class FakeDiaryDao : DiaryDao {
+
+    private val state = MutableStateFlow<List<DiaryEntity>>(emptyList())
+
+    /** Current contents, as the ViewModel would observe them. */
+    val saved: List<DiaryEntity> get() = state.value
+
+    fun seed(vararg entries: DiaryEntity) {
+        state.value = entries.toList()
+    }
+
+    override suspend fun upsert(entry: DiaryEntity) {
+        state.value = state.value.filterNot { it.id == entry.id } + entry
+    }
+
+    override suspend fun delete(id: String) {
+        state.value = state.value.filterNot { it.id == id }
+    }
+
+    override fun observeAll(): Flow<List<DiaryEntity>> = state
+
+    override fun observeForDay(epochDay: Long): Flow<List<DiaryEntity>> =
+        state.map { all -> all.filter { it.dateEpochDay == epochDay } }
+
+    override fun observeById(id: String): Flow<DiaryEntity?> =
+        state.map { all -> all.firstOrNull { it.id == id } }
+
+    override suspend fun getById(id: String): DiaryEntity? = state.value.firstOrNull { it.id == id }
+
+    override suspend fun getAllForBackup(): List<DiaryEntity> = state.value
+
+        override suspend fun getAll(): List<DiaryEntity> = state.value
+
+        override suspend fun getAllInRange(fromEpochDay: Long, toEpochDay: Long): List<DiaryEntity> =
+            state.value.filter { it.dateEpochDay in fromEpochDay..toEpochDay }
+
+        override suspend fun search(pattern: String, moodKey: String?): List<DiaryEntity> =
+            state.value.filter { entry ->
+                entry.content.contains(pattern, ignoreCase = true) &&
+                    (moodKey == null || entry.mood == moodKey)
+            }
+}
+
+// ---- platform collaborators -------------------------------------------------
+
+private class FakeRecorder : AudioRecorder {
+    private val _state = MutableStateFlow<RecordingState>(RecordingState.Idle)
+    override val state: StateFlow<RecordingState> = _state
+
+    /**
+     * The wall clock a fake recording runs on. Advanced explicitly by the test
+     * so the elapsed reading is a value the test chose, not one that depended on
+     * how long the test took to run.
+     */
+    var elapsedMillis = 0L
+    var amplitude = 0
+
+    override fun start(): RecordingState {
+        elapsedMillis = 0L
+        _state.value = RecordingState.Recording(elapsedMillis = 0L, amplitude = 0)
+        return _state.value
+    }
+
+    override fun tick(): RecordingState {
+        val active = _state.value
+        if (active !is RecordingState.Recording) return active
+        _state.value = RecordingState.Recording(elapsedMillis = elapsedMillis, amplitude = amplitude)
+        return _state.value
+    }
+
+    override fun stop(): RecordingState {
+        val filePath = "/private/fake-take.m4a"
+        _state.value = RecordingState.Finished(filePath, elapsedMillis)
+        return _state.value
+    }
+
+    override fun cancel() { _state.value = RecordingState.Idle }
+
+    override fun isRecording(): Boolean = _state.value is RecordingState.Recording
+}
+
+private class FakePlayback : AudioPlayback {
+    private val _state = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
+    override val state: StateFlow<PlaybackState> = _state
+    override fun toggle(filePath: String): PlaybackState = _state.value
+    override fun play(filePath: String): PlaybackState = _state.value
+    override fun stop() { _state.value = PlaybackState.Idle }
+    override fun release() = stop()
+}
+
+private class FakeLocationProvider(
+    private val outcome: LocationOutcome = LocationOutcome.Failure(LocationFailure.NO_FIX),
+    private val granted: Boolean = true
+) : LocationProvider {
+    override fun hasLocationPermission(): Boolean = granted
+    override suspend fun currentPlace(): LocationOutcome = outcome
+}
+
+private class FakePhotoImporter : PhotoImporter {
+    override fun import(sourceUri: android.net.Uri): DiaryAttachment.Photo? =
+        DiaryAttachment.Photo(filePath = "/private/fake-${sourceUri.lastPathSegment}.jpg")
+}
+
+private class FakeWeatherRepository : WeatherRepository {
+    override suspend fun weatherFor(place: DiaryAttachment.Place?): DiaryWeather =
+        DiaryWeather.Unavailable(DiaryWeather.UnavailableReason.NO_SOURCE_OFFLINE_ONLY)
+}

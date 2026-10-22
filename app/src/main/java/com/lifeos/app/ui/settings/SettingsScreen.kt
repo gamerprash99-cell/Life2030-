@@ -1,0 +1,441 @@
+package com.lifeos.app.ui.settings
+
+import android.content.Intent
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.lifeos.app.R
+import com.lifeos.app.BuildConfig
+import com.lifeos.app.core.di.LambdaViewModelFactory
+import com.lifeos.app.core.di.LocalServiceLocator
+import com.lifeos.app.core.reminders.ReminderScheduler
+import com.lifeos.app.core.util.AppLockType
+import com.lifeos.app.core.util.NotificationAccess
+import com.lifeos.app.core.util.NotificationHelper
+import com.lifeos.app.core.util.PermissionManager
+import com.lifeos.app.core.util.PermissionStatus
+import com.lifeos.app.core.util.SettingsStore
+import com.lifeos.app.core.util.rememberPermissionState
+import com.lifeos.app.data.repository.BackupRepository
+import com.lifeos.app.ui.components.LifeOSCard
+import com.lifeos.app.ui.components.LifeOSSectionHeader
+import com.lifeos.app.ui.components.LifeOSTopBar
+import com.lifeos.app.ui.theme.LifeOSAccentLavender
+import com.lifeos.app.ui.theme.LifeOSSpacing
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import java.io.File
+
+class SettingsViewModel(
+    private val appContext: android.content.Context,
+    private val settingsStore: SettingsStore,
+    private val backupRepository: BackupRepository,
+    private val reminderRepository: com.lifeos.app.data.repository.ReminderRepository
+) : ViewModel() {
+    val appLockType = settingsStore.appLockType
+    val darkThemeEnabled = settingsStore.darkThemeEnabled
+    val remindersEnabled = settingsStore.remindersEnabled
+    val autoLockEnabled = settingsStore.autoLockEnabled
+    val autoCaptureExpenses = settingsStore.autoCaptureExpenses
+    private val _status = MutableStateFlow<String?>(null)
+    val status: StateFlow<String?> = _status
+    private val _lastExportedFile = MutableStateFlow<File?>(null)
+    val lastExportedFile: StateFlow<File?> = _lastExportedFile
+
+    fun setDarkThemeEnabled(enabled: Boolean) = viewModelScope.launch { settingsStore.setDarkThemeEnabled(enabled) }
+    fun setAutoLockEnabled(enabled: Boolean) = viewModelScope.launch { settingsStore.setAutoLockEnabled(enabled) }
+
+    /**
+     * Turning automatic capture on is only allowed once the system grant exists,
+     * so the switch cannot promise something that would silently not happen.
+     */
+    fun setAutoCaptureExpenses(enabled: Boolean) = viewModelScope.launch {
+        if (enabled && !NotificationAccess.isGranted(appContext)) return@launch
+        settingsStore.setAutoCaptureExpenses(enabled)
+    }
+
+    /**
+     * Persists the global reminder preference and makes it take effect:
+     * turning reminders OFF cancels every armed exact alarm, turning them ON
+     * re-arms every still-future task/habit reminder.
+     */
+    fun setRemindersEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsStore.setRemindersEnabled(enabled)
+        ReminderScheduler.setRemindersEnabled(appContext, enabled)
+        if (enabled) {
+            NotificationHelper.ensureChannel(appContext)
+            reminderRepository.rebuildAllActive()
+        }
+    }
+    fun exportBackup(directory: File) = viewModelScope.launch {
+        runCatching { backupRepository.exportToFile(directory, BuildConfig.VERSION_NAME) }
+            .onSuccess { _lastExportedFile.value = it; _status.value = "Backup exported successfully." }
+            .onFailure { _status.value = "Export failed: ${it.message ?: "Unknown error"}" }
+    }
+    fun importBackup(file: File) = viewModelScope.launch {
+        try {
+            runCatching { backupRepository.importFromFile(file) }
+                .onSuccess { _status.value = "Backup restored successfully." }
+                .onFailure { _status.value = "Restore failed: ${it.message ?: "Invalid backup"}" }
+        } finally {
+            file.delete()
+        }
+    }
+}
+
+@Composable
+fun SettingsScreen(onOpenAppLockSetup: () -> Unit, onBack: () -> Unit = {}) {
+    val locator = LocalServiceLocator.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val vm: SettingsViewModel = viewModel(factory = LambdaViewModelFactory {
+        SettingsViewModel(context.applicationContext, locator.settingsStore, locator.backupRepository, locator.reminderRepository)
+    })
+    val appLockType by vm.appLockType.collectAsState(initial = AppLockType.NONE)
+    val darkTheme by vm.darkThemeEnabled.collectAsState(initial = false)
+    val remindersEnabled by vm.remindersEnabled.collectAsState(initial = true)
+    val autoLockEnabled by vm.autoLockEnabled.collectAsState(initial = true)
+    val autoCaptureExpenses by vm.autoCaptureExpenses.collectAsState(initial = false)
+    // Re-read on resume: the grant can be given or revoked in system Settings
+    // while this screen is in the background.
+    var notificationAccessGranted by remember { mutableStateOf(NotificationAccess.isGranted(context)) }
+    val captureLifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(captureLifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                notificationAccessGranted = NotificationAccess.isGranted(context)
+            }
+        }
+        captureLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { captureLifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val status by vm.status.collectAsState()
+    val exported by vm.lastExportedFile.collectAsState()
+
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                runCatching {
+                    val temp = File(context.cacheDir, "lifeos-restore.json")
+                    context.contentResolver.openInputStream(uri)?.use { input -> temp.outputStream().use(input::copyTo) } ?: error("Unable to read selected file")
+                    vm.importBackup(temp)
+                }
+            }
+        }
+    }
+
+    Scaffold { padding ->
+        Column(
+            Modifier.fillMaxWidth().padding(padding).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            LifeOSTopBar("Settings & Security", "Preferences, authentication and local privacy", onBack = onBack)
+            Column(Modifier.padding(horizontal = LifeOSSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                LifeOSCard(Modifier.fillMaxWidth(), tint = LifeOSAccentLavender) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(18.dp)) {
+                            Icon(Icons.Filled.PrivacyTip, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(12.dp))
+                        }
+                        Column(Modifier.padding(start = 12.dp)) {
+                            Text("Zero cloud telemetry", style = MaterialTheme.typography.titleMedium)
+                            Text("LifeOS data stays on your device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+
+                LifeOSSectionHeader("Security")
+                SettingsRow(
+                    Icons.Filled.Lock,
+                    "App Lock",
+                    if (appLockType == AppLockType.PIN) "Secure LifeOS PIN" else "Off",
+                    onOpenAppLockSetup
+                )
+                LifeOSCard(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SettingsIcon(Icons.Filled.Lock)
+                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                            Text("Auto-lock", style = MaterialTheme.typography.titleMedium)
+                            Text("Require your PIN after LifeOS sits in the background.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = autoLockEnabled,
+                            onCheckedChange = vm::setAutoLockEnabled,
+                            enabled = appLockType == AppLockType.PIN
+                        )
+                    }
+                }
+
+                LifeOSSectionHeader("Appearance")
+                LifeOSCard(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SettingsIcon(Icons.Filled.Palette)
+                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                            Text("Slate Night", style = MaterialTheme.typography.titleMedium)
+                            Text(if (darkTheme) "Dark theme enabled" else "Lavender Day Calm", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = darkTheme, onCheckedChange = vm::setDarkThemeEnabled)
+                    }
+                }
+
+                LifeOSSectionHeader("Notifications / Reminders")
+                RemindersCard(enabled = remindersEnabled, onToggle = vm::setRemindersEnabled)
+                ExactAlarmsRemindersRow()
+                AutoCaptureCard(
+                    enabled = autoCaptureExpenses,
+                    accessGranted = notificationAccessGranted,
+                    onToggle = vm::setAutoCaptureExpenses,
+                    onGrantAccess = {
+                        runCatching { context.startActivity(NotificationAccess.appSettingsIntent(context)) }
+                    }
+                )
+
+                LifeOSSectionHeader("Backup & Local Storage")
+                LifeOSCard(Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SettingsIcon(Icons.Filled.Backup)
+                            Column(Modifier.padding(start = 12.dp)) {
+                                Text("LifeOS snapshot", style = MaterialTheme.typography.titleMedium)
+                                Text("Export and restore through Android Storage Access Framework.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        Button(onClick = { vm.exportBackup(context.filesDir) }, modifier = Modifier.fillMaxWidth()) { Text("Export LifeOS backup") }
+                        TextButton(onClick = { restoreLauncher.launch(arrayOf("application/json")) }, modifier = Modifier.fillMaxWidth()) { Text("Restore LifeOS backup") }
+                        if (exported != null) {
+                            TextButton(onClick = {
+                                val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", exported!!)
+                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "application/json"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, "Share LifeOS backup"))
+                            }, modifier = Modifier.fillMaxWidth()) { Text("Share exported backup") }
+                        }
+                        Text("Exports are plaintext JSON — only share them with people you trust. Restores are validated against the current format.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
+                }
+
+                LifeOSSectionHeader("About")
+                Text("LifeOS · Offline-first · Private by default", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 18.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onClick: (() -> Unit)? = null) {
+    LifeOSCard(Modifier.fillMaxWidth(), onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SettingsIcon(icon)
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (onClick != null) Text("›", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun SettingsIcon(icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Box(Modifier.background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(14.dp)).padding(10.dp)) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+private fun RemindersCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) rememberPermissionState(android.Manifest.permission.POST_NOTIFICATIONS) else null
+
+    LifeOSCard(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SettingsIcon(Icons.Filled.Notifications)
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text("Task & habit reminders", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        when {
+                            !enabled -> "All reminders are silenced."
+                            permission != null && !permission.isGranted -> "Reminders are on · notifications not allowed yet."
+                            else -> "Notifications are requested only when enabled."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = { checked ->
+                        if (checked) {
+                            if (permission != null && !permission.isGranted) {
+                                // A permanently-denied permission can no longer be
+                                // requested (the OS silently no-ops), so route the
+                                // user to system Settings instead of "asking" nothing.
+                                if (permission.status == PermissionStatus.PERMANENTLY_DENIED) permission.openSettings()
+                                else permission.request()
+                            }
+                            NotificationHelper.ensureChannel(context)
+                        }
+                        onToggle(checked)
+                    }
+                )
+            }
+            // Schedule delivery is driven by the shared ReminderScheduler: exact
+            // (setExactAndAllowWhileIdle) when SCHEDULE_EXACT_ALARM is granted or
+            // not required, otherwise the permission-free inexact fallback.
+        }
+    }
+}
+
+/**
+ * Settings → automatic expense capture.
+ *
+ * Two separate things are true here and the copy keeps them apart: the user has
+ * *asked* for capture (the stored preference) and the system has *granted*
+ * access. Only the combination produces expenses, so the card reports both and
+ * only offers the grant request when it is actually missing.
+ *
+ * The explanation is deliberately specific — on-device, no bank connection, no
+ * upload, high-confidence payments only, and it can be switched off — because
+ * "read your notifications" deserves more than a switch and a shrug.
+ */
+@Composable
+private fun AutoCaptureCard(
+    enabled: Boolean,
+    accessGranted: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onGrantAccess: () -> Unit
+) {
+    LifeOSCard(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SettingsIcon(Icons.Filled.NotificationsActive)
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text("Automatic expense capture", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        when {
+                            enabled && accessGranted -> "On · reading payment notifications on this device."
+                            enabled -> "Waiting for notification access."
+                            accessGranted -> "Off · notification access is granted."
+                            else -> "Off · notification access not granted."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(checked = enabled && accessGranted, onCheckedChange = { checked ->
+                    if (checked && !accessGranted) onGrantAccess() else onToggle(checked)
+                })
+            }
+            Text(
+                "LifeOS reads payment notifications on this device and records the amount, merchant, " +
+                    "category, payment method and time. It is matched on-device, never uploaded, and LifeOS " +
+                    "is not connected to your bank. Only notifications it reads with high confidence are " +
+                    "recorded; anything ambiguous is left for you to add yourself. Notification text is " +
+                    "never stored.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (!accessGranted) {
+                androidx.compose.material3.TextButton(onClick = onGrantAccess, modifier = Modifier.fillMaxWidth()) {
+                    Text("Open notification access settings")
+                }
+            } else if (enabled) {
+                androidx.compose.material3.TextButton(onClick = { onToggle(false) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Turn off automatic capture")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Settings → "Alarms & reminders": read-only status of LifeOS's
+ * `SCHEDULE_EXACT_ALARM` special access. Tapping it deep-links the user to the
+ * Android "Alarms & reminders" system page (API 31+); on older Android the
+ * permission does not exist, so the row shows a static "not required" note and
+ * is not tappable. There is deliberately no in-app fake switch — the grant can
+ * only be toggled by the user inside the system page. The state is re-read
+ * whenever the screen resumes so returning from system Settings immediately
+ * reflects the current grant.
+ */
+@Composable
+private fun ExactAlarmsRemindersRow() {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var canScheduleExact by remember { mutableStateOf(ReminderScheduler.canScheduleExactAlarms(context)) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                canScheduleExact = ReminderScheduler.canScheduleExactAlarms(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val requiresPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val statusText = context.getString(
+        when {
+            !requiresPermission -> R.string.settings_alarms_reminders_not_required
+            canScheduleExact -> R.string.settings_alarms_reminders_allowed
+            else -> R.string.settings_alarms_reminders_not_allowed
+        }
+    )
+
+    SettingsRow(
+        icon = Icons.Filled.Alarm,
+        title = context.getString(R.string.settings_alarms_reminders_title),
+        subtitle = "${context.getString(R.string.settings_alarms_reminders_subtitle)}\n$statusText",
+        onClick = if (requiresPermission) {
+            { PermissionManager.openExactAlarmSettings(context) }
+        } else {
+            null
+        }
+    )
+}

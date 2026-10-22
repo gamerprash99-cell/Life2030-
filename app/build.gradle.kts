@@ -1,0 +1,173 @@
+import java.util.Properties
+
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
+    id("com.google.devtools.ksp")
+}
+
+// Release signing is driven by an untracked `keystore.properties` file at the
+// repo root (see keystore.properties.example). When it is absent — e.g. on CI —
+// the release build falls back to the debug signing config so `assembleRelease`
+// still verifies that the minified build compiles.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+val hasReleaseKeystore = keystorePropertiesFile.exists() &&
+    !keystoreProperties.getProperty("storeFile").isNullOrBlank()
+
+android {
+    namespace = "com.lifeos.app"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.lifeos.app"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 2
+        versionName = "0.2.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    }
+
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            // Safe: no reflection-based resource lookup (no getIdentifier) exists
+            // anywhere in the app, so unused resources can be dropped at build.
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+        }
+        debug {
+            isMinifyEnabled = false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+        freeCompilerArgs += "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    // MigrationTestHelper needs the exported KSP schema JSONs on the
+    // androidTest assets path to validate migrations in connected tests.
+    sourceSets.getByName("androidTest").assets.srcDirs("$projectDir/schemas")
+}
+
+// Room schema export is consumed by JVM schema tests and MigrationTestHelper.
+// The exported JSONs under app/schemas/ are committed on purpose: with
+// room.incremental enabled, Room reads the previous schema on every run and
+// fails with "Empty schema file" on a clean checkout that lacks them.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
+}
+
+dependencies {
+    // Core / Kotlin
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-splashscreen:1.2.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    // Explicit dependency: collectAsStateWithLifecycle is used across screens but
+    // previously arrived only transitively through activity-compose.
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+
+    // Compose
+    implementation(platform("androidx.compose:compose-bom:2024.11.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.navigation:navigation-compose:2.8.4")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // Room (local-first database — core to LifeOS's "your data stays local" principle)
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+
+    // SQLCipher — encrypts the local Room database at rest. The passphrase is
+    // random per install and wrapped by an Android Keystore key (see
+    // core/security/DatabasePassphraseProvider.kt).
+    implementation("net.zetetic:sqlcipher-android:4.6.1@aar")
+
+    // DataStore for settings / preferences
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // WorkManager backs persisted, local task/habit reminders.
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+
+    // Android-managed biometric prompt for the existing App Lock flow.
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+
+    // Image loading (profile photo in ProfileScreen, Snap photos on the Timeline)
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // CameraX — the in-app Snap camera (preview, front/back flip, zoom, capture).
+    // Uses the camera-view controller so a single PreviewView owns preview,
+    // zoom state and still capture; no Google/Play dependency.
+    implementation("androidx.camera:camera-core:1.4.1")
+    implementation("androidx.camera:camera-camera2:1.4.1")
+    implementation("androidx.camera:camera-lifecycle:1.4.1")
+    implementation("androidx.camera:camera-view:1.4.1")
+
+    // Testing
+    testImplementation("junit:junit:4.13.2")
+    // ViewModel tests need to drive viewModelScope deterministically; the version
+    // matches kotlinx-coroutines-android above so no second coroutines is pulled in.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.11.00"))
+    // Kept on the androidTest classpath: compose-ui's androidTest variant resolves
+    // androidx.collection to 1.4.0, which is not in the offline build cache; the
+    // 1.4.4 pin (a patch release) is what's cached and satisfies the same API.
+    androidTestImplementation("androidx.collection:collection:1.4.4")
+    // Room migration testing (MigrationTestHelper) — executed on a device/emulator
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
+}
