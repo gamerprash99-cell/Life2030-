@@ -576,3 +576,8 @@ with repository-only data access and optional Android on-device voice input. No
 cloud AI or network fallback is part of the LIFE execution path. Production
 neural inference remains gated on a real validated LIFE checkpoint. See
 `FINAL_RELEASE_CHECKLIST.md` and `docs/33_LIFE_INTEGRATION_PHASE18.md`.
+
+
+## Planned Habits experience
+
+The permanent Habits navigation and tracker redesign are specified in [`docs/HABITS_PERMANENT_REDESIGN_SPEC.md`](./docs/HABITS_PERMANENT_REDESIGN_SPEC.md). This is an implementation brief, **not a claim that the redesign is already shipped**. See [`NEXT_SESSION.md`](./NEXT_SESSION.md) for the next-session handoff.

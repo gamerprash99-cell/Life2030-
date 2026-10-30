@@ -187,3 +187,18 @@ Verification: archive integrity checked after the source update. Full Android Gr
 - Updated Profile, Expenses, Add Expense, and App Lock Compose UI from the supplied Stitch direction.
 - Added navigation Back handling and fixed onboarding completion startup gating.
 - Hardened audio recording and playback lifecycle.
+
+
+## 2026-10-31 — Permanent Habits redesign specification (documentation only)
+
+### Added
+- `docs/HABITS_PERMANENT_REDESIGN_SPEC.md`: implementation specification based on the user's Home screenshot and habit-tracker video.
+- `NEXT_SESSION.md`: handoff for the next Claude Code implementation session.
+
+### Updated
+- `README.md`: links to the planned Habits specification and handoff.
+- `UPDATE.md`: records repository audit and documentation-only scope.
+
+### Not changed
+- No Kotlin source, Compose screen, navigation, Room entity/DAO/schema/migration, reminder logic, backup format, tests or runtime behaviour.
+- No build, lint, emulator or instrumentation test was run for this planning pass.
