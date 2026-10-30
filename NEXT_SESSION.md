@@ -3,8 +3,9 @@
 **Prepared:** 2026-10-30
 **Repository:** https://github.com/gamerprash99-cell/Life2030-  
 **Target:** `main` (never push to `main` directly; open a PR)
-**Status of the permanent Habits work:** implemented and locally verified;
-branch/commit/PR are created at the end of this session.
+**Status of the permanent Habits work:** implemented, locally verified and
+pushed. PR: https://github.com/gamerprash99-cell/Life2030-/pull/59
+(branch `feat/permanent-habits-2026-10-30`, commit `198630f`, base `main`).
 
 ## What was completed this session
 
