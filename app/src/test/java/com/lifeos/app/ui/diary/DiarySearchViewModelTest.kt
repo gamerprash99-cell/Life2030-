@@ -1,10 +1,12 @@
 package com.lifeos.app.ui.diary
 
+import androidx.lifecycle.viewModelScope
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.domain.model.DiaryMoods
 import com.lifeos.app.domain.usecase.SearchDiaryEntriesUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -26,14 +28,27 @@ class DiarySearchViewModelTest {
     private val today = LocalDate.of(2026, 10, 14).toEpochDay()
     private val dispatcher = StandardTestDispatcher()
 
+    /**
+     * The search ViewModel keeps a debounced query collector alive for its whole
+     * lifetime, so the scope must be cancelled at test end; a late debounce
+     * tick after `resetMain()` is exactly the kind of leak that shows up in the
+     * next test as `UncaughtExceptionsBeforeTest`.
+     */
+    private val createdScopes = mutableListOf<kotlinx.coroutines.CoroutineScope>()
+
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
 
     @After
-    fun tearDown() = Dispatchers.resetMain()
+    fun tearDown() {
+        createdScopes.forEach { it.coroutineContext.cancelChildren() }
+        createdScopes.clear()
+        Dispatchers.resetMain()
+    }
 
     private fun viewModel(dao: InMemoryDiaryDao) =
         DiarySearchViewModel(SearchDiaryEntriesUseCase(DiaryRepository(dao, io = dispatcher)))
+            .also { createdScopes += it.viewModelScope }
 
     // ---- the use case ----------------------------------------------------
 
