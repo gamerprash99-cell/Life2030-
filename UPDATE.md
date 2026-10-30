@@ -160,3 +160,14 @@ data was touched; no permission or network path was added.
 - The navigation-graph question of whether tapping an *unvisited* root tab from a
   stacked module should clear the module (currently it stacks the tab above it).
 - Dead-code reachability inventory (audit P2).
+
+
+## 2026-10-31 — Permanent Habits redesign specification and handoff
+
+- Inspected the GitHub `main` snapshot and the user-provided LifeOS Home screenshot plus 72.7-second habit-tracker video.
+- Added `docs/HABITS_PERMANENT_REDESIGN_SPEC.md` covering target navigation, observed reference interactions, dashboard, creation/edit, tracking modes, streaks, heatmap, reminders, celebration, accessibility, migration, tests and PR workflow.
+- Added `NEXT_SESSION.md` so the next Claude Code session can continue without asking the user to repeat requirements.
+- Added README links to the specification and handoff.
+- Baseline: existing Habit screens/repository/streak logic are present; Habits is a stacked route, not a root tab. Current bottom bar is Home / Notes / Life / You with Capture as centre action. Inspected Room database is version 6; current habit model does not represent every requested tracking mode/schedule.
+- Insights is already absent from inspected `Screen.kt` / `LifeOSNavHost.kt` navigation. Preserve local Intelligence Engine code still used elsewhere.
+- **Documentation-only preparation:** no application source, database schema, migration, UI or tests changed. No build or emulator test was run.
