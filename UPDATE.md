@@ -171,3 +171,65 @@ data was touched; no permission or network path was added.
 - Baseline: existing Habit screens/repository/streak logic are present; Habits is a stacked route, not a root tab. Current bottom bar is Home / Notes / Life / You with Capture as centre action. Inspected Room database is version 6; current habit model does not represent every requested tracking mode/schedule.
 - Insights is already absent from inspected `Screen.kt` / `LifeOSNavHost.kt` navigation. Preserve local Intelligence Engine code still used elsewhere.
 - **Documentation-only preparation:** no application source, database schema, migration, UI or tests changed. No build or emulator test was run.
+
+
+## 2026-10-30 — Permanent Habits experience (implementation)
+
+### Navigation
+- Bottom bar is exactly **Home · Notes · ＋ Capture · Habits · Life**. Habits
+  is a permanent root tab in the `root_tabs` graph with saved state; Capture
+  remains the raised centre action.
+- Profile left the bottom bar but is still a stacked destination from the Home
+  avatar and the Life hub, with Settings, App Lock and backup unchanged.
+- New `habits/edit?habitId=&wizard=` route for the guided wizard and the full
+  add/edit form; detail's Edit action navigates to it.
+
+### Habits
+- Dashboard (`HabitsScreen.kt` + `HabitsViewModel.kt`): date strip (past days
+  only), All/Due/Completed filters, live Habit Score with neutral rest days,
+  habit cards with streak, schedule, tracking control and 28-day mini heatmap,
+  archived sheet/restore, delete confirmation, celebration + share.
+- Editor (`HabitEditorScreen.kt`): 10-step first-habit wizard and normal form
+  with Build/Quit, Tick/Count/Checklist, every frequency mode, icon/colour
+  pickers, reminder time + repeat, category, Timeline toggle, review,
+  per-step validation and an unsaved-changes guard.
+- Detail (`HabitDetailScreen.kt`): hero/streak, 2×2 stats, day action card
+  (tick, count, checklist, Quit slip/"stayed on track"), clickable 12-week
+  heatmap with day backfill, schedule/reminder card, share/archive/delete.
+- `HabitVisuals.kt` carries the Habits-scoped iris/lavender accent, score ring,
+  mini heatmap, celebration/confetti, share helpers and reduced-motion
+  detection. The rest of the app intentionally keeps the warm Lumen theme.
+- `HabitStatsCalculator.kt` now handles schedule modes, per-habit period
+  quota rules for N×/week and N×/month, legacy meaning, streak units and
+  honest completion percentages (100% ceiling).
+- Home lists only habits due today using per-habit period targets and routes
+  checklist habits to the Habits tab; Timeline milestones respect the
+  per-habit toggle and use honest subtitles.
+
+### Database and backups
+- Room **v6 → v7**, additive (`MIGRATION_6_7`); exported `7.json` committed.
+- New fields/tables as documented in `docs/05_DATABASE.md`; old rows keep
+  their meaning and get valid defaults.
+- Backup format **v2** with checklist tables; v1 restores still work.
+- `HabitRepository.delete()` now removes completions, checklist rows and the
+  reminder together; template edits archive items instead of rewriting
+  history; editing a checklist habit reconciles only that day.
+- Existing reminder rows now accept an explicit repeat change instead of
+  silently keeping the old repeat type.
+
+### Verification (executed in this environment)
+```text
+sh ./gradlew :app:compileDebugKotlin   → BUILD SUCCESSFUL
+sh ./gradlew :app:testDebugUnitTest    → BUILD SUCCESSFUL, 486 tests, 0 failures
+sh ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
+                                       → BUILD SUCCESSFUL, lint 0 errors / 32 warnings (pre-existing)
+```
+Instrumentation migration tests compile (`assembleDebugAndroidTest`) but were
+not executed: no emulator/device or `adb` is available here.
+
+### Not changed / preserved
+- No internet permission, cloud, telemetry or new network dependency.
+- SQLCipher encryption, PIN App Lock, offline-first behaviour and all
+  pre-existing feature data paths are preserved.
+- The legacy pre-v7 habit schedules retain their exact DAILY/WEEKLY/CUSTOM
+  semantics.

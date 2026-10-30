@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Search
@@ -42,7 +43,8 @@ fun LifeScreen(
     onOpenDiary: () -> Unit,
     onOpenTasks: () -> Unit,
     onOpenHabits: () -> Unit,
-    onOpenExpenses: () -> Unit
+    onOpenExpenses: () -> Unit,
+    onOpenProfile: () -> Unit
 ) {
     LazyColumn(
         Modifier.fillMaxWidth(),
@@ -105,6 +107,17 @@ fun LifeScreen(
                 Modifier.fillMaxWidth(),
                 accent = MaterialTheme.colorScheme.primary,
                 caption = "Photos, thoughts, places and everything you captured"
+            )
+        }
+        item { LifeOSEyebrow("Yours") }
+        item {
+            LifeOSActionTile(
+                Icons.Filled.Person,
+                "Profile & settings",
+                onOpenProfile,
+                Modifier.fillMaxWidth(),
+                accent = LocalLifeOSSemanticColors.current.success,
+                caption = "App Lock, reminders, backup and your local profile"
             )
         }
     }

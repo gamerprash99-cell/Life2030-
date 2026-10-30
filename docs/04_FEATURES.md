@@ -31,16 +31,57 @@ Full inventory of every implemented feature, with exact file paths.
 - **Status**: Implemented
 - **Known limitations**: `RepeatRule` field exists (NONE/DAILY/WEEKLY/MONTHLY/CUSTOM_DAYS) but nothing auto-creates the next recurrence — see `docs/16_KNOWN_ISSUES.md`
 
-## 3. Habits
+## 3. Habits — the permanent tracker
 
-**Purpose**: Habit tracking with streaks, a GitHub-style heatmap, and goal-count habits (e.g. "drink 8 glasses of water").
+**Purpose**: A complete, private habit tracker that is a permanent root tab
+(Home · Notes · ＋ Capture · Habits · Life). It supports Build and Quit
+habits, flexible schedules, three tracking modes, real streak math and a
+12-week history — all computed from persisted rows.
 
-- **User flow**: `ui/habits/HabitsScreen.kt` (list + add, with optional reminder) → tap "Details" → `ui/habits/HabitDetailScreen.kt` (streak stats + 12-week heatmap + "Log today's progress" button)
-- **Files**: `ui/habits/HabitsScreen.kt`, `ui/habits/HabitDetailScreen.kt`
-- **Database**: `data/db/entities/HabitEntity.kt` (habit definition), `HabitCompletionEntity` (one row per habit per day)
-- **Repository**: `data/repository/HabitRepository.kt` — contains the actual streak/heatmap math (`computeAnalytics()`, `computeHeatmap()`), computed live from `habit_completions` rows, not hardcoded
-- **Domain models**: `domain/model/Categories.kt` (`HabitAnalytics`, `HeatmapCell`, `HeatmapIntensity`)
-- **Status**: Implemented
+- **User flow**:
+  - First habit — `ui/habits/HabitEditorScreen.kt` guided 10-step wizard:
+    intro → name/description → icon → colour → Build/Quit → frequency →
+    tracking → reminder → category/Timeline → review/create. The review step
+    saves from the wizard's bottom bar.
+  - Later adds/edits — the same screen in normal form mode, with per-section
+    editing, validation and an unsaved-changes guard.
+  - Dashboard — `ui/habits/HabitsScreen.kt`: week date strip (past days
+    only), All/Due/Completed filters, live Habit Score (rest days are
+    neutral), habit cards with streak, schedule, tracking control, 28-day
+    mini heatmap, overflow menu (edit/archive/delete), archived bottom sheet
+    with restore, delete confirmation, and a calm celebration + share overlay.
+  - Detail — `ui/habits/HabitDetailScreen.kt`: hero + streak, 2×2 stats
+    (current/longest streak, this week, this month), day action card
+    (tick / count stepper / checklist / Quit "stayed on track" & "I slipped"),
+    clickable 12-week heatmap that backfills a past day, schedule/reminder
+    card, share, archive and delete.
+- **Semantics**: Build habits track doing; Quit habits track avoiding and
+  record an explicit slip. An empty day is neither success nor failure and is
+  never auto-marked as missed. Unscheduled days never break a streak.
+- **Schedules**: every day, selected weekdays, days of month, N× per week,
+  N× per month — plus `LEGACY`, which preserves the exact pre-v7
+  DAILY/WEEKLY/CUSTOM meaning for existing habits.
+- **Tracking modes**: Tick (one tap), Count (daily target with stepper and
+  direct entry), Checklist (reusable named items; a day completes only when
+  all active items are checked).
+- **Files**: `ui/habits/HabitsScreen.kt`, `HabitsViewModel.kt`,
+  `HabitDetailScreen.kt`, `HabitEditorScreen.kt`, `HabitVisuals.kt`.
+- **Database**: `data/db/entities/HabitEntity.kt` (`HabitEntity`,
+  `HabitCompletionEntity`, `HabitChecklistItemEntity`,
+  `HabitChecklistCheckEntity`); schema v7 with `MIGRATION_6_7`.
+- **Repository**: `data/repository/HabitRepository.kt` — draft validation,
+  create/update, template preservation, tick/count/slip/checklist logging,
+  analytics, heatmap, backup/restore.
+- **Streak engine**: `core/util/HabitStatsCalculator.kt` — schedule-aware
+  streaks, per-period targets for N-per-week/month habits, completion
+  percentages that cannot exceed 100, and legacy-compatible parsing.
+- **Home / Timeline**: Home shows only habits actually due today (a met
+  weekly target drops off instead of looking missed) with the same explicit
+  completion rule; successful days appear on the Life Timeline only when the
+  habit is not opted out, and blank days never do.
+- **Privacy**: fully offline, no account, no upload, no telemetry.
+- **Status**: Implemented and unit-tested; instrumentation migration tests
+  compile but require an emulator/device to execute.
 
 ## 4. Expenses
 

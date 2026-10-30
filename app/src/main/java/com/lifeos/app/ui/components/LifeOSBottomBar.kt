@@ -22,11 +22,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -73,23 +73,19 @@ data class BottomNavItem(
 )
 
 /**
- * Ordered list backing the bottom navigation bar — the app's reworked
- * five-section IA: Home · Notes · (Capture) · Life · You. The old Insights tab
- * was removed (its analytics lived only on that screen and duplicated what the
- * Life hub already surfaces), and in its place the fourth slot is **You** — the
- * personal hub holding profile, app lock, backup and settings.
+ * Ordered list backing the bottom navigation bar — the permanent LifeOS IA:
+ * Home · Notes · (Capture) · Habits · Life. Capture is not a stateful tab; it
+ * is the raised centre action that opens the full-window Capture hub.
  *
- * Capture is not a stateful tab; it is the raised centre action that opens the
- * full-window Capture hub, so it is rendered separately (see
- * [CaptureCenterButton]) and must not appear here.
- *
- * Labels are always visible: icon-only navigation is a UX trap.
+ * Profile/Settings/App Lock/backup remain reachable from the Home avatar and
+ * the Life hub; removing "You" from the bar makes room for Habits without
+ * deleting the personal hub.
  */
 internal val bottomNavItems = listOf(
     BottomNavItem(Screen.Home, "Home", Icons.Filled.Home, Icons.Outlined.Home),
     BottomNavItem(Screen.Notes, "Notes", Icons.Filled.Description, Icons.Outlined.Description),
-    BottomNavItem(Screen.Life, "Life", Icons.Filled.Timeline, Icons.Outlined.Timeline),
-    BottomNavItem(Screen.Profile, "You", Icons.Filled.Person, Icons.Outlined.Person)
+    BottomNavItem(Screen.Habits, "Habits", Icons.Filled.LocalFireDepartment, Icons.Outlined.LocalFireDepartment),
+    BottomNavItem(Screen.Life, "Life", Icons.Filled.Timeline, Icons.Outlined.Timeline)
 )
 
 @Composable
@@ -102,7 +98,7 @@ fun LifeOSBottomBar(navController: NavHostController) {
 
     val pillShape = RoundedCornerShape(LifeOSRadius.xlarge)
     // Index after which the raised centre action is inserted, so the bar reads
-    // Home · Notes · ＋ · Life · You.
+    // Home · Notes · ＋ · Habits · Life.
     val centerAfterIndex = bottomNavItems.size / 2 - 1
 
     // Transparent outer slot: only the pill itself is painted, so it floats on

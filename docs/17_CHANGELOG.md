@@ -16,6 +16,74 @@ output.
 
 ---
 
+## [Unreleased] — Permanent Habits experience (2026-10-30)
+
+### Navigation / IA
+- Bottom bar is now exactly **Home · Notes · ＋ Capture · Habits · Life**
+  (`bottomNavItems`). Habits was promoted from a stacked module to a permanent
+  root tab inside `root_tabs`; its selected date and scroll state survive tab
+  switches.
+- Profile left the bottom bar but remains a first-class stacked destination
+  reachable from the Home avatar and the Life hub; Settings, App Lock and
+  backup are unchanged underneath it. There is no user-facing Insights route.
+- Added the `habits/edit?habitId={id}&wizard={bool}` route (declared before
+  `habits/{habitId}`) and wired the detail screen's edit action.
+
+### Habits feature
+- Dashboard: animated week date strip (past days only, "Today" shortcut),
+  All/Due/Completed filters with counts, live Habit Score with a neutral rest
+  state, habit cards with streak, schedule, tracking control, 28-day mini
+  heatmap, overflow actions, archived sheet with restore, delete confirmation,
+  and a calm celebration with confetti, milestone copy and local share.
+- First-habit guided wizard (10 steps) and the full add/edit form, both in
+  `HabitEditorScreen.kt`: Build/Quit, Tick/Count/Checklist, every schedule,
+  icon and colour pickers, reminder time + repeat, category, Timeline toggle,
+  review, per-step validation and an unsaved-changes guard.
+- Detail: hero + streak, 2×2 stats, day action card (tick, count, checklist,
+  Quit "stayed on track" / "I slipped"), clickable 12-week heatmap with day
+  backfill, schedule/reminder card, archive/delete/share.
+- Build/Quit semantics and explicit outcomes: a blank day is never auto-marked
+  as a success or a miss; unscheduled days never break a streak.
+- Home now lists only habits actually due today (met N-per-week targets drop
+  out), uses the same completion rule as Habits, and routes checklist habits
+  to the Habits tab instead of faking a tick. Timeline milestones carry
+  honest subtitles and respect the per-habit Timeline toggle.
+
+### Database
+- Room **v6 → v7** (`MIGRATION_6_7`), purely additive over populated data:
+  `habits.description/colorArgb/habitType/trackingMode/scheduleType/
+  daysOfWeekCsv/daysOfMonthCsv/timesPerPeriod/showOnTimeline`,
+  `habit_completions.outcome/targetCount`, and the new
+  `habit_checklist_items` / `habit_checklist_checks` tables + indexes.
+- Existing DAILY/WEEKLY/CUSTOM habits keep their exact pre-v7 meaning via
+  `HabitScheduleType.LEGACY`; v6 completions read back as DONE with a
+  "use current goal" target snapshot.
+- Backup format **v2** adds the checklist tables; v1 files still restore with
+  empty defaults. Deleting a habit now also removes its checklist rows and
+  reminder.
+- Fixed reminder reconciliation so an explicit repeat change (e.g. daily →
+  weekdays) now updates an existing reminder instead of being ignored.
+
+### Verification (executed)
+```text
+sh ./gradlew :app:compileDebugKotlin   → BUILD SUCCESSFUL
+sh ./gradlew :app:testDebugUnitTest    → BUILD SUCCESSFUL, 486 tests, 0 failures
+sh ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
+                                       → BUILD SUCCESSFUL, lint 0 errors / 32 pre-existing warnings
+```
+- New/updated tests: `HabitStatsCalculatorTest` (all schedule modes, quota
+  periods, outcome/target snapshots), `AppDatabaseSchemaTest` (v7, 11 tables),
+  `AppDatabaseMigrationTest.migrate6To7_*` (populated data, compiled only —
+  no emulator), `BackupSerializationTest` (v2 checklist round-trip),
+  `BottomNavItemsTest`.
+- Not executed: `:app:connectedDebugAndroidTest` (no device/emulator in the
+  build environment).
+
+### Privacy
+- No internet permission, account, cloud, telemetry or new third-party
+  network dependency was added. All habit data stays in the SQLCipher-backed
+  local database.
+
 ## [0.2.0] — Hardening pass
 
 ### Security

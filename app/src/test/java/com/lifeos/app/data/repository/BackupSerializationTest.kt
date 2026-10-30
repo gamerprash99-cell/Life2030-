@@ -118,4 +118,49 @@ class BackupSerializationTest {
         assertTrue(!LifeOSBackup.isOversized(LifeOSBackup.MAX_BACKUP_BYTES))
         assertTrue(LifeOSBackup.isOversized(LifeOSBackup.MAX_BACKUP_BYTES + 1))
     }
+
+    @Test
+    fun `checklist templates and per-date checks survive a round trip`() {
+        val backup = sampleBackup().copy(
+            habitChecklistItems = listOf(
+                com.lifeos.app.data.db.entities.HabitChecklistItemEntity(
+                    id = "i1",
+                    habitId = "h1",
+                    label = "Warm up",
+                    position = 0,
+                    createdAt = 5L
+                )
+            ),
+            habitChecklistChecks = listOf(
+                com.lifeos.app.data.db.entities.HabitChecklistCheckEntity(
+                    itemId = "i1",
+                    habitId = "h1",
+                    dateEpochDay = 19_001L,
+                    isChecked = true,
+                    checkedAtEpochMillis = 6L,
+                    labelSnapshot = "Warm up"
+                )
+            )
+        )
+        val decoded = json.decodeFromString<LifeOSBackup>(json.encodeToString(backup))
+        assertEquals(backup, decoded)
+        assertEquals(1, decoded.habitChecklistItems.size)
+        assertEquals("Warm up", decoded.habitChecklistChecks.single().labelSnapshot)
+    }
+
+    @Test
+    fun `version one backup decodes with empty checklist tables`() {
+        // A file exported before the permanent Habits release has no checklist
+        // keys and no formatVersion. It must still restore, with empty defaults.
+        val legacy = """{
+            "exportedAtEpochMillis": 1700000000000,
+            "appVersion": "0.2.0",
+            "tasks": [], "habits": [], "habitCompletions": [],
+            "expenses": [], "diaryEntries": []
+        }"""
+        val decoded = json.decodeFromString<LifeOSBackup>(legacy)
+        assertEquals(emptyList<com.lifeos.app.data.db.entities.HabitChecklistItemEntity>(), decoded.habitChecklistItems)
+        assertEquals(emptyList<com.lifeos.app.data.db.entities.HabitChecklistCheckEntity>(), decoded.habitChecklistChecks)
+        assertEquals(2, LifeOSBackup.CURRENT_FORMAT_VERSION)
+    }
 }

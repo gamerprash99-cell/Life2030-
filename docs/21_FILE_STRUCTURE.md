@@ -76,11 +76,11 @@ WHAT BREAKS IF MODIFIED: IdGenerator changes would affect primary key generation
 ## data/ — persistence layer
 
 ### data/db/AppDatabase.kt
-PURPOSE: The Room database definition — lists all 7 entities, current schema version
+PURPOSE: The Room database definition — lists all 11 entities, current schema version (7) and every explicit migration
 WHAT BREAKS IF MODIFIED: See docs/05_DATABASE.md and docs/15_TROUBLESHOOTING.md — schema changes without a Migration crash the app for existing users
 
 ### data/db/entities/*.kt
-PURPOSE: One file per database table's row shape (NoteEntity, TaskEntity, HabitEntity+HabitCompletionEntity, ExpenseEntity, DiaryEntity, CaptureEntity)
+PURPOSE: One file per database table's row shape (NoteEntity, TaskEntity, HabitEntity+HabitCompletionEntity+HabitChecklistItemEntity+HabitChecklistCheckEntity, ExpenseEntity, DiaryEntity, CaptureEntity)
 WHAT BREAKS IF MODIFIED: Any field change requires a matching Room migration
 
 ### data/db/dao/*.kt
@@ -96,7 +96,7 @@ WHAT BREAKS IF MODIFIED: Screens never talk to DAOs directly — changing a repo
 ## domain/ — pure business logic (no Android framework dependencies)
 
 ### domain/model/*.kt
-PURPOSE: NoteBlock (rich-text block types), TimelineItem, Categories.kt (expense categories + habit analytics/heatmap models)
+PURPOSE: NoteBlock (rich-text block types), TimelineItem, Categories.kt (expense categories + HabitAnalytics/HeatmapCell models)
 WHAT BREAKS IF MODIFIED: NoteBlock changes require care since it's serialized to JSON and stored in the database (NoteEntity.contentJson) — old notes must still deserialize correctly
 
 ### domain/usecase/BuildTimelineUseCase.kt
@@ -117,6 +117,20 @@ contains one or more *Screen.kt Composable files and their paired
 ViewModel classes (sometimes in the same file, e.g. TasksScreen.kt
 contains TasksViewModel).
 
+The habits package is the largest single feature after the permanent
+redesign:
+
+- `HabitsScreen.kt` — dashboard: date strip, filters, score hero, cards,
+  archived sheet, delete confirm, celebration overlay.
+- `HabitsViewModel.kt` — combined dashboard state, per-card analytics and
+  mini heatmaps, logging actions, archive/restore/delete, celebration flow.
+- `HabitDetailScreen.kt` — detail ViewModel + stats, day actions, clickable
+  12-week heatmap, reminder controls, share/archive/delete.
+- `HabitEditorScreen.kt` — editor ViewModel + 10-step wizard and normal form,
+  icon/colour pickers, all schedule/tracking config, reminder, review.
+- `HabitVisuals.kt` — scoped iris accent, score ring, mini heatmap,
+  celebration/confetti, share helpers, reduced-motion detection.
+
 ### ui/navigation/Screen.kt and LifeOSNavHost.kt
 PURPOSE: Route definitions and the single NavHost wiring every screen together
 WHAT BREAKS IF MODIFIED: Adding a new screen requires a matching entry in both files, or it will be unreachable
@@ -125,7 +139,7 @@ WHAT BREAKS IF MODIFIED: Adding a new screen requires a matching entry in both f
 PURPOSE: The design system — colors, typography, shapes, the LifeOSTheme() composable
 WHAT BREAKS IF MODIFIED: Affects the visual appearance of the entire app
 
-### ui/components/GlassCard.kt, LifeOSBottomBar.kt, LifeOSDesignComponents.kt, ReminderTimePickerDialog.kt
+### ui/components/GlassCard.kt, LifeOSBottomBar.kt, LifeOSKit.kt, ReminderTimePickerDialog.kt
 PURPOSE: Shared, reusable UI pieces used across multiple screens, including the 2026 LifeOS design primitives
 WHAT BREAKS IF MODIFIED: Changes ripple across every screen that uses these components
 

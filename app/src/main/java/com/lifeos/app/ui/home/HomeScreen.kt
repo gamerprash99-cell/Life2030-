@@ -48,6 +48,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.data.db.entities.TaskEntity
+import com.lifeos.app.data.db.entities.HabitTrackingMode
 import com.lifeos.app.domain.usecase.HabitSummaryRow
 import com.lifeos.app.domain.usecase.HomeSummary
 import com.lifeos.app.ui.components.LifeOSBanner
@@ -155,7 +156,19 @@ fun HomeScreen(
                 item { EmptyRow(Icons.Filled.LocalFireDepartment, "No habits yet", "Small daily repetitions compound. Start one.", "Add habit", onOpenHabits) }
             } else {
                 items(s.habitsToday.take(5), key = { it.habit.id }) { row ->
-                    HabitRow(row = row, onToggle = { viewModel.toggleHabit(row.habit.id, row.isDone, row.goalCount) })
+                    HabitRow(
+                        row = row,
+                        onToggle = {
+                            // Checklist habits derive their completion from named
+                            // items, so Home must open them instead of writing a
+                            // shortcut tick that would bypass the checklist.
+                            if (row.habit.trackingMode == HabitTrackingMode.CHECKLIST) {
+                                onOpenHabits()
+                            } else {
+                                viewModel.toggleHabit(row.habit.id, row.isDone, row.goalCount)
+                            }
+                        }
+                    )
                 }
             }
 
@@ -453,7 +466,11 @@ private fun HabitRow(row: HabitSummaryRow, onToggle: () -> Unit) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(row.habit.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    if (row.currentStreak > 0) "${row.currentStreak}-day streak · ${row.progressCount}/${row.goalCount} today" else "${row.progressCount}/${row.goalCount} today",
+                    if (row.currentStreak > 0) {
+                        "${row.currentStreak}-${row.streakUnit} streak · ${row.progressCount}/${row.goalCount} today"
+                    } else {
+                        "${row.progressCount}/${row.goalCount} today"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

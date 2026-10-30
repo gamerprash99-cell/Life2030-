@@ -1,112 +1,106 @@
-# Diary on real content, and the Stitch visual pass
+# Permanent Habits experience — tracker, wizard, dashboard, detail, Room v7
 
-Two layers, one branch.
+Implements the full permanent Habits experience described in
+`docs/HABITS_PERMANENT_REDESIGN_SPEC.md`: Habits becomes a permanent root tab,
+the app gets a complete habit tracker (dashboard → wizard/form → detail), and
+the database moves v6 → v7 with an additive migration. No internet permission,
+cloud, account or telemetry was added; everything remains SQLCipher-backed and
+offline.
 
-The branch's earlier work made the Diary render **real, stored data** — attachments,
-favourites, composer — on top of `main`'s Diary redesign. This pass audits that
-result against the supplied Stitch design, fixes the defects the audit found, and
-aligns the remaining visual details. Everything stays native: Kotlin, Compose,
-Material 3, ViewModels, Room, local media, offline.
+## Navigation
 
-## Root causes fixed
+- Bottom bar is exactly **Home · Notes · ＋ Capture · Habits · Life**
+  (`bottomNavItems`, `BottomNavItemsTest` locks the order and proves Profile
+  and Insights are not tabs).
+- Habits moved into the `root_tabs` graph with saved state; Capture stays the
+  raised centre action; Profile remains a first-class stacked destination
+  reachable from the Home avatar and the new "Profile & settings" tile on the
+  Life hub, with Settings, App Lock and backup unchanged.
+- New `habits/edit?habitId={id}&wizard={bool}` route (declared before
+  `habits/{habitId}`) powers the guided wizard and the normal add/edit form;
+  the detail screen's Edit action navigates there.
 
-Three of these are user-visible data bugs, not cosmetics. Each has a regression
-test that fails when the fix is reverted.
+## Habits feature
 
-**1. Deleting a memory could silently fail.** Confirming Delete pops the
-destination immediately, which clears the back-stack entry and therefore the
-ViewModel — and with it `viewModelScope`. The delete was racing its own
-cancellation, so on a slow commit the row survived and reappeared on the timeline
-after the user was told it was gone. Fixed with `withContext(NonCancellable)`.
-Proven by a test that holds the DAO read on a cancellable `CompletableDeferred`,
- closes the store mid-flight, and asserts the row is still gone.
+- **Dashboard** (`HabitsScreen.kt`, `HabitsViewModel.kt`): week date strip
+  (past days only, "Today" shortcut), All/Due/Completed filters with counts,
+  live Habit Score (rest days are explicitly neutral), habit cards with
+  streak + streak unit, schedule, Tick/Count/Checklist control, 28-day mini
+  heatmap, overflow actions, archived bottom sheet with restore, delete
+  confirmation, and a calm celebration overlay with confetti, milestone copy
+  and local share.
+- **Wizard / editor** (`HabitEditorScreen.kt`): 10-step first-habit wizard
+  (name → icon → colour → Build/Quit → frequency → tracking → reminder →
+  category/Timeline → review → create) plus the full form for later edits,
+  with per-step validation, an unsaved-changes guard and explicit save errors.
+- **Detail** (`HabitDetailScreen.kt`): hero + streak, 2×2 stats, day action
+  card (tick, count stepper/direct entry, checklist items, Quit "stayed on
+  track" and "I slipped"), clickable 12-week heatmap that selects/backfills a
+  past day, schedule/reminder card (set/change/remove, repeat type), share,
+  archive and delete.
+- **Semantics**: Build vs Quit are first-class; a blank day is never silently
+  treated as success or failure; unscheduled days never break a streak; N×
+  per week/month habits stop being due once their period target is met.
+- **Schedules** (`HabitStatsCalculator.kt`): every day, selected weekdays,
+  days of month (short months safe), N× per week, N× per month — and
+  `LEGACY`, which preserves the exact pre-v7 DAILY/WEEKLY/CUSTOM meaning.
+- **Home / Timeline**: Home lists only habits actually due today (per-habit
+  period targets, no cross-habit leakage), routes checklist habits to the
+  Habits tab instead of faking a tick, and Timeline milestones respect the
+  per-habit toggle with honest subtitles.
 
-**2. Every Diary write did file I/O on the UI thread.** `DiaryRepository`'s writes
-read a row, decode its attachment JSON, touch the filesystem, and write the row
-back. Room moves *its own* suspend calls to its query executor, but the Kotlin in
-between — especially `MediaStorage.deleteIfExists`, a blocking `File.delete()` —
-ran on whatever thread called in, and every caller is `viewModelScope` (Main). One
-"remove this photo" tap unlinked a file on the UI thread. Fixed by moving the
-switch to the layer that owns the storage: an injectable `io: CoroutineDispatcher`
-(defaulting to `Dispatchers.IO`) with `withContext(io)` around `createEntry`,
-`updateEntry`, `delete`, `removeAttachment` and `restoreFromBackup`. Fixing it at
-the repository rather than at each call site fixes every present and future caller
-at once, and keeps the threading contract where the storage is. Two tests assert
-no storage work happens on the calling thread.
+## Database & data safety
 
-**3. Copy gave no feedback, and photo-less memories had no way to add one.**
-`DiaryDetailScreen` had a `SnackbarHostState` but no `SnackbarHost`, so
-`showSnackbar` resolved into the void and the one action with no visible effect
-of its own looked broken. The `DiaryPhotoStrip` was gated on `photos.isNotEmpty()`,
-which hid the strip's add tile — the only affordance for adding a photo from the
-detail page — exactly when a memory had no photos. The strip is now rendered
-unconditionally, and the host is rendered.
+- Room **v6 → v7** (`MIGRATION_6_7`), purely additive over populated data:
+  `habits.description/colorArgb/habitType/trackingMode/scheduleType/
+  daysOfWeekCsv/daysOfMonthCsv/timesPerPeriod/showOnTimeline`,
+  `habit_completions.outcome/targetCount`, and the new
+  `habit_checklist_items` / `habit_checklist_checks` tables + indexes.
+  `app/schemas/.../7.json` is committed and matches the migration SQL.
+- Existing rows keep their meaning: `LEGACY` schedules, `DONE` outcomes,
+  `targetCount = 0` ("use current goal"); editing an old CUSTOM habit keeps
+  its frequency and weekdays instead of silently becoming DAILY.
+- Checklist edits archive template items instead of rewriting history;
+  `targetCount` snapshots keep old days honest when a goal later changes.
+- `HabitRepository.delete()` now removes completions, checklist rows and the
+  reminder together; backup format **v2** adds the checklist tables while v1
+  files still restore with empty defaults.
+- Reminder reconciliation now honours an explicit repeat change (daily →
+  weekdays) instead of silently keeping the stored repeat type.
 
-**4. Save could be tapped into nothing.** The editor computed its own enabled
-state locally while the authoritative `DiaryEditorState.canSave` already existed,
-so the two could disagree. The button now renders from `canSave`, which also
-covers the loading and active-recording guards the local copy missed.
-
-**5. Top insets were missing.** `MainActivity` calls `enableEdgeToEdge()` and the
-only `Scaffold` in the hierarchy is the bottom-bar one, so day view and detail page
-inherited no top inset and rendered under the status bar. Both now apply
-`statusBarsPadding()`, matching what `DiaryEditorOverlay` already did.
-
-**6. The photo-remove target was 24dp.** Half the accessible minimum, on the
-control used to clean up a photo. The touch target is now the full 48dp, with the
-24dp chip nested inside it so the drawn size and position are unchanged.
-
-## Visual pass
-
-- **One action colour.** `DiaryInkViolet` was both heading ink *and* the fill for
-  every pressable control, so tappability was not legible. `DiaryInkViolet` is now
-  heading ink only (`#211A44`), and a new `DiaryActionViolet` (`#6C47EB`, Stitch
-  primary) carries the FAB, "+ Memory", detail actions, attachment actions and
-  tag chips. Pressable vs. readable is now told by hue alone.
-- The FAB glyph became a real `Add` icon with a content description instead of a
-  bare `+` character.
-- "+ Memory" became a filled pill rather than a bare violet word, so it reads as
-  something to press.
-- The selected-mood ring went from a 1.5dp mood-coloured hairline to a 2dp
-  `#6C47EB` ring, which had been the weakest selection signal in the picker.
-- Status-bar insets, as above.
-
-## Deliberately not changed
-
-Recorded with reasons in `STITCH_AUDIT.md` §3: `LifeOSSpacing.screenPadding` stays
-at 24dp (shared by every screen, Stitch asks for 20dp), the timeline keeps its
-established cardless editorial layout, and `DiaryEntity.title` stays nullable
-because the design has no title field.
-
-No schema, migration, manifest, dependency, permission, or network change. Room
-remains v5. No new lint findings.
-
-## Testing
-
-- `DiaryRepositoryTest.kt` (new, 9 tests) — real files in a temp directory rather
-  than a mocked `MediaStorage`, because the behaviour under test is precisely
-  "does the user's photo actually get unlinked". Plus two calling-thread
-  assertions.
-- `DiaryDetailViewModelTest.kt` (new, 4 tests) — the delete/pop race above, plus
-  the three adjacent actions on the same ViewModel.
-- `DiaryViewModelTest.kt` (extended, +3 tests) — pins each guard in
-  `DiaryEditorState.canSave` that the Save button now renders from.
+## Verification (executed)
 
 ```text
-gradle --offline :app:compileDebugKotlin        -> BUILD SUCCESSFUL (0 errors)
-gradle --offline :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --rerun-tasks
-                                                 -> BUILD SUCCESSFUL in 4m 35s
-                                                    173 tests, 0 failures, 0 skipped, 18 suites
-                                                    lint: 8 issues, 0 errors, 0 in the diary
-                                                    app/build/outputs/apk/debug/app-debug.apk (42.3 MB)
+sh ./gradlew :app:compileDebugKotlin   → BUILD SUCCESSFUL
+sh ./gradlew :app:testDebugUnitTest    → BUILD SUCCESSFUL — 486 tests, 0 failures
+sh ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
+                                       → BUILD SUCCESSFUL — lint 0 errors / 32 pre-existing warnings
 ```
 
-The 8 lint issues are pre-existing and in files this branch does not touch.
+AAPT2 is supplied via `-Pandroid.aapt2FromMavenOverride=/opt/aapt2-wrapper/aapt2`
+in this environment because the Maven daemon cannot start in the container;
+the wrapper is invoked as `sh ./gradlew` (not executable after checkout here).
 
-## Not verified here
+New/updated tests: `HabitStatsCalculatorTest` (all schedule modes, quota
+periods, outcome/target snapshots, 100% ceiling), `AppDatabaseSchemaTest`
+(v7, exact 11-table set, new columns), `AppDatabaseMigrationTest`
+(`migrate6To7_*` populated-data test — compiled, not executed: no
+emulator/device), `BackupSerializationTest` (v2 checklist round-trip),
+`BottomNavItemsTest`.
 
-No Android device or emulator is available in this environment, so on-device
-visual and interaction review — keyboard and inset behaviour, photo picker, voice
-recording and playback, share sheet, snackbar, and real-density appearance — has
-**not** been performed and is not claimed. `app/build/reports/` holds the JVM and
-lint reports; `STITCH_AUDIT.md` holds the design audit.
+Not executed: `:app:connectedDebugAndroidTest` (no `adb`/emulator/device in
+this environment). No instrumentation pass is claimed.
+
+## Manual review still recommended
+
+1. Device pass over the wizard, the three tracking modes, each frequency,
+   Quit slip, archive/restore, celebration and reminder repeat change.
+2. `connectedDebugAndroidTest` for the populated v6→v7 migration.
+3. Reconcile `docs/CURRENT_PRODUCT_UI_CONTRACT.md` §3 with the live Lumen
+   palette (the Habits iris accent is intentionally scoped to `ui/habits/`).
+
+## Privacy
+
+No internet permission, account, cloud AI, analytics or telemetry was added.
+All habit data stays in the encrypted local Room database, and sharing is an
+explicit user action through the Android share sheet.

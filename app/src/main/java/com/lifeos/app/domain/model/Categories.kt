@@ -39,7 +39,14 @@ data class HabitAnalytics(
     val totalDaysThisMonth: Int,
     val completionPercentThisMonth: Int,
     val missedDaysThisMonth: Int,
-    val totalCompletionsAllTime: Int
+    val totalCompletionsAllTime: Int,
+    // Added with the permanent Habits experience. Defaults keep every existing
+    // construction site and serialized shape valid.
+    val completionsThisWeek: Int = 0,
+    val totalDaysThisWeek: Int = 0,
+    val completionPercentThisWeek: Int = 0,
+    /** "day", "week" or "month" — what [currentStreak] is counting. */
+    val streakUnit: String = "day"
 )
 
 /** One cell of the GitHub-style heatmap — Section 13. */

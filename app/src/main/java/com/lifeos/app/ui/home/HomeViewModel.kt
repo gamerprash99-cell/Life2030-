@@ -33,11 +33,10 @@ class HomeViewModel(
     fun toggleHabit(habitId: String, isDone: Boolean, goalCount: Int) {
         viewModelScope.launch {
             val today = DateTimeUtils.today().toEpochDay()
-            if (isDone) {
-                habitRepository.clearProgress(habitId, today)
-            } else {
-                habitRepository.logProgress(habitId, today, goalCount)
-            }
+            // Home's quick check-in is the same explicit successful day used by
+            // the Habits tab. A Quit habit's slip is deliberately only offered
+            // on the habit detail screen, never inferred here.
+            habitRepository.setTick(habitId, today, !isDone)
         }
     }
 }

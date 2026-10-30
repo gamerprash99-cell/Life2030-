@@ -38,8 +38,9 @@ class ReminderRepository(
     /**
      * Reconciles the row for a task/habit whose `reminderEpochMillis` mirror
      * changed (create/edit) — inserts, updates, or cleans up the row, then
-     * re-projects. [preferredRepeat] carries the user's UI choice for a *new*
-     * reminder; an existing row keeps its configured repeat type.
+     * re-projects. [preferredRepeat] carries the user's explicit UI choice and
+     * wins over the stored value, so an existing reminder can be changed; when
+     * it is null the current repeat type is preserved.
      */
     suspend fun syncReminderForEntity(
         startId: String,
@@ -87,6 +88,10 @@ class ReminderRepository(
     suspend fun deleteForTask(taskId: String) = deleteForEntity(TYPE_TASK, taskId)
 
     suspend fun deleteForHabit(habitId: String) = deleteForEntity(TYPE_HABIT, habitId)
+
+    /** The repeat type currently stored for a habit reminder, if one exists. */
+    suspend fun repeatForHabit(habitId: String): ReminderRepeatType? =
+        dao.getById(ReminderEntity.idFor(TYPE_HABIT, habitId))?.repeatType
 
     private suspend fun deleteForEntity(entityType: String, entityId: String) {
         val id = ReminderEntity.idFor(entityType, entityId)
@@ -214,12 +219,16 @@ class ReminderRepository(
             return
         }
 
-        val repeat = existing?.repeatType ?: preferredRepeat ?: defaultRepeat
+        // An explicit preference (the repeat the user just chose in the editor
+        // or detail screen) must win over the stored value; otherwise a user
+        // could never change an existing reminder from daily to weekdays.
+        val repeat = preferredRepeat ?: existing?.repeatType ?: defaultRepeat
         val reminder = existing?.copy(
             entityType = entityType,
             entityId = entityId,
             title = title,
             nextTriggerAtEpochMillis = reminderEpochMillis,
+            repeatType = repeat,
             snoozeReturnAtEpochMillis = null,
             updatedAt = now
         ) ?: ReminderEntity(
