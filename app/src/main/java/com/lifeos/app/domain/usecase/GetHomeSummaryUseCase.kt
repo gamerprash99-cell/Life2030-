@@ -4,6 +4,10 @@ import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.TaskEntity
+import com.lifeos.app.core.util.HabitStatsCalculator
+import com.lifeos.app.core.util.completionTarget
+import com.lifeos.app.core.util.isCompletionDone
+import com.lifeos.app.core.util.toSchedule
 import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.data.repository.TaskRepository
@@ -38,7 +42,8 @@ data class HabitSummaryRow(
     val isDone: Boolean,
     val currentStreak: Int,
     val longestStreak: Int,
-    val completionPercent: Int
+    val completionPercent: Int,
+    val streakUnit: String = "day"
 )
 
 /** One cell of the 7-day weekly habit consistency row. */
@@ -96,17 +101,40 @@ class GetHomeSummaryUseCase(
         // the habit library grows.
         val analytics = runCatching { habitRepo.computeAnalyticsBatch(habits, today) }.getOrDefault(emptyMap())
 
-        val habitRows = habits.map { habit ->
-            val progress = todayProgressByHabit[habit.id]?.progressCount ?: 0
+        // Per habit, never a union: one routine meeting its weekly target must
+        // not make a different routine look "not due".
+        val weekDoneDaysByHabit = weekCompletions
+            .filter { completion ->
+                habits.firstOrNull { it.id == completion.habitId }?.isCompletionDone(completion) == true
+            }
+            .groupBy { it.habitId }
+            .mapValues { (_, rows) -> rows.mapTo(mutableSetOf()) { it.dateEpochDay } }
+
+        // Only routines actually due today. An N-per-week habit whose target is
+        // already met is not "missed" for the rest of the week, so it drops out
+        // of today's list instead of showing a misleading unchecked row.
+        val dueToday = habits.filter { habit ->
+            val schedule = habit.toSchedule()
+            HabitStatsCalculator.isDue(
+                schedule,
+                epochDay,
+                weekDoneDaysByHabit[habit.id].orEmpty()
+            ) || todayProgressByHabit[habit.id]?.let { habit.isCompletionDone(it) } == true
+        }
+
+        val habitRows = dueToday.map { habit ->
+            val completion = todayProgressByHabit[habit.id]
+            val target = habit.completionTarget(completion)
             val row = analytics[habit.id]
             HabitSummaryRow(
                 habit = habit,
-                progressCount = progress,
-                goalCount = habit.goalCount,
-                isDone = progress >= habit.goalCount,
+                progressCount = completion?.progressCount ?: 0,
+                goalCount = target,
+                isDone = completion != null && habit.isCompletionDone(completion),
                 currentStreak = row?.currentStreak ?: 0,
                 longestStreak = row?.longestStreak ?: 0,
-                completionPercent = row?.completionPercentThisMonth ?: 0
+                completionPercent = row?.completionPercentThisMonth ?: 0,
+                streakUnit = row?.streakUnit ?: "day"
             )
         }
         val habitsDoneToday = habitRows.count { it.isDone }

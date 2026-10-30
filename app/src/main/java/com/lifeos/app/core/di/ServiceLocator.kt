@@ -76,7 +76,12 @@ class ServiceLocator private constructor(context: Context) {
 
     val taskRepository: TaskRepository by lazy { TaskRepository(database.taskDao(), reminderRepository) }
     val habitRepository: HabitRepository by lazy {
-        HabitRepository(database.habitDao(), database.habitCompletionDao(), reminderRepository)
+        HabitRepository(
+            database.habitDao(),
+            database.habitCompletionDao(),
+            database.habitChecklistDao(),
+            reminderRepository
+        )
     }
     val expenseRepository: ExpenseRepository by lazy { ExpenseRepository(database.expenseDao()) }
     val diaryRepository: DiaryRepository by lazy { DiaryRepository(database.diaryDao()) }

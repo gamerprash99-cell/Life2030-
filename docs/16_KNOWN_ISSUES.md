@@ -2,25 +2,14 @@
 
 ---
 
-### Issue #1 — Missing Gradle wrapper scripts
+### Issue #1 — Gradle wrapper (resolved)
 
-- **Severity**: 🟠 High (blocks command-line builds)
-- **Description**: `gradle/wrapper/gradle-wrapper.properties` exists but
-  `gradlew`, `gradlew.bat`, and `gradle/wrapper/gradle-wrapper.jar` do not.
-- **Reproduction**: Run `./gradlew assembleDebug` from a fresh clone.
-- **Expected behavior**: Gradle wrapper downloads/builds the project.
-- **Actual behavior**: `bash: ./gradlew: No such file or directory`
-- **Possible cause**: These files were not generated because the project
-  was authored without ever running Gradle (no SDK/network access available
-  during development — see `docs/13_DEPLOYMENT.md`).
-- **Current workaround**: Open in Android Studio (usually self-heals), or
-  run `gradle wrapper --gradle-version 8.9` from a machine with Gradle installed.
-  The CI workflow (`.github/workflows/android-build.yml`, added after this
-  issue was first logged) works around it by installing Gradle directly via
-  `gradle/actions/setup-gradle` and running `gradle assembleDebug` instead
-  of `./gradlew assembleDebug` — but this is a workaround, not a fix; local
-  command-line builds still need one of the two options above.
-- **Status**: Open (CI workaround in place; local `gradlew` still missing)
+- **Severity**: 🟢 Resolved
+- **Description**: The wrapper now ships in the repository: `gradlew`,
+  `gradlew.bat` and `gradle/wrapper/gradle-wrapper.jar` are all present.
+- **Note**: In some Linux containers the `gradlew` file is not marked
+  executable after checkout; invoke it as `sh ./gradlew …` there.
+- **Status**: Resolved (2026-10-30).
 
 ---
 
@@ -149,3 +138,29 @@ The remaining verification gap is build/device validation in a complete Android 
 
 ## 2026-09-18 status update
 The onboarding second-launch flash and navigation Back-handler path were addressed in source. Audio recording cleanup/playback lifecycle was also hardened. Build-level confirmation remains pending because the supplied archive has no Gradle wrapper and no system Gradle executable is available in this environment.
+
+
+---
+
+### Issue #4 — Instrumentation migration tests not executed in this environment
+
+- **Severity**: 🟡 Medium (release gate)
+- **Description**: `AppDatabaseMigrationTest` (including the new populated
+  v6→v7 case) compiles and packages into `app-debug-androidTest.apk`, but no
+  `adb`, emulator or physical device is available in the build environment.
+- **Current workaround**: Run `./gradlew :app:connectedDebugAndroidTest` on a
+  device/emulator before release.
+- **Status**: Verification pending
+
+---
+
+### Issue #5 — No manual on-device pass for the permanent Habits flow
+
+- **Severity**: 🟡 Medium
+- **Description**: The wizard, all three tracking modes, every frequency,
+  Quit slips, archive/restore, the celebration overlay and reminder repeat
+  changes are covered by unit tests and compile cleanly, but no human/device
+  UI pass has been performed.
+- **Current workaround**: Use `docs/14_TESTING.md`'s manual acceptance
+  checklist and add the Habits-specific cases listed there.
+- **Status**: Verification pending

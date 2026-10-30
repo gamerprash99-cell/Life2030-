@@ -38,6 +38,7 @@ import com.lifeos.app.ui.diary.DiarySearchViewModel
 import com.lifeos.app.ui.diary.DiaryTheme
 import com.lifeos.app.ui.expenses.ExpensesScreen
 import com.lifeos.app.ui.habits.HabitDetailScreen
+import com.lifeos.app.ui.habits.HabitEditorScreen
 import com.lifeos.app.ui.habits.HabitsScreen
 import com.lifeos.app.ui.home.HomeScreen
 import com.lifeos.app.ui.life.LifeScreen
@@ -181,26 +182,57 @@ fun LifeOSNavHost() {
                             onOpenDiary = { navController.navigate(Screen.Diary.route) { launchSingleTop = true } },
                             onOpenTasks = { navController.navigate(Screen.Tasks.route) { launchSingleTop = true } },
                             onOpenHabits = { navController.navigate(Screen.Habits.route) { launchSingleTop = true } },
-                            onOpenExpenses = { navController.navigate(Screen.Expenses.route) { launchSingleTop = true } }
+                            onOpenExpenses = { navController.navigate(Screen.Expenses.route) { launchSingleTop = true } },
+                            onOpenProfile = { navController.navigate(Screen.Profile.route) { launchSingleTop = true } }
                         )
                     }
-
-                    // You — the personal hub (profile, app lock, backup and
-                    // settings). It replaces the removed Insights tab as the
-                    // bottom bar's fourth slot, so "your space" is one tap from
-                    // anywhere instead of an overlay pushed from Home.
-                    composable(Screen.Profile.route) {
-                        ProfileScreen(
-                            onOpenSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
-                            onOpenAppLock = { navController.navigate(Screen.AppLockSetup.route) { launchSingleTop = true } }
+                    // Habits is a permanent root tab. Detail and editor stack
+                    // above it outside the graph so Back returns with the tab's
+                    // selected date and scroll state intact.
+                    composable(Screen.Habits.route) {
+                        HabitsScreen(
+                            onOpenHabit = { habitId ->
+                                navController.navigate(Screen.HabitDetail.createRoute(habitId)) { launchSingleTop = true }
+                            },
+                            onAddHabit = { wizard ->
+                                navController.navigate(Screen.HabitEditor.createRoute(wizard = wizard)) { launchSingleTop = true }
+                            },
+                            onEditHabit = { habitId ->
+                                navController.navigate(Screen.HabitEditor.createRoute(habitId = habitId)) { launchSingleTop = true }
+                            }
                         )
                     }
                 }
 
+                // Profile left the bottom bar but remains a first-class stacked
+                // destination, reachable from the Home avatar and Settings.
+                composable(Screen.Profile.route) {
+                    ProfileScreen(
+                        onOpenSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                        onOpenAppLock = { navController.navigate(Screen.AppLockSetup.route) { launchSingleTop = true } }
+                    )
+                }
+
                 // ---- Track modules (stacked above the tabs) ----------------
                 composable(Screen.Tasks.route) { TasksScreen() }
-                composable(Screen.Habits.route) {
-                    HabitsScreen(onOpenHabit = { habitId -> navController.navigate(Screen.HabitDetail.createRoute(habitId)) { launchSingleTop = true } })
+
+                // The literal editor route MUST be declared before
+                // `habits/{habitId}`, otherwise the detail pattern would swallow it.
+                composable(
+                    Screen.HabitEditor.route,
+                    arguments = listOf(
+                        navArgument("habitId") { type = NavType.StringType; defaultValue = "" },
+                        navArgument("wizard") { type = NavType.BoolType; defaultValue = false }
+                    )
+                ) { entry ->
+                    val habitId = entry.arguments?.getString("habitId").orEmpty().takeIf { it.isNotBlank() }
+                    val wizard = entry.arguments?.getBoolean("wizard") ?: false
+                    HabitEditorScreen(
+                        habitId = habitId,
+                        startWithWizard = wizard,
+                        onBack = { navController.popBackStack() },
+                        onSaved = { navController.popBackStack() }
+                    )
                 }
 
                 // ---- Redesign additions ------------------------------------
@@ -247,7 +279,15 @@ fun LifeOSNavHost() {
                     arguments = listOf(navArgument("habitId") { type = NavType.StringType })
                 ) { entry ->
                     val habitId = entry.arguments?.getString("habitId").orEmpty()
-                    HabitDetailScreen(habitId = habitId, onBack = { navController.popBackStack() })
+                    HabitDetailScreen(
+                        habitId = habitId,
+                        onBack = { navController.popBackStack() },
+                        onEdit = {
+                            navController.navigate(Screen.HabitEditor.createRoute(habitId = habitId)) {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
                 }
                 composable(Screen.Expenses.route) { ExpensesScreen(onBack = { navController.popBackStack() }) }
                 composable(Screen.Diary.route) {

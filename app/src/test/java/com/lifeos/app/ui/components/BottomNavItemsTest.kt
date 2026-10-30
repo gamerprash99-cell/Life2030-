@@ -8,11 +8,21 @@ import org.junit.Test
 class BottomNavItemsTest {
 
     @Test
-    fun `order is Home Notes Life You`() {
+    fun `order is Home Notes Habits Life`() {
         assertEquals(
-            listOf(Screen.Home, Screen.Notes, Screen.Life, Screen.Profile),
+            listOf(Screen.Home, Screen.Notes, Screen.Habits, Screen.Life),
             bottomNavItems.map { it.screen }
         )
+    }
+
+    @Test
+    fun `profile is not a primary tab`() {
+        assertTrue(bottomNavItems.none { it.screen == Screen.Profile })
+    }
+
+    @Test
+    fun `habits is a permanent primary destination`() {
+        assertTrue(bottomNavItems.any { it.screen == Screen.Habits })
     }
 
     @Test

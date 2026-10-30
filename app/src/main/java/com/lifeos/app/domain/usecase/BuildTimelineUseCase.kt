@@ -6,6 +6,7 @@ import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.data.repository.TaskRepository
 import com.lifeos.app.core.util.DateTimeUtils
+import com.lifeos.app.core.util.isCompletionDone
 import com.lifeos.app.domain.model.ExpenseCategories
 import com.lifeos.app.domain.model.TimelineItem
 import com.lifeos.app.domain.model.TimelineItemType
@@ -52,13 +53,21 @@ class BuildTimelineUseCase(
             todayCompletions.await()
                 .filter { completion ->
                     val habit = habitsById[completion.habitId]
-                    habit != null && completion.progressCount >= habit.goalCount
+                    habit != null && habit.showOnTimeline && habit.isCompletionDone(completion)
                 }
                 .forEach { completion ->
                     val habit = habitsById[completion.habitId] ?: return@forEach
                     items += TimelineItem(
                         id = "habit-${habit.id}-$epochDay", type = TimelineItemType.HABIT_COMPLETED,
-                        title = habit.name, subtitle = "Habit completed", dateEpochDay = epochDay,
+                        title = habit.name,
+                        subtitle = when {
+                            habit.habitType == com.lifeos.app.data.db.entities.HabitType.QUIT ->
+                                "Stayed on track"
+                            habit.trackingMode == com.lifeos.app.data.db.entities.HabitTrackingMode.CHECKLIST ->
+                                "Checklist complete"
+                            else -> "Habit completed"
+                        },
+                        dateEpochDay = epochDay,
                         timeMinutes = DateTimeUtils.minutesOfDay(completion.completedAtEpochMillis),
                         icon = habit.icon, sourceId = habit.id
                     )

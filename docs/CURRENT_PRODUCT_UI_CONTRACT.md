@@ -33,7 +33,7 @@ Two product promises are non-negotiable:
 
 ## 2. Information architecture (the five destinations)
 
-Primary navigation is exactly five slots: **Home · Notes · (Capture) · Insights ·
+Primary navigation is exactly five slots: **Home · Notes · (Capture) · Habits ·
 Life**.
 
 | Slot | Kind | Route |
@@ -41,12 +41,17 @@ Life**.
 | Home | Stateful root tab | `home` |
 | Notes | Stateful root tab | `notes` |
 | Capture | **Action, not a tab** — a raised centre button opening a full-window flow | `capture` |
-| Insights | Stateful root tab | `insights` |
+| Habits | Stateful root tab | `habits` |
 | Life | Stateful root tab | `life` |
 
-Only `home`, `notes`, `insights` and `life` live inside the `root_tabs` graph and
+Only `home`, `notes`, `habits` and `life` live inside the `root_tabs` graph and
 are saved/restored per tab. Capture is intentionally *not* a stateful tab: it
 opens the Capture hub overlay and is never a selected destination.
+
+> Permanent Habits update (2026-10-30): the fourth slot changed from Insights
+> to Habits. Insights is not a user-facing destination, and Profile left the
+> bar (it remains reachable from the Home avatar and the Life hub, with
+> Settings, App Lock and backup below it).
 
 Every other screen is a **track module**: it stacks on top of the active tab and
 system Back dismisses it one level at a time. Modules are **not** removed from the
@@ -57,18 +62,19 @@ product just because they are not in the bottom bar.
 | Module | Route(s) | Reached from |
 |---|---|---|
 | Tasks | `tasks` | Home quick action · Home overdue banner · Life hub · AI action · Timeline |
-| Habits | `habits`, `habits/{habitId}` | Home quick action · Home habits "See all" · Life hub · AI action · Timeline |
+| Habits | `habits`, `habits/{habitId}`, `habits/edit?habitId=&wizard=` | Bottom-nav root tab · Home quick action · Home habits "See all" · Life hub · AI action · Timeline |
 | Expenses | `expenses` | Home "Spent today" tile · Life hub · AI action · Timeline |
 | Diary | `diary`, `diary/{entryId}`, `diary/search`, `diary/calendar`, `diary/insights` | Home "Diary" quick action · Life hub · AI action · global search |
 | Timeline | `timeline` | Home "Recent activity" See all · Life hub · after posting a Snap |
 | Global search | `search` | Home header search · Life hub · AI action |
 | LifeOS AI | `ai` | Home (last section) · Insights |
-| Profile / Settings / App Lock setup | `profile`, `settings`, `settings/app_lock` | Home avatar · Profile |
+| Profile / Settings / App Lock setup | `profile`, `settings`, `settings/app_lock` | Home avatar · Life hub (Profile is not a bottom-bar tab) |
 | Snap / capture viewer | `snap`, `snap/view/{captureId}` | Capture hub (Photo/Video) · Home "Quick capture" · recent-activity item · search · Timeline |
 
 > Correction to `UI_UX_FLOW_NAVIGATION.md` §3.2: there is **no `life_calendar`
 > route**. The calendar that exists is the Diary calendar (`diary/calendar`). The
-> Life hub links to Timeline, Search, Diary, Tasks, Habits and Expenses.
+> Life hub links to Timeline, Search, Diary, Tasks, Habits, Expenses, Profile
+> and Settings.
 
 ### 2.2 Full-window routes (bottom bar hidden)
 
@@ -99,7 +105,16 @@ and neutral soft depth. This is the current token direction and matches
 
 > Correction to `UI_UX_FLOW_NAVIGATION.md` §1: the palette table there still lists
 > the older neon `LifeOSPrimary #7C4DFF` / `LifeOSSecondary #D946EF`. Those hex
-> values are **historical**. The live values are below.
+> values are **historical**.
+
+> Palette reality check (2026-10-30): the checked-out `ui/theme/Color.kt` is
+> the **warm "Lumen"** palette (canvas `#F7F4EF`, clay/sage/amber accents),
+> not the porcelain/iris "Aurora Noir" table below. Per
+> `docs/HABITS_PERMANENT_REDESIGN_SPEC.md`, the permanent Habits experience
+> adds its own scoped iris/lavender accent (`#6750A4`, `#4F378B`, `#EADDFF`,
+> `#F3EDF7`, `#21005D`) without re-theming the rest of the app. The rest of
+> this section is retained as the historical Aurora Noir direction and should
+> be reconciled before any global re-theme.
 
 | Role | Light | Dark | Token |
 |---|---|---|---|
@@ -169,12 +184,15 @@ Diary module (and the shared timeline that renders diary entries).
   actions. Editor: title + body + tags, explicit Save, unsaved-changes guard.
 - **Capture** — six capture types with an inline quick-thought field; permission
   requested only for the selected capability.
-- **Insights** — on-device analytics over permitted local data; honest "not enough
-  data yet" states; no causation claims.
+- **Habits** — permanent root tab: week date strip (past only), All/Due/
+  Completed filters, live Habit Score, habit cards (streak, tracking, mini
+  heatmap), guided wizard + full add/edit form, detail with stats and a
+  clickable 12-week heatmap, explicit Quit slips, celebration and share.
 - **Life** — connected-history hub: Timeline, search, and quick links to the track
-  modules.
-- **Track modules** — Tasks, Habits, Expenses, Diary, Timeline, Search, Profile,
-  Settings, App Lock, Snap. Preserve their existing data paths.
+  modules (plus Profile/Settings).
+- **Track modules** — Tasks, Habits detail/editor, Expenses, Diary, Timeline,
+  Search, Profile, Settings, App Lock, Snap. Preserve their existing data paths.
+- **Insights** is not a user-facing destination.
 
 Diary keeps its paper identity (see §3.3). Snap keeps its full-window camera.
 

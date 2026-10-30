@@ -15,6 +15,12 @@ sealed class Screen(val route: String) {
     object HabitDetail : Screen("habits/{habitId}") {
         fun createRoute(habitId: String) = "habits/$habitId"
     }
+
+    /** Full create/edit form; `wizard=true` opens the guided first-habit flow. */
+    object HabitEditor : Screen("habits/edit?habitId={habitId}&wizard={wizard}") {
+        fun createRoute(habitId: String? = null, wizard: Boolean = false) =
+            "habits/edit?habitId=${habitId.orEmpty()}&wizard=$wizard"
+    }
     object Expenses : Screen("expenses")
     object Diary : Screen("diary")
 

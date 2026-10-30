@@ -109,7 +109,7 @@ is no third-party MVI/Redux framework.
 |---|---|
 | **Home** | Today dashboard: greeting/date, Daily Momentum progress, quick actions, Today's Priorities, habits streak, Recent Activity, LifeOS Intelligence, Capture entry. `ui/home/HomeScreen.kt`, `HomeViewModel.kt`, `domain/usecase/GetHomeSummaryUseCase.kt` |
 | **Tasks** | Priorities, due date/time, category, description, repeat rules, reminders, overdue handling. `ui/tasks/TasksScreen.kt` |
-| **Habits** | Daily/custom schedules, goal counts, streaks, 12-week heatmap. `ui/habits/HabitsScreen.kt`, `HabitDetailScreen.kt` |
+| **Habits** | **Permanent root tab** (Home · Notes · ＋ Capture · Habits · Life). Dashboard with an animated date strip, All/Due/Completed filters and a live Habit Score; rounded per-habit cards with streak, count stepper and 28-day mini heatmap; guided first-habit wizard plus a full add/edit form; Build and Quit habits; Tick, Count and Checklist tracking; every frequency (every day, selected weekdays, days of month, N×/week, N×/month) on top of the preserved legacy schedules; detail view with 2×2 stats, a clickable 12-week heatmap, day backfill, reminder controls, archive/restore, delete and local celebration/share. `ui/habits/` |
 | **Diary** | **Daily Memory**: an editorial memory timeline read one day at a time — a day masthead over a horizontally snapping, centre-keeping date strip (haptic per settled day change, bounded to the last 365 days, no future day), a hairline spine carrying each memory's mood, large leading journal type, an inline `+ Memory` action and a `YOUR STORY STARTS HERE` empty state. Full-screen composer (8 moods) with real photo, voice-note and place attachments and an honest weather-unavailable state; a post-save confirmation naming the stored day and minute with *View memory* / *Add another memory*; and a full-page detail view reusing the same language. Fully offline and Room-backed; no network calls. Search, a month calendar and a local intelligence screen (streak, stats, mood mix, 7-day mood chart, recurring words, reflection prompt) are reached from the header's overflow menu and read only rows already on the device. `ui/diary/`, `domain/intelligence/` |
 | **Notes** | Block-based rich text, pin/favorite/archive/trash, folder chips, local AI actions. `ui/notes/` |
 | **Expenses** | Monthly spend, daily average, a user-set monthly budget with progress, remaining, recent transactions, and **optional on-device capture of payment notifications** into ordinary expenses. `ui/expenses/ExpensesScreen.kt`, `core/transactions/`, `domain/intelligence/` |
@@ -219,13 +219,17 @@ See [`docs/05_DATABASE.md`](./docs/05_DATABASE.md) for the full schema.
 Navigation Compose with a single `NavController` in
 `ui/navigation/LifeOSNavHost.kt`:
 
-- Four primary destinations (**Home, Tasks, Habits, Insights**) live in one
-  nested graph (`root_tabs`) with `saveState`/`restoreState`/`launchSingleTop`,
-  so the bottom bar returns to a section's saved state.
-- Secondary screens (Notes, Note Editor, Habit Detail, Expenses, Diary,
+- Four primary destinations (**Home, Notes, Habits, Life**) live in one nested
+  graph (`root_tabs`) with `saveState`/`restoreState`/`launchSingleTop`, so the
+  bottom bar returns to a section's saved state. Capture is the raised centre
+  action at `capture`, not a stateful tab.
+- Secondary screens (Tasks, Habit Detail, Habit Editor, Expenses, Diary,
   Timeline, Capture Detail, Search, AI Assistant, Profile, Settings, App Lock
-  Setup) are registered **outside** that graph and stack on top; system Back
-  dismisses them one level at a time.
+  Setup, Snap) are registered **outside** that graph and stack on top; system
+  Back dismisses them one level at a time.
+- Profile left the bottom bar but remains a stacked destination reachable from
+  the Home avatar and the Life hub; Settings, App Lock and backup live there.
+- There is no user-facing Insights destination.
 - Routes are declared in `ui/navigation/Screen.kt`.
 
 ---
@@ -235,8 +239,11 @@ Navigation Compose with a single `NavController` in
 Centralized in `ui/theme/` and `ui/components/`, specified in
 [`docs/DESIGN.md`](./docs/DESIGN.md).
 
-- **Colors** (`ui/theme/Color.kt`): LifeOS violet primary `#7C4DFF`, magenta
-  secondary `#D946EF`, lavender `#EADDFF`, plus category accent colors.
+- **Colors** (`ui/theme/Color.kt`): the live "Lumen" warm palette — canvas
+  `#F7F4EF`, surfaces `#FFFDF9`/`#221D17`, clay/sage/amber primaries. The
+  Habits experience adds a scoped iris/lavender accent (`HabitIris #6750A4`,
+  `HabitIrisDeep #4F378B`, `HabitIrisSoft #EADDFF`, `HabitIrisWash #F3EDF7`,
+  `HabitOnIris #21005D`) that never re-themes the rest of the app.
 - **Theme** (`Theme.kt`): light/dark `ColorScheme`s + a `LocalGlassColors`
   CompositionLocal for the glass surfaces. Dynamic color is off by default.
 - **Typography / Shape / Spacing**: Material 3 type scale, large rounded shapes
@@ -247,8 +254,9 @@ Centralized in `ui/theme/` and `ui/components/`, specified in
   `ReminderTimePickerDialog`, `ProfileAvatar`.
 - **Responsive / insets**: `Scaffold` + `WindowInsets`; the app uses
   `adjustResize` (see manifest) so forms stay above the keyboard.
-- **Bottom navigation**: Home, Tasks, Habits, Insights with always-visible
-  labels and a lavender selected pill.
+- **Bottom navigation**: Home, Notes, ＋ Capture, Habits, Life with
+  always-visible labels and a selected pill. The Capture action is centred and
+  raised; Profile is not a tab.
 
 ---
 
@@ -398,9 +406,10 @@ See [`docs/21_FILE_STRUCTURE.md`](./docs/21_FILE_STRUCTURE.md) for per-file note
 
 ## 17. Current UI/UX behavior (highlights)
 
-- Three-destination bottom bar (Home, Tasks, Habits) with saved-state
-  restoration; Settings is reached from Profile. Diary, Timeline, Expenses and
-  Capture are Home overlay destinations, not tabs.
+- Five-slot bottom bar (Home, Notes, ＋ Capture, Habits, Life) with saved-state
+  restoration; Profile/Settings/App Lock are stacked destinations reached from
+  the Home avatar and the Life hub. Tasks, Diary, Timeline and Expenses are
+  Home/Life overlay destinations, not tabs.
 - Home dashboard with animated Daily Momentum and live repository-backed data.
 - Diary (**Daily Memory**): a paper/ink-violet editorial timeline scoped to one
   day — a day masthead over a centre-keeping date strip, a 1dp spine with mood
@@ -578,6 +587,14 @@ neural inference remains gated on a real validated LIFE checkpoint. See
 `FINAL_RELEASE_CHECKLIST.md` and `docs/33_LIFE_INTEGRATION_PHASE18.md`.
 
 
-## Planned Habits experience
+## Permanent Habits experience
 
-The permanent Habits navigation and tracker redesign are specified in [`docs/HABITS_PERMANENT_REDESIGN_SPEC.md`](./docs/HABITS_PERMANENT_REDESIGN_SPEC.md). This is an implementation brief, **not a claim that the redesign is already shipped**. See [`NEXT_SESSION.md`](./NEXT_SESSION.md) for the next-session handoff.
+The permanent Habits navigation and tracker redesign specified in [`docs/HABITS_PERMANENT_REDESIGN_SPEC.md`](./docs/HABITS_PERMANENT_REDESIGN_SPEC.md) is implemented in this revision:
+
+- Bottom bar is exactly **Home · Notes · ＋ Capture · Habits · Life**; Habits is a root tab and Profile is reachable without being one.
+- Room moved **v6 → v7** through an additive, populated-data migration (`MIGRATION_6_7`): new habit fields, an explicit completion outcome + target snapshot, and the `habit_checklist_items` / `habit_checklist_checks` tables. Existing DAILY/WEEKLY/CUSTOM habits keep their exact pre-v7 meaning.
+- Backup format is **v2**; v1 files still restore with empty checklist defaults.
+- Tick / Count / Checklist tracking, Build / Quit semantics, all frequency modes, streak math with per-habit period targets, the 12-week heatmap, celebration and share are implemented and unit-tested.
+- No internet permission, account, cloud or telemetry was added; everything stays on device.
+
+See [`UPDATE.md`](./UPDATE.md), [`docs/17_CHANGELOG.md`](./docs/17_CHANGELOG.md) and [`docs/05_DATABASE.md`](./docs/05_DATABASE.md) for the verified build/test record of this revision.

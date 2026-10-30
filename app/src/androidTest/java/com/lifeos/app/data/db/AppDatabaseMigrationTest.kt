@@ -145,6 +145,84 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    /**
+     * v6 → v7 is the permanent Habits migration. It must be purely additive
+     * over populated data: an existing habit and its completions keep every
+     * original value, while the new habit columns arrive with defaults that the
+     * Kotlin model considers valid (BUILD / TICK / LEGACY / no colour / timeline
+     * on), and the two checklist tables are created empty.
+     */
+    @Test
+    @Throws(IOException::class)
+    fun migrate6To7_keepsHabitsAndCompletionsAndAddsPermanentHabitFields() {
+        helper.createDatabase(TEST_DB, 6).apply {
+            execSQL(
+                "INSERT INTO habits (id, name, icon, category, frequency, customDaysCsv, goalCount, " +
+                    "reminderEpochMillis, startDateEpochDay, isArchived, createdAt, updatedAt) " +
+                    "VALUES ('h1', 'Read', 'book', 'Growth', 'CUSTOM', '1,3,5', 2, 123456, 19000, 0, 1, 2)"
+            )
+            execSQL(
+                "INSERT INTO habit_completions (habitId, dateEpochDay, progressCount, completedAtEpochMillis) " +
+                    "VALUES ('h1', 19001, 2, 1700000000000)"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 7, true, AppDatabase.MIGRATION_6_7)
+
+        db.use { db ->
+            db.query(
+                "SELECT name, icon, category, frequency, customDaysCsv, goalCount, startDateEpochDay, " +
+                    "description, colorArgb, habitType, trackingMode, scheduleType, daysOfWeekCsv, " +
+                    "daysOfMonthCsv, timesPerPeriod, showOnTimeline FROM habits WHERE id = 'h1'"
+            ).use { cursor ->
+                assert(cursor.moveToFirst()) { "pre-existing habit vanished in v6→v7" }
+                assert(cursor.getString(0) == "Read") { "habit name changed" }
+                assert(cursor.getString(1) == "book") { "habit icon changed" }
+                assert(cursor.getString(2) == "Growth") { "habit category changed" }
+                assert(cursor.getString(3) == "CUSTOM") { "legacy frequency changed" }
+                assert(cursor.getString(4) == "1,3,5") { "legacy custom days changed" }
+                assert(cursor.getInt(5) == 2) { "legacy goal count changed" }
+                assert(cursor.getLong(6) == 19000L) { "start date changed" }
+                assert(cursor.isNull(7)) { "description must default to NULL" }
+                assert(cursor.getLong(8) == 0L) { "colorArgb must default to 0 (use Iris)" }
+                assert(cursor.getString(9) == "BUILD") { "habitType must default to BUILD" }
+                assert(cursor.getString(10) == "TICK") { "trackingMode must default to TICK" }
+                assert(cursor.getString(11) == "LEGACY") { "scheduleType must default to LEGACY" }
+                assert(cursor.isNull(12)) { "daysOfWeekCsv must default to NULL" }
+                assert(cursor.isNull(13)) { "daysOfMonthCsv must default to NULL" }
+                assert(cursor.isNull(14)) { "timesPerPeriod must default to NULL" }
+                assert(cursor.getInt(15) == 1) { "showOnTimeline must default to 1" }
+            }
+
+            db.query(
+                "SELECT progressCount, outcome, targetCount FROM habit_completions " +
+                    "WHERE habitId = 'h1' AND dateEpochDay = 19001"
+            ).use { cursor ->
+                assert(cursor.moveToFirst()) { "pre-existing completion vanished in v6→v7" }
+                assert(cursor.getInt(0) == 2) { "completion progress changed" }
+                assert(cursor.getString(1) == "DONE") { "outcome must default to DONE" }
+                assert(cursor.getInt(2) == 0) { "targetCount must default to 0 (legacy snapshot)" }
+            }
+
+            // The new tables exist, are writable, and start empty.
+            db.query("SELECT COUNT(*) FROM habit_checklist_items").use { cursor ->
+                assert(cursor.moveToFirst() && cursor.getInt(0) == 0)
+            }
+            db.query("SELECT COUNT(*) FROM habit_checklist_checks").use { cursor ->
+                assert(cursor.moveToFirst() && cursor.getInt(0) == 0)
+            }
+            db.execSQL(
+                "INSERT INTO habit_checklist_items (id, habitId, label, position, isArchived, createdAt) " +
+                    "VALUES ('i1', 'h1', 'Warm up', 0, 0, 3)"
+            )
+            db.execSQL(
+                "INSERT INTO habit_checklist_checks (itemId, habitId, dateEpochDay, isChecked, checkedAtEpochMillis, labelSnapshot) " +
+                    "VALUES ('i1', 'h1', 19001, 1, 4, 'Warm up')"
+            )
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

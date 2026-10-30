@@ -1,6 +1,10 @@
 package com.lifeos.app.core.util
 
+import com.lifeos.app.data.db.entities.HabitCompletionEntity
+import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.HabitFrequency
+import com.lifeos.app.data.db.entities.HabitOutcome
+import com.lifeos.app.data.db.entities.HabitScheduleType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -171,5 +175,159 @@ class HabitStatsCalculatorTest {
         assertEquals(HabitFrequency.CUSTOM, s.frequency)
         assertEquals(setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY, DayOfWeek.SATURDAY), s.customDays)
         assertEquals(habit.startDateEpochDay, s.startEpochDay)
+    }
+
+    // ---- permanent Habits schedule modes -----------------------------------
+
+    private fun typedSchedule(
+        type: HabitScheduleType,
+        weekdays: Set<DayOfWeek> = emptySet(),
+        monthDays: Set<Int> = emptySet(),
+        times: Int = 0,
+        start: Long = day(2024, 1, 1)
+    ) = HabitSchedule(
+        frequency = HabitFrequency.DAILY,
+        customDays = weekdays,
+        startEpochDay = start,
+        type = type,
+        monthDays = monthDays,
+        timesPerPeriod = times
+    )
+
+    @Test
+    fun `every day schedule includes weekends`() {
+        val s = typedSchedule(HabitScheduleType.EVERY_DAY)
+        assertTrue(HabitStatsCalculator.isScheduled(s, day(2024, 1, 6))) // Sat
+        assertTrue(HabitStatsCalculator.isScheduled(s, day(2024, 1, 7))) // Sun
+        assertFalse(HabitStatsCalculator.isScheduled(s, day(2023, 12, 31)))
+    }
+
+    @Test
+    fun `weekday schedule ignores unconfigured days`() {
+        val s = typedSchedule(
+            HabitScheduleType.WEEKDAYS,
+            weekdays = setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY)
+        )
+        assertTrue(HabitStatsCalculator.isScheduled(s, day(2024, 1, 2)))
+        assertFalse(HabitStatsCalculator.isScheduled(s, day(2024, 1, 3)))
+    }
+
+    @Test
+    fun `month day schedule matches configured dates`() {
+        val s = typedSchedule(HabitScheduleType.MONTH_DAYS, monthDays = setOf(1, 15))
+        assertTrue(HabitStatsCalculator.isScheduled(s, day(2024, 2, 1)))
+        assertTrue(HabitStatsCalculator.isScheduled(s, day(2024, 2, 15)))
+        assertFalse(HabitStatsCalculator.isScheduled(s, day(2024, 2, 2)))
+    }
+
+    @Test
+    fun `month day schedule silently skips dates a short month does not have`() {
+        val s = typedSchedule(HabitScheduleType.MONTH_DAYS, monthDays = setOf(30, 31))
+        // February 2024 has 29 days, so neither configured date exists.
+        assertEquals(0, HabitStatsCalculator.scheduledDayCount(s, day(2024, 2, 1), day(2024, 2, 29)))
+        assertEquals(1, HabitStatsCalculator.scheduledDayCount(s, day(2024, 4, 1), day(2024, 4, 30)))
+    }
+
+    @Test
+    fun `times per week is due until the weekly target is met`() {
+        val s = typedSchedule(HabitScheduleType.TIMES_PER_WEEK, times = 3)
+        val monday = day(2024, 1, 8)
+        assertTrue(HabitStatsCalculator.isDue(s, monday, emptySet()))
+        assertTrue(HabitStatsCalculator.isDue(s, day(2024, 1, 10), setOf(monday, day(2024, 1, 9))))
+        assertFalse(
+            HabitStatsCalculator.isDue(
+                s,
+                day(2024, 1, 11),
+                setOf(monday, day(2024, 1, 9), day(2024, 1, 10))
+            )
+        )
+        // The next week starts fresh.
+        assertTrue(HabitStatsCalculator.isDue(s, day(2024, 1, 15), setOf(monday, day(2024, 1, 9), day(2024, 1, 10))))
+    }
+
+    @Test
+    fun `times per week counts completions inside the calendar week`() {
+        val s = typedSchedule(HabitScheduleType.TIMES_PER_WEEK, times = 3)
+        val done = setOf(day(2024, 1, 8), day(2024, 1, 10), day(2024, 1, 12), day(2024, 1, 15))
+        assertEquals(3, HabitStatsCalculator.completedInPeriod(s, done, day(2024, 1, 12)))
+        assertEquals(1, HabitStatsCalculator.completedInPeriod(s, done, day(2024, 1, 15)))
+    }
+
+    @Test
+    fun `times per week streak counts consecutive successful weeks`() {
+        val s = typedSchedule(HabitScheduleType.TIMES_PER_WEEK, times = 2)
+        val done = setOf(
+            // Week of 1 Jan: met
+            day(2024, 1, 1), day(2024, 1, 4),
+            // Week of 8 Jan: met
+            day(2024, 1, 8), day(2024, 1, 11),
+            // Week of 15 Jan: only one so far, still in progress
+            day(2024, 1, 16)
+        )
+        assertEquals(2, HabitStatsCalculator.currentStreak(done, day(2024, 1, 17), s))
+        assertEquals(2, HabitStatsCalculator.longestStreak(done, s, day(2024, 1, 17)))
+        assertEquals("week", HabitStatsCalculator.streakUnit(s))
+    }
+
+    @Test
+    fun `times per month is due only while the month target is unmet`() {
+        val s = typedSchedule(HabitScheduleType.TIMES_PER_MONTH, times = 2)
+        val done = setOf(day(2024, 3, 4), day(2024, 3, 20))
+        assertFalse(HabitStatsCalculator.isDue(s, day(2024, 3, 25), done))
+        assertTrue(HabitStatsCalculator.isDue(s, day(2024, 4, 1), done))
+        assertEquals("month", HabitStatsCalculator.streakUnit(s))
+    }
+
+    @Test
+    fun `month streak counts consecutive successful months`() {
+        val s = typedSchedule(HabitScheduleType.TIMES_PER_MONTH, times = 2)
+        val done = setOf(
+            day(2024, 1, 3), day(2024, 1, 20),
+            day(2024, 2, 5), day(2024, 2, 21),
+            day(2024, 3, 6) // March still in progress
+        )
+        assertEquals(2, HabitStatsCalculator.currentStreak(done, day(2024, 3, 10), s))
+        assertEquals(2, HabitStatsCalculator.longestStreak(done, s, day(2024, 3, 10)))
+    }
+
+    @Test
+    fun `flexible schedules do not inflate completion percentage past the target`() {
+        val s = typedSchedule(HabitScheduleType.TIMES_PER_WEEK, times = 2)
+        val done = setOf(
+            day(2024, 1, 8), day(2024, 1, 9), day(2024, 1, 10), day(2024, 1, 11)
+        )
+        assertEquals(2, HabitStatsCalculator.completedOccurrences(s, done, day(2024, 1, 8), day(2024, 1, 14)))
+        assertEquals(2, HabitStatsCalculator.scheduledDayCount(s, day(2024, 1, 8), day(2024, 1, 14)))
+    }
+
+    @Test
+    fun `scheduled day count is capped by the days available in a partial week`() {
+        val s = typedSchedule(HabitScheduleType.TIMES_PER_WEEK, times = 5)
+        // Only Monday and Tuesday fall inside this range.
+        assertEquals(2, HabitStatsCalculator.scheduledDayCount(s, day(2024, 1, 8), day(2024, 1, 9)))
+    }
+
+    @Test
+    fun `completion helpers honour slipped outcomes and target snapshots`() {
+        val habit = HabitEntity(
+            id = "h1",
+            name = "Read",
+            icon = "📚",
+            goalCount = 5,
+            startDateEpochDay = day(2024, 1, 1),
+            createdAt = 1L,
+            updatedAt = 1L
+        )
+        val partial = HabitCompletionEntity("h1", day(2024, 1, 1), 3, 1L, targetCount = 5)
+        val done = HabitCompletionEntity("h1", day(2024, 1, 2), 5, 2L, targetCount = 5)
+        val slipped = HabitCompletionEntity("h1", day(2024, 1, 3), 9, 3L, HabitOutcome.SLIPPED, targetCount = 5)
+        val legacy = HabitCompletionEntity("h1", day(2024, 1, 4), 5, 4L, targetCount = 0)
+
+        assertFalse(habit.isCompletionDone(partial))
+        assertTrue(habit.isCompletionDone(done))
+        assertFalse(habit.isCompletionDone(slipped))
+        assertTrue(habit.isCompletionDone(legacy))
+        assertEquals(5, habit.completionTarget(legacy))
+        assertEquals(5, habit.completionTarget(partial))
     }
 }

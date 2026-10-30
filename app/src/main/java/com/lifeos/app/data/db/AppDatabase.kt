@@ -11,6 +11,7 @@ import com.lifeos.app.core.security.DatabasePassphraseProvider
 import com.lifeos.app.data.db.dao.CaptureDao
 import com.lifeos.app.data.db.dao.DiaryDao
 import com.lifeos.app.data.db.dao.ExpenseDao
+import com.lifeos.app.data.db.dao.HabitChecklistDao
 import com.lifeos.app.data.db.dao.HabitCompletionDao
 import com.lifeos.app.data.db.dao.HabitDao
 import com.lifeos.app.data.db.dao.NoteDao
@@ -20,6 +21,8 @@ import com.lifeos.app.data.db.dao.TaskDao
 import com.lifeos.app.data.db.entities.CaptureEntity
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.db.entities.ExpenseEntity
+import com.lifeos.app.data.db.entities.HabitChecklistCheckEntity
+import com.lifeos.app.data.db.entities.HabitChecklistItemEntity
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.NoteEntity
@@ -41,6 +44,8 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         TaskEntity::class,
         HabitEntity::class,
         HabitCompletionEntity::class,
+        HabitChecklistItemEntity::class,
+        HabitChecklistCheckEntity::class,
         ExpenseEntity::class,
         DiaryEntity::class,
         ReminderEntity::class,
@@ -48,7 +53,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         NoteFolderEntity::class,
         CaptureEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -56,6 +61,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun habitDao(): HabitDao
     abstract fun habitCompletionDao(): HabitCompletionDao
+    abstract fun habitChecklistDao(): HabitChecklistDao
     abstract fun expenseDao(): ExpenseDao
     abstract fun diaryDao(): DiaryDao
     abstract fun reminderDao(): ReminderDao
@@ -81,7 +87,7 @@ abstract class AppDatabase : RoomDatabase() {
                         .openHelperFactory(SupportOpenHelperFactory(passphrase))
                         // No destructive fallback in production; migrations must be added
                         // explicitly as the schema evolves post-v1.
-                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                         .build()
                 }.also { INSTANCE = it }
             }
@@ -252,6 +258,65 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_captures_type` ON `captures` (`type`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_captures_createdAt` ON `captures` (`createdAt`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_captures_isFavorite` ON `captures` (`isFavorite`)")
+            }
+        }
+
+        /**
+         * v6 → v7: the permanent Habits experience.
+         *
+         * Purely additive. Every existing habit and completion row is kept
+         * exactly as written; the new columns carry safe defaults that preserve
+         * the pre-v7 meaning:
+         *  - scheduleType = LEGACY keeps DAILY/WEEKLY/CUSTOM semantics intact,
+         *  - trackingMode = TICK, habitType = BUILD match how old rows behaved,
+         *  - a completion's outcome defaults to DONE (it was a logged success),
+         *  - targetCount = 0 means "use the habit's current goal" for old rows.
+         *
+         * Two new checklist tables are created for the new tracking mode. They
+         * start empty, so no historical row is rewritten. Column/index names
+         * mirror Room's generated SQL so the migrated schema validates against
+         * the exported v7 schema.
+         */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `habits` ADD COLUMN `description` TEXT")
+                db.execSQL("ALTER TABLE `habits` ADD COLUMN `colorArgb` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `habits` ADD COLUMN `habitType` TEXT NOT NULL DEFAULT 'BUILD'")
+                db.execSQL("ALTER TABLE `habits` ADD COLUMN `trackingMode` TEXT NOT NULL DEFAULT 'TICK'")
+                db.execSQL("ALTER TABLE `habits` ADD COLUMN `scheduleType` TEXT NOT NULL DEFAULT 'LEGACY'")
+                db.execSQL("ALTER TABLE `habits` ADD COLUMN `daysOfWeekCsv` TEXT")
+                db.execSQL("ALTER TABLE `habits` ADD COLUMN `daysOfMonthCsv` TEXT")
+                db.execSQL("ALTER TABLE `habits` ADD COLUMN `timesPerPeriod` INTEGER")
+                db.execSQL("ALTER TABLE `habits` ADD COLUMN `showOnTimeline` INTEGER NOT NULL DEFAULT 1")
+
+                db.execSQL("ALTER TABLE `habit_completions` ADD COLUMN `outcome` TEXT NOT NULL DEFAULT 'DONE'")
+                db.execSQL("ALTER TABLE `habit_completions` ADD COLUMN `targetCount` INTEGER NOT NULL DEFAULT 0")
+
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `habit_checklist_items` (" +
+                        "`id` TEXT NOT NULL, " +
+                        "`habitId` TEXT NOT NULL, " +
+                        "`label` TEXT NOT NULL, " +
+                        "`position` INTEGER NOT NULL, " +
+                        "`isArchived` INTEGER NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`id`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_checklist_items_habitId` ON `habit_checklist_items` (`habitId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_checklist_items_habitId_position` ON `habit_checklist_items` (`habitId`, `position`)")
+
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `habit_checklist_checks` (" +
+                        "`itemId` TEXT NOT NULL, " +
+                        "`habitId` TEXT NOT NULL, " +
+                        "`dateEpochDay` INTEGER NOT NULL, " +
+                        "`isChecked` INTEGER NOT NULL, " +
+                        "`checkedAtEpochMillis` INTEGER NOT NULL, " +
+                        "`labelSnapshot` TEXT NOT NULL, " +
+                        "PRIMARY KEY(`itemId`, `dateEpochDay`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_checklist_checks_habitId` ON `habit_checklist_checks` (`habitId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_checklist_checks_habitId_dateEpochDay` ON `habit_checklist_checks` (`habitId`, `dateEpochDay`)")
             }
         }
 

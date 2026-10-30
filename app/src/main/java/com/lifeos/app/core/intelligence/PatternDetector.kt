@@ -62,7 +62,14 @@ object CorrelationAnalyzer {
 
         val moodByDay = diaryEntries.groupBy { it.dateEpochDay }
             .mapValues { (_, entries) -> DiaryAnalyzer.averageMood(entries) }
-        val doneDays = habitCompletions.filter { it.progressCount >= goalCount }.map { it.dateEpochDay }.toSet()
+        val doneDays = habitCompletions
+            .filter { completion ->
+                val target = completion.targetCount.takeIf { it > 0 } ?: goalCount
+                completion.outcome != com.lifeos.app.data.db.entities.HabitOutcome.SLIPPED &&
+                    completion.progressCount >= target
+            }
+            .map { it.dateEpochDay }
+            .toSet()
 
         val moodOnDoneDays = moodByDay.filterKeys { it in doneDays }.values
         val moodOnOtherDays = moodByDay.filterKeys { it !in doneDays }.values

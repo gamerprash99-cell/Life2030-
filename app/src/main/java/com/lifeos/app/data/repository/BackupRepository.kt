@@ -4,6 +4,8 @@ import com.lifeos.app.data.db.AppDatabase
 import com.lifeos.app.data.db.entities.CaptureEntity
 import com.lifeos.app.data.db.entities.DiaryEntity
 import com.lifeos.app.data.db.entities.ExpenseEntity
+import com.lifeos.app.data.db.entities.HabitChecklistCheckEntity
+import com.lifeos.app.data.db.entities.HabitChecklistItemEntity
 import com.lifeos.app.data.db.entities.HabitCompletionEntity
 import com.lifeos.app.data.db.entities.HabitEntity
 import com.lifeos.app.data.db.entities.NoteEntity
@@ -37,17 +39,18 @@ data class LifeOSBackup(
     val notes: List<NoteEntity> = emptyList(),
     val noteFolders: List<NoteFolderEntity> = emptyList(),
     val captures: List<CaptureEntity> = emptyList(),
+    // v2 habit fields. Defaults make every pre-v2 backup restorable.
+    val habitChecklistItems: List<HabitChecklistItemEntity> = emptyList(),
+    val habitChecklistChecks: List<HabitChecklistCheckEntity> = emptyList(),
     val formatVersion: Int = LifeOSBackup.CURRENT_FORMAT_VERSION
 ) {
     companion object {
         /**
          * Bump whenever the serialized shape changes incompatibly so imports
-         * can be rejected clearly instead of restoring garbage silently. v1
-         * backups written by older LifeOS builds contained "notes" and
-         * "captures" keys; those keys are simply ignored on import now
-         * (ignoreUnknownKeys), so old export files remain restorable.
+         * can be rejected clearly instead of restoring garbage silently. v2
+         * adds checklist tables; v1 files decode with empty checklist defaults.
          */
-        const val CURRENT_FORMAT_VERSION = 1
+        const val CURRENT_FORMAT_VERSION = 2
 
         /** Hard cap so a giant/corrupt import can't exhaust memory on read. */
         const val MAX_BACKUP_BYTES = 100L * 1024 * 1024
@@ -95,6 +98,8 @@ class BackupRepository(
         notes = noteRepo.getAllForBackup(),
         noteFolders = noteRepo.getAllFoldersForBackup(),
         captures = captureRepo.getAllForBackup(),
+        habitChecklistItems = habitRepo.getAllChecklistItemsForBackup(),
+        habitChecklistChecks = habitRepo.getAllChecklistChecksForBackup(),
         formatVersion = LifeOSBackup.CURRENT_FORMAT_VERSION
     )
 
@@ -147,7 +152,12 @@ class BackupRepository(
     suspend fun restore(backup: LifeOSBackup) {
         database.withTransaction {
             taskRepo.restoreFromBackup(backup.tasks)
-            habitRepo.restoreFromBackup(backup.habits, backup.habitCompletions)
+            habitRepo.restoreFromBackup(
+                backup.habits,
+                backup.habitCompletions,
+                backup.habitChecklistItems,
+                backup.habitChecklistChecks
+            )
             expenseRepo.restoreFromBackup(backup.expenses)
             diaryRepo.restoreFromBackup(backup.diaryEntries)
             // Folders before notes so a note's folderId references a folder that

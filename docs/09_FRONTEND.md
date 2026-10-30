@@ -16,7 +16,7 @@ app/src/main/java/com/lifeos/app/
     ├── home/                    ← Home dashboard
     ├── notes/                   ← Notes list + editor
     ├── tasks/                   ← Tasks list
-    ├── habits/                  ← Habits list + detail/heatmap
+    ├── habits/                  ← Habits dashboard + detail + editor/wizard + shared visuals
     ├── expenses/                ← Expenses list + add
     ├── diary/                   ← Diary list + AI draft flow
     ├── timeline/                ← Unified daily timeline
@@ -39,8 +39,9 @@ Defined in `ui/navigation/Screen.kt` as a sealed class, wired into a single
 | `notes` | `NotesListScreen` | |
 | `notes/editor?noteId={noteId}` | `NoteEditorScreen` | `noteId` optional — absent means "new note" |
 | `tasks` | `TasksScreen` | |
-| `habits` | `HabitsScreen` | |
-| `habits/{habitId}` | `HabitDetailScreen` | |
+| `habits` | `HabitsScreen` | Permanent root tab: date strip, filters, score, cards, archive/restore |
+| `habits/edit?habitId={habitId}&wizard={wizard}` | `HabitEditorScreen` | Guided 10-step first-habit wizard, or the full normal form for add/edit |
+| `habits/{habitId}` | `HabitDetailScreen` | Stats, clickable 12-week heatmap, day actions, reminder, share, archive/delete |
 | `expenses` | `ExpensesScreen` | |
 | `diary` | `DiaryScreen` | |
 | `timeline` | `TimelineScreen` | |
@@ -49,12 +50,15 @@ Defined in `ui/navigation/Screen.kt` as a sealed class, wired into a single
 | `ai_assistant` | `AiAssistantScreen` | |
 | `settings` | `SettingsScreen` | |
 
-Bottom navigation bar (`ui/components/LifeOSBottomBar.kt`) only shows 5 of
-these routes: Home, Timeline, Tasks, Habits, Settings (`Screen.bottomNavItems`).
-The rest (Notes, Expenses, Diary, Insights, Search) are reached via **quick-link
-chips on the Home screen** (`HomeScreen.kt`), not the bottom bar directly —
-worth knowing if a new developer expects them in the bottom nav and doesn't
-find them there.
+Bottom navigation bar (`ui/components/LifeOSBottomBar.kt`) renders the
+permanent information architecture **Home · Notes · ＋ Capture · Habits ·
+Life**. The four tabs live in the `root_tabs` graph with
+`savedState`/`restoreState`; Capture is a raised centre *action* that opens
+the full-window Capture hub and is never a selected tab. Profile left the bar
+but stays reachable from the Home avatar and the Life hub, with Settings, App
+Lock and backup underneath it. There is no user-facing Insights destination.
+Tasks, Expenses, Diary, Timeline, Search and Snap stack above the tabs as
+track modules.
 
 ## State management
 
@@ -87,11 +91,13 @@ repositories, the AI layer, and settings.
 
 ## Forms
 
-All forms in this app are simple Compose `AlertDialog`s with
-`OutlinedTextField`s (e.g. "Add task" in `TasksScreen.kt`, "Add habit" in
-`HabitsScreen.kt`, "Add expense" in `ExpensesScreen.kt`). There is no shared
-form-validation library or framework — each screen does its own minimal
-validation inline (e.g. `if (title.isBlank()) return`).
+Forms are per-screen Compose layouts — mostly `OutlinedTextField`s inside
+sections, sheets or dialogs (Tasks, Expenses, Notes, Diary). The permanent
+Habits flow is the largest: `HabitEditorScreen.kt` hosts both a 10-step
+guided wizard (name → icon → colour → Build/Quit → frequency → tracking →
+reminder → category/Timeline → review → create) and the full normal form used
+for later edits, with per-step validation, an unsaved-changes guard and an
+explicit error state at save time. There is still no shared form framework.
 
 ## UI system / Design system
 
@@ -124,15 +130,20 @@ in `NoteEditorViewModel`, `NotesViewModel.kt`), rendered as a
 
 ## API communication
 
-Only `ui/ai/AiAssistantScreen.kt`, `ui/notes/*`, `ui/diary/DiaryScreen.kt`,
-and `ui/insights/InsightsScreen.kt` talk to any external service — and they
-do so through `core/ai/AiRepository`, which delegates to the local Intelligence Engine. All other screens use the existing repository/domain boundaries
-via repositories.
+No screen talks to an external service. `core/ai/AiRepository` is a
+compatibility facade over the local, deterministic Intelligence Engine;
+`ui/ai/AiAssistantScreen.kt`, Notes and Diary use it in-process. Every other
+screen reads and writes through the repository/domain boundaries. The app has
+no internet permission.
 
 ## Reusable components
 
 - `GlassCard` / `GlassChip` (`ui/components/GlassCard.kt`)
-- `LifeOSBottomBar` (`ui/components/LifeOSBottomBar.kt`) — Today, Habits, Tasks, Insights, Settings with animated selected pills
+- `LifeOSBottomBar` (`ui/components/LifeOSBottomBar.kt`) — Home, Notes,
+  ＋ Capture, Habits, Life with animated selected pills and a raised centre action
+- `ui/habits/HabitVisuals.kt` — the Habits-only iris accent, score ring,
+  mini heatmap, celebration/confetti overlay, share helpers and reduced-motion
+  detection
 - `ReminderTimePickerDialog` (`ui/components/ReminderTimePickerDialog.kt`)
 
 There is currently no dedicated shared component for buttons, text fields,
@@ -143,7 +154,7 @@ consolidation (see `docs/18_ROADMAP.md`).
 ## Shared presentation components
 
 - `LifeOSTopBar` (`ui/components/LifeOSTopBar.kt`) — consistent primary/secondary screen header
-- `LifeOSBottomBar` — persistent five-section navigation
+- `LifeOSBottomBar` — persistent Home/Notes/Capture/Habits/Life navigation
 - `LifeOSCard` / `LifeOSGradientButton` / `LifeOSBadge` — shared tactile surfaces and actions
 
 ## Current-state addendum — 2026-09-16
