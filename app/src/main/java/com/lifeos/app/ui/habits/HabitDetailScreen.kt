@@ -528,8 +528,8 @@ fun HabitDetailScreen(
                         runCatching { LocalTime.parse(it, DateTimeFormatter.ofPattern("h:mm a")) }.getOrNull()
                     } ?: LocalTime.of(8, 0)
                     showRepeatDialog = false
-                    reminderHost.runProtected {
-                        exactAlarmHost.runProtected {
+                    reminderHost.runProtectedOrContinue {
+                        exactAlarmHost.runProtectedOrContinue {
                             viewModel.saveReminder(time, reminderRepeat)
                         }
                     }
@@ -546,8 +546,8 @@ fun HabitDetailScreen(
             onDismiss = { showTimePicker = false },
             onConfirm = { time ->
                 showTimePicker = false
-                reminderHost.runProtected {
-                    exactAlarmHost.runProtected {
+                reminderHost.runProtectedOrContinue {
+                    exactAlarmHost.runProtectedOrContinue {
                         viewModel.saveReminder(time, reminderRepeat)
                     }
                 }

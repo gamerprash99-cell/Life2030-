@@ -42,7 +42,15 @@ import com.lifeos.app.core.util.PermissionManager
  */
 class ExactAlarmPermissionHost(
     /** Runs [action] only when exact-alarm access is available. Returns true if it ran now. */
-    val runProtected: (() -> Unit) -> Boolean
+    val runProtected: (() -> Unit) -> Boolean,
+    /**
+     * Requests exact-alarm access the same way as [runProtected], but
+     * guarantees [action] runs: after the grant, or when the user dismisses
+     * the explanation. Create/save flows use this so a declined special access
+     * cannot discard the habit or task — the scheduler falls back to its
+     * permission-free inexact path.
+     */
+    val runProtectedOrContinue: (() -> Unit) -> Boolean
 )
 
 @Composable
@@ -53,6 +61,15 @@ fun rememberExactAlarmPermissionHost(): ExactAlarmPermissionHost {
     var canScheduleExact by remember { mutableStateOf(ReminderScheduler.canScheduleExactAlarms(context)) }
     var asking by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var continueAfterDismiss by remember { mutableStateOf(false) }
+
+    val releasePending: () -> Unit = {
+        val action = pendingAction
+        pendingAction = null
+        asking = false
+        continueAfterDismiss = false
+        action?.invoke()
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -62,12 +79,8 @@ fun rememberExactAlarmPermissionHost(): ExactAlarmPermissionHost {
                     // User returned from the system Alarms & reminders page (or
                     // granted the access elsewhere): release the held action now
                     // that exact scheduling is available. If still not allowed,
-                    // the dialog stays open so the user can retry or back out —
-                    // nothing is persisted or armed in the meantime.
-                    val action = pendingAction
-                    pendingAction = null
-                    asking = false
-                    action?.invoke()
+                    // the dialog stays open so the user can retry or back out.
+                    releasePending()
                 }
             }
         }
@@ -78,8 +91,10 @@ fun rememberExactAlarmPermissionHost(): ExactAlarmPermissionHost {
     if (asking) {
         AlertDialog(
             onDismissRequest = {
-                asking = false
-                pendingAction = null
+                if (continueAfterDismiss) releasePending() else {
+                    asking = false
+                    pendingAction = null
+                }
             },
             title = { Text(context.getString(R.string.exact_alarm_dialog_title)) },
             text = { Text(context.getString(R.string.exact_alarm_dialog_message)) },
@@ -97,21 +112,37 @@ fun rememberExactAlarmPermissionHost(): ExactAlarmPermissionHost {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    asking = false
-                    pendingAction = null
+                    if (continueAfterDismiss) releasePending() else {
+                        asking = false
+                        pendingAction = null
+                    }
                 }) { Text(context.getString(R.string.exact_alarm_dialog_not_now)) }
             }
         )
     }
 
-    return ExactAlarmPermissionHost { action ->
-        if (ReminderScheduler.canScheduleExactAlarms(context)) {
-            action()
-            true
-        } else {
-            pendingAction = action
-            asking = true
-            false
+    return ExactAlarmPermissionHost(
+        runProtected = { action ->
+            if (ReminderScheduler.canScheduleExactAlarms(context)) {
+                action()
+                true
+            } else {
+                pendingAction = action
+                continueAfterDismiss = false
+                asking = true
+                false
+            }
+        },
+        runProtectedOrContinue = { action ->
+            if (ReminderScheduler.canScheduleExactAlarms(context)) {
+                action()
+                true
+            } else {
+                pendingAction = action
+                continueAfterDismiss = true
+                asking = true
+                false
+            }
         }
-    }
+    )
 }

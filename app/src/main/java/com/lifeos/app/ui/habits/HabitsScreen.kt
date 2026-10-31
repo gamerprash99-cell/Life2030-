@@ -47,6 +47,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,11 +61,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
@@ -83,6 +90,7 @@ import com.lifeos.app.ui.components.LiquidGlassFab
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -108,6 +116,8 @@ fun HabitsScreen(
     var deleteTarget by remember { mutableStateOf<HabitEntity?>(null) }
     var celebration by remember { mutableStateOf<HabitCelebration?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel) {
         viewModel.celebrations.collect { celebration = it }
@@ -117,6 +127,7 @@ fun HabitsScreen(
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             floatingActionButton = {
                 LiquidGlassFab(
                     icon = Icons.Filled.Add,
@@ -209,7 +220,39 @@ fun HabitsScreen(
                                     if (card.habit.trackingMode == HabitTrackingMode.CHECKLIST) {
                                         onOpenHabit(card.habit.id)
                                     } else {
-                                        viewModel.setTick(card, !card.isDone)
+                                        // Capture the day at tap time: the undo
+                                        // action must reverse exactly this day,
+                                        // even if the user browses to another
+                                        // date before tapping Undo.
+                                        val epochDay = state.selectedEpochDay
+                                        val completing = !card.isDone
+                                        viewModel.setTickForDay(
+                                            habitId = card.habit.id,
+                                            epochDay = epochDay,
+                                            done = completing,
+                                            wasDone = card.isDone
+                                        )
+                                        if (completing) {
+                                            val message = if (card.habit.habitType == HabitType.QUIT) {
+                                                "${card.habit.name} — stayed on track"
+                                            } else {
+                                                "${card.habit.name} marked done"
+                                            }
+                                            scope.launch {
+                                                val result = snackbarHostState.showSnackbar(
+                                                    message = message,
+                                                    actionLabel = "Undo",
+                                                    duration = SnackbarDuration.Short
+                                                )
+                                                if (result == SnackbarResult.ActionPerformed) {
+                                                    viewModel.undoCheckIn(card.habit.id, epochDay)
+                                                }
+                                            }
+                                        } else if (!completing) {
+                                            // A manual undo replaces any pending
+                                            // snackbar so it cannot undo twice.
+                                            scope.launch { snackbarHostState.currentSnackbarData?.dismiss() }
+                                        }
                                     }
                                 },
                                 onIncrement = { viewModel.increment(card) },
@@ -665,7 +708,13 @@ private fun HabitCard(
                         )
                         Spacer(Modifier.weight(1f))
                         CountStepper(
-                            enabled = !done,
+                            // Decrement always stays available once there is a
+                            // count to reverse; otherwise a count habit that
+                            // reached its target could not be corrected. The
+                            // increment is disabled at the target so the card
+                            // cannot overshoot it.
+                            canDecrement = card.progress > 0,
+                            canIncrement = !done,
                             onDecrement = onDecrement,
                             onIncrement = onIncrement,
                             accent = accent
@@ -719,6 +768,7 @@ private fun HabitCard(
                 HabitCheckButton(
                     done = done,
                     accent = accent,
+                    habitName = habit.name,
                     label = when {
                         done -> "Done"
                         habit.habitType == HabitType.QUIT -> "On track"
@@ -736,11 +786,21 @@ private fun HabitCard(
 private fun HabitCheckButton(
     done: Boolean,
     accent: Color,
+    habitName: String,
     label: String,
     onClick: () -> Unit
 ) {
     Surface(
         onClick = onClick,
+        modifier = Modifier.semantics {
+            // "Done" alone reads as a terminal state on a screen reader; the
+            // action still reverses it, so say so.
+            contentDescription = if (done) {
+                "$habitName, $label. Tap to undo."
+            } else {
+                "$habitName, $label"
+            }
+        },
         shape = RoundedCornerShape(LifeOSRadius.pill),
         color = if (done) accent else accent.copy(alpha = 0.12f),
         contentColor = if (done) onHabitColor(accent) else accent
@@ -762,7 +822,8 @@ private fun HabitCheckButton(
 
 @Composable
 private fun CountStepper(
-    enabled: Boolean,
+    canDecrement: Boolean,
+    canIncrement: Boolean,
     onDecrement: () -> Unit,
     onIncrement: () -> Unit,
     accent: Color
@@ -770,23 +831,28 @@ private fun CountStepper(
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Surface(
             onClick = onDecrement,
-            enabled = enabled,
+            enabled = canDecrement,
             shape = CircleShape,
             color = MaterialTheme.colorScheme.surfaceVariant
         ) {
-            Text("−", modifier = Modifier.padding(horizontal = 11.dp, vertical = 3.dp), style = MaterialTheme.typography.titleMedium)
+            Text(
+                "−",
+                modifier = Modifier.padding(horizontal = 11.dp, vertical = 3.dp),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (canDecrement) 1f else 0.4f)
+            )
         }
         Surface(
             onClick = onIncrement,
-            enabled = enabled,
+            enabled = canIncrement,
             shape = CircleShape,
-            color = accent.copy(alpha = if (enabled) 0.14f else 0.06f)
+            color = accent.copy(alpha = if (canIncrement) 0.14f else 0.06f)
         ) {
             Text(
                 "+",
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
                 style = MaterialTheme.typography.titleMedium,
-                color = accent.copy(alpha = if (enabled) 1f else 0.4f)
+                color = accent.copy(alpha = if (canIncrement) 1f else 0.4f)
             )
         }
     }

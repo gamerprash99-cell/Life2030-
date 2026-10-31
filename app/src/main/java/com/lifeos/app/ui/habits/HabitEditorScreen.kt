@@ -381,7 +381,10 @@ fun HabitEditorScreen(
     val save: () -> Unit = {
         val action = { viewModel.save(onSaved) }
         if (state.reminderTime != null) {
-            reminderHost.runProtected { exactAlarmHost.runProtected(action) }
+            // Ask for notification and exact-alarm access, but never discard
+            // the habit itself when either is declined: the reminder degrades
+            // to the scheduler's permission-free path.
+            reminderHost.runProtectedOrContinue { exactAlarmHost.runProtectedOrContinue(action) }
         } else {
             action()
         }
@@ -391,13 +394,18 @@ fun HabitEditorScreen(
         if (state.dirty && !state.saved) showDiscard = true else onBack()
     }
 
-    BackHandler(enabled = true) {
+    // One rule for both Back affordances. The header arrow used to leave the
+    // wizard immediately while system Back moved one step, so the same gesture
+    // had two different meanings depending on where the user tapped.
+    val handleBack: () -> Unit = {
         when {
             state.isSaving -> Unit
             wizard && state.step > 0 -> viewModel.previousStep()
             else -> requestClose()
         }
     }
+
+    BackHandler(enabled = true) { handleBack() }
 
     if (showDiscard) {
         AlertDialog(
@@ -445,7 +453,7 @@ fun HabitEditorScreen(
                     else -> "New habit"
                 },
                 subtitle = if (wizard) "Step ${state.step + 1} of ${HabitEditorViewModel.WIZARD_STEPS}" else null,
-                onBack = requestClose,
+                onBack = handleBack,
                 actions = {
                     if (state.isSaving) {
                         Text("Saving…", style = MaterialTheme.typography.labelMedium)

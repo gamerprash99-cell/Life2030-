@@ -824,8 +824,10 @@ private fun TaskReminderEditorDialog(
                                     DateTimeUtils.today().atTime(it).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                                 }
                                 val submit = { onSave(millis, repeatType); onDismiss() }
-                                // Arming must wait for notification permission; clearing does not.
-                                if (millis != null) permissionHost.runProtected(submit) else submit()
+                                // Ask for notification permission when arming, but never
+                                // drop the user's choice if it is declined: the reminder
+                                // is stored and degrades to the silent scheduler path.
+                                if (millis != null) permissionHost.runProtectedOrContinue(submit) else submit()
                             },
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(
@@ -1014,9 +1016,9 @@ private fun NewTaskDialog(
                                 val submit = {
                                     onAdd(title, description, category, priority, repeatRule, reminderTime, reminderRepeatType)
                                 }
-                                // Reminder creation must wait for notification permission;
-                                // a reminder-less task is unaffected.
-                                if (reminderTime != null) permissionHost.runProtected(submit) else submit()
+                                // The task is created either way; a declined
+                                // notification permission must not discard it.
+                                if (reminderTime != null) permissionHost.runProtectedOrContinue(submit) else submit()
                             },
                             enabled = title.isNotBlank(),
                             shape = RoundedCornerShape(16.dp),

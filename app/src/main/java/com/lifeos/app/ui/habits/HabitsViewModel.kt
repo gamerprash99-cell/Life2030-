@@ -61,6 +61,14 @@ class HabitsViewModel(private val habitRepository: HabitRepository) : ViewModel(
     private val _celebrations = MutableSharedFlow<HabitCelebration>(extraBufferCapacity = 1)
     val celebrations = _celebrations.asSharedFlow()
 
+    /**
+     * Writes currently in flight, keyed by habit+day. The completion table
+     * already prevents duplicate rows, but without this guard a double tap on
+     * "Check in" could fire two celebrations before the first write reached the
+     * UI (the second tap still read `isDone = false`).
+     */
+    private val inFlightTicks = mutableSetOf<String>()
+
     val uiState: StateFlow<HabitsUiState> = combine(
         habitRepository.observeAll(),
         habitRepository.observeAllCompletions(),
@@ -147,14 +155,32 @@ class HabitsViewModel(private val habitRepository: HabitRepository) : ViewModel(
 
     // ---- Logging ----------------------------------------------------------
 
-    fun setTick(card: HabitCardState, done: Boolean) {
+    fun setTick(card: HabitCardState, done: Boolean) =
+        setTickForDay(card.habit.id, _selectedEpochDay.value, done, card.isDone)
+
+    /**
+     * Day-scoped tick write. The day is an explicit parameter so undo can never
+     * land on a different date if the user changes the selected day while the
+     * "Undo" affordance is still visible. Writes are idempotent: the completion
+     * table is keyed by (habitId, dateEpochDay), so repeated taps cannot create
+     * duplicate check-ins.
+     */
+    fun setTickForDay(habitId: String, epochDay: Long, done: Boolean, wasDone: Boolean) {
+        val key = "$habitId:$epochDay"
+        if (!inFlightTicks.add(key)) return
         viewModelScope.launch {
-            val day = _selectedEpochDay.value
-            val wasDone = card.isDone
-            habitRepository.setTick(card.habit.id, day, done)
-            if (done && !wasDone) celebrate(card.habit.id, day)
+            try {
+                habitRepository.setTick(habitId, epochDay, done)
+                if (done && !wasDone) celebrate(habitId, epochDay)
+            } finally {
+                inFlightTicks.remove(key)
+            }
         }
     }
+
+    /** Reverses an accidental check-in for exactly the day that was marked. */
+    fun undoCheckIn(habitId: String, epochDay: Long) =
+        setTickForDay(habitId, epochDay, done = false, wasDone = true)
 
     fun logSlip(card: HabitCardState) {
         viewModelScope.launch {
