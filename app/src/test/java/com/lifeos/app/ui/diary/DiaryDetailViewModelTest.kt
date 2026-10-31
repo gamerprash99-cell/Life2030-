@@ -2,6 +2,7 @@ package com.lifeos.app.ui.diary
 
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.data.db.dao.DiaryDao
 import com.lifeos.app.data.db.entities.DiaryEntity
@@ -13,10 +14,13 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -37,11 +41,22 @@ import org.junit.Test
  * commit is slower than the navigation transition. The user is told the memory
  * is deleted; it reappears on the timeline.
  *
- * These tests drive that race directly rather than hoping to hit it on a device.
+ * These tests drive that race directly and deterministically. The storage
+ * dispatcher is a test dispatcher rather than a live thread pool: real IO here
+ * left coroutines running after the test ended, and a late resume on whichever
+ * `Dispatchers.Main` the *next* test class had installed surfaced as
+ * `UncaughtExceptionsBeforeTest` in that class.
  */
 class DiaryDetailViewModelTest {
 
     private val dao = GatedDiaryDao()
+
+    /** Storage work is queued and advanced by the test, never by a live pool. */
+    private val io = StandardTestDispatcher()
+
+    /** ViewModels own Main-scope jobs; cancel them all before Main is reset. */
+    private val createdScopes = mutableListOf<kotlinx.coroutines.CoroutineScope>()
+    private val stores = mutableListOf<ViewModelStore>()
 
     @Before
     fun setUp() {
@@ -54,6 +69,10 @@ class DiaryDetailViewModelTest {
 
     @After
     fun tearDown() {
+        createdScopes.forEach { it.coroutineContext.cancelChildren() }
+        createdScopes.clear()
+        stores.forEach { it.clear() }
+        stores.clear()
         Dispatchers.resetMain()
     }
 
@@ -72,12 +91,14 @@ class DiaryDetailViewModelTest {
      */
     private fun storeWith(id: String): Pair<ViewModelStore, DiaryDetailViewModel> {
         val store = ViewModelStore()
+        stores += store
         val vm = ViewModelProvider(
             store,
             LambdaViewModelFactory {
-                DiaryDetailViewModel(id, DiaryRepository(dao), NoWeather)
+                DiaryDetailViewModel(id, DiaryRepository(dao, io = io), NoWeather)
             }
         )[id, DiaryDetailViewModel::class.java]
+        createdScopes += vm.viewModelScope
         return store to vm
     }
 
@@ -96,6 +117,9 @@ class DiaryDetailViewModelTest {
             val (store, vm) = storeWith("doomed")
             vm.delete("doomed")
 
+            // Start the storage work and park it on the held read.
+            io.scheduler.runCurrent()
+
             // Exactly what popping the detail destination does.
             store.clear()
 
@@ -103,6 +127,7 @@ class DiaryDetailViewModelTest {
             // plain `viewModelScope.launch` resumes into a cancelled scope here
             // and the row survives — which is the bug this pins shut.
             dao.releaseReads()
+            io.scheduler.advanceUntilIdle()
 
             assertTrue(
                 "the delete must complete even though the screen was closed",
@@ -118,6 +143,7 @@ class DiaryDetailViewModelTest {
 
         vm.delete("absent")
         store.clear()
+        io.scheduler.advanceUntilIdle()
 
         assertTrue(dao.awaitDelete(5, TimeUnit.SECONDS))
         assertTrue("a sibling entry must be untouched", dao.saved.any { it.id == "present" })
@@ -129,9 +155,11 @@ class DiaryDetailViewModelTest {
         val (store, vm) = storeWith("star")
 
         vm.toggleFavorite()
+        io.scheduler.advanceUntilIdle()
         assertTrue("the stored row must be flipped", dao.saved.single().isFavorite)
 
         vm.toggleFavorite()
+        io.scheduler.advanceUntilIdle()
         assertFalse("and flipped back again", dao.saved.single().isFavorite)
         store.clear()
     }
@@ -143,6 +171,7 @@ class DiaryDetailViewModelTest {
         val (store, vm) = storeWith("e1")
 
         vm.removeAttachment("/not/one/of/mine.jpg")
+        io.scheduler.advanceUntilIdle()
         store.clear()
 
         assertEquals("the row must be untouched", before, dao.saved.single().attachmentsJson)
