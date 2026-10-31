@@ -1,5 +1,8 @@
 package com.lifeos.app.ui.navigation
 
+import com.lifeos.app.domain.model.TimelineItem
+import com.lifeos.app.domain.model.TimelineItemType
+
 /**
  * Route of the nested graph that owns the primary (bottom-navigation)
  * destinations. Kept here (not private to the NavHost) so the bottom bar can
@@ -74,4 +77,20 @@ sealed class Screen(val route: String) {
     object SnapView : Screen("snap/view/{captureId}") {
         fun createRoute(captureId: String) = "snap/view/$captureId"
     }
+}
+
+/**
+ * The destination a Home/Timeline recent-activity row must open.
+ *
+ * Home used to send every activity through `SnapView`, so tapping a diary,
+ * task, habit or expense row opened the Snap viewer with an id that could not
+ * exist and rendered an empty/missing capture. Mapping from the item's real
+ * type keeps each row opening the module that produced it.
+ */
+internal fun routeForTimelineItem(item: TimelineItem): String = when (item.type) {
+    TimelineItemType.DIARY -> Screen.DiaryDetail.createRoute(item.sourceId)
+    TimelineItemType.TASK_COMPLETED -> Screen.Tasks.route
+    TimelineItemType.HABIT_COMPLETED -> Screen.Habits.route
+    TimelineItemType.EXPENSE -> Screen.Expenses.route
+    TimelineItemType.SNAP -> Screen.SnapView.createRoute(item.sourceId)
 }

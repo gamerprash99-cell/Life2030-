@@ -49,6 +49,7 @@ import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.data.db.entities.TaskEntity
 import com.lifeos.app.data.db.entities.HabitTrackingMode
+import com.lifeos.app.domain.model.TimelineItem
 import com.lifeos.app.domain.usecase.HabitSummaryRow
 import com.lifeos.app.domain.usecase.HomeSummary
 import com.lifeos.app.ui.components.LifeOSBanner
@@ -82,7 +83,7 @@ fun HomeScreen(
     onOpenTimeline: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSnap: () -> Unit,
-    onOpenSnapItem: (String) -> Unit,
+    onOpenTimelineItem: (TimelineItem) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenAi: () -> Unit
 ) {
@@ -218,7 +219,7 @@ fun HomeScreen(
             if (s.recentActivity.isNotEmpty()) {
                 item { SectionHeader(title = "Recent activity", trailing = null, onSeeAll = onOpenTimeline) }
                 items(s.recentActivity.take(4), key = { it.id }) { activity ->
-                    LifeOSSurface(Modifier.fillMaxWidth(), onClick = { onOpenSnapItem(activity.sourceId) }) {
+                    LifeOSSurface(Modifier.fillMaxWidth(), onClick = { onOpenTimelineItem(activity) }) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
                             Box(
                                 Modifier
