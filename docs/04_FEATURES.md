@@ -50,6 +50,9 @@ habits, flexible schedules, three tracking modes, real streak math and a
     neutral), habit cards with streak, schedule, tracking control, 28-day
     mini heatmap, overflow menu (edit/archive/delete), archived bottom sheet
     with restore, delete confirmation, and a calm celebration + share overlay.
+    A successful check-in raises a short **Undo** snackbar, and a Count habit
+    keeps its decrement enabled after reaching the target so an accidental
+    completion can always be reversed.
   - Detail — `ui/habits/HabitDetailScreen.kt`: hero + streak, 2×2 stats
     (current/longest streak, this week, this month), day action card
     (tick / count stepper / checklist / Quit "stayed on track" & "I slipped"),

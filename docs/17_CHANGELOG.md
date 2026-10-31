@@ -16,6 +16,39 @@ output.
 
 ---
 
+## [Unreleased] — Habits undo, wizard chrome and audit fixes (2026-10-31)
+
+### Reported fixes
+- **Habit wizard step 1**: the primary tab bar no longer renders under the
+  wizard, and the editor owns its bottom inset once, removing the oversized
+  blank blocker around Continue. Scrollability, all 10 steps and the
+  unsaved-changes guard are unchanged.
+- **Habit check-in undo**: `HabitsViewModel` gained day-scoped
+  `setTickForDay`/`undoCheckIn` and a repeated-tap guard; the dashboard raises
+  an **Undo** snackbar after a check-in, Done says "tap to undo" for screen
+  readers, and a Count habit can still be decremented after reaching its
+  target. Room rows stay keyed by `(habitId, dateEpochDay)`, so no duplicates
+  are possible and history is preserved.
+- **Back consistency**: the editor's header arrow and system Back now share one
+  step-aware handler.
+
+### Other verified fixes
+- Home recent activity routes each timeline type to its real destination
+  (previously every row opened the Snap viewer).
+- One inset per destination: Habit editor, Note editor, AI assistant and
+  Capture hub own their insets; Snap camera overlays and the nested
+  Timeline/Settings/Expenses Scaffolds no longer repeat the host's insets.
+- Declining the notification or exact-alarm prompt no longer cancels habit or
+  task creation; the entity is saved and the reminder degrades to the
+  permission-free scheduler path.
+
+### Tests
+- New: `TimelineNavigationTest` (5 cases) and new inset-ownership/
+  bottom-bar-visibility cases in `BottomBarVisibilityTest`.
+- Full results are recorded in `docs/14_TESTING.md` and `UPDATE.md`.
+
+---
+
 ## [Unreleased] — Permanent Habits experience (2026-10-30)
 
 ### Navigation / IA
