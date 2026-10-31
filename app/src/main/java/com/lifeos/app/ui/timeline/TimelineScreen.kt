@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -98,7 +99,11 @@ fun TimelineScreen(
     val canGoForward = selectedDate.isBefore(today)
 
     DiaryTheme {
-        Scaffold { padding ->
+        // The host LifeOSNavHost Scaffold already folded the status bar and the
+        // bottom navigation into this destination. Asking for `systemBars` again
+        // here added the status bar above the day header and the navigation
+        // inset below the list a second time — a blank band on both edges.
+        Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
             Column(Modifier.fillMaxSize().diaryPaperBackground().padding(padding)) {
                 TimelineHeader(
                     dateLabel = DateTimeUtils.formatFullDate(selectedDate),

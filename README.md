@@ -47,13 +47,13 @@ Only technologies actually present in this repository
 | DB encryption | SQLCipher (`net.zetetic:sqlcipher-android:4.6.1`) |
 | Preferences | DataStore Preferences `1.1.1` |
 | Scheduling | WorkManager `2.10.0` (`work-runtime-ktx`) |
-| Camera | CameraX `1.4.0` (`camera-core/camera2/lifecycle/view/video`) |
+| Camera | CameraX `1.4.1` (`camera-core/camera2/lifecycle/view/video`) |
 | Audio | `android.media.MediaRecorder` / `MediaPlayer` |
 | Image loading | Coil `2.7.0` (`coil-compose`) |
 | Serialization | kotlinx.serialization JSON `1.7.3` |
 | Async | kotlinx.coroutines `1.9.0` |
-| Security | `androidx.biometric` declared; App Lock is PIN-based (see §10) |
-| Testing | JUnit `4.13.2`, AndroidX Test JUnit `1.2.1`, Espresso `3.6.1`, Compose UI Test |
+| Security | SQLCipher database encryption + PIN App Lock; `androidx.biometric` is declared but App Lock is PIN-based (see §10) |
+| Testing | JUnit `4.13.2`, kotlinx-coroutines-test `1.9.0`, AndroidX Test JUnit `1.2.1`, Room testing `2.6.1`, Compose UI Test (instrumentation) |
 | Build | Gradle `8.9`, JDK `17` |
 
 **Android versions**: `compileSdk 35`, `minSdk 26`, `targetSdk 35`, JVM target 17.
@@ -109,7 +109,7 @@ is no third-party MVI/Redux framework.
 |---|---|
 | **Home** | Today dashboard: greeting/date, Daily Momentum progress, quick actions, Today's Priorities, habits streak, Recent Activity, LifeOS Intelligence, Capture entry. `ui/home/HomeScreen.kt`, `HomeViewModel.kt`, `domain/usecase/GetHomeSummaryUseCase.kt` |
 | **Tasks** | Priorities, due date/time, category, description, repeat rules, reminders, overdue handling. `ui/tasks/TasksScreen.kt` |
-| **Habits** | **Permanent root tab** (Home · Notes · ＋ Capture · Habits · Life). Dashboard with an animated date strip, All/Due/Completed filters and a live Habit Score; rounded per-habit cards with streak, count stepper and 28-day mini heatmap; guided first-habit wizard plus a full add/edit form; Build and Quit habits; Tick, Count and Checklist tracking; every frequency (every day, selected weekdays, days of month, N×/week, N×/month) on top of the preserved legacy schedules; detail view with 2×2 stats, a clickable 12-week heatmap, day backfill, reminder controls, archive/restore, delete and local celebration/share. `ui/habits/` |
+| **Habits** | **Permanent root tab** (Home · Notes · ＋ Capture · Habits · Life). Dashboard with an animated date strip, All/Due/Completed filters and a live Habit Score; rounded per-habit cards with streak, count stepper and 28-day mini heatmap; guided first-habit wizard plus a full add/edit form; Build and Quit habits; Tick, Count and Checklist tracking; every frequency (every day, selected weekdays, days of month, N×/week, N×/month) on top of the preserved legacy schedules; detail view with 2×2 stats, a clickable 12-week heatmap, day backfill, reminder controls, archive/restore, delete and local celebration/share. A check-in can be reversed from an Undo snackbar and Count habits stay correctable after reaching their target. `ui/habits/` |
 | **Diary** | **Daily Memory**: an editorial memory timeline read one day at a time — a day masthead over a horizontally snapping, centre-keeping date strip (haptic per settled day change, bounded to the last 365 days, no future day), a hairline spine carrying each memory's mood, large leading journal type, an inline `+ Memory` action and a `YOUR STORY STARTS HERE` empty state. Full-screen composer (8 moods) with real photo, voice-note and place attachments and an honest weather-unavailable state; a post-save confirmation naming the stored day and minute with *View memory* / *Add another memory*; and a full-page detail view reusing the same language. Fully offline and Room-backed; no network calls. Search, a month calendar and a local intelligence screen (streak, stats, mood mix, 7-day mood chart, recurring words, reflection prompt) are reached from the header's overflow menu and read only rows already on the device. `ui/diary/`, `domain/intelligence/` |
 | **Notes** | Block-based rich text, pin/favorite/archive/trash, folder chips, local AI actions. `ui/notes/` |
 | **Expenses** | Monthly spend, daily average, a user-set monthly budget with progress, remaining, recent transactions, and **optional on-device capture of payment notifications** into ordinary expenses. `ui/expenses/ExpensesScreen.kt`, `core/transactions/`, `domain/intelligence/` |
@@ -330,24 +330,27 @@ validated checkpoint — see [`docs/33_LIFE_INTEGRATION_PHASE18.md`](./docs/33_L
 **Requirements**: JDK 17, Android SDK with `platforms;android-35` and
 `build-tools;35.0.0`, Gradle 8.9.
 
-This snapshot ships `gradle/wrapper/gradle-wrapper.properties` but **not**
-`gradlew`/`gradlew.bat`/`gradle-wrapper.jar` (see `docs/16_KNOWN_ISSUES.md`
-Issue #1). Generate the wrapper once with `gradle wrapper --gradle-version 8.9`,
-or run a system Gradle 8.9 directly:
+The Gradle wrapper is committed (`gradlew`, `gradlew.bat`,
+`gradle/wrapper/gradle-wrapper.jar`, pinned to Gradle 8.9). In containers
+where the checked-out `gradlew` is not marked executable, invoke it as
+`sh ./gradlew …`.
 
 ```text
-gradle test
-gradle assembleDebug
-gradle assembleRelease
-gradle lintDebug
+./gradlew :app:compileDebugKotlin
+./gradlew :app:testDebugUnitTest
+./gradlew :app:assembleDebug
+./gradlew :app:assembleDebugAndroidTest
+./gradlew :app:lintDebug
+./gradlew :app:connectedDebugAndroidTest   # requires a device/emulator
 ```
 
-- **Debug build**: `gradle assembleDebug`.
+- **Debug build**: `./gradlew :app:assembleDebug`.
 - **Release**: minified (`isMinifyEnabled = true`); signs with
   `keystore.properties` when present (copy `keystore.properties.example`),
   otherwise falls back to debug signing so `assembleRelease` still compiles.
 - **CI**: `.github/workflows/android-build.yml` installs JDK 17 + Android SDK 35,
-  sets up Gradle 8.9, and runs `gradle test assembleDebug assembleRelease`.
+  sets up Gradle 8.9, and runs `gradle test assembleDebug assembleRelease`,
+  uploading both APKs as artifacts.
 
 ---
 
@@ -356,9 +359,15 @@ gradle lintDebug
 See [`docs/14_TESTING.md`](./docs/14_TESTING.md).
 
 JVM unit tests live under `app/src/test/` and cover PIN hashing, DB-key
-decision logic, habit stats, repeat rules, date utils, offline intelligence and
-backup serialization. Instrumentation/Compose test dependencies are declared but
-there is currently **no `app/src/androidTest/` suite**.
+decision logic, habit stats (every schedule mode, quota periods, outcome and
+target snapshots), repeat rules, date utils, offline intelligence, backup
+serialization, the Room v7 schema, navigation policy and Home activity routing.
+
+Instrumentation tests live under `app/src/androidTest/`:
+`AppDatabaseMigrationTest` (including the populated v6→v7 case) and
+`ExpenseCaptureQueriesTest`. They compile into
+`app-debug-androidTest.apk`; running them requires a device or emulator
+(`./gradlew :app:connectedDebugAndroidTest`) and no pass is claimed without one.
 
 ---
 
@@ -368,7 +377,8 @@ there is currently **no `app/src/androidTest/` suite**.
 LifeOS/
 ├── app/
 │   ├── build.gradle.kts
-│   ├── schemas/com.lifeos.app.data.db.AppDatabase/1.json
+│   ├── schemas/com.lifeos.app.data.db.AppDatabase/6.json
+│   ├── schemas/com.lifeos.app.data.db.AppDatabase/7.json
 │   └── src/
 │       ├── main/
 │       │   ├── AndroidManifest.xml
@@ -379,7 +389,8 @@ LifeOS/
 │       │   │   ├── domain/   (model, usecase)
 │       │   │   └── ui/       (theme, components, navigation, <feature> screens)
 │       │   └── res/          (values, xml, drawable, mipmap)
-│       └── test/java/com/lifeos/app/…   (JVM unit tests)
+│       ├── test/java/com/lifeos/app/…        (JVM unit tests)
+│       └── androidTest/java/com/lifeos/app/… (instrumentation/migration tests)
 ├── docs/                     (detailed documentation set)
 ├── .github/workflows/android-build.yml
 ├── build.gradle.kts, settings.gradle.kts, gradle.properties
@@ -428,6 +439,22 @@ See [`docs/21_FILE_STRUCTURE.md`](./docs/21_FILE_STRUCTURE.md) for per-file note
 ---
 
 ## 18. Recent Changes
+
+**2026-10-31 — Habit undo, wizard chrome and minor bug audit**
+- The first wizard step no longer stacks the primary tab bar, its own Continue
+  bar and a duplicated navigation-bar inset; the Habit editor owns its inset
+  once, like the Diary composer.
+- Check-in undo is explicit: a successful check-in raises an **Undo** snackbar,
+  Done announces "tap to undo", a Count habit can be decremented after reaching
+  its target, and undo reverses exactly the day that was marked.
+- Declining the notification/exact-alarm prompt no longer cancels habit or task
+  creation.
+- Home recent activity routes each item to its real screen, and duplicated
+  window insets were removed from Timeline, Settings, Expenses, the Note
+  editor, the AI assistant, Capture and Snap.
+- Verified: `testDebugUnitTest` 497 tests / 0 failures, `assembleDebug`,
+  `assembleDebugAndroidTest`, `lintDebug` 0 errors. See `UPDATE.md` and
+  `docs/14_TESTING.md`.
 
 **2026-09-24 — Timeline & Diary visual pass from Stitch design system**
 - Timeline (`ui/timeline/TimelineScreen.kt`) redrawn to the Stitch reference:
@@ -502,21 +529,23 @@ recorded in [`UPDATE.md`](./UPDATE.md) and [`docs/17_CHANGELOG.md`](./docs/17_CH
 Real, verified limitations (full list in
 [`docs/16_KNOWN_ISSUES.md`](./docs/16_KNOWN_ISSUES.md)):
 
-- **No Gradle wrapper scripts** committed (`gradlew`/JAR), so a fresh clone
-  cannot use `./gradlew` until the wrapper is generated.
 - **No release keystore** in the repo; a real keystore must be supplied via
   `keystore.properties` before Play submission.
 - **Backup restore verification** still needs execution against representative
   valid/invalid backups on a device.
 - **AI Assistant chat** does not inject real app data as context
   (`contextBlock = null`).
-- **No `androidTest/` instrumentation suite** exists yet.
-- Lint reports 4 pre-existing warnings (an obsolete `-v26` resource folder, an
-  unused round launcher icon + unused `tagline` string, and a missing
-  monochrome launcher-icon tag, plus 3 informational autoboxing hints) — none
-  are errors and none are from the Expenses fix.
-- Database/UI behavior on upgrades still depends on adding explicit Room
-  migrations once the schema changes past v1.
+- **Instrumentation tests are not executed in CI or in the audit container**
+  (no `adb`/emulator). The v6→v7 migration test and the expense-capture query
+  test compile but must run on a real device/emulator before release.
+- **No manual on-device pass** has been performed for the Habits wizard,
+  check-in undo, the permission-decline paths or the inset changes; see
+  `docs/14_TESTING.md` for the manual checklist.
+- Lint reports **0 errors** and only pre-existing warnings (GradleDependency
+  version hints, launcher resources, one `PluralsCandidate`, legacy
+  `ModifierParameter`/`ObsoleteSdkInt` hints); none are errors and none are new.
+- Database upgrades are explicit Room migrations; the schema is currently v7
+  with committed `6.json`/`7.json` exports.
 
 ---
 
@@ -544,26 +573,27 @@ To keep LifeOS production-safe:
 
 ## Build status
 
-Verified in the audit environment with Gradle 8.9 + Android Gradle Plugin 8.6.1
-(offline, engine `android.aapt2FromMavenOverride`):
+Verified in the audit environment with the committed Gradle 8.9 wrapper +
+Android Gradle Plugin 8.6.1 (AAPT2 supplied via
+`-Pandroid.aapt2FromMavenOverride=/opt/aapt2-wrapper/aapt2`, wrapper invoked as
+`sh ./gradlew` because the checkout is not executable there):
 
-- `gradle :app:compileDebugKotlin` — **PASS**
-- `gradle :app:assembleDebug` — **PASS**
-- `gradle :app:testDebugUnitTest` — **PASS** (88 tests, 0 failures)
-- `gradle :app:lintDebug` — **PASS** (0 errors, pre-existing warnings only)
+- `:app:compileDebugKotlin` — **PASS**
+- `:app:testDebugUnitTest` — **PASS** (497 tests, 0 failures, 0 errors, 0 skipped)
+- `:app:assembleDebug` — **PASS** (`app/build/outputs/apk/debug/app-debug.apk`)
+- `:app:assembleDebugAndroidTest` — **PASS**
+- `:app:lintDebug` — **PASS** (0 errors, 32 pre-existing warnings, 7 informational)
 
-The repository still does not ship the Gradle wrapper JAR/scripts, so builds use
-a locally-installed Gradle 8.9 distribution. Instrumentation tests were not run
-(no emulator/device, no `androidTest` suite).
-
-When a full Android environment is available, run:
+Instrumentation tests were not executed (no `adb`, emulator or physical device
+in the audit environment). When a full Android environment is available, run:
 
 ```text
 ./gradlew test
 ./gradlew assembleDebug
+./gradlew connectedDebugAndroidTest
 ```
 
-and the configured instrumentation checks as applicable.
+and confirm the v6→v7 migration test passes before release.
 
 ## Documentation
 

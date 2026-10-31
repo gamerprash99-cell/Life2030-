@@ -13,21 +13,21 @@
 
 ---
 
-### Issue #2 — No release signing configuration
+### Issue #2 — No production release keystore
 
 - **Severity**: 🟠 High (blocks any real release)
-- **Description**: `app/build.gradle.kts` has no `signingConfigs` block.
-- **Reproduction**: Run `./gradlew assembleRelease`.
-- **Expected behavior**: A signed, installable release APK.
-- **Actual behavior**: An unsigned APK is produced (or the build may need
-  additional configuration depending on Gradle/AGP defaults).
-- **Current workaround**: None needed. `app/build.gradle.kts` now defines a
-  `signingConfigs.release` block driven by an optional `keystore.properties`
-  file. When the file is absent (as in CI and local debug), release builds fall
-  back to debug signing; when present, they produce a properly signed APK.
-  Copy `keystore.properties.example` to create one.
-- **Status**: Resolved (scaffolding in place). A real production keystore still
-  must be supplied via `keystore.properties` before Play Store submission.
+- **Description**: `app/build.gradle.kts` defines a `signingConfigs.release`
+  block driven by an optional `keystore.properties` file, but the repository
+  intentionally contains no real signing key.
+- **Reproduction**: Run `./gradlew assembleRelease` with no
+  `keystore.properties`.
+- **Expected behavior**: A release-signed APK suitable for distribution.
+- **Actual behavior**: The release build compiles and falls back to debug
+  signing so CI stays green; the APK is not suitable for Play submission.
+- **Current workaround**: Copy `keystore.properties.example` to
+  `keystore.properties` and point it at a real keystore.
+- **Status**: Scaffolding resolved; a real production keystore still must be
+  supplied before Play Store submission.
 
 ---
 
@@ -164,3 +164,83 @@ The onboarding second-launch flash and navigation Back-handler path were address
 - **Current workaround**: Use `docs/14_TESTING.md`'s manual acceptance
   checklist and add the Habits-specific cases listed there.
 - **Status**: Verification pending
+
+---
+
+### Issue #6 — [RESOLVED] Habit wizard step 1 showed an oversized blank blocker
+
+- **Severity**: 🟠 High (first-run flow)
+- **Description**: On the first wizard step the primary tab bar was still
+  composed under the wizard's own Continue bar, and the wizard bar added a
+  navigation-bar inset the host Scaffold had already reserved. Together they
+  produced a 150–190dp band of empty chrome around Continue.
+- **Fix (2026-10-31)**: The Habit editor route is excluded from the primary
+  bottom bar and marked as owning its bottom inset, so the root `LifeOSNavHost`
+  hands it the full window height exactly like the Diary composer; the wizard
+  bar's single `navigationBarsPadding()` is then applied once.
+- **Files**: `ui/navigation/BottomBarVisibility.kt`,
+  `ui/navigation/LifeOSNavHost.kt`, `ui/habits/HabitEditorScreen.kt`.
+- **Status**: Resolved; device pass still recommended on small/gesture-nav
+  screens (see Issue #5).
+
+### Issue #7 — [RESOLVED] Habit check-in could not be undone clearly
+
+- **Severity**: 🟠 High (reported)
+- **Description**: A successful check-in changed the control to "Done" with no
+  advertised reversal; a completed Count habit's stepper was disabled at the
+  target, so it could not be corrected; and no day-scoped undo existed.
+- **Fix (2026-10-31)**: Day-scoped `setTickForDay` / `undoCheckIn` in the
+  ViewModel, an "Undo" snackbar after a successful check-in, an accessibility
+  "tap to undo" label on Done, and a Count stepper that keeps decrement enabled
+  once progress exists. The Room row stays keyed by `(habitId, dateEpochDay)`,
+  so repeated taps upsert and undo removes only that day's row.
+- **Files**: `ui/habits/HabitsViewModel.kt`, `ui/habits/HabitsScreen.kt`.
+- **Status**: Resolved; no database schema or migration change.
+
+### Issue #8 — [RESOLVED] Declining a permission silently cancelled a save
+
+- **Severity**: 🟠 High (looked like data loss)
+- **Description**: Habit creation and both task flows ran the save action only
+  after notification / exact-alarm access was granted. Choosing "Not now" left
+  the form open and created nothing.
+- **Fix (2026-10-31)**: Both permission hosts gained
+  `runProtectedOrContinue`, so the entity is always persisted and the reminder
+  degrades to the scheduler's permission-free path. `ReminderPermissionHost`
+  now also re-checks on resume so the "Open Settings" route can release the
+  pending action.
+- **Files**: `ui/components/ReminderPermissionHost.kt`,
+  `ui/components/ExactAlarmPermissionHost.kt`, `ui/habits/HabitEditorScreen.kt`,
+  `ui/habits/HabitDetailScreen.kt`, `ui/tasks/TasksScreen.kt`.
+- **Status**: Resolved.
+
+### Issue #9 — [RESOLVED] Home recent activity opened the wrong screen
+
+- **Severity**: 🟡 Medium
+- **Description**: Every Home recent-activity row called the Snap viewer
+  callback, so tapping a diary, task, habit or expense row opened the capture
+  viewer with an id that could not exist.
+- **Fix (2026-10-31)**: Added `routeForTimelineItem` and routed each
+  `TimelineItemType` to its real destination, pinned by
+  `TimelineNavigationTest`.
+- **Files**: `ui/navigation/Screen.kt`, `ui/navigation/LifeOSNavHost.kt`,
+  `ui/home/HomeScreen.kt`.
+- **Status**: Resolved.
+
+### Issue #10 — [RESOLVED] Duplicated window insets on several destinations
+
+- **Severity**: 🟡 Medium
+- **Description**: The host Scaffold already applied the status/navigation
+  insets, but some destinations asked for them again: nested Scaffolds in
+  Timeline/Settings/Expenses, and the full-window Note editor, AI assistant,
+  Capture hub and Snap camera overlays.
+- **Fix (2026-10-31)**: Insets are applied once per destination: the host zeroes
+  top/bottom padding for routes that own those insets
+  (`ownsTopInset`/`ownsBottomInset`), the three nested Scaffolds were zeroed
+  like Tasks/Habits/Profile, and the camera overlays dropped their duplicate
+  padding.
+- **Files**: `ui/navigation/BottomBarVisibility.kt`,
+  `ui/navigation/LifeOSNavHost.kt`, `ui/capture/CameraCaptureScreen.kt`,
+  `ui/capture/VideoCaptureScreen.kt`, `ui/timeline/TimelineScreen.kt`,
+  `ui/settings/SettingsScreen.kt`, `ui/expenses/ExpensesScreen.kt`.
+- **Status**: Resolved; visual confirmation on a device is still listed in
+  `docs/14_TESTING.md`.

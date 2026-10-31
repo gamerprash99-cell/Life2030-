@@ -17,9 +17,7 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -96,14 +94,17 @@ fun VideoCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> U
             }
         }, modifier = Modifier.fillMaxSize())
 
-        Surface(Modifier.align(Alignment.TopStart).statusBarsPadding().padding(14.dp), color = Color.Black.copy(alpha = .42f), shape = CircleShape) {
+        // The host NavHost Scaffold already inset this destination for the
+        // status bar and system navigation, so the overlay must not add those
+        // insets again.
+        Surface(Modifier.align(Alignment.TopStart).padding(14.dp), color = Color.Black.copy(alpha = .42f), shape = CircleShape) {
             IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Close camera", tint = Color.White) }
         }
-        Column(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.align(Alignment.TopCenter).padding(top = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("VIDEO", color = Color.White, style = MaterialTheme.typography.labelLarge)
             if (isRecording) Text("Recording · ${seconds}s", color = Color.White, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 3.dp))
         }
-        Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Surface(
                 onClick = {
                     if (isRecording) {

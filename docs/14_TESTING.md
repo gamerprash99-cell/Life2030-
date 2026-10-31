@@ -137,3 +137,55 @@ device). No pass is claimed for instrumentation tests.
 - Rotation/process death: selected date and unsaved editor state behave per
   the guard.
 
+
+## Habits undo / inset audit verification — 2026-10-31 (executed)
+
+Environment: JDK `17.0.21`, Android SDK at `/opt/android-sdk`, AAPT2 supplied
+via `-Pandroid.aapt2FromMavenOverride=/opt/aapt2-wrapper/aapt2`; the wrapper was
+invoked as `sh ./gradlew` (not executable in this container).
+
+```text
+sh ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug \
+  -Pandroid.aapt2FromMavenOverride=/opt/aapt2-wrapper/aapt2
+  → BUILD SUCCESSFUL in 13m 28s
+    :app:testDebugUnitTest          497 tests, 0 failures, 0 errors, 0 skipped
+    :app:assembleDebug              app/build/outputs/apk/debug/app-debug.apk
+    :app:assembleDebugAndroidTest   app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+    :app:lintDebug                  0 errors, 32 warnings (all pre-existing), 7 informational
+```
+
+Coverage added or extended for this pass:
+
+- `TimelineNavigationTest` — Home recent activity maps diary → DiaryDetail,
+  task → Tasks, habit → Habits, expense → Expenses, snap → SnapView.
+- `BottomBarVisibilityTest` — the Habit editor is excluded from the primary
+  bottom bar and owns its bottom inset; the Note editor, AI assistant and
+  Capture hub own both insets; Snap deliberately keeps the root insets; the
+  Diary composer still owns only the bottom edge.
+
+Not executed: `:app:connectedDebugAndroidTest` (no `adb`, emulator or device in
+this environment). No instrumentation pass is claimed.
+
+### Manual cases added for this pass (run on a device)
+
+- First habit wizard step 1: no primary tab bar under the Continue bar and no
+  large blank band at 360×640, 411×891 and a large tablet window; change
+  gesture → 3-button navigation while the wizard is open.
+- Wizard Back: system Back moves one step back; the header arrow does the same;
+  at step 1 both show the discard guard.
+- Dashboard: check in a Tick habit → Done + Undo snackbar; tap Undo → Check in,
+  "Not logged yet", and the score/streak/heatmap/percentage recompute; kill and
+  relaunch → still pending.
+- Undo after browsing to another date: the snackbar still reverses only the day
+  that was marked.
+- Count habit: reach the target, then decrement (must work); re-increment stops
+  at the target.
+- Quit habit: "On track" → Undo snackbar; "I slipped" shows the slip pill.
+- Create a habit or task with a reminder and choose "Not now" on the
+  notification prompt → the habit/task is still created (reminder silent);
+  repeat with the exact-alarm prompt.
+- Home recent activity: tapping each type (diary, task, habit, expense, snap)
+  opens the matching screen.
+- Timeline/Settings/Expenses: no extra blank band above the header or below the
+  last row; Note editor, AI assistant, Capture and Snap controls sit correctly
+  above the system navigation bar.

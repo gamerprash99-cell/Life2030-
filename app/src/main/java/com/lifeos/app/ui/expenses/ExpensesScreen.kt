@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -123,6 +124,10 @@ fun ExpensesScreen(onBack: () -> Unit = {}) {
 
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        // The host LifeOSNavHost Scaffold already reserves the status bar and the
+        // bottom navigation; a nested `systemBars` request repeated the
+        // navigation inset below the list.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = { LifeOSTopBar("Expenses", "See where your day is going", onBack = onBack) },
         floatingActionButton = {
             LiquidGlassFab(

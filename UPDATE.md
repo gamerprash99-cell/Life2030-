@@ -233,3 +233,117 @@ not executed: no emulator/device or `adb` is available here.
   pre-existing feature data paths are preserved.
 - The legacy pre-v7 habit schedules retain their exact DAILY/WEEKLY/CUSTOM
   semantics.
+
+## 2026-10-31 — Habits undo, wizard chrome and project-wide minor bug audit
+
+Scope: the two reported Habits defects plus a read-only audit of navigation,
+window insets, save/permission flows and Home routing. No Room entity, schema,
+migration, repository contract or user data was changed; no permission,
+network path, dependency or cloud service was added.
+
+### Reported bug 1 — habit creation step 1: oversized blank blocker
+
+- **Problem**: on the first wizard step a large empty/white band surrounded the
+  Continue button.
+- **Root cause**: the Habit editor is composed inside the root `LifeOSNavHost`
+  Scaffold, which still reserved the primary bottom-navigation bar height for
+  it, while the wizard painted its own Back/Continue bar with
+  `navigationBarsPadding()`. The tab bar, the wizard bar and a duplicated
+  navigation-bar inset stacked into roughly 150–190dp of empty chrome.
+- **Fix**: `BottomBarVisibility.kt` now excludes the Habit editor route from
+  the primary bottom bar and marks it as owning the bottom inset, so the root
+  hands it the full window height exactly like the Diary composer; the wizard
+  bar's single `navigationBarsPadding()` is then applied once.
+- **Preserved**: scrolling, all 10 steps, per-step validation, the top Save
+  action and the unsaved-changes guard.
+- **Files**: `ui/navigation/BottomBarVisibility.kt`,
+  `ui/navigation/LifeOSNavHost.kt`, `ui/habits/HabitEditorScreen.kt`.
+
+### Reported bug 2 — habit check-in undo
+
+- **Problem**: checking in changed the control to "Done" but the reversal was
+  not discoverable, a completed Count habit could not be corrected, and no
+  day-scoped undo existed.
+- **Root cause**: the dashboard toggled the completion row, but the Count
+  stepper was disabled at the target, nothing advertised undo, and the tap
+  handler used the currently selected day rather than the day that was marked.
+- **Fix**: `HabitsViewModel` gained day-scoped `setTickForDay`/`undoCheckIn`
+  and a per-habit/day in-flight guard so repeated taps cannot fire duplicate
+  check-ins or celebrations. The dashboard raises a short **Undo** snackbar
+  after a successful check-in; the Done control announces "tap to undo" for
+  screen readers; the Count stepper keeps decrement enabled once there is
+  progress to reverse (increment stays disabled at the target).
+- **Database**: no schema or migration change. Completions remain keyed by
+  `(habitId, dateEpochDay)`, so repeated taps upsert, undo clears only the day
+  that was marked, history is preserved and the state survives app restart
+  because it is written to Room.
+- **Files**: `ui/habits/HabitsViewModel.kt`, `ui/habits/HabitsScreen.kt`.
+
+### Additional verified fixes found by the audit
+
+- **Home recent activity opened the wrong screen** — every row used the Snap
+  viewer callback, so diary/task/habit/expense rows opened an empty capture
+  viewer. Added `routeForTimelineItem` (pinned by `TimelineNavigationTest`) and
+  routed each type to its real destination.
+  `ui/navigation/Screen.kt`, `ui/navigation/LifeOSNavHost.kt`,
+  `ui/home/HomeScreen.kt`.
+- **Duplicated window insets** — Timeline, Settings and Expenses asked for
+  `systemBars` inside the host Scaffold that had already inset them; the Note
+  editor, AI assistant, Capture hub and Snap camera overlays also added their
+  own status/navigation padding on top of the host's. Insets are now owned once
+  per destination: the host zeroes the edges a route owns
+  (`ownsTopInset`/`ownsBottomInset`), the three nested Scaffolds were zeroed
+  like Tasks/Habits/Profile, and the camera overlays dropped their duplicate
+  padding. `ui/navigation/BottomBarVisibility.kt`,
+  `ui/navigation/LifeOSNavHost.kt`, `ui/capture/CameraCaptureScreen.kt`,
+  `ui/capture/VideoCaptureScreen.kt`, `ui/timeline/TimelineScreen.kt`,
+  `ui/settings/SettingsScreen.kt`, `ui/expenses/ExpensesScreen.kt`.
+- **A declined permission silently cancelled the save** — habit creation and
+  both task flows ran the save only after notification / exact-alarm access was
+  granted, so "Not now" created nothing. Both permission hosts now expose
+  `runProtectedOrContinue`: the entity is always persisted and the reminder
+  degrades to the scheduler's permission-free path. `ReminderPermissionHost`
+  also re-checks on resume so the "Open Settings" route releases the pending
+  action. `ui/components/ReminderPermissionHost.kt`,
+  `ui/components/ExactAlarmPermissionHost.kt`, `ui/habits/HabitEditorScreen.kt`,
+  `ui/habits/HabitDetailScreen.kt`, `ui/tasks/TasksScreen.kt`.
+- **Habit editor Back was inconsistent** — system Back moved one wizard step
+  back while the header arrow exited the flow; both now share one step-aware
+  handler. `ui/habits/HabitEditorScreen.kt`.
+
+### Verification (executed in this environment)
+
+Environment: JDK `17.0.21`, Android SDK at `/opt/android-sdk`, AAPT2 supplied
+via `-Pandroid.aapt2FromMavenOverride=/opt/aapt2-wrapper/aapt2`; wrapper
+invoked as `sh ./gradlew` (not executable in this container).
+
+```text
+sh ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug \
+  -Pandroid.aapt2FromMavenOverride=/opt/aapt2-wrapper/aapt2
+  → BUILD SUCCESSFUL in 13m 28s
+    :app:testDebugUnitTest          497 tests, 0 failures, 0 errors, 0 skipped (39 XML result files)
+    :app:assembleDebug              app/build/outputs/apk/debug/app-debug.apk
+    :app:assembleDebugAndroidTest   app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+    :app:lintDebug                  0 errors, 32 warnings (all pre-existing), 7 informational
+```
+
+- New tests: `TimelineNavigationTest` (5 cases) and the inset-ownership /
+  bottom-bar cases in `BottomBarVisibilityTest`.
+- Not executed: `:app:connectedDebugAndroidTest` — no `adb`, emulator or
+  device is available here. No instrumentation pass is claimed.
+
+### Not changed / preserved
+
+- No Room entity, schema, migration, DAO or repository-contract change; the v7
+  schema and every stored row are untouched.
+- No internet permission, telemetry, cloud call, new dependency or credential.
+- SQLCipher encryption, PIN App Lock, the navigation graph, offline-first
+  behaviour and all pre-existing user data paths are preserved.
+
+### Remaining
+
+- Device/emulator pass for the wizard on small screens and gesture/3-button
+  navigation, the Undo snackbar timing, and visual confirmation of the inset
+  changes (see `docs/14_TESTING.md`).
+- `:app:connectedDebugAndroidTest` (v6→v7 migration and expense-capture query
+  tests) still needs a real device/emulator.

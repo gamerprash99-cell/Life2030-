@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
@@ -82,11 +80,14 @@ fun CameraCaptureScreen(onCaptured: (filePath: String) -> Unit, onCancel: () -> 
 @Composable
 private fun CaptureOverlay(label: String, onCancel: () -> Unit, onCapture: () -> Unit) {
     Box(Modifier.fillMaxSize()) {
-        Surface(Modifier.align(Alignment.TopStart).statusBarsPadding().padding(14.dp), color = Color.Black.copy(alpha = .42f), shape = CircleShape) {
+        // The host NavHost Scaffold already inset this destination for the
+        // status bar and system navigation, so the overlay must not add those
+        // insets again.
+        Surface(Modifier.align(Alignment.TopStart).padding(14.dp), color = Color.Black.copy(alpha = .42f), shape = CircleShape) {
             IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Close camera", tint = Color.White) }
         }
-        Text(label, modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 22.dp), color = Color.White, style = MaterialTheme.typography.labelLarge)
-        Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text(label, modifier = Modifier.align(Alignment.TopCenter).padding(top = 22.dp), color = Color.White, style = MaterialTheme.typography.labelLarge)
+        Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Surface(onClick = onCapture, shape = CircleShape, color = Color.White, modifier = Modifier.padding(4.dp)) {
                 Surface(color = MaterialTheme.colorScheme.primary, shape = CircleShape, modifier = Modifier.padding(6.dp)) {
                     Icon(Icons.Filled.CameraAlt, contentDescription = "Take photo", tint = Color.White, modifier = Modifier.padding(18.dp))

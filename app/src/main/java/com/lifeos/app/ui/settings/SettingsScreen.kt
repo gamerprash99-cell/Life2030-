@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -170,7 +171,10 @@ fun SettingsScreen(onOpenAppLockSetup: () -> Unit, onBack: () -> Unit = {}) {
         }
     }
 
-    Scaffold { padding ->
+    // The host LifeOSNavHost Scaffold already applied the status bar and bottom
+    // navigation insets; a nested `systemBars` request pushed the header down and
+    // the last row up by those insets twice.
+    Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Column(
             Modifier.fillMaxWidth().padding(padding).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(18.dp)

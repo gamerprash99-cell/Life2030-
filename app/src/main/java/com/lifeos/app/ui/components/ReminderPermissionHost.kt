@@ -9,11 +9,15 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.lifeos.app.core.util.PermissionManager
 
 /**
@@ -36,7 +40,17 @@ import com.lifeos.app.core.util.PermissionManager
  */
 class ReminderPermissionHost(
     /** Runs [action] only when notifications can be delivered. Returns true if it ran now. */
-    val runProtected: (() -> Unit) -> Boolean
+    val runProtected: (() -> Unit) -> Boolean,
+    /**
+     * Requests the permission the same way as [runProtected], but guarantees
+     * [action] runs: immediately when notifications are already allowed, after
+     * a grant, or when the user declines or dismisses the explanation.
+     *
+     * Create/save flows use this variant because the entity itself must never
+     * be discarded just because a notification permission was declined — the
+     * reminder simply degrades to a silent/inexact one.
+     */
+    val runProtectedOrContinue: (() -> Unit) -> Boolean
 )
 
 @Suppress("InlinedApi") // Only dereferenced behind the Build.VERSION >= TIRAMISU gate below; pre-33 never reaches it.
@@ -52,6 +66,35 @@ fun rememberReminderPermissionHost(): ReminderPermissionHost {
     var permanentlyDenied by remember { mutableStateOf(false) }
     var asking by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    // True when the pending action was requested through runProtectedOrContinue:
+    // it must still run if the user declines or dismisses the request.
+    var continueAfterDismiss by remember { mutableStateOf(false) }
+
+    val releasePending: () -> Unit = {
+        val action = pendingAction
+        pendingAction = null
+        asking = false
+        continueAfterDismiss = false
+        action?.invoke()
+    }
+
+    // The "Open Settings" path has no result callback, so re-check on resume
+    // (exactly like ExactAlarmPermissionHost) and release any pending action.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val nowGranted = !needsPermission ||
+                    PermissionManager.hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                if (nowGranted) {
+                    granted = true
+                    if (pendingAction != null) releasePending()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -62,14 +105,18 @@ fun rememberReminderPermissionHost(): ReminderPermissionHost {
         asking = false
         val action = pendingAction
         pendingAction = null
-        if (isGranted) action?.invoke()
+        val continueAnyway = continueAfterDismiss
+        continueAfterDismiss = false
+        if (isGranted || continueAnyway) action?.invoke()
     }
 
     if (asking) {
         AlertDialog(
             onDismissRequest = {
-                asking = false
-                pendingAction = null
+                if (continueAfterDismiss) releasePending() else {
+                    asking = false
+                    pendingAction = null
+                }
             },
             title = { Text("Allow notifications?") },
             text = {
@@ -93,21 +140,37 @@ fun rememberReminderPermissionHost(): ReminderPermissionHost {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    asking = false
-                    pendingAction = null
+                    if (continueAfterDismiss) releasePending() else {
+                        asking = false
+                        pendingAction = null
+                    }
                 }) { Text("Not now") }
             }
         )
     }
 
-    return ReminderPermissionHost { action ->
-        if (!needsPermission || granted) {
-            action()
-            true
-        } else {
-            pendingAction = action
-            asking = true
-            false
+    return ReminderPermissionHost(
+        runProtected = { action ->
+            if (!needsPermission || granted) {
+                action()
+                true
+            } else {
+                pendingAction = action
+                continueAfterDismiss = false
+                asking = true
+                false
+            }
+        },
+        runProtectedOrContinue = { action ->
+            if (!needsPermission || granted) {
+                action()
+                true
+            } else {
+                pendingAction = action
+                continueAfterDismiss = true
+                asking = true
+                false
+            }
         }
-    }
+    )
 }
