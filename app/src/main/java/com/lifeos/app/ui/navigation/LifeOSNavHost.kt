@@ -128,6 +128,12 @@ fun LifeOSNavHost() {
     // primary tab bar at all (see BottomBarVisibility.kt). Both are evaluated by
     // a pure function so the behaviour is unit-testable.
     val showBottomBar = shouldShowBottomBar(route, composerOwnsWindow)
+    // Focused editors paint their own bars with navigationBarsPadding(), so they
+    // must receive the full window height instead of a root-added inset.
+    val routeOwnsBottomInset = ownsBottomInset(route, composerOwnsWindow)
+    // The full-window flows that draw under the status bar apply
+    // statusBarsPadding() themselves; the root must not add it a second time.
+    val routeOwnsTopInset = ownsTopInset(route)
 
     CompositionLocalProvider(LocalComposerChrome provides chrome) {
         Scaffold(
@@ -138,15 +144,15 @@ fun LifeOSNavHost() {
                 navController = navController,
                 startDestination = ROOT_TABS_GRAPH,
                 modifier = Modifier.padding(
-                    top = padding.calculateTopPadding(),
+                    top = if (routeOwnsTopInset) 0.dp else padding.calculateTopPadding(),
                     // Two different "no bottom bar" cases need two different
-                    // numbers. While the Diary composer is open it consumes the
-                    // bottom inset itself, so the Scaffold's fallback (which is
-                    // still a gap the composer must not inherit) is zeroed
-                    // explicitly. When a route merely *hides* the bar — App Lock
-                    // setup — the Scaffold already reports the system navigation
-                    // inset instead, which is exactly what that flow needs.
-                    bottom = if (composerOwnsWindow) 0.dp else padding.calculateBottomPadding()
+                    // numbers. A route that consumes the bottom inset itself
+                    // (the Diary composer, the Habit editor) must not inherit
+                    // the Scaffold's fallback gap, so it is zeroed explicitly.
+                    // When a route merely *hides* the bar — App Lock setup — the
+                    // Scaffold already reports the system navigation inset
+                    // instead, which is exactly what that flow needs.
+                    bottom = if (routeOwnsBottomInset) 0.dp else padding.calculateBottomPadding()
                 )
             ) {
                 navigation(startDestination = Screen.Home.route, route = ROOT_TABS_GRAPH) {
@@ -159,8 +165,8 @@ fun LifeOSNavHost() {
                             onOpenTimeline = { navController.navigate(Screen.Timeline.route) { launchSingleTop = true } },
                             onOpenProfile = { navController.navigate(Screen.Profile.route) { launchSingleTop = true } },
                             onOpenSnap = { navController.navigate(Screen.Snap.route) { launchSingleTop = true } },
-                            onOpenSnapItem = { captureId ->
-                                navController.navigate(Screen.SnapView.createRoute(captureId)) { launchSingleTop = true }
+                            onOpenTimelineItem = { item ->
+                                navController.navigate(routeForTimelineItem(item)) { launchSingleTop = true }
                             },
                             onOpenSearch = { navController.navigate(Screen.GlobalSearch.route) { launchSingleTop = true } },
                             onOpenAi = { navController.navigate(Screen.AiAssistant.route) { launchSingleTop = true } }
