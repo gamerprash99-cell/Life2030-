@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -36,10 +35,8 @@ import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.data.db.entities.CaptureEntity
 import com.lifeos.app.data.db.entities.DiaryEntity
-import com.lifeos.app.data.db.entities.NoteEntity
 import com.lifeos.app.data.repository.CaptureRepository
 import com.lifeos.app.data.repository.DiaryRepository
-import com.lifeos.app.data.repository.NoteRepository
 import com.lifeos.app.ui.components.LifeOSEmptyState
 import com.lifeos.app.ui.components.LifeOSIconButton
 import com.lifeos.app.ui.components.LifeOSSearchBar
@@ -60,16 +57,19 @@ data class SearchUiState(
     val query: String = "",
     val loading: Boolean = false,
     val searched: Boolean = false,
-    val notes: List<NoteEntity> = emptyList(),
     val diary: List<DiaryEntity> = emptyList(),
     val captures: List<CaptureEntity> = emptyList()
 ) {
-    val total: Int get() = notes.size + diary.size + captures.size
+    val total: Int get() = diary.size + captures.size
 }
 
-/** Searches Notes, Diary and Captures in one pass. Local SQLite LIKE — instant, offline. */
+/**
+ * Searches the durable text modules — Diary and Captures — in one pass. Local
+ * SQLite LIKE: instant, offline, and no index to keep in sync. Notes is not in
+ * this list because the module is retired from the product; the task, habit and
+ * expense modules are reachable from their own tabs and from the timeline.
+ */
 class GlobalSearchViewModel(
-    private val noteRepository: NoteRepository,
     private val diaryRepository: DiaryRepository,
     private val captureRepository: CaptureRepository
 ) : ViewModel() {
@@ -95,14 +95,13 @@ class GlobalSearchViewModel(
     private suspend fun runSearch(raw: String) {
         val q = raw.trim()
         if (q.isEmpty()) {
-            _state.update { it.copy(loading = false, searched = false, notes = emptyList(), diary = emptyList(), captures = emptyList()) }
+            _state.update { it.copy(loading = false, searched = false, diary = emptyList(), captures = emptyList()) }
             return
         }
         _state.update { it.copy(loading = true, searched = true) }
-        val notes = runCatching { noteRepository.search(q) }.getOrDefault(emptyList())
         val diary = runCatching { diaryRepository.search(q) }.getOrDefault(emptyList())
         val captures = runCatching { captureRepository.search(q) }.getOrDefault(emptyList())
-        _state.update { it.copy(loading = false, notes = notes, diary = diary, captures = captures) }
+        _state.update { it.copy(loading = false, diary = diary, captures = captures) }
     }
 }
 
@@ -114,14 +113,13 @@ class GlobalSearchViewModel(
 @Composable
 fun GlobalSearchScreen(
     onBack: () -> Unit,
-    onOpenNote: (String) -> Unit,
     onOpenDiary: (String) -> Unit,
     onOpenCapture: (String) -> Unit
 ) {
     val locator = LocalServiceLocator.current
     val viewModel: GlobalSearchViewModel = viewModel(
         factory = LambdaViewModelFactory {
-            GlobalSearchViewModel(locator.noteRepository, locator.diaryRepository, locator.captureRepository)
+            GlobalSearchViewModel(locator.diaryRepository, locator.captureRepository)
         }
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -157,7 +155,7 @@ fun GlobalSearchScreen(
             LifeOSSearchBar(
                 value = state.query,
                 onValueChange = viewModel::onQueryChange,
-                placeholder = "Notes, diary, memories…",
+                placeholder = "Diary, memories…",
                 leadingIcon = Icons.Filled.Search
             )
         }
@@ -167,7 +165,7 @@ fun GlobalSearchScreen(
                 LifeOSEmptyState(
                     icon = Icons.Filled.Search,
                     title = "Search everything",
-                    body = "One field across your notes, diary and captured memories."
+                    body = "One field across your diary, photos, videos and voice recordings."
                 )
             }
             state.loading -> item { LifeOSSkeletonList(rows = 4) }
@@ -179,17 +177,6 @@ fun GlobalSearchScreen(
                 )
             }
             else -> {
-                if (state.notes.isNotEmpty()) {
-                    item { SearchGroupHeader("Notes", state.notes.size) }
-                    items(state.notes, key = { "n" + it.id }) { note ->
-                        ResultRow(
-                            icon = Icons.Filled.Description,
-                            title = note.title.ifBlank { "Untitled note" },
-                            subtitle = note.content.trim().take(140),
-                            onClick = { onOpenNote(note.id) }
-                        )
-                    }
-                }
                 if (state.diary.isNotEmpty()) {
                     item { SearchGroupHeader("Diary", state.diary.size) }
                     items(state.diary, key = { "d" + it.id }) { entry ->

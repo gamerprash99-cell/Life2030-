@@ -12,19 +12,22 @@ import com.lifeos.app.core.intelligence.LifeOSIntelligenceEngine
  * through the existing repositories (already passed into the engine) and
  * returns a result computed entirely on-device.
  *
- * This class is kept as a thin compatibility layer over the engine so the
- * UI call sites (NotesViewModel, DiaryScreen, LifeScreen,
- * AiAssistantScreen) didn't need a full rewrite — only their `NoApiKey`
- * branches were removed, since that case no longer exists.
+ * This class is kept as a thin compatibility layer over the engine so the UI
+ * call sites (DiaryScreen, the AI assistant) didn't need a full rewrite — only
+ * their `NoApiKey` branches were removed, since that case no longer exists.
+ *
+ * The text actions below are extractive and offline: they summarise, retitle
+ * or reorganise text the user is already editing. They are not part of the
+ * retired Notes module and read no Notes data.
  */
 class AiRepository(private val engine: LifeOSIntelligenceEngine) {
 
-    /** Note-level actions (Section 8). Some are genuinely offline-feasible (extractive); others say so honestly. */
-    fun runNoteAction(action: NoteAiAction, noteText: String): AiResult =
-        runCatching { engine.runNoteAction(action, noteText) }
-            .fold(onSuccess = { AiResult.Success(it) }, onFailure = { AiResult.Error(it.message ?: "Something went wrong analyzing this note.") })
+    /** Text actions (Section 8). Some are genuinely offline-feasible (extractive); others say so honestly. */
+    fun runTextAction(action: TextAiAction, text: String): AiResult =
+        runCatching { engine.runTextAction(action, text) }
+            .fold(onSuccess = { AiResult.Success(it) }, onFailure = { AiResult.Error(it.message ?: "Something went wrong analysing this text.") })
 
-    /** Task extraction from a note's text — offline, extractive (action-item detection). */
+    /** Task extraction from a block of text — offline, extractive (action-item detection). */
     fun extractTasks(sourceText: String): AiResult =
         runCatching {
             val items = engine.extractTasksFromText(sourceText)

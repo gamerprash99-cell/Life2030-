@@ -2,7 +2,7 @@
 
 LifeOS is a native **Kotlin + Jetpack Compose + Material 3** personal life-management
 app built around an **offline-first, privacy-first, local-first** model. It is
-designed as a private "second brain": notes, tasks, habits, diary, expenses,
+designed as a private "second brain": tasks, habits, diary, expenses,
 media captures and a cross-feature timeline all live in one encrypted,
 on-device database.
 
@@ -78,8 +78,11 @@ Room DAOs / DataStore / local services
 ```
 
 - **`ui/`** — Compose screens, `LifeOSNavHost`, reusable components.
-- **`domain/`** — pure models and use cases (`NoteBlock`, `TimelineItem`,
+- **`domain/`** — pure models and use cases (`TimelineItem`,
   `ExpenseCategories`, `BuildTimelineUseCase`, `GetHomeSummaryUseCase`).
+  (`NoteBlock` / `NoteEntity` / `NoteFolderEntity` are retained in code for
+  backup/restore data preservation only; the Notes module is retired from the
+  product.)
 - **`data/`** — Room `AppDatabase`, entities, DAOs, repositories.
 - **`core/`** — cross-cutting infrastructure:
   - `core/di/` — `ServiceLocator` + Compose `LocalServiceLocator` +
@@ -109,11 +112,10 @@ is no third-party MVI/Redux framework.
 |---|---|
 | **Home** | Today dashboard: greeting/date, Daily Momentum progress, quick actions, Today's Priorities, habits streak, Recent Activity, LifeOS Intelligence, Capture entry. `ui/home/HomeScreen.kt`, `HomeViewModel.kt`, `domain/usecase/GetHomeSummaryUseCase.kt` |
 | **Tasks** | Priorities, due date/time, category, description, repeat rules, reminders, overdue handling. `ui/tasks/TasksScreen.kt` |
-| **Habits** | **Permanent root tab** (Home · Notes · ＋ Capture · Habits · Life). Dashboard with an animated date strip, All/Due/Completed filters and a live Habit Score; rounded per-habit cards with streak, count stepper and 28-day mini heatmap; guided first-habit wizard plus a full add/edit form; Build and Quit habits; Tick, Count and Checklist tracking; every frequency (every day, selected weekdays, days of month, N×/week, N×/month) on top of the preserved legacy schedules; detail view with 2×2 stats, a clickable 12-week heatmap, day backfill, reminder controls, archive/restore, delete and local celebration/share. A check-in can be reversed from an Undo snackbar and Count habits stay correctable after reaching their target. `ui/habits/` |
+| **Habits** | **Permanent root tab** (Home · Expenses · ＋ Capture · Habits · Life). Dashboard with an animated date strip, All/Due/Completed filters and a live Habit Score; rounded per-habit cards with streak, count stepper and 28-day mini heatmap; guided first-habit wizard plus a full add/edit form; Build and Quit habits; Tick, Count and Checklist tracking; every frequency (every day, selected weekdays, days of month, N×/week, N×/month) on top of the preserved legacy schedules; detail view with 2×2 stats, a clickable 12-week heatmap, day backfill, reminder controls, archive/restore, delete and local celebration/share. A check-in can be reversed from an Undo snackbar and Count habits stay correctable after reaching their target. `ui/habits/` |
 | **Diary** | **Daily Memory**: an editorial memory timeline read one day at a time — a day masthead over a horizontally snapping, centre-keeping date strip (haptic per settled day change, bounded to the last 365 days, no future day), a hairline spine carrying each memory's mood, large leading journal type, an inline `+ Memory` action and a `YOUR STORY STARTS HERE` empty state. Full-screen composer (8 moods) with real photo, voice-note and place attachments and an honest weather-unavailable state; a post-save confirmation naming the stored day and minute with *View memory* / *Add another memory*; and a full-page detail view reusing the same language. Fully offline and Room-backed; no network calls. Search, a month calendar and a local intelligence screen (streak, stats, mood mix, 7-day mood chart, recurring words, reflection prompt) are reached from the header's overflow menu and read only rows already on the device. `ui/diary/`, `domain/intelligence/` |
-| **Notes** | Block-based rich text, pin/favorite/archive/trash, folder chips, local AI actions. `ui/notes/` |
-| **Expenses** | Monthly spend, daily average, a user-set monthly budget with progress, remaining, recent transactions, and **optional on-device capture of payment notifications** into ordinary expenses. `ui/expenses/ExpensesScreen.kt`, `core/transactions/`, `domain/intelligence/` |
-| **Timeline** | Day-by-day merge of notes/tasks/habits/expenses/diary/captures. `ui/timeline/TimelineScreen.kt`, `BuildTimelineUseCase.kt` |
+| **Expenses** | **Permanent root tab** (replaces Notes). Monthly spend, daily average, a user-set monthly budget with progress, remaining, recent transactions, creation/edit/delete, categories, payment method, and **optional on-device capture of payment notifications** into ordinary expenses. `ui/expenses/ExpensesScreen.kt`, `core/transactions/`, `domain/intelligence/` |
+| **Timeline** | Chronological memory timeline (the Life tab): diary entries, completed tasks, habit check-ins, expenses, photos, videos and voice captures grouped under the day they happened, newest first. No dashboard, no demo data. `ui/life/LifeTimelineScreen.kt`, `ui/life/LifeTimelineViewModel.kt`, `domain/usecase/BuildLifeTimelineUseCase.kt`, `domain/usecase/BuildTimelineUseCase.kt`, `domain/usecase/TimelineMapping.kt` |
 | **Capture** | Photo (CameraX), video (CameraX Recorder), audio (MediaRecorder), quick thought; post-capture confirmation and a detail viewer. `ui/capture/` |
 | **Search** | Cross-feature `LIKE` search (not full-text/semantic). `ui/search/SearchScreen.kt` |
 | **App Lock** | PIN-only gate (`NONE`/`PIN`), salted PBKDF2 hash, recovery + lockout. `ui/security/`, `core/security/` |
@@ -202,8 +204,10 @@ See [`docs/05_DATABASE.md`](./docs/05_DATABASE.md) for the full schema.
   stored in plaintext.
 - **Schema version**: `1`, `exportSchema = true`; the exported schema is
   committed at `app/schemas/com.lifeos.app.data.db.AppDatabase/1.json`.
-- **Entities (7 tables)**: `notes`, `tasks`, `habits`, `habit_completions`,
-  `expenses`, `diary_entries`, `captures`.
+- **Entities**: `tasks`, `habits`, `habit_completions`, `habit_checklist_items`,
+  `habit_checklist_checks`, `expenses`, `diary_entries`, `reminders`,
+  `captures`. The `notes` / `note_folders` tables are retained in the schema
+  for backup/restore data preservation only; Notes is retired from the product.
 - **Migrations**: none yet. There is **no destructive fallback**, so a future
   schema change must add an explicit Room `Migration`.
 - **Data preservation**: key-resolution failures throw
@@ -219,14 +223,16 @@ See [`docs/05_DATABASE.md`](./docs/05_DATABASE.md) for the full schema.
 Navigation Compose with a single `NavController` in
 `ui/navigation/LifeOSNavHost.kt`:
 
-- Four primary destinations (**Home, Notes, Habits, Life**) live in one nested
+- Five primary destinations (**Home, Expenses, Habits, Life**) live in one nested
   graph (`root_tabs`) with `saveState`/`restoreState`/`launchSingleTop`, so the
-  bottom bar returns to a section's saved state. Capture is the raised centre
-  action at `capture`, not a stateful tab.
-- Secondary screens (Tasks, Habit Detail, Habit Editor, Expenses, Diary,
-  Timeline, Capture Detail, Search, AI Assistant, Profile, Settings, App Lock
-  Setup, Snap) are registered **outside** that graph and stack on top; system
-  Back dismisses them one level at a time.
+  bottom bar returns to a section's saved state. Expenses replaced Notes as the
+  second destination; Capture remains the raised centre action at `capture`,
+  not a stateful tab.
+- Secondary screens (Tasks, Habit Detail, Habit Editor, Diary, Calendar,
+  Insights, Search, AI Assistant, Profile, Settings, App Lock Setup,
+  Snap Viewer) are registered **outside** that graph and stack on top; system
+  Back dismisses them one level at a time. The voice recorder and audio player
+  are full-window flows that own the inset while open.
 - Profile left the bottom bar but remains a stacked destination reachable from
   the Home avatar and the Life hub; Settings, App Lock and backup live there.
 - There is no user-facing Insights destination.
@@ -254,9 +260,10 @@ Centralized in `ui/theme/` and `ui/components/`, specified in
   `ReminderTimePickerDialog`, `ProfileAvatar`.
 - **Responsive / insets**: `Scaffold` + `WindowInsets`; the app uses
   `adjustResize` (see manifest) so forms stay above the keyboard.
-- **Bottom navigation**: Home, Notes, ＋ Capture, Habits, Life with
-  always-visible labels and a selected pill. The Capture action is centred and
-  raised; Profile is not a tab.
+- **Bottom navigation**: Home, Expenses, ＋ Capture, Habits, Life with
+  always-visible labels and a selected pill. Expenses uses a wallet icon and
+  replaced Notes when the Notes module was retired. The Capture action is
+  centred and raised; Profile is not a tab.
 
 ---
 
@@ -284,7 +291,7 @@ only when its feature is used (`core/util/PermissionManager.kt`):
 | Permission | Requested when |
 |---|---|
 | `CAMERA` | Opening photo or video capture |
-| `RECORD_AUDIO` | Opening audio capture |
+| `RECORD_AUDIO` | When the user starts a voice recording (never at launch) |
 | `POST_NOTIFICATIONS` | Enabling reminders (Android 13+) |
 
 `android.permission.INTERNET` is **not declared**. `android.hardware.camera` is

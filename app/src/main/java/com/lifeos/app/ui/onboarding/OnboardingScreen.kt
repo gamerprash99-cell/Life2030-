@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -51,6 +52,7 @@ private val pages = listOf(
     OnboardingPage("Welcome to LifeOS", "Track tasks, build habits, record expenses, and journal your day — all on one device.") { Icon(Icons.Filled.Bolt, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(54.dp)) },
     OnboardingPage("Your life. Your data.", "Your tasks, habits, expenses and diary stay on your device unless you explicitly export them.") { Icon(Icons.Filled.Lock, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(54.dp)) },
     OnboardingPage("Everything connects", "Tasks, habits, expenses and diary entries become one chronological LifeOS timeline.") { Icon(Icons.Filled.Timeline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(54.dp)) },
+    OnboardingPage("Your voice, your moments", "Record voice notes, take photos and capture videos. Every capture lands in your timeline, stored privately on this device — never uploaded.") { Icon(Icons.Filled.Mic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(54.dp)) },
 )
 
 @Composable

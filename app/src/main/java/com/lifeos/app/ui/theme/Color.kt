@@ -3,62 +3,70 @@ package com.lifeos.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // ===========================================================================
-// LifeOS "LUMEN" — the design language (v5, rebuilt from zero).
+// LifeOS "CLEAN UTILITY + WARM MINIMAL JOURNAL" — the design language (v6).
 //
-// A linen desk under a lamp. Warm neutrals carry soft *matte* surfaces that
-// describe depth with a long, low shadow rather than a painted lens; the one
-// loud colour is a muted clay, with sage and gold as its quiet partners. The
-// iridescent spectrum of v4 is gone — colour here is warm, scarce and means
-// something. Nothing is frosted, nothing glows cool.
+// A lavender-paper desk with a deep-purple pen. The canvas is a near-white
+// lavender (#FDF8FF), grouped content sits on soft lavender sheets
+// (#F3EDF7), and the one loud colour is deep purple (#21005D) — used for
+// selection, primary actions and the identity gradient. Warm terracotta, muted
+// gold and soft sage stay exactly where they were: as the *semantic* accents
+// (clay for money and focus, gold for streaks and records, sage for success),
+// so the journal keeps its warmth while the structure reads clean and calm.
+//
+// Surfaces remain matte — depth comes from a long, low shadow, never a painted
+// lens or a backdrop blur.
 //
 // Every public token name from the previous systems is kept, so every existing
-// call site keeps compiling while it silently adopts the new look. The legacy
-// GLASS- and PRISM-named tokens are retained as the matte-surface and identity-
+// call site keeps compiling while it adopts the new palette. The legacy GLASS-
+// and PRISM-named tokens are retained as the matte-surface and identity-
 // gradient slots respectively (see the notes on each block).
 //
 // All text/background pairs below are checked against WCAG 2.2 AA (4.5:1 for
-// body, 3:1 for large text and UI components) in both themes.
+// body, 3:1 for large text and UI components) in both themes. The identity
+// gradient's stops are all deep enough to keep white text at or above 4.5:1
+// (deep purple 13.9, plum 6.2, clay 5.4).
 // ===========================================================================
 
 // ---- Canvas & surfaces -----------------------------------------------------
 
-/** The page behind everything: warm paper under a lamp. */
-val LifeOSBackgroundLight = Color(0xFFF7F4EF)
-/** Warm coal — the dark canvas surfaces sit on. */
-val LifeOSBackgroundDark = Color(0xFF16130F)
+/** The page behind everything: near-white lavender paper. */
+val LifeOSBackgroundLight = Color(0xFFFDF8FF)
+/** Deep plum-black — the canvas the dark surfaces sit on. */
+val LifeOSBackgroundDark = Color(0xFF141218)
 
-val LifeOSSurfaceLight = Color(0xFFFFFDF9)
-val LifeOSSurfaceDark = Color(0xFF221D17)
+/** Grouped content sits on white in light mode, raised off the lavender canvas. */
+val LifeOSSurfaceLight = Color(0xFFFFFFFF)
+val LifeOSSurfaceDark = Color(0xFF1E1B24)
 
-/** A recessed surface for wells, insets and secondary panels. */
-val LifeOSSurfaceVariantLight = Color(0xFFEFEAE2)
-val LifeOSSurfaceVariantDark = Color(0xFF2B251E)
+/** The "soft surface": lavender sheets for wells, insets and secondary panels. */
+val LifeOSSurfaceVariantLight = Color(0xFFF3EDF7)
+val LifeOSSurfaceVariantDark = Color(0xFF2A2731)
 
 /** A raised surface one step above [LifeOSSurfaceLight] (menus, sheets, popovers). */
 val LifeOSSurfaceRaisedLight = Color(0xFFFFFFFF)
-val LifeOSSurfaceRaisedDark = Color(0xFF302921)
+val LifeOSSurfaceRaisedDark = Color(0xFF322F3A)
 
 // ---- Content (text & icons) ------------------------------------------------
 
-/** Warm near-black pen ink. 14.9:1 on [LifeOSSurfaceLight]. */
-val LifeOSTextPrimaryLight = Color(0xFF241D15)
-/** Warm paper-white ink. 13.6:1 on [LifeOSSurfaceDark]. */
-val LifeOSTextPrimaryDark = Color(0xFFF6EFE6)
-/** Supporting copy — sepia grey. 6.4:1 light / 7.1:1 dark. */
-val LifeOSTextSecondaryLight = Color(0xFF6B5F52)
-val LifeOSTextSecondaryDark = Color(0xFFBCAE9D)
+/** Deep-neutral pen ink with a violet cast. 16.0:1 on [LifeOSSurfaceLight]. */
+val LifeOSTextPrimaryLight = Color(0xFF1D1B20)
+/** Lavender paper-white ink. 13.3:1 on [LifeOSSurfaceDark]. */
+val LifeOSTextPrimaryDark = Color(0xFFE8E0EC)
+/** Supporting copy — neutral grey-violet. 8.6:1 light / 8.3:1 dark. */
+val LifeOSTextSecondaryLight = Color(0xFF49454F)
+val LifeOSTextSecondaryDark = Color(0xFFC8C1CE)
 
-/** The deepest warm grey — structural labels, dividers and disabled hints. */
-val LifeOSTextMutedLight = Color(0xFF7A6E60)
-val LifeOSTextMutedDark = Color(0xFF9C9083)
+/** The quietest grey — structural labels, dividers and disabled hints. */
+val LifeOSTextMutedLight = Color(0xFF605A68)
+val LifeOSTextMutedDark = Color(0xFFA49EAC)
 
 // ---- Borders & outlines ----------------------------------------------------
 
 /** A warm hairline, tinted from the ink so it never reads as a cold grey rule. */
-val LifeOSBorderLight = Color(0x1F6B5F52)
-val LifeOSBorderDark = Color(0x26F6EFE6)
-val LifeOSOutlineLight = Color(0xFFA99C8C)
-val LifeOSOutlineDark = Color(0xFF5A5044)
+val LifeOSBorderLight = Color(0x1F49454F)
+val LifeOSBorderDark = Color(0x26E8E0EC)
+val LifeOSOutlineLight = Color(0xFF7A757F)
+val LifeOSOutlineDark = Color(0xFF6F6A78)
 
 // ---- Surface material (legacy "Glass") -------------------------------------
 //
@@ -66,14 +74,14 @@ val LifeOSOutlineDark = Color(0xFF5A5044)
 // kit reads them by name; their values now describe an opaque warm sheet with
 // a soft top light and a pooled base shadow — no blur, no specular sheen.
 
-val GlassLight = Color(0xF7FFFDF9)
-val GlassDark = Color(0xF22A241D)
-val GlassBorderLight = Color(0x1F6B5F52)
-val GlassBorderDark = Color(0x26F6EFE6)
+val GlassLight = Color(0xF7FFFFFF)
+val GlassDark = Color(0xF226222E)
+val GlassBorderLight = Color(0x1F49454F)
+val GlassBorderDark = Color(0x26E8E0EC)
 
 // The rim: a soft top light, a deeper pooled foot.
 val GlassTopEdgeLight = Color(0x40FFFFFF)
-val GlassTopEdgeDark = Color(0x33F6EFE6)
+val GlassTopEdgeDark = Color(0x33E8E0EC)
 val GlassBottomEdgeLight = Color(0x1A000000)
 val GlassBottomEdgeDark = Color(0x40000000)
 
@@ -87,46 +95,47 @@ val GlassInnerShadowDark = Color(0x33000000)
  * Ambient glow palette — the warm haze a matte surface sits in. Kept very
  * faint (clay, amber, sage) so a glow can never overpower on-surface content.
  */
-val AmbientGlowLavenderLight = Color(0x4DAD5636) // clay haze
-val AmbientGlowMagentaLight = Color(0x3DD98A45)  // amber haze
+val AmbientGlowLavenderLight = Color(0x4D7E57C2) // lavender haze
+val AmbientGlowMagentaLight = Color(0x3DAD5636)  // clay haze
 val AmbientGlowSkyLight = Color(0x3D6E7F63)      // sage haze
-val AmbientGlowLavenderDark = Color(0x4D8A4A2E)  // clay haze (dark)
-val AmbientGlowMagentaDark = Color(0x3D6E4A22)   // amber haze (dark)
+val AmbientGlowLavenderDark = Color(0x4D5B3FA0)  // lavender haze (dark)
+val AmbientGlowMagentaDark = Color(0x3D8A4A2E)   // clay haze (dark)
 val AmbientGlowSkyDark = Color(0x3D3E4A34)       // sage haze (dark)
 
-// ---- Brand — the Lumen warmth ----------------------------------------------
+// ---- Brand — deep purple ink, warm accents --------------------------------
 
 /**
- * Clay — the primary action / selection colour and the app's only loud hue.
- * 5.1:1 on the light surface and 6.3:1 against its dark-mode ink, so it is
- * safe for both text and filled controls in either theme.
+ * Deep purple — the primary action / selection colour and the app's one loud
+ * hue. 13.9:1 on white, so filled controls, selected tabs and links are legible
+ * without auditing each call site.
  */
-val LifeOSPrimary = Color(0xFFA8512F)
+val LifeOSPrimary = Color(0xFF21005D)
 
-/** A deeper clay for pressed states and gradient depth. */
-val LifeOSPrimaryDeep = Color(0xFF8A3F23)
+/** A deeper purple for pressed states and gradient depth. */
+val LifeOSPrimaryDeep = Color(0xFF180042)
 
 /** Sage — the gradient's quiet partner and the "informational" second accent. */
 val LifeOSSecondary = Color(0xFF6E7F63)
 
-/** A very soft clay wash, for containers and selected surfaces. */
-val LifeOSAccentLavender = Color(0xFFF6E7DF)
+/** The soft lavender container the brief calls for (#EADDFF), for chips and selected surfaces. */
+val LifeOSAccentLavender = Color(0xFFEADDFF)
 
 /** Amber — the warm third accent, and the app's "energetic" highlight. */
 val LifeOSTertiary = Color(0xFFC08A3E)
 
 // The named gradient stops, for the identity gradient. Kept separate from the
-// role tokens above so the gradient stays warm in both themes.
+// role tokens above so every filled identity surface stays legible in both
+// themes.
 //
 // Deliberately DEEP: every stop keeps white text and icons at or above WCAG AA
-// (4.5:1) — clay 5.4, amber 4.5, bronze 4.8 — so any filled identity surface
-// (the hero, the Capture disc, a primary button) is legible without auditing
-// each call site. Brightening these would silently break that contract.
-val PrismIndigo = Color(0xFFA8512F) // clay
-val PrismSky = Color(0xFFAD651F)    // amber
-val PrismCoral = Color(0xFF8F6E18)  // bronze gold
+// (4.5:1) — deep purple 13.9, plum 6.2, clay 5.4 — so the hero, the Capture
+// disc and a primary button never need a per-call-site contrast audit.
+// Brightening a stop would silently break that contract.
+val PrismIndigo = Color(0xFF2B0A6B) // deep purple
+val PrismSky = Color(0xFF6A3FA0)    // plum
+val PrismCoral = Color(0xFFA8512F)  // clay (the warm end of the brand)
 
-/** The one identity gradient: clay -> amber -> gold. Reserved for the hero, Capture and the AI orb. */
+/** The one identity gradient: deep purple -> plum -> clay. Reserved for the hero, Capture and the AI orb. */
 val PrismSpectrum = listOf(PrismIndigo, PrismSky, PrismCoral)
 
 // ---- Premium highlight -----------------------------------------------------

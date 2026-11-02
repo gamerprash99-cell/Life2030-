@@ -347,3 +347,81 @@ sh ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroid
   changes (see `docs/14_TESTING.md`).
 - `:app:connectedDebugAndroidTest` (v6→v7 migration and expense-capture query
   tests) still needs a real device/emulator.
+
+## 2026-11-01 — Permanent redesign: Notes retired, Expenses in bottom nav, Life becomes Timeline, Audio is real
+
+### Product decisions (permanent)
+- Notes is retired from the entire user-facing LifeOS application. Every Notes screen, route, tab and entry point is gone.
+- Expenses replaces Notes as the second bottom-navigation destination (Home · Expenses · + Capture · Habits · Life).
+- The Life tab is now a clean chronological memory timeline, not a dashboard.
+- Audio recording and playback use the real device microphone/media APIs; nothing is simulated.
+- No Firebase, no cloud database, no external AI/telemetry, no user-data upload; INTERNET permission is absent. All data stays on-device.
+
+### Files changed
+- `app/src/main/java/com/lifeos/app/ui/components/LifeOSBottomBar.kt` — bottom nav is now Home · Expenses · (+ Capture) · Habits · Life. Wallet icon for Expenses; the retired Notes route removed entirely.
+- `app/src/main/java/com/lifeos/app/ui/navigation/Screen.kt` — removed `Screen.Notes` and `Screen.NoteEditor`; added `Screen.AudioCapture` and `Screen.AudioPlayer`; `routeForTimelineItem` routes photo/video/audio/text captures to the viewer/player and track-module items to their tabs.
+- `app/src/main/java/com/lifeos/app/ui/navigation/LifeOSNavHost.kt` — removed `Screen.Notes` and `Screen.Timeline` destinations; `Screen.Expenses` is now a primary tab (opens `ExpensesScreen` directly); `Screen.Life` opens `LifeTimelineScreen`; added `AudioCapture`/`AudioPlayer` destinations; `LifeOSNavHost.switchTab` used for tab links.
+- `app/src/main/java/com/lifeos/app/ui/life/LifeScreen.kt` — deleted (was the module dashboard).
+- `app/src/main/java/com/lifeos/app/ui/life/LifeTimelineScreen.kt` — new Life chronological timeline: header (Life + today's date, calendar date jump, filter search), date separators ("Today"/"Yesterday"/dated), vertical spine connectors, `LifeOSTimelineItem` rows, empty states, load-older paging.
+- `app/src/main/java/com/lifeos/app/ui/life/LifeTimelineViewModel.kt` — owns the Life timeline; read-only aggregation through `BuildLifeTimelineUseCase`; no user data mutated.
+- `app/src/main/java/com/lifeos/app/domain/model/TimelineItem.kt` — `TimelineItem` now carries photo/video/audio media paths, measured duration, expense amount and completion status; `TimelineItemType` adds PHOTO/VIDEO/AUDIO.
+- `app/src/main/java/com/lifeos/app/domain/usecase/BuildLifeTimelineUseCase.kt` — ranged aggregation across Tasks/Habits/Expenses/Diary/Captures, newest-first, stable ordering.
+- `app/src/main/java/com/lifeos/app/domain/usecase/BuildTimelineUseCase.kt` — single-day builder now shares `TimelineMapping.kt` mapping functions.
+- `app/src/main/java/com/lifeos/app/domain/usecase/TimelineMapping.kt` — entity → timeline-row mapping used by both timeline builders.
+- `app/src/main/java/com/lifeos/app/domain/usecase/TimelineDayGrouping.kt` — groups rows into day sections (pure, JVM-testable).
+- `app/src/main/java/com/lifeos/app/ui/components/LifeOSTimelineItem.kt` — timeline row: icon badge on the spine, title/type/time, expense amount badge, voice duration badge, task/habit completion badge, photo thumbnail or play glyph.
+- `app/src/main/java/com/lifeos/app/ui/components/LifeOSDateHeader.kt` — dated day separator with entry count.
+- `app/src/main/java/com/lifeos/app/ui/components/LifeOSAudio.kt` — `LifeOSRecordingControls`, `LifeOSLiveWaveform`, `LifeOSWaveformSeek`, `LifeOSAudioPlayer` driven entirely by measured microphone/decoder state.
+- `app/src/main/java/com/lifeos/app/core/media/VoiceRecording.kt` — `LifeOSAudioRecorder`: real `MediaRecorder` microphone recording into app-private storage, pause/resume/stop/cancel, measured amplitude waveform, real duration/size, takes shorter than 700 ms discarded, every failure path releases the mic and deletes the partial file.
+- `app/src/main/java/com/lifeos/app/core/media/VoiceAudioPlayer.kt` — single shared `MediaPlayer` transport: play/pause/resume/seek/progress/completion/error handling; only one clip plays at a time.
+- `app/src/main/java/com/lifeos/app/ui/capture/AudioRecorderScreen.kt` — full-window recorder with ViewModel: RECORD_AUDIO requested on first tap, granted/denied/permanently-denied paths, preview, name, save/discard, releases on leave.
+- `app/src/main/java/com/lifeos/app/ui/capture/AudioPlayerScreen.kt` — full-window player for one saved capture: real title/date/length/size, transport, delete (removes row + file + timeline entry).
+- `app/src/main/java/com/lifeos/app/ui/snap/SnapViewerScreen.kt` — photo/video/audio captured moments now play/view in place; audio via the shared transport.
+- `app/src/main/java/com/lifeos/app/ui/capture/CaptureHubScreen.kt` — Audio tile opens `AudioRecorderScreen`; removed the "Voice notes are coming next" placeholder.
+- `app/src/main/java/com/lifeos/app/core/util/CurrencyFormatter.kt` — one money-formatting rule (₹250 / ₹249.50) used by Expenses, Home and the timeline.
+- `app/src/main/java/com/lifeos/app/core/di/ServiceLocator.kt` — added `voiceAudioPlayer` (shared transport) and `buildLifeTimelineUseCase`; `noteRepository` retained for backup/restore data preservation.
+- `app/src/main/java/com/lifeos/app/core/util/DateTimeUtils.kt` — added `epochDayOf` using the system zone so date/time stay consistent.
+- `app/src/main/java/com/lifeos/app/ui/search/GlobalSearchScreen.kt` — Notes removed from search results; no Notes entry point remains.
+- `app/src/main/java/com/lifeos/app/core/ai/AiModels.kt`, `AiRepository.kt`, `LifeOSIntelligenceEngine.kt`, `RecommendationAndStatistics.kt`, `IntelligenceModels.kt`, `LocalQuestionEngine.kt` — text actions are now `TextAiAction` (offline extractive operations on user-edited text); Notes repository removed from the statistics/intelligence surface.
+- `app/src/main/java/com/lifeos/app/ui/onboarding/OnboardingScreen.kt` — new page covering voice/moments capture; no Notes references anywhere.
+- `app/src/main/java/com/lifeos/app/ui/theme/Color.kt`, `Theme.kt` — new palette: background #FDF8FF, soft lavender #F3EDF7, deep purple #21005D, warm terracotta/gold/sage accents; identity gradient is deep purple → plum → clay.
+- `app/src/main/java/com/lifeos/app/ui/components/LifeOSKitExtras.kt` — added `LifeOSTextField` and `LifeOSLoadingState`.
+- `app/src/main/java/com/lifeos/app/ui/home/HomeScreen.kt` — recent-activity rows now draw through `LifeOSTimelineItem`.
+- `app/src/main/java/com/lifeos/app/ui/tasks/TasksScreen.kt` — optional field label "Notes (optional)" → "Description (optional)".
+- `app/src/main/java/com/lifeos/app/ui/theme/Type.kt`, docs comments — Notes references updated to "retired Notes module".
+
+### Database / data safety
+- Room schema unchanged (v7). The `notes`/`note_folders` tables and `NoteRepository` are retained solely so backups taken by earlier builds still decode/restore losslessly; nothing in the app exposes Notes, and no destructive migration was introduced.
+- Backup format unchanged.
+
+### Navigation changes
+- Bottom bar: Home · Expenses · (+ Capture) · Habits · Life (Capture remains a centre action, not a tab).
+- Expenses opens the existing `ExpensesScreen` directly as a tab; tapping it switches tabs rather than pushing on top of Home.
+- Life opens `LifeTimelineScreen`; the retired `timeline` day-view route and `notes`/`note/{noteId}` routes are deleted.
+- Capture hub's Audio tile opens `AudioRecorderScreen`; saving lands on `AudioPlayerScreen`, then Back returns to where the user was.
+- Audio player is a flow (owns the window while open), not a tab; no bottom bar on it.
+
+### Audio
+- Recording: `MediaRecorder` + `RECORD_AUDIO` requested when the user taps record (never at launch), pause/resume/stop/cancel, real elapsed time excluding pauses, real amplitude waveform, real duration/size, takes under 700 ms discarded, accidental-double-tap prevention, lifecycle cleanup, mic failure paths.
+- Persistence: real file path, title, created-at timestamp, measured duration, mime type, size, stored in app-private `captures/audio`; no fake/hardcoded paths; never uploaded.
+- Playback: `MediaPlayer` shared across the app so clips never overlap; play/pause/resume/seek/progress/duration/completion/error handling; missing file resolves honestly instead of throwing.
+- Animations reflect actual mic level / decoder position only.
+
+### Tests added
+- `BottomNavItemsTest` — order Home/Expenses/Habits/Life, Expenses second tab, no Notes route.
+- `BottomBarVisibilityTest` — AudioCapture hides bar and owns insets.
+- `TimelineNavigationTest` — audio/photo/video route to viewer/player.
+- `TimelineMappingTest` — task/habit/expense/diary/capture row mapping and newest-first grouping.
+- `RecordingChronometerTest` — pause/resume segments sum only running time.
+- `CurrencyFormatterTest` — whole/decimal amounts, non-finite safe.
+
+### Documentation
+- `UPDATE.md` — this entry appended; historical entries preserved.
+- `README.md`, `docs/` — Notes references updated to reflect retirement.
+
+### Tests executed
+- `./gradlew :app:testDebugUnitTest` — 497 tests (results below).
+- `./gradlew :app:compileDebugKotlin` — success.
+- `./gradlew :app:assembleDebug` — success (see below).
+- `connectedDebugAndroidTest` — not executed (no adb/emulator/device in this environment).
+

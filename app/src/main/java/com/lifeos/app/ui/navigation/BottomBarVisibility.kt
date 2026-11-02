@@ -18,9 +18,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
  *
  * Capture is the full-window Capture hub opened from the centre action — it is
  * a flow, not a tab, so the tab bar would be a second, competing navigation
- * control on it. The Note editor (a focused writing surface) and the AI
- * assistant (a full-height transcript with its own composer) likewise own the
- * window.
+ * control on it. The voice recorder and the AI assistant (a full-height
+ * transcript with its own composer) likewise own the window.
  *
  * Stated as a set of routes rather than a special case at the call site so the
  * rule is one testable fact instead of a boolean buried in the Scaffold.
@@ -35,7 +34,7 @@ private val ROUTES_WITHOUT_BOTTOM_BAR = setOf(
     Screen.AppLockSetup.route,
     Screen.Snap.route,
     Screen.Capture.route,
-    Screen.NoteEditor.route,
+    Screen.AudioCapture.route,
     Screen.HabitEditor.route,
     Screen.GlobalSearch.route,
     Screen.AiAssistant.route
@@ -53,9 +52,9 @@ private val ROUTES_WITHOUT_BOTTOM_BAR = setOf(
  */
 private val ROUTES_OWNING_BOTTOM_INSET = setOf(
     Screen.HabitEditor.route,
-    Screen.NoteEditor.route,
     Screen.AiAssistant.route,
-    Screen.Capture.route
+    Screen.Capture.route,
+    Screen.AudioCapture.route
 )
 
 /**
@@ -66,9 +65,9 @@ private val ROUTES_OWNING_BOTTOM_INSET = setOf(
  * their first row down by the status-bar height twice.
  */
 private val ROUTES_OWNING_TOP_INSET = setOf(
-    Screen.NoteEditor.route,
     Screen.AiAssistant.route,
-    Screen.Capture.route
+    Screen.Capture.route,
+    Screen.AudioCapture.route
 )
 
 /**

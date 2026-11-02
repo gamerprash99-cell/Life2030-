@@ -57,6 +57,7 @@ import com.lifeos.app.ui.components.LifeOSHeroCard
 import com.lifeos.app.ui.components.LifeOSIconButton
 import com.lifeos.app.ui.components.LifeOSPill
 import com.lifeos.app.ui.components.LifeOSSurface
+import com.lifeos.app.ui.components.LifeOSTimelineItem
 import com.lifeos.app.ui.components.LifeOSWeeklyRhythm
 import com.lifeos.app.ui.components.ProfileAvatar
 import com.lifeos.app.ui.components.liquidGlass
@@ -217,28 +218,16 @@ fun HomeScreen(
             }
 
             if (s.recentActivity.isNotEmpty()) {
-                item { SectionHeader(title = "Recent activity", trailing = null, onSeeAll = onOpenTimeline) }
+                item { SectionHeader(title = "Recent memories", trailing = null, onSeeAll = onOpenTimeline) }
+                // The same row the Life timeline draws, so a memory reads
+                // identically here and there. `showDate` is on because Home's
+                // four rows can span different days and carry no date headers.
                 items(s.recentActivity.take(4), key = { it.id }) { activity ->
-                    LifeOSSurface(Modifier.fillMaxWidth(), onClick = { onOpenTimelineItem(activity) }) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                            Box(
-                                Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(LifeOSRadius.medium))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(activity.icon, style = MaterialTheme.typography.titleMedium)
-                            }
-                            Column(Modifier.weight(1f)) {
-                                Text(activity.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                activity.subtitle?.let {
-                                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                            }
-                            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                        }
-                    }
+                    LifeOSTimelineItem(
+                        item = activity,
+                        onClick = { onOpenTimelineItem(activity) },
+                        showDate = true
+                    )
                 }
             }
 

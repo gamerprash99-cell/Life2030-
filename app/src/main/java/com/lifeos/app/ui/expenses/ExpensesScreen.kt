@@ -49,6 +49,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
 import com.lifeos.app.core.di.LocalServiceLocator
+import com.lifeos.app.core.util.CurrencyFormatter
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.core.util.SettingsStore
 import com.lifeos.app.data.db.entities.ExpenseEntity
@@ -106,8 +107,16 @@ class ExpensesViewModel(
     }
 }
 
+/**
+ * The Expenses tab.
+ *
+ * [onBack] is null by default because this is a primary bottom-bar destination:
+ * a tab is not a screen you "go back" from, and drawing a back arrow on it
+ * would offer the user a second, competing way to leave. Pass a lambda to use
+ * the same screen as a pushed destination.
+ */
 @Composable
-fun ExpensesScreen(onBack: () -> Unit = {}) {
+fun ExpensesScreen(onBack: (() -> Unit)? = null) {
     val locator = LocalServiceLocator.current
     val viewModel: ExpensesViewModel = viewModel(
         factory = LambdaViewModelFactory { ExpensesViewModel(locator.expenseRepository, locator.settingsStore) }
@@ -199,7 +208,7 @@ fun ExpensesScreen(onBack: () -> Unit = {}) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Text("₹${"%.0f".format(expense.amount)}", style = MaterialTheme.typography.titleMedium)
+                        Text(CurrencyFormatter.format(expense.amount), style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
@@ -238,7 +247,7 @@ private fun FirstBudgetCard(onSetBudget: () -> Unit) {
     GlassCard(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("This Month", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("₹${"%,.2f".format(0.0)}", style = MaterialTheme.typography.headlineLarge)
+            Text(CurrencyFormatter.format(0.0), style = MaterialTheme.typography.headlineLarge)
             Text(
                 "Set a monthly budget to see what is left as the month goes on.",
                 style = MaterialTheme.typography.bodySmall,
@@ -267,9 +276,9 @@ private fun BudgetCard(progress: BudgetProgress, dailyAverage: Double, onEdit: (
     val barColor = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     val percent = BudgetProgress.percentOfBudget(progress) ?: 0
     val status = if (over) {
-        "₹${"%,.0f".format(progress.overage)} over budget"
+        "${CurrencyFormatter.format(progress.overage)} over budget"
     } else {
-        "₹${"%,.0f".format(progress.remaining)} left"
+        "${CurrencyFormatter.format(progress.remaining)} left"
     }
 
     GlassCard(Modifier.fillMaxWidth()) {
@@ -280,7 +289,7 @@ private fun BudgetCard(progress: BudgetProgress, dailyAverage: Double, onEdit: (
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom
             ) {
-                Text("₹${"%,.2f".format(progress.spent)}", style = MaterialTheme.typography.headlineLarge)
+                Text(CurrencyFormatter.format(progress.spent), style = MaterialTheme.typography.headlineLarge)
                 Text(
                     "$percent%",
                     style = MaterialTheme.typography.labelMedium,
@@ -299,11 +308,11 @@ private fun BudgetCard(progress: BudgetProgress, dailyAverage: Double, onEdit: (
                 strokeCap = StrokeCap.Round
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                ExpenseStat("Daily avg", "₹${"%.0f".format(dailyAverage)}")
-                ExpenseStat("Budget", "₹${"%,.0f".format(progress.budget)}")
+                ExpenseStat("Daily avg", CurrencyFormatter.format(dailyAverage))
+                ExpenseStat("Budget", CurrencyFormatter.format(progress.budget))
                 ExpenseStat(
                     label = if (over) "Over" else "Left",
-                    value = if (over) "₹${"%,.0f".format(progress.overage)}" else "₹${"%,.0f".format(progress.remaining)}",
+                    value = if (over) CurrencyFormatter.format(progress.overage) else CurrencyFormatter.format(progress.remaining),
                     valueColor = if (over) MaterialTheme.colorScheme.error else null
                 )
             }

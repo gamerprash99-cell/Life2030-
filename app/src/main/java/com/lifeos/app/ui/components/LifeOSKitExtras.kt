@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -132,6 +134,121 @@ fun LifeOSSearchBar(
                 Icon(Icons.Filled.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
             }
         }
+    }
+}
+
+/**
+ * The one text input in the app: a labelled field on the shared card surface.
+ *
+ * A plain `OutlinedTextField` was used ad hoc on several screens, which is how
+ * the app ended up with three different label treatments and two different
+ * corner radii. This keeps the label above the field (so it never collides with
+ * a long value), the placeholder inside it, and an optional supporting line
+ * underneath for validation or guidance.
+ */
+@Composable
+fun LifeOSTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+    placeholder: String? = null,
+    supporting: String? = null,
+    isError: Boolean = false,
+    singleLine: Boolean = false,
+    minLines: Int = 1,
+    enabled: Boolean = true,
+    leadingIcon: ImageVector? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+) {
+    val shape = RoundedCornerShape(LifeOSRadius.medium)
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.xs)) {
+        label?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .liquidGlass(
+                    shape = shape,
+                    tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+                .padding(horizontal = LifeOSSpacing.lg, vertical = LifeOSSpacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.sm)
+        ) {
+            leadingIcon?.let {
+                Icon(
+                    it,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Box(Modifier.weight(1f)) {
+                if (value.isEmpty() && placeholder != null) {
+                    Text(
+                        placeholder,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    enabled = enabled,
+                    singleLine = singleLine,
+                    minLines = if (singleLine) 1 else minLines,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = keyboardOptions,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+        supporting?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * The one honest loading state: a spinner and a sentence that says what is
+ * being read. Used where a list is genuinely still being assembled (the Life
+ * timeline's first load) so the screen never shows an empty state for a
+ * moment before the rows arrive.
+ */
+@Composable
+fun LifeOSLoadingState(
+    modifier: Modifier = Modifier,
+    label: String = "Loading…"
+) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = LifeOSSpacing.screenPadding, vertical = LifeOSSpacing.xxxl),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)
+    ) {
+        CircularProgressIndicator(
+            color = MaterialTheme.colorScheme.primary,
+            strokeWidth = 3.dp,
+            modifier = Modifier.size(34.dp)
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

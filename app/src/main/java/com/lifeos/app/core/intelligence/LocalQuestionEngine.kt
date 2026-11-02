@@ -118,7 +118,7 @@ class LocalQuestionEngine(
     private suspend fun answerStatistics(): AnswerResult {
         val stats = statisticsEngine.computeAllTime()
         return AnswerResult(
-            "All-time so far: ${stats.totalNotes} notes, ${stats.totalTasksCompleted} tasks completed, " +
+            "All-time so far: ${stats.totalTasksCompleted} tasks completed, " +
                 "${stats.totalHabitsTracked} active habits, ${stats.totalDiaryEntries} diary entries, " +
                 "${stats.totalCaptures} captures, \u20B9${"%.0f".format(stats.totalSpend)} tracked spend."
         )

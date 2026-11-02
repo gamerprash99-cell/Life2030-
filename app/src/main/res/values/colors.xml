@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The two colours the platform needs before Compose exists: the canvas the
+    window is painted with, and the brand mark's background. Both mirror the
+    Compose tokens in ui/theme/Color.kt (LifeOSBackgroundLight, LifeOSPrimary),
+    kept in one small file so the window and the app can never disagree.
+-->
+<resources>
+    <color name="lifeos_canvas">#FDF8FF</color>
+    <color name="lifeos_brand_deep_purple">#21005D</color>
+</resources>

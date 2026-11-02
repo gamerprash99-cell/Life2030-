@@ -1,19 +1,27 @@
 package com.lifeos.app.domain.usecase
 
+import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.repository.CaptureRepository
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
 import com.lifeos.app.data.repository.TaskRepository
-import com.lifeos.app.core.util.DateTimeUtils
-import com.lifeos.app.core.util.isCompletionDone
-import com.lifeos.app.domain.model.ExpenseCategories
 import com.lifeos.app.domain.model.TimelineItem
-import com.lifeos.app.domain.model.TimelineItemType
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 
+/**
+ * One day of the timeline, as Home's summary and any single-day surface need
+ * it. The Life tab's multi-day history is [BuildLifeTimelineUseCase]; both
+ * assemble their rows through the same mapping functions
+ * (domain/usecase/TimelineMapping.kt), so a task completed at 09:14 reads
+ * identically wherever it appears.
+ *
+ * Every source query fires concurrently instead of waiting on one stream at a
+ * time, which keeps the day's assembly fast enough to run while the screen is
+ * still painting.
+ */
 class BuildTimelineUseCase(
     private val taskRepo: TaskRepository,
     private val habitRepo: HabitRepository,
@@ -22,123 +30,33 @@ class BuildTimelineUseCase(
     private val captureRepo: CaptureRepository? = null
 ) {
     suspend operator fun invoke(epochDay: Long): List<TimelineItem> {
-        val startMillis = com.lifeos.app.core.util.DateTimeUtils.startOfLocalDayMillis(epochDay)
-        val endMillis = com.lifeos.app.core.util.DateTimeUtils.endOfLocalDayMillis(epochDay)
+        val startMillis = DateTimeUtils.startOfLocalDayMillis(epochDay)
+        val endMillis = DateTimeUtils.endOfLocalDayMillis(epochDay)
 
         return coroutineScope {
-            // Fire every source query concurrently instead of waiting on one
-            // stream at a time (keeps the Home summary assembly fast).
             val tasks = async { taskRepo.getCompletedBetween(startMillis, endMillis) }
             val habits = async { habitRepo.observeAll().first() }
             val todayCompletions = async { habitRepo.observeAllForDay(epochDay).first() }
             val expenses = async { expenseRepo.observeForDay(epochDay).first() }
             val diaries = async { diaryRepo.observeForDay(epochDay).first() }
-            val captures = async {
-                captureRepo?.getAllInRange(startMillis, endMillis).orEmpty()
-            }
+            val captures = async { captureRepo?.getAllInRange(startMillis, endMillis).orEmpty() }
 
-            val items = mutableListOf<TimelineItem>()
             val habitsById = habits.await().associateBy { it.id }
+            val items = mutableListOf<TimelineItem>()
 
-            tasks.await()
-                .forEach { task ->
-                    items += TimelineItem(
-                        id = "task-${task.id}", type = TimelineItemType.TASK_COMPLETED,
-                        title = task.title, subtitle = "Task completed", dateEpochDay = epochDay,
-                        timeMinutes = task.completedAtEpochMillis?.let { DateTimeUtils.minutesOfDay(it) } ?: DateTimeUtils.minutesOfDay(task.updatedAt),
-                        icon = "✅", sourceId = task.id, moodOrCategory = task.category
-                    )
-                }
+            tasks.await().forEach { items += taskTimelineItem(it, epochDay) }
 
-            todayCompletions.await()
-                .filter { completion ->
-                    val habit = habitsById[completion.habitId]
-                    habit != null && habit.showOnTimeline && habit.isCompletionDone(completion)
-                }
-                .forEach { completion ->
-                    val habit = habitsById[completion.habitId] ?: return@forEach
-                    items += TimelineItem(
-                        id = "habit-${habit.id}-$epochDay", type = TimelineItemType.HABIT_COMPLETED,
-                        title = habit.name,
-                        subtitle = when {
-                            habit.habitType == com.lifeos.app.data.db.entities.HabitType.QUIT ->
-                                "Stayed on track"
-                            habit.trackingMode == com.lifeos.app.data.db.entities.HabitTrackingMode.CHECKLIST ->
-                                "Checklist complete"
-                            else -> "Habit completed"
-                        },
-                        dateEpochDay = epochDay,
-                        timeMinutes = DateTimeUtils.minutesOfDay(completion.completedAtEpochMillis),
-                        icon = habit.icon, sourceId = habit.id
-                    )
-                }
-
-            expenses.await().forEach { expense ->
-                items += TimelineItem(
-                    id = "expense-${expense.id}", type = TimelineItemType.EXPENSE,
-                    title = expense.merchant ?: expense.category, subtitle = "₹${expense.amount}",
-                    dateEpochDay = epochDay, timeMinutes = expense.timeMinutes,
-                    icon = ExpenseCategories.emojiFor(expense.category), sourceId = expense.id,
-                    moodOrCategory = expense.category
-                )
+            todayCompletions.await().forEach { completion ->
+                val habit = habitsById[completion.habitId] ?: return@forEach
+                if (!habit.showsOnTimeline(completion)) return@forEach
+                items += habitTimelineItem(habit, completion, epochDay)
             }
 
-            diaries.await().forEach { diary ->
-                items += TimelineItem(
-                    id = "diary-${diary.id}", type = TimelineItemType.DIARY,
-                    title = diary.title ?: "Diary entry", subtitle = diary.mood,
-                    dateEpochDay = epochDay, timeMinutes = diary.timeMinutes, icon = "📔",
-                    sourceId = diary.id, moodOrCategory = diary.mood
-                )
-            }
-
-            captures.await().forEach { capture ->
-                val isPhoto = capture.type == com.lifeos.app.data.db.entities.CaptureType.PHOTO
-                items += TimelineItem(
-                    id = "capture-${capture.id}",
-                    type = TimelineItemType.SNAP,
-                    title = capture.text?.takeIf { it.isNotBlank() }
-                        ?: snapTitleFor(capture.moodKey),
-                    subtitle = snapSubtitleFor(capture.type, capture.placeLabel),
-                    dateEpochDay = epochDay,
-                    timeMinutes = DateTimeUtils.minutesOfDay(capture.createdAt),
-                    icon = snapIconFor(capture.type),
-                    sourceId = capture.id,
-                    moodOrCategory = capture.moodKey,
-                    imagePath = if (isPhoto) capture.filePath else null
-                )
-            }
+            expenses.await().forEach { items += expenseTimelineItem(it) }
+            diaries.await().forEach { items += diaryTimelineItem(it) }
+            captures.await().forEach { items += captureTimelineItem(it) }
 
             items.sortedBy { it.timeMinutes }
         }
     }
-}
-
-private fun snapIconFor(type: String): String = when (type) {
-    com.lifeos.app.data.db.entities.CaptureType.PHOTO -> "📸"
-    com.lifeos.app.data.db.entities.CaptureType.VIDEO -> "🎬"
-    com.lifeos.app.data.db.entities.CaptureType.AUDIO -> "🎙️"
-    com.lifeos.app.data.db.entities.CaptureType.MOOD -> "😊"
-    com.lifeos.app.data.db.entities.CaptureType.LOCATION -> "📍"
-    else -> "✨"
-}
-
-private fun snapSubtitleFor(type: String, placeLabel: String?): String {
-    val kind = when (type) {
-        com.lifeos.app.data.db.entities.CaptureType.PHOTO -> "Snap"
-        com.lifeos.app.data.db.entities.CaptureType.VIDEO -> "Video snap"
-        com.lifeos.app.data.db.entities.CaptureType.AUDIO -> "Voice snap"
-        com.lifeos.app.data.db.entities.CaptureType.MOOD -> "Mood"
-        com.lifeos.app.data.db.entities.CaptureType.LOCATION -> "Place"
-        else -> "Moment"
-    }
-    return if (placeLabel.isNullOrBlank()) kind else "$kind · $placeLabel"
-}
-
-private fun snapTitleFor(moodKey: String?): String = when (moodKey?.lowercase()) {
-    "happy" -> "A happy moment"
-    "calm" -> "A calm moment"
-    "excited" -> "An exciting moment"
-    "sad", "tired", "anxious" -> "A quiet moment"
-    else -> "A moment captured"
 }
