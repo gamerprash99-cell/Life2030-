@@ -59,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
@@ -69,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lifeos.app.core.util.DateTimeUtils
 import com.lifeos.app.data.db.entities.DiaryEntity
+import com.lifeos.app.domain.model.DiaryAttachments
 import com.lifeos.app.ui.navigation.ComposerWindowOwner
 import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryHairline
@@ -86,6 +88,11 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 private const val MAX_MEMORY_CHARACTERS = 1000
+
+/** Which contextual tool palette is currently open, if any. */
+enum class DiaryEditorPalette {
+    NONE, THEME, STICKER, DRAWING, LIST, MEDIA, AUDIO
+}
 
 /**
  * Leading for the composer's text: 1.75x the 16sp body size.
@@ -140,6 +147,7 @@ internal fun characterCounterLabel(
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun DiaryEditor(
+    editorViewModel: DiaryEditorViewModel,
     dayEpochDay: Long,
     editing: DiaryEntity?,
     timeMinutes: Int?,
@@ -171,6 +179,24 @@ fun DiaryEditor(
     // composed, so LifeOSNavHost keeps the bottom navigation off and hands this
     // composable no bottom padding at all.
     ComposerWindowOwner()
+
+    // Which contextual tool palette is open, if any. Only one at a time so
+    // palettes never stack and the draft stays visible behind the closed one.
+    var openPalette by remember { mutableStateOf(DiaryEditorPalette.NONE) }
+    var showOverflow by remember { mutableStateOf(false) }
+
+    // Build the current draft's attachment list (including new rich types) so
+    // the theme can be resolved and rich content can be rendered inline.
+    val currentAttachments = buildList {
+        addAll(editorViewModel.state.value.photos)
+        editorViewModel.state.value.voiceNote?.let { add(it) }
+        editorViewModel.state.value.place?.let { add(it) }
+        editorViewModel.state.value.theme?.let { add(it) }
+        addAll(editorViewModel.state.value.stickers)
+        editorViewModel.state.value.drawing?.let { add(it) }
+        addAll(editorViewModel.state.value.importedAudio)
+    }
+    val entryTheme = DiaryAttachments.themeStyle(currentAttachments)
 
     LaunchedEffect(editing?.id) {
         focusRequester.requestFocus()
@@ -402,8 +428,77 @@ fun DiaryEditor(
                 // a long entry, and can never cover the text, the caret or the
                 // character counter.
                 editorActions()
+                // Tool buttons pinned at the foot of the card, above the keyboard
+                // inset so they stay reachable while writing.
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    PaletteToolButton(
+                        icon = null,
+                        label = "🎨 Theme",
+                        selected = openPalette == DiaryEditorPalette.THEME,
+                        onClick = { openPalette = if (openPalette == DiaryEditorPalette.THEME) DiaryEditorPalette.NONE else DiaryEditorPalette.THEME }
+                    )
+                    PaletteToolButton(
+                        icon = null,
+                        label = "😊 Stickers",
+                        selected = openPalette == DiaryEditorPalette.STICKER,
+                        onClick = { openPalette = if (openPalette == DiaryEditorPalette.STICKER) DiaryEditorPalette.NONE else DiaryEditorPalette.STICKER }
+                    )
+                    PaletteToolButton(
+                        icon = null,
+                        label = "🖊️ Drawing",
+                        selected = openPalette == DiaryEditorPalette.DRAWING,
+                        onClick = { openPalette = if (openPalette == DiaryEditorPalette.DRAWING) DiaryEditorPalette.NONE else DiaryEditorPalette.DRAWING }
+                    )
+                    PaletteToolButton(
+                        icon = null,
+                        label = "📝 List",
+                        selected = openPalette == DiaryEditorPalette.LIST,
+                        onClick = { openPalette = if (openPalette == DiaryEditorPalette.LIST) DiaryEditorPalette.NONE else DiaryEditorPalette.LIST }
+                    )
+                    PaletteToolButton(
+                        icon = null,
+                        label = "🎵 Media",
+                        selected = openPalette == DiaryEditorPalette.MEDIA,
+                        onClick = { openPalette = if (openPalette == DiaryEditorPalette.MEDIA) DiaryEditorPalette.NONE else DiaryEditorPalette.MEDIA }
+                    )
+                }
             }
         }
+    }
+
+    // Contextual palette sheets open above the toolbar, never discarding the draft.
+    when (openPalette) {
+        DiaryEditorPalette.THEME -> DiaryThemePickerSheet(
+            currentThemeKey = entryTheme?.key ?: "original",
+            onThemeSelected = { theme ->
+                editorViewModel.setTheme(theme.key)
+                openPalette = DiaryEditorPalette.NONE
+            },
+            onApply = { openPalette = DiaryEditorPalette.NONE },
+            onDismiss = { openPalette = DiaryEditorPalette.NONE }
+        )
+        DiaryEditorPalette.STICKER -> DiaryStickerPickerSheet(
+            onStickerSelected = { sticker ->
+                editorViewModel.addSticker(sticker.assetKey, 0.5f, 0.5f)
+                openPalette = DiaryEditorPalette.NONE
+            },
+            onDismiss = { openPalette = DiaryEditorPalette.NONE }
+        )
+        DiaryEditorPalette.DRAWING -> {
+            // Drawing sheet integration — placeholder for now, opens a stub
+            openPalette = DiaryEditorPalette.NONE
+        }
+        DiaryEditorPalette.LIST -> DiaryListPickerSheet(
+            onTemplateSelected = { template ->
+                onContentChange((editorViewModel.state.value.content + "\n" + template.marker + " ").take(MAX_MEMORY_CHARACTERS))
+                openPalette = DiaryEditorPalette.NONE
+            },
+            onDismiss = { openPalette = DiaryEditorPalette.NONE }
+        )
+        DiaryEditorPalette.MEDIA, DiaryEditorPalette.AUDIO, DiaryEditorPalette.NONE -> Unit
     }
 
     if (showDatePicker) {
@@ -591,6 +686,43 @@ private fun SaveChangesAction(isEditing: Boolean, enabled: Boolean, onClick: () 
             maxLines = 1,
             softWrap = false
         )
+    }
+}
+
+@Composable
+private fun PaletteToolButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        Modifier
+            .size(56.dp)
+            .clip(CircleShape)
+            .background(if (selected) DiaryActionViolet else DiaryLavender.copy(alpha = 0.5f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            if (icon != null) {
+                androidx.compose.material3.Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = androidx.compose.ui.Modifier.size(20.dp)
+                )
+            }
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                color = if (selected) DiaryActionViolet else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+        }
     }
 }
 

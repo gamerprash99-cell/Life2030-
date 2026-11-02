@@ -2,6 +2,28 @@
 
 Change log for the `fix/audit-hardening` branch (UI/UX + navigation audit and redesign, 2026-09-17).
 
+## 2026-11-02 — LifeOS Diary rich-content redesign
+
+- **Diary attachment model** (`DiaryAttachment.kt`): added `ThemeStyle`, `Sticker`, `Drawing`, and `ImportedAudio` variants to the sealed `DiaryAttachment` class, stored in the existing `attachmentsJson` column with **no Room schema change**. Backward compatible — legacy entries continue to render unchanged.
+- **DiaryAttachments helpers**: added `themeStyle()`, `stickers()`, `drawing()`, `importedAudio()` accessors.
+- **DiaryEditorViewModel**: added state fields and methods for theme, stickers (add/move/remove), drawing (set/remove), imported audio (add/remove), and audio playback toggle (`playingFilePath`). Save persists all new attachment types; delete cleans up drawing/imported audio files.
+- **DiaryRepository**: media lifecycle extended to delete drawing and imported audio files on entry deletion and orphaned-media cleanup.
+- **MediaStorage**: added `diaryDrawingsDir()`/`newDiaryDrawingFile()` and `diaryImportedAudioDir()`/`newDiaryImportedAudioFile()` for app-private storage.
+- **UI components**: `DiaryThemePickerSheet` (category tabs + local Canvas-drawn theme thumbnails), `DiaryStickerPickerSheet` (category strip + glyph grid), `DiaryListPickerSheet` (bullet/numbered/checkbox/dash templates), wired into `DiaryEditor` via tool palette buttons and a prominent Save action per the reference video.
+- **Persistence**: rich content is versioned via the existing `attachmentsJson` codec which tolerates unknown keys; legacy rows render unchanged.
+- **No network, no cloud, no Room schema change**: all assets bundled locally, all data stays on-device in the encrypted SQLCipher database.
+
+### Verification
+```
+sh ./gradlew :app:compileDebugKotlin   → BUILD SUCCESSFUL
+sh ./gradlew :app:testDebugUnitTest    → BUILD SUCCESSFUL
+sh ./gradlew :app:assembleDebug        → BUILD SUCCESSFUL
+sh ./gradlew :app:assembleDebugAndroidTest → BUILD SUCCESSFUL
+sh ./gradlew :app:lintDebug            → BUILD SUCCESSFUL (0 errors)
+```
+
+Instrumentation tests (`connectedDebugAndroidTest`) require a device/emulator and were not executed in this environment.
+
 ## What changed
 
 ### Navigation (root cause fix)

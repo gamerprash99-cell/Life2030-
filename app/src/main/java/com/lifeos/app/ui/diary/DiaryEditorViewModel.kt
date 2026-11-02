@@ -56,6 +56,16 @@ data class DiaryEditorState(
     val photos: List<DiaryAttachment.Photo> = emptyList(),
     val voiceNote: DiaryAttachment.VoiceNote? = null,
     val place: DiaryAttachment.Place? = null,
+    /** The app-private path of the audio file currently playing (voice note or imported). */
+    val playingFilePath: String? = null,
+    /** Per-entry background/theme selection (presentation metadata). */
+    val theme: DiaryAttachment.ThemeStyle? = null,
+    /** Stickers placed on the page, in insertion order. */
+    val stickers: List<DiaryAttachment.Sticker> = emptyList(),
+    /** The drawing artifact attached to this entry, if any. */
+    val drawing: DiaryAttachment.Drawing? = null,
+    /** Audio files the user imported into this entry. */
+    val importedAudio: List<DiaryAttachment.ImportedAudio> = emptyList(),
     val locationStatus: LocationStatus = LocationStatus.IDLE,
     val weather: DiaryWeather = DiaryWeather.Unavailable(DiaryWeather.UnavailableReason.NO_LOCATION),
     val recording: RecordingState = RecordingState.Idle,
@@ -210,6 +220,10 @@ class DiaryEditorViewModel(
                 photos = DiaryAttachments.photos(attachments),
                 voiceNote = DiaryAttachments.voiceNote(attachments),
                 place = DiaryAttachments.place(attachments),
+                theme = DiaryAttachments.themeStyle(attachments),
+                stickers = DiaryAttachments.stickers(attachments),
+                drawing = DiaryAttachments.drawing(attachments),
+                importedAudio = DiaryAttachments.importedAudio(attachments),
                 saveCount = committedWrites
             )
             refreshWeather()
@@ -374,24 +388,116 @@ class DiaryEditorViewModel(
         _state.value = _state.value.copy(recording = RecordingState.Idle)
     }
 
-    fun togglePlayback() {
-        val note = _state.value.voiceNote ?: return
-        val result = player.toggle(note.filePath)
+    /** Toggles playback for any audio file (recorded voice note or imported). */
+    fun toggleAudioPlayback(filePath: String) {
+        val result = player.toggle(filePath)
         if (result is PlaybackState.MissingFile) {
             _state.value = _state.value.copy(
                 playback = result,
-                errorMessage = "That voice note is no longer on this device."
+                playingFilePath = null,
+                errorMessage = "That audio is no longer on this device."
             )
         } else {
-            _state.value = _state.value.copy(playback = result)
+            _state.value = _state.value.copy(
+                playback = result,
+                playingFilePath = if (result is PlaybackState.Playing) filePath else null
+            )
         }
+    }
+
+    /** Toggles the recorded voice note's playback. Kept for existing callers. */
+    fun togglePlayback() {
+        val note = _state.value.voiceNote ?: return
+        toggleAudioPlayback(note.filePath)
     }
 
     fun removeVoiceNote() {
         player.stop()
         val path = _state.value.voiceNote?.filePath
-        _state.value = _state.value.copy(voiceNote = null, playback = PlaybackState.Idle)
+        _state.value = _state.value.copy(
+            voiceNote = null,
+            playback = PlaybackState.Idle,
+            playingFilePath = if (_state.value.playingFilePath == path) null else _state.value.playingFilePath
+        )
         if (path != null) viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(path) }
+    }
+
+    // ---- rich content ---------------------------------------------------
+
+    /** Sets or clears the per-entry theme/background style. */
+    fun setTheme(key: String?) {
+        _state.value = _state.value.copy(theme = key?.let { DiaryAttachment.ThemeStyle(it) })
+    }
+
+    /** Adds a sticker at the given normalized position and scale. */
+    fun addSticker(assetKey: String, x: Float, y: Float, scale: Float = 1f, rotation: Float = 0f) {
+        _state.value = _state.value.copy(
+            stickers = _state.value.stickers + DiaryAttachment.Sticker(assetKey, x, y, scale, rotation)
+        )
+    }
+
+    /** Replaces a sticker's transform (used while dragging/resizing). Identifies
+     * the sticker by asset key + current position, so the user's in-flight
+     * gesture lands on the right object. */
+    fun moveSticker(assetKey: String, fromX: Float, fromY: Float, toX: Float, toY: Float,
+                    scale: Float, rotation: Float) {
+        _state.value = _state.value.copy(
+            stickers = _state.value.stickers.map { s ->
+                if (s.assetKey == assetKey && s.x == fromX && s.y == fromY)
+                    s.copy(x = toX, y = toY, scale = scale, rotation = rotation)
+                else s
+            }
+        )
+    }
+
+    /** Removes the sticker identified by asset key and position. */
+    fun removeSticker(assetKey: String, x: Float, y: Float) {
+        _state.value = _state.value.copy(
+            stickers = _state.value.stickers.filterNot {
+                it.assetKey == assetKey && it.x == x && it.y == y
+            }
+        )
+    }
+
+    /** Attaches a drawing artifact produced by the drawing canvas. Replaces any
+     * previous drawing on this entry (an entry carries one drawing). */
+    fun setDrawing(filePath: String, width: Float, height: Float) {
+        val previous = _state.value.drawing?.filePath
+        if (previous != null && previous != filePath) {
+            viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(previous) }
+        }
+        _state.value = _state.value.copy(
+            drawing = DiaryAttachment.Drawing(filePath, width, height)
+        )
+    }
+
+    /** Removes the drawing and reclaims its artifact file. */
+    fun removeDrawing() {
+        val path = _state.value.drawing?.filePath
+        _state.value = _state.value.copy(drawing = null)
+        if (path != null) viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(path) }
+    }
+
+    /** Attaches an already-copied imported audio file to the draft. The caller
+     * (the media sheet) copies the source URI into an app-private file first. */
+    fun addImportedAudioFile(file: java.io.File, mimeType: String, displayName: String) {
+        _state.value = _state.value.copy(
+            importedAudio = _state.value.importedAudio + DiaryAttachment.ImportedAudio(
+                filePath = file.absolutePath,
+                mimeType = mimeType,
+                displayName = displayName,
+                durationMillis = 0L
+            )
+        )
+    }
+
+    /** Removes imported audio identified by its app-private path. */
+    fun removeImportedAudio(filePath: String) {
+        _state.value = _state.value.copy(
+            importedAudio = _state.value.importedAudio.filter { it.filePath != filePath },
+            playingFilePath = if (_state.value.playingFilePath == filePath) null else _state.value.playingFilePath
+        )
+        viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(filePath) }
     }
 
     // ---- persistence ----------------------------------------------------
@@ -411,6 +517,10 @@ class DiaryEditorViewModel(
                 addAll(current.photos)
                 current.voiceNote?.let { add(it) }
                 current.place?.let { add(it) }
+                current.theme?.let { add(it) }
+                addAll(current.stickers)
+                current.drawing?.let { add(it) }
+                addAll(current.importedAudio)
             }
             runCatching {
                 val existing = current.entryId
