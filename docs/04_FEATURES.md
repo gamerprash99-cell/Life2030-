@@ -34,7 +34,7 @@ Full inventory of every implemented feature, with exact file paths.
 ## 3. Habits — the permanent tracker
 
 **Purpose**: A complete, private habit tracker that is a permanent root tab
-(Home · Notes · ＋ Capture · Habits · Life). It supports Build and Quit
+(Home · Expenses · + Capture · Habits · Life). It supports Build and Quit
 habits, flexible schedules, three tracking modes, real streak math and a
 12-week history — all computed from persisted rows.
 

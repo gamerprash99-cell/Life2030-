@@ -2,6 +2,7 @@ package com.lifeos.app.core.di
 
 import android.content.Context
 import com.lifeos.app.core.location.DeviceLocationProvider
+import com.lifeos.app.core.media.VoiceAudioPlayer
 import com.lifeos.app.core.util.SettingsStore
 import com.lifeos.app.data.db.AppDatabase
 import com.lifeos.app.data.repository.BackupRepository
@@ -15,6 +16,7 @@ import com.lifeos.app.data.repository.TaskRepository
 import com.lifeos.app.data.repository.OfflineOnlyWeatherSource
 import com.lifeos.app.data.repository.WeatherRepository
 import com.lifeos.app.data.repository.WeatherRepositoryImpl
+import com.lifeos.app.domain.usecase.BuildLifeTimelineUseCase
 import com.lifeos.app.domain.usecase.BuildTimelineUseCase
 import com.lifeos.app.domain.usecase.CaptureTransactionUseCase
 import com.lifeos.app.domain.usecase.GetDiaryCalendarUseCase
@@ -85,8 +87,31 @@ class ServiceLocator private constructor(context: Context) {
     }
     val expenseRepository: ExpenseRepository by lazy { ExpenseRepository(database.expenseDao()) }
     val diaryRepository: DiaryRepository by lazy { DiaryRepository(database.diaryDao()) }
+    /**
+     * Retained for DATA PRESERVATION ONLY.
+     *
+     * Notes was retired from the product (see UPDATE.md): every Notes screen,
+     * route, tab and entry point is gone. The `notes` / `note_folders` tables and
+     * this repository stay because the only remaining thing that touches them is
+     * the backup format — dropping the tables would be a destructive migration
+     * that silently destroyed rows a user may still have on disk, and would
+     * break restoring a backup taken by an earlier build. Nothing in the app
+     * exposes Notes; this exists so historical data survives and a restore is
+     * still lossless.
+     */
     val noteRepository: NoteRepository by lazy { NoteRepository(database.noteDao(), database.noteFolderDao()) }
     val captureRepository: CaptureRepository by lazy { CaptureRepository(database.captureDao()) }
+
+    /**
+     * The app's single audio transport for saved voice captures.
+     *
+     * Deliberately shared rather than per-screen: with one transport, pressing
+     * play on the timeline stops whatever the player screen was playing, so two
+     * recordings can never play over each other. The decoder is released the
+     * moment playback ends, so an idle app holds no audio resources — the
+     * object itself is a few references and a state flow.
+     */
+    val voiceAudioPlayer: VoiceAudioPlayer by lazy { VoiceAudioPlayer() }
 
     /**
      * Payment-notification capture. Resolved the same way as everything else —
@@ -122,6 +147,18 @@ class ServiceLocator private constructor(context: Context) {
 
     val buildTimelineUseCase: BuildTimelineUseCase by lazy {
         BuildTimelineUseCase(
+            taskRepository, habitRepository, expenseRepository, diaryRepository, captureRepository
+        )
+    }
+
+    /**
+     * The Life tab's multi-day timeline. Same repositories as the day builder
+     * above — the Life tab and Home read the identical rows through the same
+     * mapping functions, so a record can never read differently depending on
+     * which screen asked for it.
+     */
+    val buildLifeTimelineUseCase: BuildLifeTimelineUseCase by lazy {
+        BuildLifeTimelineUseCase(
             taskRepository, habitRepository, expenseRepository, diaryRepository, captureRepository
         )
     }

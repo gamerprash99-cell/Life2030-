@@ -69,7 +69,6 @@ data class PatternInsight(val title: String, val detail: String)
 data class Recommendation(val title: String, val detail: String, val priority: Int)
 
 data class PersonalStatistics(
-    val totalNotes: Int,
     val totalTasksCompleted: Int,
     val totalHabitsTracked: Int,
     val totalDiaryEntries: Int,

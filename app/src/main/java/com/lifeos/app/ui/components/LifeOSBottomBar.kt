@@ -19,12 +19,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Timeline
-import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material.icons.outlined.Timeline
@@ -52,11 +52,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.lifeos.app.ui.navigation.ROOT_TABS_GRAPH
 import com.lifeos.app.ui.navigation.Screen
+import com.lifeos.app.ui.navigation.switchTab
 import com.lifeos.app.ui.theme.LifeOSElevation
 import com.lifeos.app.ui.theme.LifeOSRadius
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
@@ -74,16 +74,21 @@ data class BottomNavItem(
 
 /**
  * Ordered list backing the bottom navigation bar — the permanent LifeOS IA:
- * Home · Notes · (Capture) · Habits · Life. Capture is not a stateful tab; it
- * is the raised centre action that opens the full-window Capture hub.
+ * Home · Expenses · (Capture) · Habits · Life. Capture is not a stateful tab;
+ * it is the raised centre action that opens the full-window Capture hub.
+ *
+ * Expenses replaced Notes here when the Notes module was permanently retired
+ * from the product (see UPDATE.md): spending is a daily surface, and the
+ * wallet tab is the second thing a user reaches for after Home. The Notes
+ * route, screens and entry points no longer exist anywhere in the app.
  *
  * Profile/Settings/App Lock/backup remain reachable from the Home avatar and
- * the Life hub; removing "You" from the bar makes room for Habits without
- * deleting the personal hub.
+ * the Life header; keeping "You" out of the bar leaves the five primary
+ * destinations room to breathe without a second navigation control.
  */
 internal val bottomNavItems = listOf(
     BottomNavItem(Screen.Home, "Home", Icons.Filled.Home, Icons.Outlined.Home),
-    BottomNavItem(Screen.Notes, "Notes", Icons.Filled.Description, Icons.Outlined.Description),
+    BottomNavItem(Screen.Expenses, "Expenses", Icons.Filled.AccountBalanceWallet, Icons.Outlined.AccountBalanceWallet),
     BottomNavItem(Screen.Habits, "Habits", Icons.Filled.LocalFireDepartment, Icons.Outlined.LocalFireDepartment),
     BottomNavItem(Screen.Life, "Life", Icons.Filled.Timeline, Icons.Outlined.Timeline)
 )
@@ -98,7 +103,7 @@ fun LifeOSBottomBar(navController: NavHostController) {
 
     val pillShape = RoundedCornerShape(LifeOSRadius.xlarge)
     // Index after which the raised centre action is inserted, so the bar reads
-    // Home · Notes · ＋ · Habits · Life.
+    // Home · Expenses · ＋ · Habits · Life.
     val centerAfterIndex = bottomNavItems.size / 2 - 1
 
     // Transparent outer slot: only the pill itself is painted, so it floats on
@@ -126,13 +131,9 @@ fun LifeOSBottomBar(navController: NavHostController) {
                     val selected = destination?.hierarchy?.any { it.route == item.screen.route } == true
                     BottomNavEntry(item = item, selected = selected, onClick = {
                         if (isOnTab) {
-                            navController.navigate(item.screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+                            // Tab → tab: identical semantics to an in-screen
+                            // tab link, so the two can never disagree.
+                            navController.switchTab(item.screen.route)
                         } else if (!navController.popBackStack(item.screen.route, false)) {
                             navController.navigate(item.screen.route) { launchSingleTop = true }
                         }

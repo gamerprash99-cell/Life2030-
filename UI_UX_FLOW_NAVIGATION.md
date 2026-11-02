@@ -4,6 +4,13 @@
 > architecture, the navigation graph, every key user flow, the screen
 > inventory, the design language, and the accessibility rules.
 
+> **Corrections — 2026-11-01.** Permanent redesign: Notes was retired from the
+> product; Expenses replaced it as the second bottom-nav slot (**Home · Expenses
+> · (+ Capture) · Habits · Life**). The Life tab is now the chronological
+> Timeline; the retired `timeline` day-view route and `notes`/`note/{noteId}`
+> routes no longer exist. Treat [`docs/CURRENT_PRODUCT_UI_CONTRACT.md`](CURRENT_PRODUCT_UI_CONTRACT.md)
+> as the authoritative current contract; this document records an earlier phase.
+>
 > **Corrections — 2026-10-12.** Some details below are historical and no longer
 > match the code. Read them with these corrections, and treat
 > [`docs/CURRENT_PRODUCT_UI_CONTRACT.md`](CURRENT_PRODUCT_UI_CONTRACT.md) as the
@@ -70,10 +77,10 @@ proportions:
 ```
 LifeOS
 ├── HOME            → command center ("What's happening in my life today?")
-├── NOTES           → smart notes (+ editor, folders, AI actions)
+├── EXPENSES        → monthly spend · budget · transactions · categories
 ├── + CAPTURE  ★    → photo · video · audio · thought · mood  (centre, prominent)
-├── INSIGHTS        → monthly dashboard · productivity · habits · money · AI
-└── LIFE            → timeline · calendar · search · memory hub
+├── HABITS          → streak · heatmap · wizard · detail
+└── LIFE            → chronological timeline · calendar · search · memory hub
                       └ reaches Tasks · Habits · Expenses · Diary · Memories
 ```
 
@@ -87,8 +94,8 @@ raised, gradient, larger target — the most pressable element on screen.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│   ⌂          ✎          ╭─────╮          ◫          ◔         │
-│  Home      Notes       │  ＋  │       Insights     Life       │
+│   ⌂          💰          ╭─────╮          ◫          ◔         │
+│  Home   Expenses│  ＋  │       Habits     Life       │
 │                        ╰─────╯                                │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -103,29 +110,29 @@ raised, gradient, larger target — the most pressable element on screen.
 ```
 root_tabs
  ├─ home
- ├─ notes ──────────────▶ note_editor/{noteId}   (noteId = "new" | id)
- ├─ insights ───────────▶ ai_assistant           (LifeOS AI)
- └─ life ───────────────▶ timeline
-                         ├▶ life_calendar
-                         ├▶ global_search
-                         ├▶ diary ─┬▶ diary/search
-                         │         ├▶ diary/calendar
-                         │         ├▶ diary/insights
-                         │         └▶ diary/{entryId}
-                         ├▶ tasks ─▶ (task editor sheet)
-                         ├▶ habits ─▶ habits/{habitId}
-                         └▶ expenses
+ ├─ expenses
+ ├─ habits ───────────▶ habits/{habitId}
+ └─ life ─────────────▶ timeline
+                        ├▶ life_calendar
+                        ├▶ global_search
+                        ├▶ diary ─┬▶ diary/search
+                        │         ├▶ diary/calendar
+                        │         ├▶ diary/insights
+                        │         └▶ diary/{entryId}
+                        ├▶ tasks ─▶ (task editor sheet)
+                        └▶ expenses
 
 overlays (outside root_tabs)
  ├─ capture            (full-window; from centre + and from Home)
  │   └▶ capture_view/{captureId}
+ ├─ audio_recorder     (full-window; from Capture hub Audio tile)
+ │   └▶ audio_player/{captureId}
  ├─ timeline, life_calendar, global_search, diary*, tasks, habits*, expenses
  ├─ ai_assistant
  └─ profile ─▶ settings ─▶ settings/app_lock
-```
 
 Rules:
-- Only `home/notes/insights/life` live in `root_tabs`; everything else stacks on
+- Only `home/expenses/habits/life` live in `root_tabs`; everything else stacks on
   top and Back dismisses one level.
 - Literal routes are declared before argument routes (`diary/search` before
   `diary/{entryId}`).

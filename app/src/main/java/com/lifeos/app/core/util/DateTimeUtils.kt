@@ -95,6 +95,17 @@ object DateTimeUtils {
      * treats midnight as UTC, so any user not on UTC would see notes/tasks
      * fall into the wrong calendar day (and DST days would be off by an hour).
      */
+    /**
+     * The local calendar day an instant falls on, as an epoch day.
+     *
+     * `Instant.ofEpochMilli(x).toEpochDay()` would resolve to UTC and would put
+     * anything saved before 05:30 in India on the previous day on the timeline
+     * (see [minutesOfDay]). Going through the system zone is what keeps a row's
+     * date and its time-of-day consistent with each other.
+     */
+    fun epochDayOf(epochMillis: Long): Long =
+        java.time.Instant.ofEpochMilli(epochMillis).atZone(zoneId()).toLocalDate().toEpochDay()
+
     fun startOfLocalDayMillis(epochDay: Long): Long =
         epochDayToLocalDate(epochDay).atStartOfDay(zoneId()).toInstant().toEpochMilli()
 

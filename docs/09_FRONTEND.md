@@ -14,7 +14,6 @@ app/src/main/java/com/lifeos/app/
     ├── components/              ← shared reusable composables
     ├── navigation/               ← Screen routes + NavHost
     ├── home/                    ← Home dashboard
-    ├── notes/                   ← Notes list + editor
     ├── tasks/                   ← Tasks list
     ├── habits/                  ← Habits dashboard + detail + editor/wizard + shared visuals
     ├── expenses/                ← Expenses list + add
@@ -33,25 +32,23 @@ app/src/main/java/com/lifeos/app/
 Defined in `ui/navigation/Screen.kt` as a sealed class, wired into a single
 `NavHost` in `ui/navigation/LifeOSNavHost.kt`:
 
-| Route | Screen | Notes |
+| Route | Screen | Details |
 |---|---|---|
 | `home` | `HomeScreen` | Start destination |
-| `notes` | `NotesListScreen` | |
-| `notes/editor?noteId={noteId}` | `NoteEditorScreen` | `noteId` optional — absent means "new note" |
 | `tasks` | `TasksScreen` | |
 | `habits` | `HabitsScreen` | Permanent root tab: date strip, filters, score, cards, archive/restore |
 | `habits/edit?habitId={habitId}&wizard={wizard}` | `HabitEditorScreen` | Guided 10-step first-habit wizard, or the full normal form for add/edit |
 | `habits/{habitId}` | `HabitDetailScreen` | Stats, clickable 12-week heatmap, day actions, reminder, share, archive/delete |
-| `expenses` | `ExpensesScreen` | |
+| `expenses` | `ExpensesScreen` | Permanent root tab (replaces Notes): monthly spend, budget, transactions |
 | `diary` | `DiaryScreen` | |
-| `timeline` | `TimelineScreen` | |
+| `life` | `LifeTimelineScreen` | Chronological memory timeline (replaces the retired `timeline` route) |
 | `insights` | `InsightsScreen` | |
 | `search` | `SearchScreen` | |
 | `ai_assistant` | `AiAssistantScreen` | |
 | `settings` | `SettingsScreen` | |
 
 Bottom navigation bar (`ui/components/LifeOSBottomBar.kt`) renders the
-permanent information architecture **Home · Notes · ＋ Capture · Habits ·
+permanent information architecture **Home · Expenses · (+ Capture) · Habits ·
 Life**. The four tabs live in the `root_tabs` graph with
 `savedState`/`restoreState`; Capture is a raised centre *action* that opens
 the full-window Capture hub and is never a selected tab. Profile left the bar
@@ -92,7 +89,7 @@ repositories, the AI layer, and settings.
 ## Forms
 
 Forms are per-screen Compose layouts — mostly `OutlinedTextField`s inside
-sections, sheets or dialogs (Tasks, Expenses, Notes, Diary). The permanent
+sections, sheets or dialogs (Tasks, Expenses, Diary). The permanent
 Habits flow is the largest: `HabitEditorScreen.kt` hosts both a 10-step
 guided wizard (name → icon → colour → Build/Quit → frequency → tracking →
 reminder → category/Timeline → review → create) and the full normal form used
@@ -125,7 +122,7 @@ screen displays (commonly in an `AlertDialog` or inline `Text`). Examples:
 `SettingsViewModel.exportStatus`.
 
 Loading states are similarly per-screen `StateFlow<Boolean>` (e.g. `aiBusy`
-in `NoteEditorViewModel`, `NotesViewModel.kt`), rendered as a
+in `DiaryViewModel`), rendered as a
 `CircularProgressIndicator` while true.
 
 ## API communication
@@ -139,7 +136,7 @@ no internet permission.
 ## Reusable components
 
 - `GlassCard` / `GlassChip` (`ui/components/GlassCard.kt`)
-- `LifeOSBottomBar` (`ui/components/LifeOSBottomBar.kt`) — Home, Notes,
+- `LifeOSBottomBar` (`ui/components/LifeOSBottomBar.kt`) — Home, Expenses,
   ＋ Capture, Habits, Life with animated selected pills and a raised centre action
 - `ui/habits/HabitVisuals.kt` — the Habits-only iris accent, score ring,
   mini heatmap, celebration/confetti overlay, share helpers and reduced-motion

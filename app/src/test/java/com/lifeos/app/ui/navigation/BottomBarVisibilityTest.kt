@@ -37,7 +37,7 @@ class BottomBarVisibilityTest {
     @Test
     fun `hides for full-window redesign flows`() {
         assertFalse(shouldShowBottomBar(Screen.Capture.route, false))
-        assertFalse(shouldShowBottomBar(Screen.NoteEditor.route, false))
+        assertFalse(shouldShowBottomBar(Screen.AudioCapture.route, false))
         assertFalse(shouldShowBottomBar(Screen.GlobalSearch.route, false))
         assertFalse(shouldShowBottomBar(Screen.AiAssistant.route, false))
     }
@@ -72,7 +72,7 @@ class BottomBarVisibilityTest {
 
     @Test
     fun `full-window editors own their bottom inset`() {
-        assertTrue(ownsBottomInset(Screen.NoteEditor.route, composerOwnsWindow = false))
+        assertTrue(ownsBottomInset(Screen.AudioCapture.route, composerOwnsWindow = false))
         assertTrue(ownsBottomInset(Screen.AiAssistant.route, composerOwnsWindow = false))
         assertTrue(ownsBottomInset(Screen.Capture.route, composerOwnsWindow = false))
         // Snap keeps the root insets so the compose step (no status padding of
@@ -82,7 +82,7 @@ class BottomBarVisibilityTest {
 
     @Test
     fun `full-window editors own their top inset`() {
-        assertTrue(ownsTopInset(Screen.NoteEditor.route))
+        assertTrue(ownsTopInset(Screen.AudioCapture.route))
         assertTrue(ownsTopInset(Screen.AiAssistant.route))
         assertTrue(ownsTopInset(Screen.Capture.route))
         assertFalse(ownsTopInset(Screen.Snap.route))
@@ -93,7 +93,9 @@ class BottomBarVisibilityTest {
 
     @Test
     fun `shows for the new primary tabs`() {
-        assertTrue(shouldShowBottomBar(Screen.Notes.route, false))
+        assertTrue(shouldShowBottomBar(Screen.Home.route, false))
+        assertTrue(shouldShowBottomBar(Screen.Expenses.route, false))
+        assertTrue(shouldShowBottomBar(Screen.Habits.route, false))
         assertTrue(shouldShowBottomBar(Screen.Life.route, false))
         assertTrue(shouldShowBottomBar(Screen.Profile.route, false))
     }

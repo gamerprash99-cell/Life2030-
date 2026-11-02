@@ -5,7 +5,6 @@ import com.lifeos.app.data.repository.CaptureRepository
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.data.repository.ExpenseRepository
 import com.lifeos.app.data.repository.HabitRepository
-import com.lifeos.app.data.repository.NoteRepository
 import com.lifeos.app.data.repository.TaskRepository
 import kotlinx.coroutines.flow.first
 
@@ -86,7 +85,6 @@ object RecommendationEngine {
  * existing repositories, no new database access patterns.
  */
 class StatisticsEngine(
-    private val noteRepository: NoteRepository,
     private val taskRepository: TaskRepository,
     private val habitRepository: HabitRepository,
     private val diaryRepository: DiaryRepository,
@@ -94,7 +92,6 @@ class StatisticsEngine(
     private val expenseRepository: ExpenseRepository
 ) {
     suspend fun computeAllTime(): PersonalStatistics {
-        val notes = noteRepository.observeActive().first().size
         val allTasks = taskRepository.getAllForBackup()
         val tasksCompleted = allTasks.count { it.isCompleted && !it.isDeleted }
         val habits = habitRepository.observeAll().first().count { !it.isArchived }
@@ -109,7 +106,6 @@ class StatisticsEngine(
         val diaryStreak = computeDiaryStreak(diaryEntries.map { it.dateEpochDay }.toSet())
 
         return PersonalStatistics(
-            totalNotes = notes,
             totalTasksCompleted = tasksCompleted,
             totalHabitsTracked = habits,
             totalDiaryEntries = diaryEntries.size,

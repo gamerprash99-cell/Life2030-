@@ -22,6 +22,8 @@ import androidx.navigation.navigation
 import com.lifeos.app.ui.components.LifeOSBottomBar
 import com.lifeos.app.ui.ai.AiAction
 import com.lifeos.app.ui.ai.AiAssistantScreen
+import com.lifeos.app.ui.capture.AudioPlayerScreen
+import com.lifeos.app.ui.capture.AudioRecorderScreen
 import com.lifeos.app.ui.capture.CaptureHubScreen
 import com.lifeos.app.ui.diary.DiaryCalendarScreen
 import com.lifeos.app.ui.diary.DiaryCalendarViewModel
@@ -41,9 +43,7 @@ import com.lifeos.app.ui.habits.HabitDetailScreen
 import com.lifeos.app.ui.habits.HabitEditorScreen
 import com.lifeos.app.ui.habits.HabitsScreen
 import com.lifeos.app.ui.home.HomeScreen
-import com.lifeos.app.ui.life.LifeScreen
-import com.lifeos.app.ui.notes.NoteEditorScreen
-import com.lifeos.app.ui.notes.NotesScreen
+import com.lifeos.app.ui.life.LifeTimelineScreen
 import com.lifeos.app.ui.profile.ProfileScreen
 import com.lifeos.app.ui.search.GlobalSearchScreen
 import com.lifeos.app.ui.security.AppLockSetupScreen
@@ -51,7 +51,6 @@ import com.lifeos.app.ui.settings.SettingsScreen
 import com.lifeos.app.ui.snap.SnapScreen
 import com.lifeos.app.ui.snap.SnapViewerScreen
 import com.lifeos.app.ui.tasks.TasksScreen
-import com.lifeos.app.ui.timeline.TimelineScreen
 
 /**
  * Whether the full-screen composer (New / Edit Memory) currently has the window.
@@ -162,7 +161,7 @@ fun LifeOSNavHost() {
                             onOpenHabits = { navController.navigate(Screen.Habits.route) { launchSingleTop = true } },
                             onOpenExpenses = { navController.navigate(Screen.Expenses.route) { launchSingleTop = true } },
                             onOpenDiary = { navController.navigate(Screen.Diary.route) { launchSingleTop = true } },
-                            onOpenTimeline = { navController.navigate(Screen.Timeline.route) { launchSingleTop = true } },
+                            onOpenTimeline = { navController.switchTab(Screen.Life.route) },
                             onOpenProfile = { navController.navigate(Screen.Profile.route) { launchSingleTop = true } },
                             onOpenSnap = { navController.navigate(Screen.Snap.route) { launchSingleTop = true } },
                             onOpenTimelineItem = { item ->
@@ -173,23 +172,21 @@ fun LifeOSNavHost() {
                         )
                     }
 
-                    // ---- Primary tabs (Aurora Noir IA) -------------------------
-                    composable(Screen.Notes.route) {
-                        NotesScreen(
-                            onOpenNote = { noteId ->
-                                navController.navigate(Screen.NoteEditor.createRoute(noteId)) { launchSingleTop = true }
-                            }
-                        )
+                    // ---- Primary tabs ------------------------------------------
+                    // Home · Expenses · (Capture) · Habits · Life. Notes used to
+                    // hold the second slot; the module is retired and Expenses
+                    // took the place it left, so the tab now opens the real
+                    // Expenses screen rather than pushing it on top of Home.
+                    composable(Screen.Expenses.route) {
+                        ExpensesScreen()
                     }
                     composable(Screen.Life.route) {
-                        LifeScreen(
-                            onOpenTimeline = { navController.navigate(Screen.Timeline.route) { launchSingleTop = true } },
-                            onOpenSearch = { navController.navigate(Screen.GlobalSearch.route) { launchSingleTop = true } },
-                            onOpenDiary = { navController.navigate(Screen.Diary.route) { launchSingleTop = true } },
-                            onOpenTasks = { navController.navigate(Screen.Tasks.route) { launchSingleTop = true } },
-                            onOpenHabits = { navController.navigate(Screen.Habits.route) { launchSingleTop = true } },
-                            onOpenExpenses = { navController.navigate(Screen.Expenses.route) { launchSingleTop = true } },
-                            onOpenProfile = { navController.navigate(Screen.Profile.route) { launchSingleTop = true } }
+                        LifeTimelineScreen(
+                            onOpenItem = { item ->
+                                navController.navigate(routeForTimelineItem(item)) { launchSingleTop = true }
+                            },
+                            onOpenProfile = { navController.navigate(Screen.Profile.route) { launchSingleTop = true } },
+                            onOpenSearch = { navController.navigate(Screen.GlobalSearch.route) { launchSingleTop = true } }
                         )
                     }
                     // Habits is a permanent root tab. Detail and editor stack
@@ -245,20 +242,38 @@ fun LifeOSNavHost() {
                 composable(Screen.Capture.route) {
                     CaptureHubScreen(
                         onClose = { navController.popBackStack() },
-                        onOpenCamera = { navController.navigate(Screen.Snap.route) { launchSingleTop = true } }
+                        onOpenCamera = { navController.navigate(Screen.Snap.route) { launchSingleTop = true } },
+                        onOpenAudio = { navController.navigate(Screen.AudioCapture.route) { launchSingleTop = true } }
+                    )
+                }
+
+                // ---- Voice: record, then play back what was recorded --------
+                composable(Screen.AudioCapture.route) {
+                    AudioRecorderScreen(
+                        onClose = { navController.popBackStack() },
+                        onSaved = { captureId ->
+                            // Land on the saved clip's player, with the Capture
+                            // hub popped: the recording flow is finished, so Back
+                            // from the player returns to wherever the user was.
+                            navController.popBackStack(Screen.Capture.route, inclusive = true)
+                            navController.navigate(Screen.AudioPlayer.createRoute(captureId)) {
+                                launchSingleTop = true
+                            }
+                        }
                     )
                 }
                 composable(
-                    Screen.NoteEditor.route,
-                    arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+                    Screen.AudioPlayer.route,
+                    arguments = listOf(navArgument("captureId") { type = NavType.StringType })
                 ) { entry ->
-                    val noteId = entry.arguments?.getString("noteId").orEmpty()
-                    NoteEditorScreen(noteId = noteId, onBack = { navController.popBackStack() })
+                    AudioPlayerScreen(
+                        captureId = entry.arguments?.getString("captureId").orEmpty(),
+                        onBack = { navController.popBackStack() }
+                    )
                 }
                 composable(Screen.GlobalSearch.route) {
                     GlobalSearchScreen(
                         onBack = { navController.popBackStack() },
-                        onOpenNote = { noteId -> navController.navigate(Screen.NoteEditor.createRoute(noteId)) { launchSingleTop = true } },
                         onOpenDiary = { entryId -> navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true } },
                         onOpenCapture = { captureId -> navController.navigate(Screen.SnapView.createRoute(captureId)) { launchSingleTop = true } }
                     )
@@ -295,7 +310,6 @@ fun LifeOSNavHost() {
                         }
                     )
                 }
-                composable(Screen.Expenses.route) { ExpensesScreen(onBack = { navController.popBackStack() }) }
                 composable(Screen.Diary.route) {
                     DiaryTheme {
                         DiaryScreen(
@@ -388,23 +402,6 @@ fun LifeOSNavHost() {
                         )
                     }
                 }
-                composable(Screen.Timeline.route) {
-                    TimelineScreen(
-                        onBack = { navController.popBackStack() },
-                        onOpenItem = { item ->
-                            val route = when (item.type) {
-                                com.lifeos.app.domain.model.TimelineItemType.DIARY ->
-                                    Screen.DiaryDetail.createRoute(item.sourceId)
-                                com.lifeos.app.domain.model.TimelineItemType.TASK_COMPLETED -> Screen.Tasks.route
-                                com.lifeos.app.domain.model.TimelineItemType.HABIT_COMPLETED -> Screen.Habits.route
-                                com.lifeos.app.domain.model.TimelineItemType.EXPENSE -> Screen.Expenses.route
-                                com.lifeos.app.domain.model.TimelineItemType.SNAP ->
-                                    Screen.SnapView.createRoute(item.sourceId)
-                            }
-                            navController.navigate(route) { launchSingleTop = true }
-                        }
-                    )
-                }
                 composable(Screen.Settings.route) {
                     SettingsScreen(
                         onOpenAppLockSetup = { navController.navigate(Screen.AppLockSetup.route) { launchSingleTop = true } },
@@ -418,10 +415,10 @@ fun LifeOSNavHost() {
                     SnapScreen(
                         onClose = { navController.popBackStack() },
                         onPosted = {
-                            // Land the user on the Timeline so the snap they just
-                            // took is the first thing they see land.
+                            // Land the user on the Life timeline so the snap they
+                            // just took is the first thing they see land.
                             navController.popBackStack()
-                            navController.navigate(Screen.Timeline.route) { launchSingleTop = true }
+                            navController.switchTab(Screen.Life.route)
                         }
                     )
                 }

@@ -72,18 +72,20 @@ import com.lifeos.app.ui.theme.LifeOSSpacing
 import com.lifeos.app.ui.theme.LocalLifeOSSemanticColors
 
 /**
- * The Capture hub — the app's centre action made real. A full-window glass
- * sheet offering the six capture types in a single glance, with an inline
- * quick-thought field for the "I just want to note this" case.
+ * The Capture hub — the app's centre action made real. A full-window sheet
+ * offering the capture types in a single glance, with an inline quick-thought
+ * field for the "I just want to note this" case.
  *
- * Photo/Video hand off to the Snap camera; Thought/Mood/Location are written
- * straight to the Capture table by [CaptureViewModel]. After a capture the
- * sheet names exactly what was stored and where it went.
+ * Photo/Video hand off to the Snap camera, Voice opens the real recorder
+ * ([AudioRecorderScreen]), and Thought/Mood/Location are written straight to the
+ * Capture table by [CaptureViewModel]. After a capture the sheet names exactly
+ * what was stored and where it went.
  */
 @Composable
 fun CaptureHubScreen(
     onClose: () -> Unit,
-    onOpenCamera: () -> Unit
+    onOpenCamera: () -> Unit,
+    onOpenAudio: () -> Unit
 ) {
     val locator = LocalServiceLocator.current
     val viewModel: CaptureViewModel = viewModel(
@@ -95,7 +97,6 @@ fun CaptureHubScreen(
 
     var quickThought by rememberSaveable { mutableStateOf("") }
     var showMoodPicker by rememberSaveable { mutableStateOf(false) }
-    var notice by remember { mutableStateOf<String?>(null) }
     val thoughtFocus = remember { androidx.compose.ui.focus.FocusRequester() }
 
     val locationPermission = rememberLauncherForActivityResult(
@@ -163,15 +164,6 @@ fun CaptureHubScreen(
                     )
                     Spacer(Modifier.height(LifeOSSpacing.md))
                 }
-                notice?.let {
-                    LifeOSBanner(
-                        icon = Icons.Filled.GraphicEq,
-                        text = it,
-                        action = "Dismiss",
-                        onAction = { notice = null }
-                    )
-                    Spacer(Modifier.height(LifeOSSpacing.md))
-                }
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
@@ -181,7 +173,14 @@ fun CaptureHubScreen(
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LifeOSSpacing.md)) {
-                    CaptureTile(Icons.Filled.GraphicEq, "Audio", "Clip a voice note", LocalLifeOSSemanticColors.current.success, { notice = "Voice notes are coming next. Type a thought for now." }, Modifier.weight(1f))
+                    CaptureTile(
+                        Icons.Filled.GraphicEq,
+                        "Voice",
+                        "Record a voice note",
+                        LocalLifeOSSemanticColors.current.success,
+                        onOpenAudio,
+                        Modifier.weight(1f)
+                    )
                     CaptureTile(Icons.Filled.Mood, "Mood", "How are you?", LocalLifeOSSemanticColors.current.gold, { showMoodPicker = !showMoodPicker }, Modifier.weight(1f))
                 }
             }

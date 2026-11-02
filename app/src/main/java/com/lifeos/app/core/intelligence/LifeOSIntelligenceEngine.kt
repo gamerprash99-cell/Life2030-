@@ -1,6 +1,6 @@
 package com.lifeos.app.core.intelligence
 
-import com.lifeos.app.core.ai.NoteAiAction
+import com.lifeos.app.core.ai.TextAiAction
 import com.lifeos.app.data.repository.CaptureRepository
 import com.lifeos.app.data.repository.DiaryRepository
 import com.lifeos.app.data.repository.ExpenseRepository
@@ -42,7 +42,6 @@ import com.lifeos.app.data.repository.TaskRepository
  * facade or any of its callers.
  */
 class LifeOSIntelligenceEngine(
-    private val noteRepository: NoteRepository,
     private val taskRepository: TaskRepository,
     private val habitRepository: HabitRepository,
     private val diaryRepository: DiaryRepository,
@@ -52,32 +51,36 @@ class LifeOSIntelligenceEngine(
     private val taskAnalyzer = TaskAnalyzer(taskRepository)
     private val habitAnalyzer = HabitAnalyzer(habitRepository)
     private val statisticsEngine = StatisticsEngine(
-        noteRepository, taskRepository, habitRepository, diaryRepository, captureRepository, expenseRepository
+        taskRepository, habitRepository, diaryRepository, captureRepository, expenseRepository
     )
     private val reportGenerator = ReportGenerator(taskAnalyzer, habitAnalyzer, diaryRepository, expenseRepository)
     private val questionEngine = LocalQuestionEngine(
         taskAnalyzer, habitAnalyzer, expenseRepository, diaryRepository, statisticsEngine, reportGenerator
     )
 
-    // ---- Note actions (extractive text operations; see NoteTextAnalyzer for what's genuinely offline-feasible) ----
+    // ---- Text actions (extractive operations; see NoteTextAnalyzer for what's genuinely offline-feasible) ----
+    //
+    // These operate on text the user is editing. They are NOT the retired Notes
+    // module: nothing here reads or writes the `notes` table, and the analyzer
+    // is a pure string utility.
 
-    /** Every NoteAiAction that is genuinely achievable offline without a generative model. */
-    private val supportedNoteActions = setOf(
-        NoteAiAction.SUMMARIZE, NoteAiAction.GENERATE_TITLE, NoteAiAction.ORGANIZE,
-        NoteAiAction.EXTRACT_POINTS, NoteAiAction.CREATE_CHECKLIST, NoteAiAction.MAKE_SHORTER
+    /** Every action that is genuinely achievable offline without a generative model. */
+    private val supportedTextActions = setOf(
+        TextAiAction.SUMMARIZE, TextAiAction.GENERATE_TITLE, TextAiAction.ORGANIZE,
+        TextAiAction.EXTRACT_POINTS, TextAiAction.CREATE_CHECKLIST, TextAiAction.MAKE_SHORTER
     )
 
-    fun isNoteActionSupportedOffline(action: NoteAiAction): Boolean = action in supportedNoteActions
+    fun isTextActionSupportedOffline(action: TextAiAction): Boolean = action in supportedTextActions
 
-    fun runNoteAction(action: NoteAiAction, text: String): String {
+    fun runTextAction(action: TextAiAction, text: String): String {
         if (text.isBlank()) return "There's no text yet to work with."
         return when (action) {
-            NoteAiAction.SUMMARIZE -> NoteTextAnalyzer.summarize(text)
-            NoteAiAction.GENERATE_TITLE -> NoteTextAnalyzer.suggestTitle(text)
-            NoteAiAction.ORGANIZE -> NoteTextAnalyzer.organizeAsBullets(text)
-            NoteAiAction.EXTRACT_POINTS -> NoteTextAnalyzer.extractKeyPoints(text)
-            NoteAiAction.CREATE_CHECKLIST -> NoteTextAnalyzer.createChecklist(text)
-            NoteAiAction.MAKE_SHORTER -> NoteTextAnalyzer.summarize(text, maxSentences = 2)
+            TextAiAction.SUMMARIZE -> NoteTextAnalyzer.summarize(text)
+            TextAiAction.GENERATE_TITLE -> NoteTextAnalyzer.suggestTitle(text)
+            TextAiAction.ORGANIZE -> NoteTextAnalyzer.organizeAsBullets(text)
+            TextAiAction.EXTRACT_POINTS -> NoteTextAnalyzer.extractKeyPoints(text)
+            TextAiAction.CREATE_CHECKLIST -> NoteTextAnalyzer.createChecklist(text)
+            TextAiAction.MAKE_SHORTER -> NoteTextAnalyzer.summarize(text, maxSentences = 2)
             else -> "\"${action.label}\" needs a generative writing model, which LifeOS doesn't include " +
                 "to stay fully offline and lightweight. Try Summarize, Organize text, Extract points, " +
                 "Create checklist, or Make shorter instead. Those work fully offline."

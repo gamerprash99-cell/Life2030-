@@ -2,10 +2,14 @@ package com.lifeos.app.core.ai
 
 import kotlinx.serialization.Serializable
 
-/** Note-level AI actions — Section 8. */
-enum class NoteAiAction(val label: String, val instruction: String) {
-    SUMMARIZE("Summarize", "Summarize the following note in 2-4 concise sentences."),
-    GENERATE_TITLE("Generate title", "Write a short, specific title (max 8 words) for the following note. Reply with ONLY the title, no punctuation around it."),
+/**
+ * Extractive text actions — Section 8, applied to *any* text the user is
+ * working on (a diary draft, a task description), never to the retired Notes
+ * module. The names describe the operation, not a screen.
+ */
+enum class TextAiAction(val label: String, val instruction: String) {
+    SUMMARIZE("Summarize", "Summarize the following text in 2-4 concise sentences."),
+    GENERATE_TITLE("Generate title", "Write a short, specific title (max 8 words) for the following text. Reply with ONLY the title, no punctuation around it."),
     ORGANIZE("Organize text", "Reorganize the following messy text into clear, well-structured paragraphs or bullet points, preserving all information."),
     REWRITE("Rewrite", "Rewrite the following text to be clearer and more polished, preserving its meaning and tone."),
     IMPROVE_GRAMMAR("Improve grammar", "Fix grammar and spelling in the following text without changing its meaning or tone."),

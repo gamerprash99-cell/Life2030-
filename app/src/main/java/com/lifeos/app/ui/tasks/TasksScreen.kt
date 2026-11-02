@@ -913,7 +913,7 @@ private fun NewTaskDialog(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         LavenderTextField(value = title, onValueChange = { title = it }, placeholder = "What do you need to do?")
-                        LavenderTextField(value = description, onValueChange = { description = it }, placeholder = "Notes (optional)", maxLines = 3)
+                        LavenderTextField(value = description, onValueChange = { description = it }, placeholder = "Description (optional)", maxLines = 3)
                         LavenderTextField(value = category, onValueChange = { category = it }, placeholder = "Category (optional)")
 
                         SelectField(

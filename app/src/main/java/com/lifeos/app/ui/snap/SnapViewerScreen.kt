@@ -26,6 +26,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,9 +44,13 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.lifeos.app.core.di.LocalServiceLocator
 import com.lifeos.app.core.util.DateTimeUtils
+import com.lifeos.app.core.media.VoicePlaybackState
 import com.lifeos.app.data.db.entities.CaptureType
+import com.lifeos.app.ui.capture.VideoPreview
 import com.lifeos.app.ui.components.prismBrush
+import com.lifeos.app.ui.components.LifeOSAudioPlayer
 import com.lifeos.app.ui.theme.LifeOSRadius
+import com.lifeos.app.ui.theme.LifeOSSpacing
 import java.io.File
 import kotlinx.coroutines.launch
 
@@ -64,6 +70,19 @@ fun SnapViewerScreen(
     val capture by remember(captureId) { locator.captureRepository.observeById(captureId) }
         .collectAsState(initial = null)
     var confirmDelete by remember { mutableStateOf(false) }
+
+    // A video/voice moment plays through the app's single transport, so leaving
+    // the viewer can never leave audio running behind another screen.
+    val playback by locator.voiceAudioPlayer.state.collectAsState()
+    LaunchedEffect(playback is VoicePlaybackState.Playing) {
+        while (playback is VoicePlaybackState.Playing) {
+            kotlinx.coroutines.delay(120L)
+            locator.voiceAudioPlayer.tick()
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose { locator.voiceAudioPlayer.release() }
+    }
 
     BackHandler(onBack = onBack)
 
@@ -100,14 +119,33 @@ fun SnapViewerScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         Box(Modifier.fillMaxWidth().weight(1f).background(Color.Black), Alignment.Center) {
-            if (item.type == CaptureType.PHOTO && item.filePath != null) {
-                AsyncImage(
+            when {
+                // A photo is drawn; a video plays in place; a voice capture is
+                // playable too. Every other capture type (thought, mood, place)
+                // is text at heart and reads as the card below.
+                item.type == CaptureType.PHOTO && item.filePath != null -> AsyncImage(
                     model = File(item.filePath!!),
                     contentDescription = item.text ?: "Your snap",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
-            } else {
+
+                item.type == CaptureType.VIDEO && item.filePath != null ->
+                    VideoPreview(item.filePath!!, Modifier.align(Alignment.Center))
+
+                item.type == CaptureType.AUDIO && item.filePath != null ->
+                    LifeOSAudioPlayer(
+                        state = playback,
+                        onToggle = { locator.voiceAudioPlayer.toggle(item.filePath!!, item.durationMillis ?: 0L) },
+                        onSeek = { locator.voiceAudioPlayer.seekTo(it) },
+                        title = item.text ?: "Voice note",
+                        waveform = null,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(horizontal = LifeOSSpacing.screenPadding)
+                    )
+
+                else -> {
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -122,6 +160,7 @@ fun SnapViewerScreen(
                         style = MaterialTheme.typography.headlineSmall,
                         color = Color.White
                     )
+                }
                 }
             }
 

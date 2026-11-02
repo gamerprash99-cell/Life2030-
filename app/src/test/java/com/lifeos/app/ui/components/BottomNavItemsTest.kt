@@ -2,17 +2,26 @@ package com.lifeos.app.ui.components
 
 import com.lifeos.app.ui.navigation.Screen
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BottomNavItemsTest {
 
     @Test
-    fun `order is Home Notes Habits Life`() {
+    fun `order is Home Expenses Habits Life`() {
         assertEquals(
-            listOf(Screen.Home, Screen.Notes, Screen.Habits, Screen.Life),
+            listOf(Screen.Home, Screen.Expenses, Screen.Habits, Screen.Life),
             bottomNavItems.map { it.screen }
         )
+    }
+
+    @Test
+    fun `expenses replaced notes as the second primary tab`() {
+        // The Notes route was deleted from Screen entirely, so no entry can carry it.
+        assertTrue(bottomNavItems.any { it.screen == Screen.Expenses })
+        assertFalse(bottomNavItems.any { it.screen.route == "notes" })
+        assertEquals("Expenses", bottomNavItems[1].label)
     }
 
     @Test

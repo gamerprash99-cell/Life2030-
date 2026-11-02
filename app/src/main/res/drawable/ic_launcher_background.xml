@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    The adaptive icon's background: LifeOS deep purple (#21005D), the same token
+    the app uses for primary actions and selection. Kept as a flat brand colour
+    (no gradient) so the launcher, the recents card and the splash screen all
+    show the identical mark.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#6C63FF"
+        android:fillColor="#21005D"
         android:pathData="M0,0h108v108h-108z" />
 </vector>

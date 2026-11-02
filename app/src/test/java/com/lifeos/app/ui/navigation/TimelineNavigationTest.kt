@@ -52,4 +52,28 @@ class TimelineNavigationTest {
             routeForTimelineItem(item(TimelineItemType.SNAP, "capture-1"))
         )
     }
+
+    @Test
+    fun audioOpensItsPlayer() {
+        assertEquals(
+            Screen.AudioPlayer.createRoute("capture-1"),
+            routeForTimelineItem(item(TimelineItemType.AUDIO, "capture-1"))
+        )
+    }
+
+    @Test
+    fun photoOpensItsViewer() {
+        assertEquals(
+            Screen.SnapView.createRoute("capture-1"),
+            routeForTimelineItem(item(TimelineItemType.PHOTO, "capture-1"))
+        )
+    }
+
+    @Test
+    fun videoOpensItsViewer() {
+        assertEquals(
+            Screen.SnapView.createRoute("capture-1"),
+            routeForTimelineItem(item(TimelineItemType.VIDEO, "capture-1"))
+        )
+    }
 }

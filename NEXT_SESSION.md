@@ -25,7 +25,7 @@ pushed. PR: https://github.com/gamerprash99-cell/Life2030-/pull/59
 The full permanent Habits experience described in
 `docs/HABITS_PERMANENT_REDESIGN_SPEC.md`:
 
-- Bottom navigation is exactly **Home · Notes · ＋ Capture · Habits · Life**;
+- Bottom navigation is exactly **Home · Expenses · (+ Capture) · Habits · Life**;
   Capture stays the raised centre action; Profile left the bar but remains a
   stacked destination with Settings, App Lock and backup; no Insights UI.
 - Habits dashboard, guided first-habit wizard, full add/edit form, all

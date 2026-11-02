@@ -110,7 +110,7 @@ Permanent-Habits-specific coverage added/updated:
   (no emulator/device in this environment).
 - `BackupSerializationTest` — checklist template/check round-trip, v1 file
   decodes with empty checklist defaults, format version is 2.
-- `BottomNavItemsTest` — bar is exactly Home · Notes · Habits · Life and
+- `BottomNavItemsTest` — bar is exactly Home · Expenses · Habits · Life and
   Profile/Insights are not tabs.
 
 Not executed here: `:app:connectedDebugAndroidTest` (no `adb`, no emulator or
