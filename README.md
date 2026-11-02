@@ -424,7 +424,7 @@ See [`docs/21_FILE_STRUCTURE.md`](./docs/21_FILE_STRUCTURE.md) for per-file note
 
 ## 17. Current UI/UX behavior (highlights)
 
-- Five-slot bottom bar (Home, Notes, ＋ Capture, Habits, Life) with saved-state
+- Five-slot bottom bar (Home, Expenses, + Capture, Habits, Life) with saved-state
   restoration; Profile/Settings/App Lock are stacked destinations reached from
   the Home avatar and the Life hub. Tasks, Diary, Timeline and Expenses are
   Home/Life overlay destinations, not tabs.
@@ -628,7 +628,7 @@ neural inference remains gated on a real validated LIFE checkpoint. See
 
 The permanent Habits navigation and tracker redesign specified in [`docs/HABITS_PERMANENT_REDESIGN_SPEC.md`](./docs/HABITS_PERMANENT_REDESIGN_SPEC.md) is implemented in this revision:
 
-- Bottom bar is exactly **Home · Notes · ＋ Capture · Habits · Life**; Habits is a root tab and Profile is reachable without being one.
+- Bottom bar is exactly **Home · Expenses · (+ Capture) · Habits · Life**; Habits is a root tab and Profile is reachable without being one.
 - Room moved **v6 → v7** through an additive, populated-data migration (`MIGRATION_6_7`): new habit fields, an explicit completion outcome + target snapshot, and the `habit_checklist_items` / `habit_checklist_checks` tables. Existing DAILY/WEEKLY/CUSTOM habits keep their exact pre-v7 meaning.
 - Backup format is **v2**; v1 files still restore with empty checklist defaults.
 - Tick / Count / Checklist tracking, Build / Quit semantics, all frequency modes, streak math with per-habit period targets, the 12-week heatmap, celebration and share are implemented and unit-tested.

@@ -33,20 +33,21 @@ Two product promises are non-negotiable:
 
 ## 2. Information architecture (the five destinations)
 
-Primary navigation is exactly five slots: **Home · Notes · (Capture) · Habits ·
-Life**.
+Primary navigation is exactly five slots: **Home · Expenses · (+ Capture) ·
+Habits · Life**. Notes was retired from the product (see `UPDATE.md`
+2026-11-01); Expenses took its slot as a stateful root tab.
 
 | Slot | Kind | Route |
 |---|---|---|
 | Home | Stateful root tab | `home` |
-| Notes | Stateful root tab | `notes` |
+| Expenses | Stateful root tab | `expenses` |
 | Capture | **Action, not a tab** — a raised centre button opening a full-window flow | `capture` |
 | Habits | Stateful root tab | `habits` |
 | Life | Stateful root tab | `life` |
 
-Only `home`, `notes`, `habits` and `life` live inside the `root_tabs` graph and
-are saved/restored per tab. Capture is intentionally *not* a stateful tab: it
-opens the Capture hub overlay and is never a selected destination.
+Only `home`, `expenses`, `habits` and `life` live inside the `root_tabs` graph
+and are saved/restored per tab. Capture is intentionally *not* a stateful tab:
+it opens the Capture hub overlay and is never a selected destination.
 
 > Permanent Habits update (2026-10-30): the fourth slot changed from Insights
 > to Habits. Insights is not a user-facing destination, and Profile left the
@@ -65,7 +66,7 @@ product just because they are not in the bottom bar.
 | Habits | `habits`, `habits/{habitId}`, `habits/edit?habitId=&wizard=` | Bottom-nav root tab · Home quick action · Home habits "See all" · Life hub · AI action · Timeline |
 | Expenses | `expenses` | Home "Spent today" tile · Life hub · AI action · Timeline |
 | Diary | `diary`, `diary/{entryId}`, `diary/search`, `diary/calendar`, `diary/insights` | Home "Diary" quick action · Life hub · AI action · global search |
-| Timeline | `timeline` | Home "Recent activity" See all · Life hub · after posting a Snap |
+| Timeline | `life` | Home "Recent activity" See all · Life hub · after posting a Snap |
 | Global search | `search` | Home header search · Life hub · AI action |
 | LifeOS AI | `ai` | Home (last section) · Insights |
 | Profile / Settings / App Lock setup | `profile`, `settings`, `settings/app_lock` | Home avatar · Life hub (Profile is not a bottom-bar tab) |
@@ -79,7 +80,7 @@ product just because they are not in the bottom bar.
 ### 2.2 Full-window routes (bottom bar hidden)
 
 The primary bottom bar is hidden on: the Diary composer, `AppLockSetup`, `Snap`,
-`Capture`, `NoteEditor`, `GlobalSearch`, and `AiAssistant`. Each of these owns the
+`Capture`, `GlobalSearch`, and `AiAssistant`. Each of these owns the
 window and its own insets. See `ui/navigation/BottomBarVisibility.kt` — the rule
 is one testable fact (`shouldShowBottomBar`), not a scattered boolean.
 
@@ -180,16 +181,17 @@ Diary module (and the shared timeline that renders diary entries).
 
 - **Home** — today's command centre, ordered: today's progress → tasks → habits →
   weekly rhythm → spending/capture → recent activity → LifeOS AI (last).
-- **Notes** — long-form thinking; search, the five smart views, folders, overflow
-  actions. Editor: title + body + tags, explicit Save, unsaved-changes guard.
+- **Expenses** — monthly spend, daily average, monthly budget with progress,
+  creation/edit/delete, categories, payment method. Replaces Notes as a root tab.
 - **Capture** — six capture types with an inline quick-thought field; permission
-  requested only for the selected capability.
+  requested only for the selected capability; audio opens the real recorder.
 - **Habits** — permanent root tab: week date strip (past only), All/Due/
   Completed filters, live Habit Score, habit cards (streak, tracking, mini
   heatmap), guided wizard + full add/edit form, detail with stats and a
   clickable 12-week heatmap, explicit Quit slips, celebration and share.
-- **Life** — connected-history hub: Timeline, search, and quick links to the track
-  modules (plus Profile/Settings).
+- **Life** — chronological memory timeline: diary entries, completed tasks,
+  habit check-ins, expenses, photos, videos and voice captures grouped under the
+  day they happened, newest first. No dashboard, no demo data.
 - **Track modules** — Tasks, Habits detail/editor, Expenses, Diary, Timeline,
   Search, Profile, Settings, App Lock, Snap. Preserve their existing data paths.
 - **Insights** is not a user-facing destination.

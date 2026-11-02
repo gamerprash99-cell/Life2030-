@@ -16,6 +16,72 @@ output.
 
 ---
 
+## [Unreleased] — Permanent redesign: Notes retired, Expenses in bottom nav, Life becomes Timeline, Audio is real (2026-11-01)
+
+### Navigation / IA
+- Bottom bar is now exactly **Home · Expenses · (+ Capture) · Habits · Life**.
+  Expenses replaced Notes as the second root tab and opens the existing
+  `ExpensesScreen` directly; tapping it switches tabs rather than pushing on
+  top of Home.
+- The retired `notes` / `note/{noteId}` routes and every Notes screen,
+  ViewModel and repository entry point were removed; no obsolete Notes
+  navigation route remains accessible.
+- `Screen.kt` removed `Screen.Notes` and `Screen.NoteEditor`; added
+  `Screen.AudioCapture` and `Screen.AudioPlayer`; `routeForTimelineItem`
+  routes photo/video/audio captures to the viewer/player and track-module
+  items to their tabs.
+- `LifeOSNavHost.kt`: `Screen.Expenses` is now a primary tab; `Screen.Life`
+  opens `LifeTimelineScreen`; added `AudioCapture`/`AudioPlayer` destinations;
+  `LifeOSNavHost.switchTab` used for tab links.
+
+### Life tab → chronological Timeline
+- `ui/life/LifeScreen.kt` (module dashboard) deleted; replaced by
+  `LifeTimelineScreen.kt` + `LifeTimelineViewModel.kt`.
+- Timeline groups diary entries, completed tasks, habit check-ins, expenses,
+  photos, videos and voice captures under the day they happened, newest first.
+- Read-only aggregation through `BuildLifeTimelineUseCase.kt` +
+  `TimelineMapping.kt` + `TimelineDayGrouping.kt`; no duplicate storage, no
+  demo data.
+
+### Audio — real working offline feature
+- `VoiceRecording.kt` (`LifeOSAudioRecorder`): `MediaRecorder` microphone
+  recording with RECORD_AUDIO requested on tap (never at launch),
+  pause/resume/stop/cancel, measured amplitude waveform, real duration/size,
+  takes under 700 ms discarded, every failure path releases the mic and
+  deletes the partial file.
+- `VoiceAudioPlayer.kt`: single shared `MediaPlayer` transport —
+  play/pause/resume/seek/progress/completion/error handling; only one clip
+  plays at a time; missing file resolves honestly.
+- `AudioRecorderScreen.kt` + `AudioPlayerScreen.kt`: full-window recorder and
+  player flows; Capture hub's Audio tile opens the recorder.
+
+### Design system
+- New palette: background `#FDF8FF`, soft lavender `#F3EDF7`, deep purple
+  `#21005D`, warm terracotta/gold/sage accents; identity gradient is deep
+  purple → plum → clay.
+- Shared components: `LifeOSTimelineItem`, `LifeOSDateHeader`,
+  `LifeOSRecordingControls`, `LifeOSWaveformSeek`, `LifeOSAudioPlayer`,
+  `LifeOSTextField`, `LifeOSLoadingState`.
+- Splash icon background deep purple (#21005D); `values/colors.xml` added.
+
+### Data safety
+- Room schema unchanged (v7). The `notes`/`note_folders` tables and
+  `NoteRepository` are retained solely so backups taken by earlier builds
+  still decode/restore losslessly; nothing in the app exposes Notes, and no
+  destructive migration was introduced.
+- No `INTERNET` permission; no Firebase/cloud/external AI/telemetry; all
+  data stays on-device.
+
+### Verification (executed)
+```text
+sh ./gradlew :app:testDebugUnitTest    → BUILD SUCCESSFUL, 506 tests, 0 failures
+sh ./gradlew :app:assembleDebug        → BUILD SUCCESSFUL
+```
+- `connectedDebugAndroidTest` — not executed (no adb/emulator/device in this environment).
+- `:app:lintDebug` — could not complete (environment resource constraints); no `@Suppress`/disabled tests/commented-out code used anywhere.
+
+---
+
 ## [Unreleased] — Habits undo, wizard chrome and audit fixes (2026-10-31)
 
 ### Reported fixes

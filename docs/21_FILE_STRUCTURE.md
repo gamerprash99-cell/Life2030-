@@ -56,7 +56,8 @@ WHAT BREAKS IF MODIFIED: Changes can affect note actions, diary drafting, report
 
 ### core/ai/AiModels.kt
 PURPOSE: NoteAiAction enum (the 12 note actions), ExtractedTask, ChatMessage
-WHAT BREAKS IF MODIFIED: Adding/removing a NoteAiAction enum value automatically changes the AI actions dropdown in NoteEditorScreen.kt
+WHAT BREAKS IF MODIFIED: NoteAiAction/NoteEditorScreen were retired with the
+Notes module; the enum is retained for backup/restore compatibility only.
 
 
 ### core/reminders/ReminderScheduler.kt and ReminderWorker.kt
@@ -96,11 +97,16 @@ WHAT BREAKS IF MODIFIED: Screens never talk to DAOs directly — changing a repo
 ## domain/ — pure business logic (no Android framework dependencies)
 
 ### domain/model/*.kt
-PURPOSE: NoteBlock (rich-text block types), TimelineItem, Categories.kt (expense categories + HabitAnalytics/HeatmapCell models)
-WHAT BREAKS IF MODIFIED: NoteBlock changes require care since it's serialized to JSON and stored in the database (NoteEntity.contentJson) — old notes must still deserialize correctly
+PURPOSE: NoteBlock (rich-text block types — retained for backup/restore data
+preservation only; the Notes module is retired), TimelineItem,
+Categories.kt (expense categories + HabitAnalytics/HeatmapCell models)
+WHAT BREAKS IF MODIFIED: NoteBlock changes require care since it's serialized
+to JSON and stored in the database (NoteEntity.contentJson) — old notes must
+still deserialize correctly.
 
 ### domain/usecase/BuildTimelineUseCase.kt
-PURPOSE: Aggregates Notes/Tasks/Habits/Expenses/Diary/Captures into the unified Timeline for a given day
+PURPOSE: Aggregates Tasks/Habits/Expenses/Diary/Captures into the unified
+Timeline for a given day (Notes was retired; its rows are no longer aggregated).
 WHAT BREAKS IF MODIFIED: This is the concrete implementation of the app's "everything is connected" principle
 
 ### domain/usecase/GetHomeSummaryUseCase.kt
@@ -111,7 +117,7 @@ WHAT BREAKS IF MODIFIED: Directly drives what HomeScreen.kt displays
 
 ## ui/ — screens and ViewModels
 
-Each subfolder (home/, notes/, tasks/, habits/, expenses/, diary/,
+Each subfolder (home/, tasks/, habits/, expenses/, diary/,
 timeline/, capture/, insights/, search/, ai/, settings/, onboarding/)
 contains one or more *Screen.kt Composable files and their paired
 ViewModel classes (sometimes in the same file, e.g. TasksScreen.kt

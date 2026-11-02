@@ -10,7 +10,7 @@ Make **Habits a permanent primary destination** with a complete, polished experi
 
 Required bottom navigation:
 
-**Home · Notes · ＋ Capture · Habits · Life**
+**Home · Expenses · (+ Capture) · Habits · Life**
 
 - Capture remains the raised centre action, not a selectable tab.
 - Habits becomes a stateful root tab and is one tap away.
@@ -162,19 +162,19 @@ All numbers come from Room. Respect start date and schedule. A scheduled Today s
 ## 8. Navigation target and observed baseline
 
 Inspected baseline:
-- `LifeOSBottomBar.kt`: Home, Notes, Life, You; Capture is a raised centre action.
+- `LifeOSBottomBar.kt`: Home, Expenses, Habits, Life; Capture is a raised centre action.
 - `Screen.Habits` exists but is registered as a stacked module, not a root tab.
 - `Screen.Profile` is currently a root tab.
 - Inspected `Screen.kt` / `LifeOSNavHost.kt` has no Insights destination.
 
 Target:
-- Root tab graph: Home, Notes, Habits, Life.
+- Root tab graph: Home, Expenses, Habits, Life.
 - Capture remains separate centre action.
 - Move Habits into root-tabs graph with save/restore/launchSingleTop semantics.
 - Move Profile out of root tabs but keep route and reachable Home/avatar/Settings path.
 - Habit Detail remains stacked above Habits; Back returns to Habits with selected date/scroll state intact.
 - Preserve all other routes and back-stack behaviour.
-- Update `BottomNavItemsTest` to assert Home, Notes, Habits, Life in order; Capture is not a tab.
+- Update `BottomNavItemsTest` to assert Home, Expenses, Habits, Life in order; Capture is not a tab.
 - Test Home → Habits → Detail → Back and Profile/Settings reachability.
 
 ## 9. Existing files to audit before edits
@@ -235,7 +235,7 @@ Unit tests:
 - Empty score; migration defaults; backup round-trip.
 
 Compose/navigation tests:
-- Home, Notes, Habits, Life order; Capture remains centre action.
+- Home, Expenses, Habits, Life order; Capture remains centre action.
 - Home → Habits → Detail → Back.
 - Tab state/back-stack preservation.
 - Profile/Settings still reachable.
