@@ -137,9 +137,11 @@ class DiaryRepository(
                 when (attachment) {
                     is DiaryAttachment.Photo -> MediaStorage.deleteIfExists(attachment.filePath)
                     is DiaryAttachment.VoiceNote -> MediaStorage.deleteIfExists(attachment.filePath)
-                    // A Place has no file of its own; its coordinates live only
-                    // in the row being deleted.
-                    is DiaryAttachment.Place -> Unit
+                    is DiaryAttachment.Drawing -> MediaStorage.deleteIfExists(attachment.filePath)
+                    is DiaryAttachment.ImportedAudio -> MediaStorage.deleteIfExists(attachment.filePath)
+                    // A Place or ThemeStyle has no file of its own; its data
+                    // lives only in the row being deleted.
+                    else -> Unit
                 }
             }
         }
@@ -152,21 +154,22 @@ class DiaryRepository(
         next: List<DiaryAttachment>
     ) {
         val keptPaths = next.mapNotNull { attachment ->
-            when (attachment) {
-                is DiaryAttachment.Photo -> attachment.filePath
-                is DiaryAttachment.VoiceNote -> attachment.filePath
-                is DiaryAttachment.Place -> null
-            }
+            mediaPath(attachment)
         }.toSet()
 
         previous.forEach { attachment ->
-            val path = when (attachment) {
-                is DiaryAttachment.Photo -> attachment.filePath
-                is DiaryAttachment.VoiceNote -> attachment.filePath
-                is DiaryAttachment.Place -> null
-            }
+            val path = mediaPath(attachment)
             if (path != null && path !in keptPaths) MediaStorage.deleteIfExists(path)
         }
+    }
+
+    /** Returns the backing file path for an attachment that has one, or null. */
+    private fun mediaPath(attachment: DiaryAttachment): String? = when (attachment) {
+        is DiaryAttachment.Photo -> attachment.filePath
+        is DiaryAttachment.VoiceNote -> attachment.filePath
+        is DiaryAttachment.Drawing -> attachment.filePath
+        is DiaryAttachment.ImportedAudio -> attachment.filePath
+        else -> null
     }
 
     /**
@@ -181,8 +184,8 @@ class DiaryRepository(
         val existing = dao.getById(id) ?: return@withContext
         val current = DiaryAttachments.decode(existing.attachmentsJson)
         val next = current.filterNot { attachment ->
-            (attachment is DiaryAttachment.Photo && attachment.filePath == filePath) ||
-                (attachment is DiaryAttachment.VoiceNote && attachment.filePath == filePath)
+            val path = mediaPath(attachment)
+            path != null && path == filePath
         }
         if (next.size == current.size) return@withContext
         deleteOrphanedMedia(current, next)

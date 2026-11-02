@@ -44,6 +44,20 @@ object MediaStorage {
     fun newDiaryAudioFile(context: Context): File =
         File(diaryAudioDir(context), "diary_voice_${uniqueSuffix()}.m4a")
 
+    /** App-private directory for drawing artifacts produced in the editor canvas. */
+    fun diaryDrawingsDir(context: Context): File =
+        File(context.filesDir, "diary-drawings").apply { if (!exists()) mkdirs() }
+
+    fun newDiaryDrawingFile(context: Context): File =
+        File(diaryDrawingsDir(context), "diary_drawing_${uniqueSuffix()}.png")
+
+    /** App-private directory for audio files imported into diary entries. */
+    fun diaryImportedAudioDir(context: Context): File =
+        File(context.filesDir, "diary-imported-audio").apply { if (!exists()) mkdirs() }
+
+    fun newDiaryImportedAudioFile(context: Context, extension: String = ".m4a"): File =
+        File(diaryImportedAudioDir(context), "diary_imported_audio_${uniqueSuffix()}$extension")
+
     // ---- Life Capture (Photo / Video / Audio memories) --------------------
     //
     // Capture media is written here rather than to public storage/MediaStore,

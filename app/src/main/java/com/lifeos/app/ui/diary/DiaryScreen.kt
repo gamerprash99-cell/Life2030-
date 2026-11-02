@@ -110,6 +110,7 @@ fun DiaryScreen(
 
     if (showEditor) {
         DiaryEditor(
+            editorViewModel = editorViewModel,
             dayEpochDay = editorState.dateEpochDay.takeIf { editorState.entryId != null } ?: (editingEntry?.dateEpochDay ?: selectedDay),
             editing = editingEntry,
             timeMinutes = editorState.timeMinutes,
