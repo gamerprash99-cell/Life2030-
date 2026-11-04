@@ -1,4 +1,4 @@
-package com.lifeos.app.ui.diary
+package com.lifeos.app.ui.diary.new
 
 import com.lifeos.app.core.location.LocationFailure
 import com.lifeos.app.core.location.LocationOutcome

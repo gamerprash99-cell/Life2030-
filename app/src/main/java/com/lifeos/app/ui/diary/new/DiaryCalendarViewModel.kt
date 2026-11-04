@@ -1,4 +1,4 @@
-package com.lifeos.app.ui.diary
+package com.lifeos.app.ui.diary.new
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,12 +14,10 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
 
-/** What the calendar renders: the visible month, the grid, and the selected day. */
 data class DiaryCalendarState(
     val year: Int,
     val month: Int,
     val daysWithEntries: Set<Long> = emptySet(),
-    /** Dominant mood per day, for the dot's colour. Absent for a day with no mood. */
     val moodByDay: Map<Long, String> = emptyMap(),
     val entriesForSelectedDay: List<DiaryEntity> = emptyList(),
     val selectedDay: Long = 0L,
@@ -30,17 +28,8 @@ data class DiaryCalendarState(
         java.time.format.TextStyle.FULL, java.util.Locale.getDefault()
     )
 
-    /**
-     * The 42 cells of the grid, padded to whole weeks so every row has seven
-     * days and the columns never jump between months.
-     *
-     * Padded cells are null, and are rendered blank rather than as the previous
-     * or next month's days — a calendar that greys out a *real* date from
-     * another month invites a tap that navigates somewhere unexpected.
-     */
     val gridCells: List<Long?> by lazy {
         val first = LocalDate.of(year, month, 1)
-        // Monday-first, matching the existing diary date strip.
         val leading = (first.dayOfWeek.value - 1)
         val start = first.minusDays(leading.toLong())
         (0 until 42).map { offset ->
@@ -53,36 +42,16 @@ data class DiaryCalendarState(
         get() = year == LocalDate.ofEpochDay(todayEpochDay).year &&
             month == LocalDate.ofEpochDay(todayEpochDay).monthValue
 
-    /** How many entries the selected day holds. */
     val selectedDayCount: Int get() = entriesForSelectedDay.size
 }
 
-/**
- * Drives the month calendar.
- *
- * Selection defaults to today rather than the first of the month: someone
- * opening "October" on the 14th is asking about now, and starting them on the
- * 1st with an empty day panel reads as an empty journal.
- *
- * The month cannot be navigated past today. A future month has no entries by
- * construction — the composer clamps dates to the past — so offering it would
- * be a screen that can only ever show emptiness.
- */
 class DiaryCalendarViewModel(
     private val getCalendar: GetDiaryCalendarUseCase,
     private val today: () -> Long = { DateTimeUtils.today().toEpochDay() }
 ) : ViewModel() {
 
-    /** Guards against a slow month read landing after the user has paged on. */
     private var loadToken = 0L
 
-    /**
-     * The opening month comes from the *injected* clock, not [DateTimeUtils.today].
-     * Reading the system date here while [today] supplied everything else meant
-     * the grid opened on one month and the "is this the current month" check and
-     * the forward-page guard used another — so under any injected clock the
-     * calendar started somewhere the rest of the class disagreed with.
-     */
     private val _state = MutableStateFlow(
         DateTimeUtils.today().let { LocalDate.ofEpochDay(today()) }.let { date ->
             DiaryCalendarState(
@@ -111,7 +80,6 @@ class DiaryCalendarViewModel(
         load()
     }
 
-    /** A no-op once the calendar is showing the current month. */
     fun previousMonth() {
         val current = YearMonth.of(_state.value.year, _state.value.month)
         val previous = current.minusMonths(1)
@@ -135,9 +103,6 @@ class DiaryCalendarViewModel(
         _state.value = current.copy(isLoading = true)
         viewModelScope.launch {
             val month: DiaryMonth = getCalendar(current.year, current.month)
-            // Guard against a slow month read landing after the user has already
-            // paged somewhere else, which would repaint the grid they are
-            // looking at with the month they just left.
             if (token != loadToken) return@launch
             _state.value = _state.value.copy(
                 daysWithEntries = month.daysWithEntries,
@@ -148,13 +113,6 @@ class DiaryCalendarViewModel(
         }
     }
 
-    /**
-     * One mood per day for the dots.
-     *
-     * The rule matches `MoodAnalyzer.dominantMoodByDay` — most frequent wins,
-     * ties broken toward the positive reading — so a day's dot and the same day's
-     * dot on the insights chart can never disagree about what that day was.
-     */
     private fun dominantMoods(entries: List<DiaryEntity>): Map<Long, String> =
         entries.filter { !it.mood.isNullOrBlank() }
             .groupBy { it.dateEpochDay }
@@ -170,6 +128,5 @@ class DiaryCalendarViewModel(
             }
 }
 
-/** Entries for one day, newest first — the same order the diary list uses. */
 private fun DiaryMonth.entriesForDay(epochDay: Long): List<DiaryEntity> =
     entries.filter { it.dateEpochDay == epochDay }.sortedByDescending { it.timeMinutes }

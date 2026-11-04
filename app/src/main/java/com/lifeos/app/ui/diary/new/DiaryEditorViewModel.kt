@@ -1,14 +1,13 @@
-package com.lifeos.app.ui.diary
+package com.lifeos.app.ui.diary.new
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifeos.app.core.location.LocationProvider
 import com.lifeos.app.core.location.LocationFailure
 import com.lifeos.app.core.location.LocationOutcome
 import com.lifeos.app.core.media.AudioPlayback
-import com.lifeos.app.core.media.PhotoImporter
 import com.lifeos.app.core.media.AudioRecorder
+import com.lifeos.app.core.media.PhotoImporter
 import com.lifeos.app.core.media.PlaybackState
 import com.lifeos.app.core.media.RecordingState
 import com.lifeos.app.core.util.DateTimeUtils
@@ -26,22 +25,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** Everything the composer renders. All fields are real user input or real device data. */
 private const val MAX_MEMORY_CHARACTERS = 1000
-
-/**
- * Cap on the optional title.
- *
- * The body has always been capped at 1000 characters; the title did not exist as
- * an input until this change, and an unbounded `TEXT` column fed by a free-text
- * field is how a title ends up holding an entire pasted paragraph — which then
- * flows into the timeline card, the search result row and the insights snapshot
- * with no bound anywhere in the path. Truncating silently on input is the same
- * contract the body already has.
- */
 private const val MAX_TITLE_CHARACTERS = 120
-
-/** Tags are a short label, not a sentence. Same reasoning as the title. */
 private const val MAX_TAG_CHARACTERS = 32
 
 data class DiaryEditorState(
@@ -56,32 +41,18 @@ data class DiaryEditorState(
     val photos: List<DiaryAttachment.Photo> = emptyList(),
     val voiceNote: DiaryAttachment.VoiceNote? = null,
     val place: DiaryAttachment.Place? = null,
-    /** The app-private path of the audio file currently playing (voice note or imported). */
     val playingFilePath: String? = null,
-    /** Per-entry background/theme selection (presentation metadata). */
     val theme: DiaryAttachment.ThemeStyle? = null,
-    /** Stickers placed on the page, in insertion order. */
     val stickers: List<DiaryAttachment.Sticker> = emptyList(),
-    /** The drawing artifact attached to this entry, if any. */
     val drawing: DiaryAttachment.Drawing? = null,
-    /** Audio files the user imported into this entry. */
     val importedAudio: List<DiaryAttachment.ImportedAudio> = emptyList(),
     val locationStatus: LocationStatus = LocationStatus.IDLE,
     val weather: DiaryWeather = DiaryWeather.Unavailable(DiaryWeather.UnavailableReason.NO_LOCATION),
     val recording: RecordingState = RecordingState.Idle,
     val playback: PlaybackState = PlaybackState.Idle,
     val isSaving: Boolean = false,
-    /**
-     * True while the row being edited is still being read. Until it arrives the
-     * draft has no id, so a save would insert a duplicate instead of updating.
-     */
     val isLoading: Boolean = false,
     val savedEntryId: String? = null,
-    /**
-     * Monotonic count of committed writes. A counter rather than a boolean,
-     * because saving the *same* memory twice is two events — keying a one-shot
-     * UI effect on the id would swallow the second one.
-     */
     val saveCount: Int = 0,
     val errorMessage: String? = null
 ) {
@@ -89,55 +60,17 @@ data class DiaryEditorState(
         content.isNotBlank() && !isSaving && !isLoading && recording !is RecordingState.Recording
 }
 
-/**
- * Where the "Add location" flow currently is.
- *
- * The three added values are the *whole point* of this type. Before, every
- * reason a fix can fail that was not a permission problem collapsed into
- * [FAILED], and the row had no way to tell them apart — so "location is
- * switched off in the OS" rendered as an ordinary tappable "Add current
- * location", an action that cannot succeed until the user leaves the app. Each
- * distinct cause is now a distinct state, and [FAILED] is only ever the
- * genuinely unexpected case.
- *
- * Note what is deliberately *not* here: there is no `ATTACHED`. A place is
- * attached when `place != null`, and adding a second way to say that would give
- * the state two sources of truth and risk the attached rendering.
- */
 enum class LocationStatus {
-    /** Nothing attempted yet, or cleared. The normal action is available. */
     IDLE,
-
-    /** A fix is in flight. */
     REQUESTING,
-
-    /** Runtime permission refused, but the OS will still show the prompt. */
     PERMISSION_DENIED,
-
-    /** Refused permanently; the OS prompt is now a silent no-op. */
     PERMISSION_PERMANENTLY_DENIED,
-
-    /** Permission is fine, but location is switched off for the whole device. */
     SERVICE_DISABLED,
-
-    /** The device exposes no location service at all. */
     NO_PROVIDER,
-
-    /** Permission fine, service on, but no fix yet. Transient; worth retrying. */
     NO_FIX,
-
-    /** Unexpected. The only state treated as an error rather than a state. */
     FAILED
 }
 
-/**
- * Drives the full-screen diary composer.
- *
- * Responsibilities are deliberately narrow: hold the draft, own the real
- * recorder/player, ask the real location provider, and persist through
- * [DiaryRepository]. All heavy I/O (file copies, geocoding) runs on
- * [Dispatchers.IO] so the frame never blocks.
- */
 class DiaryEditorViewModel(
     private val diaryRepository: DiaryRepository,
     private val weatherRepository: WeatherRepository,
@@ -145,47 +78,16 @@ class DiaryEditorViewModel(
     private val recorder: AudioRecorder,
     private val player: AudioPlayback,
     private val photoImporter: PhotoImporter,
-    /**
-     * The clock, injected so the timestamp rules can be tested on a JVM and so a
-     * minute is read once, when the composer opens, rather than drifting while
-     * the user writes.
-     */
     private val nowMinutes: () -> Int = DateTimeUtils::nowMinutesOfDay,
     private val todayEpochDay: () -> Long = { DateTimeUtils.today().toEpochDay() }
 ) : ViewModel() {
 
-    /**
-     * Guards the asynchronous part of [start] against a newer open overtaking
-     * it, so a slow database read cannot land on top of a fresher draft.
-     */
     private var loadToken = 0L
-
     private val _state = MutableStateFlow(DiaryEditorState())
     val state: StateFlow<DiaryEditorState> = _state.asStateFlow()
 
-    /**
-     * Loads the entry being edited, or seeds a blank draft for a new one.
-     *
-     * [defaultDay] is the day currently being read in the list, not necessarily
-     * today: writing while looking at a past day must land in that day, so the
-     * draft is seeded with it rather than with `today()`.
-     *
-     * The minute is captured here, when the editor opens, so a long entry is
-     * filed under the time the user started writing rather than the time they
-     * finished. Editing keeps the entry's original minute, so re-saving can
-     * never move a memory within the day's timeline.
-     */
     fun start(entryId: String?, defaultDay: Long = todayEpochDay()) {
-        // Deliberately re-seeds rather than early-returning on a non-empty
-        // draft: this view model is reused for the "new memory" key, so opening
-        // the composer a second time must start a *fresh* draft with a freshly
-        // captured minute. Returning early here would file the second memory
-        // under the first one's timestamp. The async load below is guarded by
-        // [loadToken] so a slow read can never overwrite newer input.
         val token = ++loadToken
-        // The confirmation count belongs to this view model, not to the draft,
-        // so re-seeding a draft must not rewind it. Otherwise a second save of
-        // the same memory would reuse a count the UI has already acknowledged.
         val committedWrites = _state.value.saveCount
         if (entryId == null) {
             _state.value = DiaryEditorState(
@@ -247,17 +149,11 @@ class DiaryEditorViewModel(
         if (current.any { it.equals(tag, ignoreCase = true) }) return
         _state.value = _state.value.copy(tags = current + tag)
     }
-
     fun removeTag(tag: String) {
         _state.value = _state.value.copy(tags = _state.value.tags.filterNot { it == tag })
     }
 
-    /**
-     * Copies a picked photo into app-private storage so the entry keeps working
-     * after the source image is deleted or a provider read grant expires.
-     * A failed copy surfaces an error instead of persisting a dead reference.
-     */
-    fun attachPhoto(sourceUri: Uri) {
+    fun attachPhoto(sourceUri: android.net.Uri) {
         viewModelScope.launch {
             val stored = withContext(Dispatchers.IO) { photoImporter.import(sourceUri) }
             if (stored == null) {
@@ -267,19 +163,11 @@ class DiaryEditorViewModel(
             _state.value = _state.value.copy(photos = _state.value.photos + stored)
         }
     }
-
     fun removePhoto(photo: DiaryAttachment.Photo) {
         _state.value = _state.value.copy(photos = _state.value.photos.filterNot { it.filePath == photo.filePath })
         viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(photo.filePath) }
     }
 
-    // ---- location -------------------------------------------------------
-
-    /**
-     * Requests the real current place. Callers must have already obtained the
-     * user's consent (the permission launcher lives in the composable); this
-     * only reads the permission state to decide which honest outcome to report.
-     */
     fun attachLocation(isPermanentlyDenied: Boolean = false) {
         if (!locationProvider.hasLocationPermission()) {
             _state.value = _state.value.copy(
@@ -292,27 +180,13 @@ class DiaryEditorViewModel(
         viewModelScope.launch {
             when (val outcome = locationProvider.currentPlace()) {
                 is LocationOutcome.Success -> {
-                    val place = outcome.place.copy(placeName = outcome.placeName)
                     _state.value = _state.value.copy(
-                        place = place,
+                        place = outcome.place,
                         locationStatus = LocationStatus.IDLE
                     )
                     refreshWeather()
                 }
                 is LocationOutcome.Failure -> {
-                    // One state per cause. Collapsing these into FAILED is what
-                    // made "Add current location" appear while location was
-                    // switched off: the row could not tell the reasons apart,
-                    // so it fell through to its ordinary action.
-                    //
-                    // The reason is NOT copied into `errorMessage` any more.
-                    // That field is shared with photo, voice, save and load
-                    // errors and is rendered once at the foot of the whole
-                    // attachments column — so a location problem was explained
-                    // hundreds of dp below the control that caused it, in red,
-                    // and vanished on the next keystroke. The reason now lives
-                    // in `locationStatus` and is explained by the row that owns
-                    // it, where it cannot be confused with an unrelated error.
                     _state.value = _state.value.copy(
                         locationStatus = locationStatusFor(outcome.reason)
                     )
@@ -320,7 +194,6 @@ class DiaryEditorViewModel(
             }
         }
     }
-
     fun clearLocation() {
         _state.value = _state.value.copy(
             place = null,
@@ -338,32 +211,17 @@ class DiaryEditorViewModel(
         LocationFailure.PERMISSION_DENIED -> LocationStatus.PERMISSION_DENIED
         LocationFailure.PROVIDERS_DISABLED -> LocationStatus.SERVICE_DISABLED
         LocationFailure.NO_PROVIDER -> LocationStatus.NO_PROVIDER
-        // A missing fix is not a distinct kind of problem — it is the normal
-        // answer from a device that has just been woken up indoors — so it
-        // shares the generic "could not attach" presentation while keeping its
-        // own state for the retry affordance.
         LocationFailure.NO_FIX -> LocationStatus.NO_FIX
     }
-
-    // ---- audio ----------------------------------------------------------
 
     fun startRecording() {
         val started = recorder.start()
         _state.value = _state.value.copy(recording = started, errorMessage = null)
     }
-
-    /** Advances the visible duration/level from the real recorder clock. */
-    fun tickRecording() {
-        val ticked = recorder.tick()
-        if (ticked != _state.value.recording) _state.value = _state.value.copy(recording = ticked)
-    }
-
     fun stopRecording() {
         val result = recorder.stop()
         when (result) {
             is RecordingState.Finished -> {
-                // A finished take replaces any previous voice note on this entry,
-                // and the old file is reclaimed rather than orphaned.
                 val previousVoicePath = _state.value.voiceNote?.filePath
                 if (previousVoicePath != null) viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(previousVoicePath) }
                 _state.value = _state.value.copy(
@@ -382,13 +240,11 @@ class DiaryEditorViewModel(
             else -> _state.value = _state.value.copy(recording = result)
         }
     }
-
     fun cancelRecording() {
         recorder.cancel()
         _state.value = _state.value.copy(recording = RecordingState.Idle)
     }
 
-    /** Toggles playback for any audio file (recorded voice note or imported). */
     fun toggleAudioPlayback(filePath: String) {
         val result = player.toggle(filePath)
         if (result is PlaybackState.MissingFile) {
@@ -404,13 +260,10 @@ class DiaryEditorViewModel(
             )
         }
     }
-
-    /** Toggles the recorded voice note's playback. Kept for existing callers. */
     fun togglePlayback() {
         val note = _state.value.voiceNote ?: return
         toggleAudioPlayback(note.filePath)
     }
-
     fun removeVoiceNote() {
         player.stop()
         val path = _state.value.voiceNote?.filePath
@@ -422,45 +275,16 @@ class DiaryEditorViewModel(
         if (path != null) viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(path) }
     }
 
-    // ---- rich content ---------------------------------------------------
-
-    /** Sets or clears the per-entry theme/background style. */
     fun setTheme(key: String?) {
         _state.value = _state.value.copy(theme = key?.let { DiaryAttachment.ThemeStyle(it) })
     }
 
-    /** Adds a sticker at the given normalized position and scale. */
     fun addSticker(assetKey: String, x: Float, y: Float, scale: Float = 1f, rotation: Float = 0f) {
         _state.value = _state.value.copy(
             stickers = _state.value.stickers + DiaryAttachment.Sticker(assetKey, x, y, scale, rotation)
         )
     }
 
-    /** Replaces a sticker's transform (used while dragging/resizing). Identifies
-     * the sticker by asset key + current position, so the user's in-flight
-     * gesture lands on the right object. */
-    fun moveSticker(assetKey: String, fromX: Float, fromY: Float, toX: Float, toY: Float,
-                    scale: Float, rotation: Float) {
-        _state.value = _state.value.copy(
-            stickers = _state.value.stickers.map { s ->
-                if (s.assetKey == assetKey && s.x == fromX && s.y == fromY)
-                    s.copy(x = toX, y = toY, scale = scale, rotation = rotation)
-                else s
-            }
-        )
-    }
-
-    /** Removes the sticker identified by asset key and position. */
-    fun removeSticker(assetKey: String, x: Float, y: Float) {
-        _state.value = _state.value.copy(
-            stickers = _state.value.stickers.filterNot {
-                it.assetKey == assetKey && it.x == x && it.y == y
-            }
-        )
-    }
-
-    /** Attaches a drawing artifact produced by the drawing canvas. Replaces any
-     * previous drawing on this entry (an entry carries one drawing). */
     fun setDrawing(filePath: String, width: Float, height: Float) {
         val previous = _state.value.drawing?.filePath
         if (previous != null && previous != filePath) {
@@ -470,17 +294,13 @@ class DiaryEditorViewModel(
             drawing = DiaryAttachment.Drawing(filePath, width, height)
         )
     }
-
-    /** Removes the drawing and reclaims its artifact file. */
     fun removeDrawing() {
         val path = _state.value.drawing?.filePath
         _state.value = _state.value.copy(drawing = null)
         if (path != null) viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(path) }
     }
 
-    /** Attaches an already-copied imported audio file to the draft. The caller
-     * (the media sheet) copies the source URI into an app-private file first. */
-    fun addImportedAudioFile(file: java.io.File, mimeType: String, displayName: String) {
+    fun addImportedAudioFile(file: File, mimeType: String, displayName: String) {
         _state.value = _state.value.copy(
             importedAudio = _state.value.importedAudio + DiaryAttachment.ImportedAudio(
                 filePath = file.absolutePath,
@@ -490,8 +310,6 @@ class DiaryEditorViewModel(
             )
         )
     }
-
-    /** Removes imported audio identified by its app-private path. */
     fun removeImportedAudio(filePath: String) {
         _state.value = _state.value.copy(
             importedAudio = _state.value.importedAudio.filter { it.filePath != filePath },
@@ -500,13 +318,6 @@ class DiaryEditorViewModel(
         viewModelScope.launch(Dispatchers.IO) { MediaStorage.deleteIfExists(filePath) }
     }
 
-    // ---- persistence ----------------------------------------------------
-
-    /**
-     * Persists the draft. New entries keep the exact date/time the user chose
-     * (so a back-dated entry stays back-dated) and record `createdAt` from the
-     * real clock, not from the entry's own date.
-     */
     fun save() {
         val current = _state.value
         if (!current.canSave) return
@@ -565,7 +376,6 @@ class DiaryEditorViewModel(
     fun dismissError() { _state.value = _state.value.copy(errorMessage = null) }
 
     override fun onCleared() {
-        // Never leave the mic or the audio decoder open behind a dead screen.
         recorder.cancel()
         player.release()
         super.onCleared()

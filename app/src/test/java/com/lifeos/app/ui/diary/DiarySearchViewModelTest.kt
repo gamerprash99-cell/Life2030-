@@ -1,4 +1,4 @@
-package com.lifeos.app.ui.diary
+package com.lifeos.app.ui.diary.new
 
 import androidx.lifecycle.viewModelScope
 import com.lifeos.app.data.repository.DiaryRepository
