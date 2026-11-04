@@ -1,4 +1,4 @@
-package com.lifeos.app.ui.diary.new
+package com.lifeos.app.ui.diary
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,22 +32,36 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.lifeos.app.ui.diary.new.DiaryListTemplate
-import com.lifeos.app.ui.diary.new.DiaryListTemplates
+import androidx.compose.ui.unit.sp
 import com.lifeos.app.ui.theme.DiaryActionViolet
 import com.lifeos.app.ui.theme.DiaryInkSoft
 import com.lifeos.app.ui.theme.DiaryInkViolet
 import com.lifeos.app.ui.theme.DiaryLavender
 import com.lifeos.app.ui.theme.LifeOSSpacing
 
-/**
- * Diary List Picker — new visual design.
- *
- * Template grid: bullet, numbered, checkbox, dash. Insert at caret.
- * Reuses the existing [DiaryListTemplates] definition for backward-compatible list markers.
- */
+object DiaryListTemplates {
+    val ALL = listOf(
+        DiaryListTemplate("bullet", "Bullet list", "•", "Lists"),
+        DiaryListTemplate("numbered", "Numbered list", "1.", "Lists"),
+        DiaryListTemplate("checkbox", "Checkbox list", "- [ ]", "Tasks"),
+        DiaryListTemplate("dash", "Dash list", "–", "Lists")
+    )
+
+    val CATEGORIES = ALL.map { it.category }.distinct()
+
+    fun byCategory(category: String): List<DiaryListTemplate> =
+        ALL.filter { it.category == category }
+}
+
+data class DiaryListTemplate(
+    val key: String,
+    val name: String,
+    val marker: String,
+    val category: String
+)
+
 @Composable
-fun DiaryNewListPickerSheet(
+fun DiaryListPickerSheet(
     onTemplateSelected: (DiaryListTemplate) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -65,26 +79,22 @@ fun DiaryNewListPickerSheet(
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(DiaryNewPanel)
+                .background(DiaryLavender)
                 .padding(top = 40.dp, bottom = 16.dp)
                 .align(Alignment.BottomCenter)
         ) {
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = DiaryNewScreenPadding, vertical = 12.dp),
+                Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     "List style",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = DiaryNewInk
-                    )
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = DiaryInkViolet
                 )
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel", color = DiaryNewInkSoft)
+                    Text("Cancel", color = DiaryInkSoft)
                 }
             }
 
@@ -92,42 +102,28 @@ fun DiaryNewListPickerSheet(
 
             Text(
                 "Category",
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    color = DiaryNewInkSoft
-                ),
-                modifier = Modifier
-                    .padding(
-                        start = DiaryNewScreenPadding,
-                        top = 4.dp,
-                        end = DiaryNewScreenPadding,
-                        bottom = 8.dp
-                    )
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = DiaryInkSoft,
+                modifier = Modifier.padding(start = LifeOSSpacing.screenPadding, top = 4.dp, end = LifeOSSpacing.screenPadding, bottom = 8.dp)
             )
             LazyRow(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = DiaryNewScreenPadding),
+                Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                itemsIndexed<String>(DiaryListTemplates.CATEGORIES) { _, cat ->
+                itemsIndexed(DiaryListTemplates.CATEGORIES) { _, cat ->
                     val isSelected = category == cat
                     Box(
                         Modifier
                             .clip(CircleShape)
-                            .background(
-                                if (isSelected) DiaryNewSave else DiaryNewLavender.copy(alpha = 0.5f)
-                            )
+                            .background(if (isSelected) DiaryActionViolet else DiaryLavender.copy(alpha = 0.5f))
                             .clickable(onClick = { category = cat })
                             .size(36.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             cat.first().toString().uppercase(),
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Medium
-                            ),
-                            color = if (isSelected) Color.White else DiaryNewInk
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                            color = if (isSelected) Color.White else DiaryInkViolet
                         )
                     }
                 }
@@ -137,10 +133,10 @@ fun DiaryNewListPickerSheet(
 
             val templatesInCategory = DiaryListTemplates.byCategory(category)
             LazyColumn(
-                Modifier.fillMaxWidth().padding(horizontal = DiaryNewScreenPadding)
+                Modifier.fillMaxWidth().padding(horizontal = LifeOSSpacing.screenPadding)
             ) {
                 itemsIndexed(templatesInCategory) { _, template ->
-                    DiaryNewListTemplateCard(
+                    ListTemplateCard(
                         template = template,
                         onClick = { onTemplateSelected(template) }
                     )
@@ -153,10 +149,7 @@ fun DiaryNewListPickerSheet(
 }
 
 @Composable
-private fun DiaryNewListTemplateCard(
-    template: DiaryListTemplate,
-    onClick: () -> Unit
-) {
+private fun ListTemplateCard(template: DiaryListTemplate, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -166,40 +159,32 @@ private fun DiaryNewListTemplateCard(
             .padding(horizontal = 4.dp)
     ) {
         Box(
-            Modifier
-                .size(52.dp)
-                .clip(CircleShape)
-                .background(DiaryNewLavender.copy(alpha = 0.6f)),
+            Modifier.size(52.dp).clip(CircleShape).background(DiaryLavender.copy(alpha = 0.6f)),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 template.marker,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    color = DiaryNewInk
-                )
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = DiaryInkViolet
             )
         }
         Spacer(Modifier.width(12.dp))
         Column(
-            Modifier.fillMaxWidth(),
+            Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
                 template.name,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    color = DiaryNewInk
-                ),
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = DiaryInkViolet,
                 maxLines = 1
             )
             Text(
                 template.category,
-                style = MaterialTheme.typography.labelSmall.copy(color = DiaryNewInkSoft),
+                style = MaterialTheme.typography.labelSmall,
+                color = DiaryInkSoft,
                 maxLines = 1
             )
         }
     }
 }
-
-
