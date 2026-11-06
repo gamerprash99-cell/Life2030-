@@ -1,4 +1,4 @@
-package com.lifeos.app.ui.diary.new
+package com.lifeos.app.ui.diary
 
 import com.lifeos.app.data.db.dao.DiaryDao
 import com.lifeos.app.data.db.entities.DiaryEntity
