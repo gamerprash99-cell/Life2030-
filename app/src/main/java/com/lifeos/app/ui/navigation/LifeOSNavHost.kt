@@ -25,13 +25,15 @@ import com.lifeos.app.ui.ai.AiAssistantScreen
 import com.lifeos.app.ui.capture.AudioPlayerScreen
 import com.lifeos.app.ui.capture.AudioRecorderScreen
 import com.lifeos.app.ui.capture.CaptureHubScreen
-import com.lifeos.app.ui.diary.`new`.DiaryDetailViewModel
-import com.lifeos.app.ui.diary.`new`.DiaryHomeScreen
-import com.lifeos.app.ui.diary.`new`.DiaryNewCalendarScreen
-import com.lifeos.app.ui.diary.`new`.DiaryNewDetailScreen
-import com.lifeos.app.ui.diary.`new`.DiaryNewInsightsScreen
-import com.lifeos.app.ui.diary.`new`.DiaryNewSearchScreen
-import com.lifeos.app.ui.diary.`new`.DiaryTheme
+import com.lifeos.app.ui.diary.DiaryCalendarScreen
+import com.lifeos.app.ui.diary.DiaryCalendarViewModel
+import com.lifeos.app.ui.diary.DiaryDetailScreen
+import com.lifeos.app.ui.diary.DiaryInsightsScreen
+import com.lifeos.app.ui.diary.DiaryInsightsViewModel
+import com.lifeos.app.ui.diary.DiaryScreen
+import com.lifeos.app.ui.diary.DiarySearchScreen
+import com.lifeos.app.ui.diary.DiarySearchViewModel
+import com.lifeos.app.ui.diary.DiaryTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
@@ -310,7 +312,7 @@ fun LifeOSNavHost() {
                 }
                 composable(Screen.Diary.route) {
                     DiaryTheme {
-                        DiaryHomeScreen(
+                        DiaryScreen(
                             onBack = { navController.popBackStack() },
                             onOpenEntry = { entryId -> navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true } },
                             onOpenSearch = { navController.navigate(Screen.DiarySearch.route) { launchSingleTop = true } },
@@ -329,7 +331,17 @@ fun LifeOSNavHost() {
                 // sitting there when you came back.
                 composable(Screen.DiarySearch.route) {
                     DiaryTheme {
-                        DiaryNewSearchScreen(
+                        val locator = LocalServiceLocator.current
+                        val viewModel: DiarySearchViewModel = viewModel(
+                            factory = LambdaViewModelFactory { DiarySearchViewModel(locator.searchDiaryEntriesUseCase) }
+                        )
+                        val state by viewModel.state.collectAsStateWithLifecycle()
+                        DiarySearchScreen(
+                            state = state,
+                            onQueryChange = viewModel::onQueryChange,
+                            onMoodFilterChange = viewModel::onMoodFilterChange,
+                            onSubmit = viewModel::onSubmit,
+                            onClearQuery = viewModel::onClearQuery,
                             onBack = { navController.popBackStack() },
                             onOpenEntry = { entryId ->
                                 navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true }
@@ -340,7 +352,16 @@ fun LifeOSNavHost() {
 
                 composable(Screen.DiaryCalendar.route) {
                     DiaryTheme {
-                        DiaryNewCalendarScreen(
+                        val locator = LocalServiceLocator.current
+                        val viewModel: DiaryCalendarViewModel = viewModel(
+                            factory = LambdaViewModelFactory { DiaryCalendarViewModel(locator.getDiaryCalendarUseCase) }
+                        )
+                        val state by viewModel.state.collectAsStateWithLifecycle()
+                        DiaryCalendarScreen(
+                            state = state,
+                            onSelectDay = viewModel::selectDay,
+                            onPreviousMonth = viewModel::previousMonth,
+                            onNextMonth = viewModel::nextMonth,
                             onBack = { navController.popBackStack() },
                             onOpenEntry = { entryId ->
                                 navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true }
@@ -351,9 +372,15 @@ fun LifeOSNavHost() {
 
                 composable(Screen.DiaryInsights.route) {
                     DiaryTheme {
-                        DiaryNewInsightsScreen(
+                        val locator = LocalServiceLocator.current
+                        val viewModel: DiaryInsightsViewModel = viewModel(
+                            factory = LambdaViewModelFactory { DiaryInsightsViewModel(locator.getDiaryInsightsUseCase) }
+                        )
+                        val state by viewModel.state.collectAsStateWithLifecycle()
+                        DiaryInsightsScreen(
+                            state = state,
                             onBack = { navController.popBackStack() },
-                            onReload = { /* reload handled by ViewModel internally */ }
+                            onReload = viewModel::reload
                         )
                     }
                 }
@@ -363,7 +390,7 @@ fun LifeOSNavHost() {
                 ) { entry ->
                     val entryId = entry.arguments?.getString("entryId").orEmpty()
                     DiaryTheme {
-                        DiaryNewDetailScreen(
+                        DiaryDetailScreen(
                             entryId = entryId,
                             onBack = { navController.popBackStack() }
                         )
