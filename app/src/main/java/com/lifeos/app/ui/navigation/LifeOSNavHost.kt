@@ -25,13 +25,13 @@ import com.lifeos.app.ui.ai.AiAssistantScreen
 import com.lifeos.app.ui.capture.AudioPlayerScreen
 import com.lifeos.app.ui.capture.AudioRecorderScreen
 import com.lifeos.app.ui.capture.CaptureHubScreen
-import com.lifeos.app.ui.diary.new.DiaryDetailViewModel
-import com.lifeos.app.ui.diary.new.DiaryHomeScreen
-import com.lifeos.app.ui.diary.new.DiaryNewCalendarScreen
-import com.lifeos.app.ui.diary.new.DiaryNewDetailScreen
-import com.lifeos.app.ui.diary.new.DiaryNewInsightsScreen
-import com.lifeos.app.ui.diary.new.DiaryNewSearchScreen
-import com.lifeos.app.ui.diary.new.DiaryTheme
+import com.lifeos.app.ui.diary.`new`.DiaryDetailViewModel
+import com.lifeos.app.ui.diary.`new`.DiaryHomeScreen
+import com.lifeos.app.ui.diary.`new`.DiaryNewCalendarScreen
+import com.lifeos.app.ui.diary.`new`.DiaryNewDetailScreen
+import com.lifeos.app.ui.diary.`new`.DiaryNewInsightsScreen
+import com.lifeos.app.ui.diary.`new`.DiaryNewSearchScreen
+import com.lifeos.app.ui.diary.`new`.DiaryTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
@@ -54,7 +54,7 @@ import com.lifeos.app.ui.tasks.TasksScreen
  * Whether the full-screen composer (New / Edit Memory) currently has the window.
  *
  * The composer is rendered as an in-place branch *inside* a destination
- * ([com.lifeos.app.ui.diary.new.DiaryHomeScreen] and DiaryDetailScreen swap it in place),
+ * ([com.lifeos.app.ui.diary.`new`.DiaryHomeScreen] and DiaryDetailScreen swap it in place),
  * so `LifeOSNavHost` can see the route but never "is the composer open". Without
  * this holder the bottom bar could only be hidden while the keyboard happened to
  * be up, which is why the editor competed with the navigation and lost ~100dp of
