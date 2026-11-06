@@ -1,4 +1,4 @@
-package com.lifeos.app.ui.diary
+package com.lifeos.app.ui.diary.new
 
 import androidx.compose.ui.unit.dp
 import com.lifeos.app.ui.theme.LifeOSSpacing

@@ -1,4 +1,4 @@
-package com.lifeos.app.ui.diary
+package com.lifeos.app.ui.diary.new
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull

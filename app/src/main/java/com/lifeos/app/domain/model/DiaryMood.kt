@@ -42,8 +42,8 @@ data class DiaryMood(
  * every historical entry.
  *
  * Colour is *not* modelled here. The accent and pastel wash for a mood are a
- * rendering decision that belongs to the theme layer; see
- * `ui/diary/DiaryMoodVisuals`. Keeping `DiaryMood` free of Compose is what
+ * rendering decision that belongs to the theme layer (see the Diary design
+ * tokens in `ui/diary/new/DiaryDesign.kt`). Keeping `DiaryMood` free of Compose is what
  * lets the analyzers and the DAO-side code depend on it.
  */
 object DiaryMoods {
