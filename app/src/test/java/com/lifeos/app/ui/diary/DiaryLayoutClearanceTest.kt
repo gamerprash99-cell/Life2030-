@@ -1,4 +1,4 @@
-package com.lifeos.app.ui.diary.new
+package com.lifeos.app.ui.diary
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
