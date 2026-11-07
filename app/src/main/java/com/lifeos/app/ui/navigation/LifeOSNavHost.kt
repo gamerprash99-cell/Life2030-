@@ -56,7 +56,7 @@ import com.lifeos.app.ui.tasks.TasksScreen
  * Whether the full-screen composer (New / Edit Memory) currently has the window.
  *
  * The composer is rendered as an in-place branch *inside* a destination
- * ([com.lifeos.app.ui.diary.DiaryScreen] and DiaryDetailScreen swap it in place),
+ * ([com.lifeos.app.ui.diary.DiaryHomeScreen2] and DiaryDetailScreen swap it in place),
  * so `LifeOSNavHost` can see the route but never "is the composer open". Without
  * this holder the bottom bar could only be hidden while the keyboard happened to
  * be up, which is why the editor competed with the navigation and lost ~100dp of

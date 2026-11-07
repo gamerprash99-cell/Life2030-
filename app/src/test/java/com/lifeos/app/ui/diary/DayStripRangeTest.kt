@@ -1,4 +1,4 @@
-package com.lifeos.app.ui.diary.new
+package com.lifeos.app.ui.diary
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

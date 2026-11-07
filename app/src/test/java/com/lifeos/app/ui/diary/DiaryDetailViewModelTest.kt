@@ -1,4 +1,4 @@
-package com.lifeos.app.ui.diary.new
+package com.lifeos.app.ui.diary
 
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
