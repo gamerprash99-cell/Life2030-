@@ -447,3 +447,92 @@ sh ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroid
 - `./gradlew :app:assembleDebug` — success (see below).
 - `connectedDebugAndroidTest` — not executed (no adb/emulator/device in this environment).
 
+
+## 2026-11-06 — LifeOS Diary redesign (audit + partial implementation)
+
+Scope: redesign the Diary experience toward the supplied reference video (`1000276437.mp4`), keeping the existing data layer, architecture, and user data intact.
+
+### What was done
+- **Phase A audit** — verified repository state (branch `main`, HEAD `9947211`), read all Diary specs/docs, traced the complete data flow (UI → ViewModel → Repository → DAO → Room), confirmed Room schema v7 (no migration needed), recorded existing capabilities, and identified stubs (drawing, camera, audio import, inline rich rendering, first-entry celebration). Created `docs/diary-redesign/00-current-diary-audit.md`.
+- **Figma** — created design file `EcERw5RozoOh8fhf84Kafj` (session `652e70aa-3953-4abb-99c9-cefdf42af252`). MCP rate-limit (Starter plan) prevented populating the canvas; design is documented in `docs/diary-redesign/01-figma-design-spec.md` ready to build once MCP calls are available.
+- **Implementation** — added `DiaryMediaSheet.kt` (Camera + Photos & Videos). Wired `DiaryEditorPalette.DRAWING/MEDIA/AUDIO` as explicit stubs in `DiaryEditor.kt`; added `RichInlineLayer` + inline sticker/drawing rendering composables (gated behind stubs). No Room schema change — rich content serializes into existing `attachmentsJson`.
+- **Documentation** — created `docs/diary-redesign/00..05` and `CLAUDE_HANDOFF.md`; appended this entry to `UPDATE.md`.
+
+### What was NOT completed
+- Figma canvas not populated (MCP rate-limited).
+- Drawing canvas, media sheet, audio import panel, inline rich rendering, and first-entry celebration are stubbed or partially implemented; visible but not fully functional.
+- Unit tests fail to compile due to a **pre-existing** test-package mismatch (`diary.new` vs `diary` sources) — not caused by this work.
+- No device/emulator available, so instrumentation tests and on-device QA (14-step journey) not executed.
+
+### Verification
+```
+sh ./gradlew :app:compileDebugKotlin   → BUILD SUCCESSFUL
+sh ./gradlew :app:assembleDebug        → BUILD SUCCESSFUL (app-debug.apk)
+sh ./gradlew :app:assembleDebugAndroidTest → BUILD SUCCESSFUL
+sh ./gradlew :app:lintDebug            → BUILD SUCCESSFUL (0 errors)
+sh ./gradlew :app:testDebugUnitTest    → FAIL (compile; pre-existing diary.new test-package mismatch)
+```
+
+### Data safety
+- No Room table dropped/recreated; no schema change; no migration.
+- Existing diary entries, media paths, and `attachmentsJson` preserved byte-identical.
+- No `INTERNET`, no cloud, no telemetry, no external AI; all data on-device.
+
+
+## 2026-11-07 — LifeOS Diary redesign v2 (new Compose UI implementation)
+
+Scope: completely new Diary UI implementation using pastel pink/lavender design system,
+keeping the existing data layer, architecture, and user data intact.
+
+### Stitch / Figma Integration Status
+- **Google Stitch screen generation — UNAVAILABLE.** `generate_screen_from_text()` consistently
+  times out (MCP error -32001: Request timed out) across all projects. `create_project({})`
+  works but creates empty projects. `download_file()` works for reading existing files only.
+- **Figma MCP — NOT AVAILABLE.** The `use_figma` tool is not in the available tool catalog.
+- Per project rules, this limitation is reported honestly; no design was pretended to be generated.
+
+### New Files Created
+- `app/src/main/java/com/lifeos/app/ui/theme/DiaryDesign2.kt` — Pastel pink/lavender design system v2
+  (colors, typography, spacing, shapes scoped to Diary module)
+- `app/src/main/java/com/lifeos/app/ui/diary/DiaryHomeScreen2.kt` — New entries dashboard home screen
+  with pastel pink canvas, date masthead, entry cards with mood emoji/favorite/attachment indicators,
+  prominent New Entry FAB, empty state, save confirmation sheet, delete dialog
+- `app/src/main/java/com/lifeos/app/ui/diary/DiaryEditorScreen2.kt` — New full-screen composer
+  with pastel pink canvas, handwritten date strip, ruled writing surface, bottom toolbar above IME
+  insets, contextual tool palette buttons (Theme, Stickers, Drawing, List, Media, Audio)
+
+### Modified Files
+- `app/src/main/java/com/lifeos/app/ui/navigation/LifeOSNavHost.kt` — Diary route now uses
+  `DiaryHomeScreen2` instead of `DiaryScreen`
+- `docs/diary-redesign/01-figma-design-spec.md` — Updated to record Stitch/Figma limitation and
+  document the implemented design system
+
+### Architecture Preservation
+- Existing ViewModels (DiaryViewModel, DiaryEditorViewModel) unchanged
+- Existing Repository (DiaryRepository) unchanged
+- Existing DAOs and Room entities unchanged (schema v7, no migration)
+- Existing ServiceLocator DI unchanged
+- Existing Navigation Compose unchanged (only Diary destination screen swapped)
+- Existing media storage, permissions, backup/restore unchanged
+
+### Data Safety
+- No Room table dropped/recreated; no schema change; no migration.
+- Existing diary entries, media paths, and `attachmentsJson` preserved byte-identical.
+- No `INTERNET`, no cloud, no telemetry, no external AI; all data on-device.
+
+### Verification
+```
+sh ./gradlew :app:compileDebugKotlin   → BUILD SUCCESSFUL
+sh ./gradlew :app:assembleDebug        → BUILD SUCCESSFUL (app-debug.apk, ~46 MB)
+```
+
+### Remaining Work
+- Wire DiaryDetailScreen2 into navigation (entry detail view)
+- Complete stubbed palettes (Drawing, Media/camera, Audio import)
+- Add inline rich content rendering (stickers, drawings, theme background)
+- Add first-entry celebration sheet
+- Create DiarySearchScreen2, DiaryCalendarScreen2, DiaryInsightsScreen2
+- Unit tests fail to compile due to pre-existing test-package mismatch (not caused by this work)
+- No device/emulator available for instrumentation tests or on-device QA
+
+
