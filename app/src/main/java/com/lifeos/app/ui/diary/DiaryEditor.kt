@@ -383,6 +383,7 @@ fun DiaryEditor(
                                 )
                             }
                         }
+
                         // The counter sits immediately under the text it counts, and
                         // before the metadata, so the card reads in the order it is
                         // actually used: writing, then how much of it there is, then
@@ -488,7 +489,7 @@ fun DiaryEditor(
             onDismiss = { openPalette = DiaryEditorPalette.NONE }
         )
         DiaryEditorPalette.DRAWING -> {
-            // Drawing sheet integration — placeholder for now, opens a stub
+            // Drawing canvas integration — stubbed until the canvas is wired.
             openPalette = DiaryEditorPalette.NONE
         }
         DiaryEditorPalette.LIST -> DiaryListPickerSheet(
@@ -498,7 +499,15 @@ fun DiaryEditor(
             },
             onDismiss = { openPalette = DiaryEditorPalette.NONE }
         )
-        DiaryEditorPalette.MEDIA, DiaryEditorPalette.AUDIO, DiaryEditorPalette.NONE -> Unit
+        DiaryEditorPalette.MEDIA -> {
+            // Media sheet integration — stubbed until the sheet is wired.
+            openPalette = DiaryEditorPalette.NONE
+        }
+        DiaryEditorPalette.AUDIO -> {
+            // Audio panel integration — stubbed until the panel is wired.
+            openPalette = DiaryEditorPalette.NONE
+        }
+        DiaryEditorPalette.NONE -> Unit
     }
 
     if (showDatePicker) {

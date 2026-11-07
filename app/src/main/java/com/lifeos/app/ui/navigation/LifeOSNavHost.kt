@@ -25,13 +25,15 @@ import com.lifeos.app.ui.ai.AiAssistantScreen
 import com.lifeos.app.ui.capture.AudioPlayerScreen
 import com.lifeos.app.ui.capture.AudioRecorderScreen
 import com.lifeos.app.ui.capture.CaptureHubScreen
-import com.lifeos.app.ui.diary.new.DiaryDetailViewModel
-import com.lifeos.app.ui.diary.new.DiaryHomeScreen
-import com.lifeos.app.ui.diary.new.DiaryNewCalendarScreen
-import com.lifeos.app.ui.diary.new.DiaryNewDetailScreen
-import com.lifeos.app.ui.diary.new.DiaryNewInsightsScreen
-import com.lifeos.app.ui.diary.new.DiaryNewSearchScreen
-import com.lifeos.app.ui.diary.new.DiaryTheme
+import com.lifeos.app.ui.diary.DiaryCalendarScreen
+import com.lifeos.app.ui.diary.DiaryCalendarViewModel
+import com.lifeos.app.ui.diary.DiaryDetailScreen
+import com.lifeos.app.ui.diary.DiaryHomeScreen2
+import com.lifeos.app.ui.diary.DiaryInsightsScreen
+import com.lifeos.app.ui.diary.DiaryInsightsViewModel
+import com.lifeos.app.ui.diary.DiarySearchScreen
+import com.lifeos.app.ui.diary.DiarySearchViewModel
+import com.lifeos.app.ui.diary.DiaryTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifeos.app.core.di.LambdaViewModelFactory
@@ -54,7 +56,7 @@ import com.lifeos.app.ui.tasks.TasksScreen
  * Whether the full-screen composer (New / Edit Memory) currently has the window.
  *
  * The composer is rendered as an in-place branch *inside* a destination
- * ([com.lifeos.app.ui.diary.new.DiaryHomeScreen] and DiaryDetailScreen swap it in place),
+ * ([com.lifeos.app.ui.diary.DiaryScreen] and DiaryDetailScreen swap it in place),
  * so `LifeOSNavHost` can see the route but never "is the composer open". Without
  * this holder the bottom bar could only be hidden while the keyboard happened to
  * be up, which is why the editor competed with the navigation and lost ~100dp of
@@ -310,7 +312,7 @@ fun LifeOSNavHost() {
                 }
                 composable(Screen.Diary.route) {
                     DiaryTheme {
-                        DiaryHomeScreen(
+                        DiaryHomeScreen2(
                             onBack = { navController.popBackStack() },
                             onOpenEntry = { entryId -> navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true } },
                             onOpenSearch = { navController.navigate(Screen.DiarySearch.route) { launchSingleTop = true } },
@@ -328,8 +330,20 @@ fun LifeOSNavHost() {
                 // want of a search — leaving would not expect the old query to be
                 // sitting there when you came back.
                 composable(Screen.DiarySearch.route) {
+                    val locator = LocalServiceLocator.current
+                    val searchViewModel: DiarySearchViewModel = viewModel(
+                        factory = LambdaViewModelFactory {
+                            DiarySearchViewModel(locator.searchDiaryEntriesUseCase)
+                        }
+                    )
+                    val searchState by searchViewModel.state.collectAsStateWithLifecycle()
                     DiaryTheme {
-                        DiaryNewSearchScreen(
+                        DiarySearchScreen(
+                            state = searchState,
+                            onQueryChange = searchViewModel::onQueryChange,
+                            onMoodFilterChange = searchViewModel::onMoodFilterChange,
+                            onSubmit = searchViewModel::onSubmit,
+                            onClearQuery = searchViewModel::onClearQuery,
                             onBack = { navController.popBackStack() },
                             onOpenEntry = { entryId ->
                                 navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true }
@@ -339,8 +353,19 @@ fun LifeOSNavHost() {
                 }
 
                 composable(Screen.DiaryCalendar.route) {
+                    val locator = LocalServiceLocator.current
+                    val calendarViewModel: DiaryCalendarViewModel = viewModel(
+                        factory = LambdaViewModelFactory {
+                            DiaryCalendarViewModel(locator.getDiaryCalendarUseCase)
+                        }
+                    )
+                    val calendarState by calendarViewModel.state.collectAsStateWithLifecycle()
                     DiaryTheme {
-                        DiaryNewCalendarScreen(
+                        DiaryCalendarScreen(
+                            state = calendarState,
+                            onSelectDay = calendarViewModel::selectDay,
+                            onPreviousMonth = calendarViewModel::previousMonth,
+                            onNextMonth = calendarViewModel::nextMonth,
                             onBack = { navController.popBackStack() },
                             onOpenEntry = { entryId ->
                                 navController.navigate(Screen.DiaryDetail.createRoute(entryId)) { launchSingleTop = true }
@@ -350,10 +375,18 @@ fun LifeOSNavHost() {
                 }
 
                 composable(Screen.DiaryInsights.route) {
+                    val locator = LocalServiceLocator.current
+                    val insightsViewModel: DiaryInsightsViewModel = viewModel(
+                        factory = LambdaViewModelFactory {
+                            DiaryInsightsViewModel(locator.getDiaryInsightsUseCase)
+                        }
+                    )
+                    val insightsState by insightsViewModel.state.collectAsStateWithLifecycle()
                     DiaryTheme {
-                        DiaryNewInsightsScreen(
+                        DiaryInsightsScreen(
+                            state = insightsState,
                             onBack = { navController.popBackStack() },
-                            onReload = { /* reload handled by ViewModel internally */ }
+                            onReload = insightsViewModel::reload
                         )
                     }
                 }
@@ -363,7 +396,7 @@ fun LifeOSNavHost() {
                 ) { entry ->
                     val entryId = entry.arguments?.getString("entryId").orEmpty()
                     DiaryTheme {
-                        DiaryNewDetailScreen(
+                        DiaryDetailScreen(
                             entryId = entryId,
                             onBack = { navController.popBackStack() }
                         )
